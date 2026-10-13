@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
+import ActivityDrawer from './components/ActivityDrawer';
 import ChatPage from './pages/ChatPage';
 import PluginsPage from './pages/PluginsPage';
 import ReportsPage from './pages/ReportsPage';
@@ -54,6 +55,8 @@ function AppInner() {
   const [huntSignal, setHuntSignal] = useState(0);
   // If "New hunt" was clicked while logged out, open the hunt setup right after login.
   const [pendingHunt, setPendingHunt] = useState(false);
+  // Agent activity drawer (top-bar button).
+  const [activityOpen, setActivityOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(
     () => typeof window !== 'undefined' && window.innerWidth > 768,
   );
@@ -252,7 +255,9 @@ function AppInner() {
           sidebarOpen={sidebarOpen}
           showShare={page === 'chat' && !!activeChat && activeChat.messages.length > 0}
           onNavigate={navigate}
+          onActivity={() => setActivityOpen(true)}
         />
+        <ActivityDrawer open={activityOpen} onClose={() => setActivityOpen(false)} />
         {page === 'chat' && (
           <ChatPage
             chat={activeChat}

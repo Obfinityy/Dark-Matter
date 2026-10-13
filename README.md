@@ -1,221 +1,80 @@
 # Dark Matter — Autonomous Bug-Bounty Agent
 
-> **Paste a link. The agent hunts. You get the report.**
+> **Paste a link. Close your browser. Come back in 3 days. Read the report.**
 
-Dark Matter by **Obfinity** is an autonomous AI security researcher for authorized bug-bounty hunting. It reasons like an elite human hunter — reconnaissance, attack-surface mapping, hypothesis testing, vulnerability chaining, controlled validation — and delivers professional, submission-ready PDF reports.
-
-**Hunt AI** — Paste a URL you own or a bug-bounty program link. The agent autonomously:
-- Understands the target and scope by itself (HackerOne, Bugcrowd, Intigriti, or direct URLs)
-- Maps the attack surface (subdomain enum, live-host probing, JS-aware crawling, port scanning)
-- Tests real security hypotheses (XSS, SQLi, IDOR, SSRF, and 12,000+ more via community templates)
-- Chains small weaknesses into high-impact attack paths, like an elite hunter
-- Validates findings with working proof-of-concepts
-- Generates submission-ready PDF reports — on demand, even mid-hunt
-
-**Free, local-first** — no login, no signup, no premium tier. The app opens straight into the hunt console and talks to the backend on your own machine. Your AI brains (Local, Kaggle, or AWS) plug in from the Models page, and everything the agent learns is saved on your disk.
+Dark Matter by **Obfinity** is an autonomous AI security researcher for **authorized** bug-bounty hunting. It thinks like an elite human hunter — recon, attack-surface mapping, hypothesis testing, vulnerability chaining, controlled validation — and delivers professional, submission-ready reports.
 
 [![Status](https://img.shields.io/badge/Status-Production-blue)](#)
-[![Frontend](https://img.shields.io/badge/Frontend-React%2018-61dafb)](#)
+[![Frontend](https://img.shields.io/badge/Frontend-React-61dafb)](#)
 [![Backend](https://img.shields.io/badge/Backend-Node.js-339933)](#)
+[![Engine](https://img.shields.io/badge/Engine-PentAGI-orange)](#)
 
 ---
 
-## What It Does
+## How it works (for users)
 
-**Hunt AI** — Paste a URL you own. The agent autonomously:
-- Maps the attack surface (recon, fingerprinting)
-- Tests real security hypotheses (XSS, SQLi, IDOR, SSRF, and more)
-- Validates findings with working proof-of-concepts
-- Generates submission-ready PDF reports
+1. **Sign up / log in** — hunting requires an account (browsing is open to everyone).
+2. **New hunt** — paste a target URL you own or are authorized to test, confirm authorization.
+3. **The agent hunts** — multi-agent system (PentAGI engine) runs recon, testing, and chaining in a Docker sandbox on your machine.
+4. **Live with it** — Pause / Resume / Stop anytime from the hunt card. Chat with the agent mid-hunt: ask *"what did you find?"*, say *"pause the hunt"*.
+5. **Close the browser** — the hunt keeps running. Come back anytime: **Reports** shows your hunts with live status.
+6. **Get the report** — one click, Markdown or PDF, even mid-hunt. Findings include exploit chains (3 mediums → 1 critical), confirmation status, and next-step probes.
 
-**Payload Library** — 1,400+ curated payloads (XSS, SQLi, LFI, SSRF, SSTI, XXE…) the agent draws on during hunts.
+### Screenshots
 
-**Plugins** — community templates and extensions for specialised testing.
+| Home | Hunt running |
+|------|--------------|
+| *ChatGPT-style home — "Where should we begin?"* | *Live hunt card with thinking, tool calls, findings, Pause/Resume/Stop* |
 
----
+| Plugins (AWS) | Reports |
+|---------------|---------|
+| *Connect AWS Bedrock — keys stored encrypted* | *Your hunts, live status, one-click reports* |
 
-## How It Thinks
-
-**Triple-brain architecture** — three specialized models, each on your machine:
-
-| Brain | Role | Rule |
-|-------|------|------|
-| **Hacking** | The sole decision-maker. Strategizes, chains vulnerabilities, writes reports. | Thinks — never clicks |
-| **Vision** | Sees screenshots, returns exactly the data the hacker asked for. | Sees — never decides |
-| **Grounding** | Converts element descriptions to screen coordinates. | Clicks — never decides |
-
-**Message queue** — the remote GPU handles one message at a time (FIFO). The hunt loop, mid-hunt chat, and background workers can all talk to the brain simultaneously without overlap or corruption.
-
-**Unlimited thinking** — a rolling brain-written summary compresses aging history every K steps, so the agent reasons coherently at step 500 exactly as at step 5. Long outputs auto-continue from truncation points.
-
-**Task decomposition** — complex objectives are split into independent sub-tasks (parallel tool runs + focused analyses), then synthesized into one conclusion — the same plan → delegate → synthesize pattern a human operator uses.
-
-## Architecture
-
-```
-┌──────────┐     ┌──────────────────┐
-│ Frontend │────▶│ Backend          │
-│(hosted — │     │ (your machine,   │
-│  opens   │     │  localhost:4000) │
-│  straight│     │                  │
-│  into    │     │  Hunts, reports, │
-│  the hunt│     │  brain links,    │
-│  console)│     │  local disk      │
-└──────────┘     │  memory          │
-                 └──────────────────┘
-     │
-     ▼
-┌──────────────────────────────────┐
-│   YOUR LOCAL MACHINE             │
-│                                  │
-│   • Hacking brain (thinks)       │
-│   • Vision brain (sees)          │
-│   • Grounding brain (clicks)     │
-│   • Kali Linux VM (acts)         │
-│   • Recon tools (nmap, nuclei…)  │
-│                                  │
-│   Models NEVER leave your        │
-│   computer.                      │
-└──────────────────────────────────┘
-```
-
-**Key principle:** AI models run exclusively on your machine or your chosen GPU host (Kaggle/AWS). The local backend orchestrates hunts and storage on your disk. Computer-control commands never leave your machine.
+> Screenshots live in `docs/screenshots/`. (Add yours after `npm run dev` — see below.)
 
 ---
 
-## Quick Start (free local setup — no login, no signup)
+## What makes it "infinity level"
 
-Dark Matter is a free local-first product. There is no login page, no account,
-no premium tier: the site opens straight into the hunt console and talks to the
-backend running on your own machine. Hunt memory and checkpoints live on your
-disk, never in the cloud.
+- **Exploit-chain engine** — findings become capability primitives; 30 chain equations turn mediums into criticals (`read + write = RCE`).
+- **Differential confirmation** — every finding needs a true/false control probe; false positives are rejected, not reported.
+- **Variant mining** — patch-gap patterns (WAF bypasses, JWT confusion, filter evasions) hunt zero-day variants.
+- **Stateful API sequencing** — producer→consumer request chains reach the business-logic bugs single-request scanners miss.
+- **Engine tools** — JWT attack battery, nuclei verified-check templates, API sequencer (`docker/tools/`).
 
-**1. Pull the repo**
+Details: `docs/vuln-research-2026-10-13.md` · `backend/src/hunt-intel/` · `AGENTS.md`.
+
+---
+
+## Quick start (developers)
+
 ```bash
-git clone https://github.com/Obfinityy/Dark-Matter.git
-cd Dark-Matter
+# Backend (orchestrator — never runs hunts itself)
+cd backend && npm install && npm start        # → http://localhost:4000
+
+# Frontend
+cd frontend && npm install && npm run dev     # → http://localhost:5173
+
+# Engine (your Linux machine — Docker)
+cd docker && ./setup-linux.sh                 # PentAGI + pgvector + tool sandbox
+
+# Voice (your machine, optional)
+cd voice/stt && uvicorn app:app --port 8001
+cd voice/tts && uvicorn app:app --port 8002
 ```
 
-**2. Start the backend** (one-time: `npm install`; then every use)
-```bash
-cd backend
-npm install
-npm start          # → http://localhost:4000
-```
-For the no-login local experience, set in `backend/.env` (or copy from
-`backend/.env.example`):
-```
-DM_LOCAL_MODE=true        # single-user local service, no tokens needed
-DM_DATA_DIR=./app-data    # hunt memory/checkpoints on YOUR disk (optional)
-```
-> ⚠️ `DM_LOCAL_MODE=true` is for your own machine only — never enable it on a
-> public server.
+**Deploy:** frontend auto-deploys (Vercel + Cloudflare Pages) on push to `main`. Backend on Render — **manual deploy** from the dashboard (auto-deploy is off).
 
-**3. Start the Kali VM runner** (the agent's sandbox Linux machine)
-On Windows, double-click **`Start-VM-Runner.bat`** in the repo root (first boot
-downloads the Kali image once, ~3–4 GB). This starts the local runner on
-port 4100 that the Hunt AI uses to actually operate the machine.
-
-**4. Open the app — no local frontend needed**
-Go to **https://hack.thebhavesh.online** in your browser. It opens straight
-into the hunt console and auto-connects to your local backend
-(`http://localhost:4000`); if your backend runs on a tunnel link, paste it in
-the connection editor on the agent home page.
-
-**5. Connect your AI brains** (Models page)
-Each brain slot (Vision, Grounding, Hacking) has three tabs:
-- **Local** — run a model on this machine
-- **Kaggle** — paste your Kaggle/Gradio share link
-- **AWS** — paste your hosted model endpoint URL + optional API key
-  (stored encrypted, sent as a Bearer <redacted>
-
-**6. Hunt**
-Open Hunt, paste a target URL you own or that is in-scope for a bug bounty
-program you are enrolled in, and hit Start. The agent hunts continuously —
-thinking, acting on the Kali machine, saving everything locally — until you
-force-stop it. Message it mid-hunt, and pull a full PDF report any time.
-
----
-
-## Project Structure
-
-```
-.
-├── backend/                    # Node.js (ESM) + Express API
-│   └── src/
-│       ├── agent/              # Autonomous hunting brain (providers, state machine)
-│       ├── engines/            # ~590 pure-function security engines
-│       ├── hunt/               # Hunt orchestration (runner, planner, reporting)
-│       ├── recon/              # Reconnaissance scan loops
-│       ├── tools/              # Security tool integrations (nuclei, katana, …)
-│       ├── computer/           # Desktop control bridge (Node.js half)
-│       ├── control/            # Control-mode agent loop
-│       ├── routes/             # API routing table (index.js — start here)
-│       ├── controllers/        # Thin HTTP controllers
-│       ├── services/           # Business logic (auth, chat, voice, billing)
-│       ├── models/             # MongoDB schemas
-│       ├── jobs/               # Background workers
-│       ├── middleware/         # Express middleware
-│       ├── core/               # Shared primitives (crypto, errors, utils)
-│       ├── avatar/             # Avatar emotion system
-│       └── voice/              # Infinity Voice TTS service layer
-├── frontend/                   # React 18 + Vite application
-│   └── src/
-│       ├── pages/              # Routes (Landing, Auth, agent workspace, Hunt)
-│       ├── components/         # Reusable UI (agent, brand, fx, hunt wave galleries)
-│       ├── services/           # API clients (api.js, voice.js, …)
-│       ├── auth/               # Auth context
-│       ├── hooks/              # Shared React hooks
-│       ├── styles/             # Design system CSS
-│       ├── utils/              # Pure helpers
-│       └── data/               # Static data (model catalog)
-├── ideas/                      # Idea bank — 100,000+ numbered product ideas
-├── research/                   # Methodology and strategy research
-├── AGENTS.md                   # Project guide for AI agents (read first)
-├── VISION.md                   # Product vision
-└── THIRD_PARTY_NOTICES.md      # License attributions
-```
-
-Every directory carries a short `README.md` explaining what lives there and why.
+**Env (backend):** `JWT_SECRET` (persistent!), `PLUGIN_MASTER_KEY`, `ALLOWED_TARGETS` (comma-separated, required for hunts), `CORS_ORIGINS`, `DATA_DIR`.
 
 ---
 
 ## Safety
 
-> **Authorized testing only.** Use only on targets you own, bug-bounty programs you're enrolled in, or with explicit written permission.
-
-- Scope allowlist enforced before any network action
-- Non-destructive testing only — no data modification, no DoS
-- Every finding requires evidence, not just status codes
-
----
-
-## Tech Stack
-
-- **Frontend:** React 18, React Router, Vite, Lucide icons
-- **Backend:** Node.js (ESM), Express, MongoDB
-- **AI:** Triple-brain (hacker/vision/grounding) — local GGUF via llama.cpp or Kaggle Gradio GPU links
-- **Security tools:** nuclei, subfinder, httpx, katana, naabu, dalfox, ffuf (auto-downloaded, MIT)
-- **Voice:** Infinity Voice neural TTS (Kokoro-82M default, VoxCPM2 premium), CPU-friendly
-- **Reports:** Brain-written sections → pdfkit professional PDF
-- **Deploy:** Cloudflare Pages (frontend, auto-deploy), Render (backend)
-
----
-
-## Key Docs
-
-- [AGENTS.md](AGENTS.md) — full project guide for contributors and AI agents
-- [VISION.md](VISION.md) — product vision
-- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) — license attributions
+Authorized targets only. Every hunt requires explicit `confirmedAuthorized: true` plus the `ALLOWED_TARGETS` allowlist. Non-destructive testing. Never submit reports blindly — review before sending to a program.
 
 ---
 
 ## License
 
-Private — Obfinity. All rights reserved.
-
----
-
-<p align="center">
-  Built by <b>Obfinity</b> — Dark Matter <i>hunts smarter, not harder.</i>
-</p>
+Dark Matter © Obfinity. PentAGI engine: MIT (vxcontrol) — see `third_party/pentagi/`.

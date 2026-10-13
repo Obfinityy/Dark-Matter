@@ -1350,3 +1350,23 @@ h4.md-heading { font-size: 16px; }
   .profile-menu.top-right { position: fixed; top: 64px; right: 12px; }
   .topbar-right .pill-btn-outline { display: none; }
 }
+
+/* Activity drawer — agent logs */
+.activity-scrim {
+  position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 90;
+  display: flex; justify-content: flex-end;
+}
+.activity-drawer {
+  width: min(420px, 92vw); height: 100%; background: #fff;
+  box-shadow: -8px 0 32px rgba(0,0,0,.18); display: flex; flex-direction: column;
+  padding: 18px;
+}
+.activity-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.activity-head h2 { font-size: 18px; margin: 0; }
+.activity-drawer .text-input { margin-bottom: 12px; }
+.activity-log { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.activity-row { display: flex; gap: 10px; padding: 8px 10px; border-radius: 8px; background: #f7f7f8; font-size: 13px; }
+.activity-row.activity-finding { background: #fff7e6; border: 1px solid #f0d488; }
+.activity-row.activity-status { background: #eef4ff; }
+.activity-icon { flex-shrink: 0; }
+.activity-text { word-break: break-word; color: #333; }

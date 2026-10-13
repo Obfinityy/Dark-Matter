@@ -23,7 +23,15 @@ function IconShare() {
   );
 }
 
-export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate }) {
+function IconActivity() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M3 12h4l3 8 4-16 3 8h4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onActivity }) {
   const { user } = useAuth();
   const [modelOpen, setModelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -86,6 +94,11 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate }) {
         )}
       </div>
       <div className="topbar-right" ref={profileRef} style={{ position: 'relative' }}>
+        {onActivity && (
+          <button className="icon-btn" title="Agent activity" aria-label="Agent activity" onClick={onActivity}>
+            <IconActivity />
+          </button>
+        )}
         {showShare && (
           <button className="icon-btn" title="Share chat" aria-label="Share chat" onClick={share}>
             <IconShare />

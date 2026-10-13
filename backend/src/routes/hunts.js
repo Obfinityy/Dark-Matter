@@ -242,6 +242,18 @@ router.get('/:id/report', requireAuth, async (req, res) => {
   res.type('text/markdown').send(md);
 });
 
+// ---- Agent activity log: whatever the agent did, when --------------------------------
+// Cached event stream (thinking, tool calls, findings, status). Works even
+// when the engine is unreachable — this is the "what is the agent doing"
+// view.
+router.get('/:id/events', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const limit = Math.min(parseInt(req.query.limit || '200', 10) || 200, 1000);
+  const events = readHuntEvents(req.params.id);
+  res.json({ ok: true, huntId: req.params.id, events: events.slice(-limit) });
+});
+
 // ---- Infinity analysis: chains, confirmation, exploitability, variant probes.
 // Pure logic over cached findings — no engine call needed. Powers the
 // "what did you chain / what's next" view any time, even mid-hunt.

@@ -100,6 +100,11 @@ export async function listHunts() {
   return get('/api/v1/hunts');
 }
 
+/** Cached agent activity (thinking, tool calls, findings) for a hunt. */
+export async function getHuntEvents(huntId, limit = 200) {
+  return get(`/api/v1/hunts/${encodeURIComponent(huntId)}/events?limit=${limit}`);
+}
+
 export async function startHunt(target, scope) {
   const res = await post('/api/v1/hunts', { target, scope });
   if (!res.ok) return res;

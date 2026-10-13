@@ -62,16 +62,57 @@ cd voice/tts && uvicorn app:app --port 8002  # after downloading a Piper voice
 
 ```
 GET  /api/v1/health
-POST /api/v1/chat                        # chat (streams via WS/SSE)
+POST /api/v1/chat                        # mid-hunt chat (steering + summaries)
 POST /api/v1/hunts                       # {target, scope, confirmedAuthorized:true}
+GET  /api/v1/hunts                       # the user's hunts (re-attach after browser close)
 GET  /api/v1/hunts/:id
 POST /api/v1/hunts/:id/pause|resume|stop
 WS   /api/v1/hunts/:id/stream            # live events: thinking|tool_call|finding|status|done
-POST /api/v1/hunts/:id/report            # report anytime, incl. mid-hunt
-GET  /api/v1/plugins/providers
-POST /api/v1/plugins/:id/keys           # encrypted storage
-GET  /api/v1/reports
+GET  /api/v1/hunts/:id/report            # report anytime, incl. mid-hunt (?format=md|pdf)
+GET  /api/v1/hunts/:id/analysis?goal=rce # infinity analysis: chains, confirmation, next steps
+GET  /api/v1/plugins/providers           # AWS Bedrock only (owner connects it later)
+PUT  /api/v1/plugins/providers/:id       # encrypted credential storage
+GET  /api/v1/models                      # downloadable models
+POST /api/v1/auth/signup|login           # JWT auth (hunting requires login)
+GET  /api/v1/auth/me
 ```
+
+## Hunt-intel layer (backend/src/hunt-intel/) — 13 Oct 2026
+
+Re-implemented (not copied) from vulnerability-discovery research
+(`docs/vuln-research-2026-10-13.md`). Pure logic, no network:
+
+- `chainEngine.js` — capability primitives per finding class + 30 chain
+  equations (`read + write = RCE`, `ssrf + cloud_meta = infra-compromise`…).
+  BFS finds exploit chains; `planToGoal()` reverse-plans missing primitives.
+  This is how mediums become critical bounties.
+- `differential.js` — mandatory true/false control probes per vuln class;
+  `assessConfirmation()` returns confirmed/unconfirmed/rejected (rejects FPs);
+  exploitability rubric (LIKELY_EXPLOITABLE/MEDIUM/BENIGN); dedup by
+  (class+sink+trigger).
+- `variantDb.js` — 10 patch-gap variant patterns (filter bypasses, WAF
+  evasions, JWT confusion, auth juggling…) for zero-day variant mining.
+- `index.js` — `analyzeFindings()` pipeline + `chainsMarkdown()`; reports
+  include an "Infinity analysis" section with chains first (bounty order).
+
+## Engine hunt tools (docker/tools/) — 13 Oct 2026
+
+For the PentAGI Docker sandbox (agents invoke via shell; see
+`docker/tools/README.md` and `engine/pentagi/INTEGRATION.md` §6):
+
+- `jwt-battery/` — JWT attack matrix (alg:none, RS256→HS256, weak-secret
+  crack, kid traversal, claim-tamper replay). Python, JSON output.
+- `nuclei/` — verified-check template scanning via Docker.
+- `api-sequencer/` — RESTler-lite stateful API fuzzing (producer→consumer
+  sequences + 500 oracle for business-logic bugs).
+
+## Frontend notes (13 Oct 2026)
+
+- ChatGPT-light theme; sidebar: New hunt / Plugins / Reports / Settings.
+- Auth required for hunts; pending-hunt intent opens the hunt setup after login.
+- Plugins page: AWS Bedrock only. Reports page merges backend + local hunts.
+- HuntCard has Pause/Resume/Stop. Mid-hunt chat via composer.
+- API base: `frontend/src/config.js` → hosted backend only (no local switcher).
 
 ## Conventions
 
