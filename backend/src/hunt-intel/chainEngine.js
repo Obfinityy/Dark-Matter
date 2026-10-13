@@ -274,3 +274,104 @@ export function beamSearchChains(heldCaps, opts = {}) {
   results.sort((a, b) => b.score - a.score);
   return results.slice(0, 10);
 }
+
+// ---- SSRF chain equations (SSRFmap technique, MIT) --------------------------
+// SSRF-to-cloud-credential is the classic critical chain. Per-provider
+// metadata modules; confirmation ladder: canary ping -> read-only metadata.
+
+export const SSRF_CHAINS = [
+  {
+    title: 'SSRF param → AWS IMDS → credential harvest',
+    needs: ['ssrf'],
+    gives: ['cloud_meta', 'cred_leak'],
+    impact: 'critical',
+    how: 'Inject cloud metadata URL (169.254.169.254/latest/meta-data/iam/security-credentials/) into SSRF sink; harvest IAM creds.',
+    confirm: ['canary_ping', 'metadata_read', 'credential_use'],
+  },
+  {
+    title: 'SSRF param → GCE metadata → service account token',
+    needs: ['ssrf'],
+    gives: ['cloud_meta', 'cred_leak'],
+    impact: 'critical',
+    how: 'Inject metadata.google.internal with Metadata-Flavor: Google header; harvest service account token.',
+    confirm: ['canary_ping', 'metadata_read', 'credential_use'],
+  },
+  {
+    title: 'SSRF param → internal admin → RCE',
+    needs: ['ssrf'],
+    gives: ['code_exec'],
+    impact: 'critical',
+    how: 'Pivot SSRF to internal admin panels (169.254.x.x, 10.0.0.0/8, localhost); exploit internal RCE.',
+    confirm: ['canary_ping', 'internal_reach', 'rce_proof'],
+  },
+  {
+    title: 'SSRF param → S3 bucket → policy rewrite',
+    needs: ['ssrf', 'cloud_meta'],
+    gives: ['data_read', 'data_write'],
+    impact: 'high',
+    how: 'Use harvested creds to assess S3 permission matrix; WriteACP → policy rewrite → data exposure.',
+    confirm: ['permission_matrix', 'policy_rewrite_test'],
+  },
+];
+
+/** SSRF confirmation ladder: each rung must pass before the next. */
+export const SSRF_CONFIRM_LADDER = [
+  'canary_ping',      // collaborator URL proves outbound requests
+  'metadata_read',    // read-only cloud metadata (no creds yet)
+  'credential_use',   // creds work (read-only action)
+  'impact_proof',     // demonstrates security impact
+];
+
+// ---- Producer→consumer inference (RESTler technique, MIT) -------------------
+// Auto-infer dependencies: POST /users returns {id} → GET /users/{id}.
+// Unlocks stateful multi-step chains no single-request scanner can find.
+
+/**
+ * Infer producer→consumer edges from observed API traffic.
+ * @param {Array<{method, path, responseBody}>} observations
+ * @returns {Array<{from, to, param, via}>}
+ */
+export function inferProducerConsumer(observations) {
+  const edges = [];
+  const producers = []; // {path, ids: [{field, value}]}
+  const consumers = []; // {path, placeholders: [field]}
+
+  for (const obs of observations || []) {
+    const path = String(obs.path || '');
+    // Producer: POST/PUT that returns an object with an id
+    if (/^(POST|PUT)$/i.test(obs.method || '')) {
+      try {
+        const body = typeof obs.responseBody === 'string' ? JSON.parse(obs.responseBody) : obs.responseBody;
+        const ids = extractIds(body);
+        if (ids.length) producers.push({ path, ids });
+      } catch { /* not JSON */ }
+    }
+    // Consumer: path with {placeholder} or :param
+    const placeholders = [...path.matchAll(/[{:]([a-zA-Z_][a-zA-Z0-9_]*)/g)].map((m) => m[1]);
+    if (placeholders.length) consumers.push({ path, placeholders, method: obs.method });
+  }
+
+  for (const prod of producers) {
+    for (const cons of consumers) {
+      for (const pid of prod.ids) {
+        if (cons.placeholders.some((p) => p.toLowerCase().includes(pid.field.toLowerCase()) || pid.field.toLowerCase().includes(p.toLowerCase()))) {
+          edges.push({ from: prod.path, to: cons.path, param: pid.field, via: `${prod.path} → ${cons.path}` });
+        }
+      }
+    }
+  }
+  return edges;
+}
+
+function extractIds(obj, depth = 0) {
+  if (!obj || typeof obj !== 'object' || depth > 3) return [];
+  const out = [];
+  for (const [k, v] of Object.entries(obj)) {
+    if (/^(id|uuid|guid|_id)$/i.test(k) && (typeof v === 'string' || typeof v === 'number')) {
+      out.push({ field: k, value: v });
+    } else if (typeof v === 'object') {
+      out.push(...extractIds(v, depth + 1));
+    }
+  }
+  return out;
+}

@@ -23,7 +23,12 @@ export { HUNT_MODES, MODE_ORDER, TIERS, getMode, modesForTier, canUseMode } from
 export { evidenceGate, verifyPipeline, VERIFY_STEPS } from './differential.js';
 export { createTaskTree, addTask, findNode, setTaskStatus, attachFinding, summarizeTree, serializeTree, deserializeTree } from './taskTree.js';
 export { TECHNIQUE_CATALOG, techniquesByTactic, searchTechniques } from './attackCatalog.js';
-export { beamSearchChains } from './chainEngine.js';
+export { beamSearchChains, SSRF_CHAINS, SSRF_CONFIRM_LADDER, inferProducerConsumer } from './chainEngine.js';
+export { mineJsEndpoints, semanticUrlUsage, findSourceMaps, rankEndpoints } from './jsIntel.js';
+export { verdictBAC, findCapabilityMarkers, BAC_CONFIDENCE } from './accessControl.js';
+export { fingerprintWaf, recordEvasionResult, isKnownBlocked, encodePayload, ENCODERS } from './wafIntel.js';
+export { scoreSilentPatch, silentPatchToVariant, fingerprintConfidence } from './variantWatch.js';
+export { OAUTH_ATTACKS, oauthAttacksFor } from './oauthAttacks.js';
 
 export function analyzeFindings(rawFindings, goal = 'rce') {
   const deduped = dedupeFindings(rawFindings || []);
