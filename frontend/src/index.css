@@ -1462,7 +1462,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
    ========================================================================== */
 :root { --dm-brand: #b8860b; --dm-brand-soft: #f5ead0; }
 
-.dm-hero { max-width: 720px; padding: 24px; justify-content: center; }
+.dm-hero-scroll {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 24px; min-height: 0; overflow-y: auto;
+}
+.dm-hero { max-width: 720px; width: 100%; display: flex; flex-direction: column; align-items: center; }
 .dm-emblem { margin-bottom: 20px; }
 .dm-emblem svg { display: block; }
 .dm-wordmark {
@@ -1490,7 +1494,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .dm-action-icon { font-size: 22px; }
 .dm-action-title { font-weight: 600; font-size: 14px; color: #0d0d0d; }
 .dm-action-sub { font-size: 12px; color: var(--dm-secondary); }
-.dm-disclaimer { font-size: 12px; color: var(--dm-faint); margin-top: 16px; text-align: center; }
+.dm-disclaimer { font-size: 12px; color: var(--dm-faint); margin: 0; padding: 0 16px 14px; text-align: center; }
 
 /* Brand gold accents (minimal, distinctive) */
 .nav-item.active { border-left: 3px solid var(--dm-brand); }
