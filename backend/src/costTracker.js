@@ -8,7 +8,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { dataDir } from './paths.js';
+import { dataDir } from './store.js';
 
 // USD per 1M tokens — update when AWS changes pricing.
 const MODEL_PRICING = {

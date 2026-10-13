@@ -38,6 +38,7 @@ import {
 import { requireAuth } from './auth.js';
 import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience, getMode, HUNT_MODES, MODE_ORDER, TIERS } from '../hunt-intel/index.js';
 import { getHuntCost, getUserCosts } from '../costTracker.js';
+import { understandTarget } from '../targetIntel.js';
 
 /** Reject unless the hunt belongs to the authenticated user. */
 function requireHuntOwner(req, res) {
@@ -127,6 +128,9 @@ router.post('/', requireAuth, async (req, res) => {
       authorized: true,
     });
     appendHuntEvent(huntId, { type: 'status', state: 'created', target, mode: huntMode.id });
+    // AI understands the target first (async, non-blocking): tech stack,
+    // endpoints, forms — becomes hunt context for the engine + chat.
+    understandTarget(huntId, target).catch(() => {});
     res.status(201).json({ ok: true, huntId });
   } catch (err) {
     engineErrorResponse(res, err);

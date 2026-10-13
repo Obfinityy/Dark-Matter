@@ -503,24 +503,6 @@ button { font-family: inherit; }
 }
 
 /* Empty state */
-.empty-wrap {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  min-height: 0;
-}
-.empty-wrap h1 {
-  font-size: 32px;
-  font-weight: 400;
-  color: var(--dm-text);
-  margin: 0 0 28px;
-  text-align: center;
-  letter-spacing: -0.01em;
-}
-.empty-composer { width: 100%; max-width: 770px; }
 
 /* ---------- Messages ---------- */
 .message { display: flex; }
@@ -1345,7 +1327,6 @@ h4.md-heading { font-size: 16px; }
   .chat-thread { padding: 16px 16px 8px; }
   .message-user .message-body { max-width: 85%; }
   .composer-wrap { padding: 8px 8px 6px; }
-  .empty-wrap h1 { font-size: 24px; }
   .page { padding: 20px 16px 60px; }
   .profile-menu.top-right { position: fixed; top: 64px; right: 12px; }
   .topbar-right .pill-btn-outline { display: none; }
@@ -1452,7 +1433,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   .topbar { padding: 8px 12px; }
 }
 @media (max-width: 480px) {
-  .empty-wrap h1 { font-size: 22px; }
   .mode-grid { grid-template-columns: 1fr 1fr; }
   .composer-wrap { padding: 6px 6px 4px; }
 }
@@ -1499,8 +1479,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 /* Brand gold accents (minimal, distinctive) */
 .nav-item.active { border-left: 3px solid var(--dm-brand); }
 .sidebar .wordmark { letter-spacing: 2px; }
-.empty-composer { border-color: var(--dm-brand); }
-.empty-composer:focus-within { box-shadow: 0 0 0 2px var(--dm-brand-soft); }
 
 @media (max-width: 768px) {
   .dm-quick-actions { grid-template-columns: 1fr; }
