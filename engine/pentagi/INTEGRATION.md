@@ -230,3 +230,25 @@ push protection (GH013). They are unit tests, not runtime code:
 - `backend/pkg/config/config_test.go`
 - `backend/pkg/providers/anthropic/anthropic_test.go`
 - `backend/pkg/providers/routing_test.go`
+
+## 6. Dark Matter hunt tools (infinity-level techniques)
+
+Extra tools live in `docker/tools/` (see its README). The PentAGI agents
+invoke them via shell inside their Docker tool sandboxes — no engine code
+changes needed:
+
+| Tool | Trigger | Output |
+|------|---------|--------|
+| `jwt-battery/jwt-battery.py` | any JWT observed in traffic | JSON: alg:none / confusion / crack / kid / tamper results |
+| `nuclei/run-nuclei.sh` | after recon, before deep phases | JSONL: verified-check template findings (near-zero FP) |
+| `api-sequencer/api-sequencer.py` | OpenAPI/Swagger discovered | JSON: 5xx crashes from stateful sequences |
+
+Agent guidance to add (Orchestrator system prompt or playbook):
+- "When you observe a JWT, run the JWT battery before moving on."
+- "After initial recon, run nuclei (critical,high) for one-day coverage."
+- "When an OpenAPI spec is found, run the API sequencer for stateful bugs."
+
+Tool JSON output is parsed into `finding` events, which flow into the
+backend hunt-intel pipeline: dedupe → differential confirmation →
+exploitability rubric → exploit-chain graph → variant probes
+(`backend/src/hunt-intel/`, `GET /api/v1/hunts/:id/analysis`).
