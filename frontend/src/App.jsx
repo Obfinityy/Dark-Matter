@@ -87,12 +87,19 @@ function AppInner() {
   const activeChat = chats.find((c) => c.id === activeChatId) || null;
 
   const createChat = useCallback(() => {
+    // Reuse the active chat if it's still empty — avoids "New chat" spam
+    // in history when New Hunt is clicked repeatedly.
+    const active = chats.find((c) => c.id === activeChatId);
+    if (active && active.messages.length === 0) {
+      setPage('chat');
+      return active.id;
+    }
     const chat = { id: uid(), title: 'New chat', messages: [], createdAt: new Date().toISOString() };
     setChats((prev) => [chat, ...prev]);
     setActiveChatId(chat.id);
     setPage('chat');
     return chat.id;
-  }, []);
+  }, [chats, activeChatId]);
 
   const appendMessage = useCallback((chatId, message) => {
     setChats((prev) =>
