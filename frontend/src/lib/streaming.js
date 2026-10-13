@@ -8,14 +8,18 @@
 // only depends on the (text, onToken) => Promise signature.
 // ============================================================================
 
-/** Yield progressively longer prefixes of `text`, word-grouped, with pacing. */
+/** Yield progressively longer prefixes of `text`, word-grouped, with pacing.
+ *  opts.signal: optional { aborted: boolean } — when set mid-stream the reveal
+ *  stops immediately (used by the composer's ■ stop button). */
 export async function streamReveal(text, onToken, opts = {}) {
   const chunkSize = opts.chunkSize || 3; // words per frame
   const delayMs = opts.delayMs || 24;
+  const signal = opts.signal || null;
   const words = String(text || '').split(/(\s+)/);
   let current = '';
   let count = 0;
   for (const w of words) {
+    if (signal && signal.aborted) return;
     current += w;
     count += 1;
     if (count % chunkSize === 0) {
@@ -23,6 +27,7 @@ export async function streamReveal(text, onToken, opts = {}) {
       await sleep(delayMs);
     }
   }
+  if (signal && signal.aborted) return;
   onToken(current);
 }
 

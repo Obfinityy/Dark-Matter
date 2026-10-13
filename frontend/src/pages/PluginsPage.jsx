@@ -159,6 +159,7 @@ export default function PluginsPage() {
 
   return (
     <div className="page">
+      <div className="page-inner">
       <header className="page-header">
         <h1>Plugins</h1>
         <p className="page-sub">Connect any AI provider, or download a model to run locally.</p>
@@ -203,6 +204,7 @@ export default function PluginsPage() {
       {models.length === 0 && !modelsError && (
         <div className="empty-hint">Loading models…</div>
       )}
+      </div>
     </div>
   );
 }

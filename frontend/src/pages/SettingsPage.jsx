@@ -81,6 +81,7 @@ export default function SettingsPage() {
 
   return (
     <div className="page">
+      <div className="page-inner">
       <header className="page-header">
         <h1>Settings</h1>
         <p className="page-sub">Where the app connects, and how it talks back.</p>
@@ -93,7 +94,7 @@ export default function SettingsPage() {
           onClick={() => chooseMode('cloud')}
         >
           <div className="backend-card-title">
-            <span aria-hidden="true">☁️</span> Cloud (Render)
+            Cloud
             <span className="default-badge">Default</span>
           </div>
           <div className="backend-card-desc">
@@ -105,7 +106,7 @@ export default function SettingsPage() {
         <div className={`backend-card${mode === 'mydevice' ? ' selected' : ''}`}>
           <button className="backend-card-select" onClick={() => chooseMode('mydevice')}>
             <div className="backend-card-title">
-              <span aria-hidden="true">💻</span> My Device
+              My Device
             </div>
             <div className="backend-card-desc">
               Run the backend on your own machine. Each backend keeps its own data.
@@ -154,6 +155,7 @@ export default function SettingsPage() {
       <p className="page-sub">
         Toggle the speaker button in the chat input to hear replies read aloud in this voice.
       </p>
+      </div>
     </div>
   );
 }

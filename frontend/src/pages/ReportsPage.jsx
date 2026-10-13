@@ -67,6 +67,7 @@ export default function ReportsPage({ preselectedHuntId }) {
 
   return (
     <div className="page">
+      <div className="page-inner">
       <header className="page-header">
         <h1>Reports</h1>
         <p className="page-sub">
@@ -138,6 +139,7 @@ export default function ReportsPage({ preselectedHuntId }) {
             </>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

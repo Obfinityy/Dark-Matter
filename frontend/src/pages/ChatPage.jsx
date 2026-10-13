@@ -1,8 +1,11 @@
+// Chat page — ChatGPT layout: empty state ("What can I help with?" + centered
+// composer) or thread + bottom composer. ■ stop aborts the reply stream and
+// stops any running hunts in this chat. All chat/hunt logic unchanged.
 import React, { useEffect, useRef, useState } from 'react';
 import ChatThread from '../components/ChatThread';
 import ChatInput from '../components/ChatInput';
 import NewHuntModal from '../components/NewHuntModal';
-import { sendChat, startHunt } from '../lib/api';
+import { sendChat, startHunt, stopHunt } from '../lib/api';
 import { streamReveal } from '../lib/streaming';
 import { toast } from '../lib/toast';
 
@@ -31,6 +34,7 @@ export default function ChatPage({
     }
   });
   const threadEndRef = useRef(null);
+  const streamTokenRef = useRef(null);
 
   const messages = chat ? chat.messages : [];
 
@@ -39,6 +43,11 @@ export default function ChatPage({
       threadEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   }, [messages, streamingId]);
+
+  const runningHunts = messages.filter(
+    (m) => m.role === 'hunt' && (m.hunt.status === 'running' || m.hunt.status === 'idle'),
+  );
+  const generating = sending || streamingId !== null || runningHunts.length > 0;
 
   function toggleSpeaker() {
     const next = !speakerOn;
@@ -49,17 +58,42 @@ export default function ChatPage({
     toast(next ? 'Spoken replies enabled.' : 'Spoken replies muted.', 'info');
   }
 
+  /** ■ stop: abort the reply stream and stop any running hunts in this chat. */
+  async function handleStop() {
+    if (streamTokenRef.current) streamTokenRef.current.aborted = true;
+    setSending(false);
+    setStreamingId(null);
+    const act = runningHunts;
+    for (const m of act) {
+      const res = await stopHunt(m.hunt.huntId);
+      if (res.ok) {
+        if (chat) onUpdateHunt(chat.id, m.hunt.huntId, 'stopped');
+      } else {
+        toast(res.error || 'Could not stop the hunt.', 'error');
+      }
+    }
+    if (act.length > 0) {
+      toast(`Stopped ${act.length} hunt${act.length === 1 ? '' : 's'}.`, 'info');
+    }
+  }
+
   async function handleSend(text, speak) {
     const chatId = chat ? chat.id : onNewChat();
     const userMsg = { id: uid(), role: 'user', text };
     onAppendMessage(chatId, userMsg);
     setSending(true);
+    const token = { aborted: false };
+    streamTokenRef.current = token;
 
     // Give the assistant the most recent hunt in this chat for mid-hunt context.
     const lastHunt = [...messages].reverse().find((m) => m.role === 'hunt');
     const huntId = lastHunt ? lastHunt.hunt.huntId : undefined;
 
     const res = await sendChat(text, huntId);
+    if (token.aborted) {
+      setSending(false);
+      return;
+    }
     if (!res.ok) {
       onAppendMessage(chatId, {
         id: uid(),
@@ -75,10 +109,11 @@ export default function ChatPage({
     const assistantId = uid();
     onAppendMessage(chatId, { id: assistantId, role: 'assistant', text: '' });
     setStreamingId(assistantId);
-    await streamReveal(reply, (chunk) => onUpdateMessage(chatId, assistantId, chunk));
+    await streamReveal(reply, (chunk) => onUpdateMessage(chatId, assistantId, chunk), { signal: token });
     setStreamingId(null);
     setSending(false);
 
+    if (token.aborted) return;
     if (speakerOn && speak) {
       speak(reply);
     }
@@ -114,39 +149,39 @@ export default function ChatPage({
     onUpdateHunt(chat.id, huntId, status);
   }
 
+  const composer = (
+    <ChatInput
+      onSend={handleSend}
+      sending={sending}
+      generating={generating}
+      onStop={handleStop}
+      onStartHunt={() => setHuntModalOpen(true)}
+      speakerOn={speakerOn}
+      onToggleSpeaker={toggleSpeaker}
+    />
+  );
+
   return (
     <div className="chat-page">
-      <header className="chat-header">
-        <div className="chat-header-title">
-          <h1>{chat ? chat.title : 'New chat'}</h1>
+      {messages.length === 0 ? (
+        <div className="empty-wrap">
+          <h1>What can I help with?</h1>
+          <div className="empty-composer">{composer}</div>
         </div>
-        <div className="chat-header-actions">
-          <button className="btn btn-ghost btn-sm" onClick={() => setHuntModalOpen(true)}>
-            🎯 New hunt
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={onNewChat}>
-            ＋ New chat
-          </button>
-        </div>
-      </header>
-
-      <div className="chat-scroll">
-        <ChatThread
-          messages={messages}
-          streaming={streamingId}
-          onHuntStatusChange={handleHuntStatusChange}
-          onOpenReports={onOpenReports}
-        />
-        <div ref={threadEndRef} />
-      </div>
-
-      <ChatInput
-        onSend={handleSend}
-        sending={sending}
-        onStartHunt={() => setHuntModalOpen(true)}
-        speakerOn={speakerOn}
-        onToggleSpeaker={toggleSpeaker}
-      />
+      ) : (
+        <>
+          <div className="chat-scroll">
+            <ChatThread
+              messages={messages}
+              streaming={streamingId}
+              onHuntStatusChange={handleHuntStatusChange}
+              onOpenReports={onOpenReports}
+            />
+            <div ref={threadEndRef} />
+          </div>
+          {composer}
+        </>
+      )}
 
       <NewHuntModal
         open={huntModalOpen}

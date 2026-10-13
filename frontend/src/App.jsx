@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
+import TopBar from './components/TopBar';
 import ChatPage from './pages/ChatPage';
 import PluginsPage from './pages/PluginsPage';
 import ReportsPage from './pages/ReportsPage';
@@ -36,6 +37,7 @@ function deriveTitle(text) {
 export default function App() {
   const [page, setPage] = useState('chat');
   const [reportHuntId, setReportHuntId] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chats, setChats] = useState(() => loadJson(CHATS_KEY, []));
   const [activeChatId, setActiveChatId] = useState(() => {
     const list = loadJson(CHATS_KEY, []);
@@ -78,6 +80,10 @@ export default function App() {
           : c,
       ),
     );
+  }, []);
+
+  const renameChat = useCallback((chatId, title) => {
+    setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, title } : c)));
   }, []);
 
   const deleteChat = useCallback(
@@ -131,6 +137,10 @@ export default function App() {
     setPage('reports');
   }
 
+  function navigate(p) {
+    setPage(p);
+  }
+
   return (
     <div className="app">
       <Sidebar
@@ -138,11 +148,21 @@ export default function App() {
         activeChatId={activeChatId}
         onSelectChat={setActiveChatId}
         onNewChat={createChat}
+        onRenameChat={renameChat}
         onDeleteChat={deleteChat}
-        page={page}
-        onNavigate={setPage}
+        onNavigate={navigate}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
+      {sidebarOpen && (
+        <button className="sidebar-backdrop" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)} />
+      )}
       <main className="main">
+        <TopBar
+          onMenu={() => setSidebarOpen(true)}
+          showShare={page === 'chat' && !!activeChat && activeChat.messages.length > 0}
+          onNavigate={navigate}
+        />
         {page === 'chat' && (
           <ChatPage
             chat={activeChat}

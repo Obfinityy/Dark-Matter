@@ -1,16 +1,10 @@
+// Hunt card — ChatGPT idiom: an assistant message with a progress card.
+// Status line ("Hunting <target>…"), expandable event feed, findings stream,
+// and Pause/Resume/Stop pill buttons. All stream/control logic unchanged.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { pauseHunt, resumeHunt, stopHunt } from '../lib/api';
 import { HuntStreamClient, createSimulatedStream, isDemoMode } from '../lib/huntStream';
 import { toast } from '../lib/toast';
-
-const STATUS_LABELS = {
-  running: 'Running',
-  paused: 'Paused',
-  done: 'Completed',
-  stopped: 'Stopped',
-  idle: 'Starting…',
-  error: 'Stream unavailable',
-};
 
 const SEVERITY_CLASS = {
   critical: 'sev-critical',
@@ -21,11 +15,24 @@ const SEVERITY_CLASS = {
 
 function statusClass(status) {
   switch (status) {
-    case 'running': return 'hunt-running';
+    case 'running': return '';
     case 'paused': return 'hunt-paused';
     case 'done': return 'hunt-done';
     case 'stopped': return 'hunt-stopped';
-    default: return 'hunt-idle';
+    case 'error': return 'hunt-error';
+    default: return 'hunt-paused';
+  }
+}
+
+function statusText(status, target) {
+  switch (status) {
+    case 'running': return `Hunting ${target}…`;
+    case 'idle': return 'Starting hunt…';
+    case 'paused': return 'Hunt paused';
+    case 'done': return 'Hunt completed';
+    case 'stopped': return 'Hunt stopped';
+    case 'error': return 'Stream unavailable';
+    default: return `Hunt ${status}`;
   }
 }
 
@@ -36,6 +43,7 @@ export default function HuntCard({ hunt, onStatusChange }) {
   const [phase, setPhase] = useState(hunt.phase || '');
   const [busy, setBusy] = useState(false);
   const [streamError, setStreamError] = useState(false);
+  const [showFeed, setShowFeed] = useState(false);
   const logEndRef = useRef(null);
 
   const updateStatus = (next) => {
@@ -122,18 +130,23 @@ export default function HuntCard({ hunt, onStatusChange }) {
     }
   }
 
+  const totalFindings = findings.length;
+
   return (
-    <div className="hunt-card">
-      <div className="hunt-header">
-        <span className={`hunt-status ${statusClass(status)}`} aria-label={`Hunt status: ${STATUS_LABELS[status] || status}`}>
-          <span className="status-dot" aria-hidden="true" />
-          {STATUS_LABELS[status] || status}
-        </span>
-        <div className="hunt-title">
-          <strong>Hunt</strong>
-          <span className="hunt-target" title={hunt.target}>{hunt.target}</span>
-        </div>
-        {phase && <span className="hunt-phase">{phase}</span>}
+    <div className={`hunt-card ${statusClass(status)}`}>
+      <div className="hunt-statusline">
+        <span className="hunt-pulse-dot" aria-hidden="true" />
+        <span className="hunt-status-text">{statusText(status, hunt.target)}</span>
+        {phase && <span className="hunt-target-inline">{phase}</span>}
+        {logs.length > 0 && (
+          <button
+            className="hunt-toggle-feed"
+            onClick={() => setShowFeed((v) => !v)}
+            aria-expanded={showFeed}
+          >
+            {showFeed ? 'Hide progress' : 'Show progress'}
+          </button>
+        )}
       </div>
 
       {streamError && (
@@ -145,11 +158,11 @@ export default function HuntCard({ hunt, onStatusChange }) {
         </div>
       )}
 
-      <div className="hunt-body">
-        <div className="hunt-log" ref={logEndRef} aria-live="polite">
+      {showFeed && (
+        <div className="hunt-feed" ref={logEndRef} aria-live="polite">
           {logs.length === 0 && <div className="empty-hint">Waiting for hunt output…</div>}
           {logs.map((entry, idx) => (
-            <div key={idx} className={`log-line log-${entry.kind}`}>
+            <div key={idx} className="log-line">
               <span className="log-prefix" aria-hidden="true">
                 {entry.kind === 'tool' ? '▸' : '…'}
               </span>
@@ -157,17 +170,16 @@ export default function HuntCard({ hunt, onStatusChange }) {
             </div>
           ))}
         </div>
+      )}
 
-        <div className="hunt-findings">
-          <div className="findings-header">
+      {totalFindings > 0 && (
+        <div className="hunt-findings-block">
+          <div className="hunt-findings-title">
             Findings
-            <span className="findings-counts">
-              {counts.critical > 0 && <span className="sev sev-critical">{counts.critical} critical</span>}
-              {counts.high > 0 && <span className="sev sev-high">{counts.high} high</span>}
-              {counts.medium > 0 && <span className="sev sev-medium">{counts.medium} medium</span>}
-              {counts.low > 0 && <span className="sev sev-low">{counts.low} low</span>}
-              {findings.length === 0 && <span className="empty-hint">none yet</span>}
-            </span>
+            {counts.critical > 0 && <span className="sev sev-critical">{counts.critical} critical</span>}
+            {counts.high > 0 && <span className="sev sev-high">{counts.high} high</span>}
+            {counts.medium > 0 && <span className="sev sev-medium">{counts.medium} medium</span>}
+            {counts.low > 0 && <span className="sev sev-low">{counts.low} low</span>}
           </div>
           <ul className="findings-list">
             {findings.map((f, idx) => (
@@ -179,29 +191,29 @@ export default function HuntCard({ hunt, onStatusChange }) {
             ))}
           </ul>
         </div>
-      </div>
+      )}
 
       <div className="hunt-controls">
         <button
-          className="btn btn-ghost"
+          className="hunt-pill-btn"
           disabled={busy || status !== 'running'}
           onClick={() => runControl('pause', pauseHunt, 'Hunt paused.')}
         >
-          ⏸ Pause
+          ❚❚ Pause
         </button>
         <button
-          className="btn btn-ghost"
+          className="hunt-pill-btn"
           disabled={busy || status !== 'paused'}
           onClick={() => runControl('resume', resumeHunt, 'Hunt resumed.')}
         >
           ▶ Resume
         </button>
         <button
-          className="btn btn-danger"
+          className="hunt-pill-btn danger"
           disabled={busy || status === 'done' || status === 'stopped'}
           onClick={() => runControl('stop', stopHunt, 'Hunt stopped.')}
         >
-          ⏹ Stop
+          ■ Stop
         </button>
         <span className="hunt-id">ID: {hunt.huntId}</span>
       </div>
