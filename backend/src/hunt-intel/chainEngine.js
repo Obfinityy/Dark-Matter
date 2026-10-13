@@ -1,0 +1,179 @@
+// Dark Matter hunt-intel — exploit-chain engine (technique #1).
+//
+// Research basis: JLF-Exploit-Chain-Suggester (GPL — technique extracted, not
+// copied), axguard attack-graphs, and the capability-primitive pattern from
+// agentic-VAPT practice. The core insight: HIGH bounties are manufactured by
+// CHAINING medium findings into critical impact. This module is pure logic —
+// it runs on findings the engine already collected, no new infra needed.
+//
+// Model:
+//   - Every confirmed finding emits CAPABILITY primitives
+//     (read, write, exec, ssrf, sqli, cred, idor, xss, auth_bypass, ...).
+//   - CHAIN_EQUATIONS encode how primitive combinations escalate:
+//       read + write        = RCE        (e.g. SQLi LOAD_FILE -> INTO OUTFILE)
+//       ssrf + cloud_meta   = infra_compromise
+//       xss_in_admin + session = session_hijack -> admin_rce
+//   - findChains() BFS-searches the capability graph for escalations.
+//   - planToGoal() reverse-plans from a high-impact goal to missing primitives,
+//     telling the hunt what to look for next.
+
+/** Finding class -> capability primitives it grants the attacker. */
+export const CAPABILITY_MAP = {
+  sqli: ['db_read', 'db_write'],
+  sqli_blind: ['db_read'],
+  sqli_error: ['db_read'],
+  xss_stored: ['js_exec', 'session_theft'],
+  xss_reflected: ['js_exec'],
+  xss_dom: ['js_exec'],
+  ssrf: ['ssrf', 'internal_recon'],
+  ssrf_cloud_meta: ['ssrf', 'cloud_meta', 'cred_leak'],
+  lfi: ['file_read'],
+  rfi: ['file_read', 'code_exec'],
+  rce: ['code_exec'],
+  cmd_injection: ['code_exec'],
+  idor: ['data_read', 'data_write'],
+  bola: ['data_read', 'data_write'],
+  auth_bypass: ['auth_bypass'],
+  jwt_weak: ['auth_bypass', 'priv_esc'],
+  priv_esc: ['priv_esc'],
+  csrf: ['state_change'],
+  open_redirect: ['phishing'],
+  info_disclosure: ['info_leak'],
+  cred_leak: ['cred_leak'],
+  cred_stuffing: ['auth_bypass'],
+  file_upload: ['file_write'],
+  xxe: ['file_read', 'ssrf'],
+  ssti: ['code_exec'],
+  deserialization: ['code_exec'],
+  nosql_injection: ['db_read', 'auth_bypass'],
+  ldap_injection: ['auth_bypass', 'info_leak'],
+  xpath_injection: ['info_leak'],
+  header_injection: ['response_control'],
+  cors_misconfig: ['data_read'],
+  csrf_token_missing: ['state_change'],
+  rate_limit_missing: ['bruteforce'],
+  default_creds: ['auth_bypass', 'cred_leak'],
+  exposed_admin: ['admin_access'],
+  exposed_git: ['source_leak', 'cred_leak'],
+  exposed_env: ['cred_leak', 'info_leak'],
+  directory_listing: ['info_leak'],
+  backup_file: ['source_leak', 'cred_leak'],
+  verbose_errors: ['info_leak'],
+  http_methods: ['method_abuse'],
+  clickjacking: ['ui_redress'],
+};
+
+/**
+ * Chain equations: [required capabilities] -> { impact, title, how }.
+ * ~30 encoded escalation patterns from real bounty practice.
+ */
+export const CHAIN_EQUATIONS = [
+  { needs: ['db_read', 'db_write'], impact: 'critical', title: 'SQLi read+write → RCE', how: 'LOAD_FILE to map the filesystem, then INTO OUTFILE / xp_cmdshell to write a webshell.' },
+  { needs: ['ssrf', 'cloud_meta'], impact: 'critical', title: 'SSRF → cloud metadata → infra compromise', how: 'SSRF to 169.254.169.254 (or cloud equivalent) steals IAM credentials; pivot to the cloud account.' },
+  { needs: ['js_exec', 'admin_access'], impact: 'critical', title: 'XSS in admin panel → admin session hijack', how: 'Stored XSS fires in the admin session; exfiltrate the session or drive admin actions via the victim browser.' },
+  { needs: ['file_read', 'cred_leak'], impact: 'high', title: 'LFI + leaked creds → authenticated access', how: 'Read config/secret files via LFI, reuse the credentials for authenticated attack surface.' },
+  { needs: ['auth_bypass', 'data_write'], impact: 'critical', title: 'Auth bypass + write primitive → full account takeover', how: 'Bypass authentication, then rewrite victim data (email/password) to seize accounts.' },
+  { needs: ['idor', 'priv_esc'], impact: 'critical', title: 'IDOR + privilege escalation → admin data breach', how: 'Enumerate other users objects, then escalate the role to read admin-only data.' },
+  { needs: ['file_write', 'code_exec'], impact: 'critical', title: 'Unrestricted upload → RCE', how: 'Upload a web-accessible script (extension/MIME bypass) and request it.' },
+  { needs: ['xss_stored', 'csrf'], impact: 'high', title: 'Stored XSS + CSRF → forced admin actions', how: 'XSS payload issues state-changing requests in the victim session.' },
+  { needs: ['ssrf', 'internal_recon'], impact: 'high', title: 'SSRF → internal network pivot', how: 'Port-scan the internal network through SSRF; attack admin interfaces unreachable externally.' },
+  { needs: ['source_leak', 'cred_leak'], impact: 'high', title: 'Source/secret leak → credential reuse', how: 'Git/env/backup exposure yields API keys; test them against prod and third-party services.' },
+  { needs: ['db_read', 'cred_leak'], impact: 'high', title: 'SQLi read → credential dump → lateral movement', how: 'Dump user tables, crack or replay hashes, reuse across services.' },
+  { needs: ['auth_bypass', 'admin_access'], impact: 'critical', title: 'Auth bypass on admin surface → full compromise', how: 'Direct object/route access to admin functions without authentication.' },
+  { needs: ['xxe', 'file_read'], impact: 'high', title: 'XXE → local file read', how: 'External entity to file:///etc/passwd or cloud metadata; exfiltrate via out-of-band channel.' },
+  { needs: ['ssti', 'code_exec'], impact: 'critical', title: 'SSTI → RCE', how: 'Template injection to reach the object graph and execute system commands.' },
+  { needs: ['deserialization', 'code_exec'], impact: 'critical', title: 'Insecure deserialization → RCE', how: 'Craft a gadget chain for the target framework; confirm with a sleep/DNS callback.' },
+  { needs: ['open_redirect', 'phishing'], impact: 'medium', title: 'Open redirect → credential phishing', how: 'Trusted-domain redirect starts a phishing flow; chain with OAuth if present.' },
+  { needs: ['cors_misconfig', 'data_read'], impact: 'high', title: 'CORS misconfig + authenticated data → cross-origin theft', how: 'Arbitrary-origin CORS with credentials lets any site read the victim API responses.' },
+  { needs: ['jwt_weak', 'priv_esc'], impact: 'critical', title: 'JWT weakness → privilege escalation', how: 'alg:none / key-confusion / weak secret to forge admin tokens.' },
+  { needs: ['nosql_injection', 'auth_bypass'], impact: 'high', title: 'NoSQL injection → authentication bypass', how: 'Operator injection ($ne/$gt) to bypass login checks.' },
+  { needs: ['rate_limit_missing', 'bruteforce'], impact: 'medium', title: 'No rate limit → credential brute force', how: 'Enumerate users then password-spray the login or token endpoint.' },
+  { needs: ['verbose_errors', 'sqli'], impact: 'high', title: 'Verbose errors accelerate SQLi', how: 'Database errors leak schema; convert blind SQLi to error/union-based.' },
+  { needs: ['exposed_git', 'source_leak'], impact: 'high', title: '.git exposure → full source + secrets', how: 'Reconstruct the repository; hunt hardcoded keys and logic flaws offline.' },
+  { needs: ['backup_file', 'source_leak'], impact: 'medium', title: 'Backup files → source disclosure', how: '.bak/.old/.swp variants of live files disclose code and config.' },
+  { needs: ['header_injection', 'response_control'], impact: 'medium', title: 'Header injection → cache poisoning / XSS', how: 'Inject headers to poison caches or break out into response splitting.' },
+  { needs: ['csrf_token_missing', 'state_change'], impact: 'medium', title: 'Missing CSRF token → forced state change', how: 'Cross-site request performs privileged actions in the victim session.' },
+  { needs: ['clickjacking', 'state_change'], impact: 'medium', title: 'Clickjacking → privileged action', how: 'Frame the sensitive UI; trick the victim into clicking.' },
+  { needs: ['http_methods', 'method_abuse'], impact: 'medium', title: 'Dangerous methods → access control bypass', how: 'PUT/DELETE/PATCH or method override to bypass verb-based ACLs.' },
+  { needs: ['info_leak', 'phishing'], impact: 'low', title: 'Info disclosure aids targeted phishing', how: 'Internal names, emails, and stack details sharpen social-engineering.' },
+  { needs: ['ldap_injection', 'auth_bypass'], impact: 'high', title: 'LDAP injection → authentication bypass', how: 'Wildcard/boolean injection against the directory bind.' },
+  { needs: ['xpath_injection', 'info_leak'], impact: 'medium', title: 'XPath injection → data extraction', how: 'Boolean-based extraction of XML-stored data.' },
+];
+
+const IMPACT_RANK = { critical: 4, high: 3, medium: 2, low: 1 };
+
+function findingClass(f) {
+  return String(f.class || f.type || f.name || '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+}
+
+function capabilitiesOf(finding) {
+  const cls = findingClass(finding);
+  // Direct map hit, else fuzzy: e.g. "sql_injection" ~ sqli.
+  if (CAPABILITY_MAP[cls]) return CAPABILITY_MAP[cls];
+  for (const [key, caps] of Object.entries(CAPABILITY_MAP)) {
+    if (cls.includes(key) || key.includes(cls)) return caps;
+  }
+  return [];
+}
+
+/**
+ * BFS over the capability graph: given findings, return viable exploit chains
+ * ordered by impact (highest first). Each chain names the findings that feed it.
+ */
+export function findChains(findings) {
+  const have = new Set();
+  const byCap = new Map(); // capability -> findings granting it
+  for (const f of findings || []) {
+    for (const cap of capabilitiesOf(f)) {
+      have.add(cap);
+      if (!byCap.has(cap)) byCap.set(cap, []);
+      byCap.get(cap).push(f);
+    }
+  }
+  const chains = [];
+  for (const eq of CHAIN_EQUATIONS) {
+    if (eq.needs.every((c) => have.has(c))) {
+      const used = new Map();
+      for (const c of eq.needs) {
+        for (const f of byCap.get(c) || []) used.set(findingId(f), f);
+      }
+      chains.push({
+        title: eq.title,
+        impact: eq.impact,
+        how: eq.how,
+        needs: eq.needs,
+        findings: [...used.values()].map((f) => ({
+          id: findingId(f),
+          title: f.title || f.name || findingClass(f),
+          class: findingClass(f),
+        })),
+      });
+    }
+  }
+  chains.sort((a, b) => IMPACT_RANK[b.impact] - IMPACT_RANK[a.impact]);
+  return chains;
+}
+
+/**
+ * Goal-driven reverse planning: from a high-impact goal, report which
+ * capabilities are already held and which primitives the hunt should pursue.
+ */
+export function planToGoal(findings, goal = 'rce') {
+  const have = new Set();
+  for (const f of findings || []) for (const c of capabilitiesOf(f)) have.add(c);
+  const g = String(goal).toLowerCase();
+  const relevant = CHAIN_EQUATIONS.filter(
+    (eq) => eq.title.toLowerCase().includes(g) || eq.impact === 'critical'
+  );
+  return relevant.slice(0, 5).map((eq) => ({
+    title: eq.title,
+    impact: eq.impact,
+    have: eq.needs.filter((c) => have.has(c)),
+    missing: eq.needs.filter((c) => !have.has(c)),
+    how: eq.how,
+  }));
+}
+
+function findingId(f) {
+  return String(f.id || f.findingId || `${findingClass(f)}@${f.url || f.target || 'unknown'}`);
+}

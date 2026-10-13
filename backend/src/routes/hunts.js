@@ -5,6 +5,7 @@
 //   POST /api/v1/hunts/:id/pause | /resume | /stop
 //   GET  /api/v1/hunts/:id               -> engine status (502 if engine down)
 //   GET  /api/v1/hunts/:id/report?format=md|pdf  (works any time, even mid-hunt)
+//   GET  /api/v1/hunts/:id/analysis?goal=rce    -> infinity analysis (chains, confirmation)
 //
 // Authorization policy: a hunt is created ONLY when BOTH hold:
 //   1. body.confirmedAuthorized === true  (frontend sends this after the user
@@ -35,6 +36,7 @@ import {
   listHuntMetas,
 } from '../store.js';
 import { requireAuth } from './auth.js';
+import { analyzeFindings, chainsMarkdown } from '../hunt-intel/index.js';
 
 /** Reject unless the hunt belongs to the authenticated user. */
 function requireHuntOwner(req, res) {
@@ -240,6 +242,18 @@ router.get('/:id/report', requireAuth, async (req, res) => {
   res.type('text/markdown').send(md);
 });
 
+// ---- Infinity analysis: chains, confirmation, exploitability, variant probes.
+// Pure logic over cached findings — no engine call needed. Powers the
+// "what did you chain / what's next" view any time, even mid-hunt.
+router.get('/:id/analysis', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const goal = String(req.query.goal || 'rce');
+  const events = readHuntEvents(req.params.id);
+  const findings = events.filter((e) => e.type === 'finding');
+  res.json({ ok: true, huntId: req.params.id, analysis: analyzeFindings(findings, goal) });
+});
+
 // ---- Shared helpers (used by the WS stream bridge too) --------------------
 
 export function recordEngineEvent(huntId, event) {
@@ -273,6 +287,12 @@ export function buildReportMarkdown({ huntId, meta, events }) {
   if (!findings.length) {
     lines.push('_No findings recorded yet._');
   } else {
+    // Infinity analysis: chains, confirmation, exploitability, variant probes.
+    try {
+      lines.push(chainsMarkdown(analyzeFindings(findings)));
+    } catch {
+      // intel layer is best-effort; raw findings still render below
+    }
     for (const f of findings) {
       const sev = f.severity || f.level || 'info';
       const title = f.title || f.name || f.type || 'finding';
