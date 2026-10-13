@@ -57,6 +57,54 @@ function extractEndpoints(html, baseUrl) {
   return [...endpoints].slice(0, 30);
 }
 
+// ---- ReconFramework modules (technique, MIT) --------------------------------
+// CORS misconfig, JS secret scan, takeover fingerprints — beyond header sniffing.
+
+/** Check CORS misconfiguration from response headers. */
+export function checkCorsMisconfig(headers) {
+  const acao = headers['access-control-allow-origin'] || headers['Access-Control-Allow-Origin'];
+  const acac = headers['access-control-allow-credentials'] || headers['Access-Control-Allow-Credentials'];
+  if (acao === '*' && String(acac).toLowerCase() === 'true') {
+    return { misconfigured: true, severity: 'medium', detail: 'CORS: * with credentials=true' };
+  }
+  if (acao && acao.includes('null')) {
+    return { misconfigured: true, severity: 'low', detail: 'CORS: null origin allowed' };
+  }
+  return { misconfigured: false };
+}
+
+/** Scan JS/HTML for leaked secrets. */
+export function scanJsSecrets(html) {
+  const findings = [];
+  const patterns = [
+    { name: 'aws_key', re: /AKIA[0-9A-Z]{16}/ },
+    { name: 'github_token', re: /ghp_[a-zA-Z0-9]{20,}/ },
+    { name: 'api_key', re: /["']api[_-]?key["']\s*[:=]\s*["'][a-zA-Z0-9\-_]{16,}["']/i },
+    { name: 'secret', re: /["']secret["']\s*[:=]\s*["'][^"']{8,}["']/i },
+  ];
+  for (const p of patterns) {
+    if (p.re.test(html || '')) findings.push({ type: 'js_secret', name: p.name, severity: 'high' });
+  }
+  return findings;
+}
+
+/** Subdomain takeover fingerprints (CNAME -> unclaimed service). */
+const TAKEOVER_FINGERPRINTS = [
+  { service: 'GitHub Pages', pattern: /github\.io/ },
+  { service: 'Heroku', pattern: /herokuapp\.com/ },
+  { service: 'S3', pattern: /s3\.amazonaws\.com/ },
+  { service: 'CloudFront', pattern: /cloudfront\.net/ },
+];
+
+export function checkTakeoverFingerprint(cname) {
+  for (const fp of TAKEOVER_FINGERPRINTS) {
+    if (fp.pattern.test(cname || '')) {
+      return { possible: true, service: fp.service, detail: `CNAME points to ${fp.service} — verify if unclaimed` };
+    }
+  }
+  return { possible: false };
+}
+
 /**
  * Understand a target: fetch, detect stack, extract endpoints.
  * Runs right after hunt creation; results become hunt context.

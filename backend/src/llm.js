@@ -16,6 +16,29 @@ import { recordCost } from './costTracker.js';
 const DEFAULT_MODEL = process.env.BEDROCK_MODEL || 'anthropic.claude-3-5-sonnet-20241022-v2:0';
 const DEFAULT_REGION = process.env.AWS_REGION || 'us-east-1';
 
+// ---- Privacy gateway --------------------------------------------------------
+// Strip secrets, tokens, and PII before anything reaches the model.
+// Technique: Dark-Moon (technique only, no code copied).
+
+const SECRET_PATTERNS = [
+  /sk-[a-zA-Z0-9]{20,}/g,                    // OpenAI-style keys
+  /ghp_[a-zA-Z0-9]{20,}/g,                   // GitHub tokens
+  /xox[baprs]-[a-zA-Z0-9-]+/g,               // Slack tokens
+  /AKIA[0-9A-Z]{16}/g,                       // AWS access keys
+  /-----BEGIN [A-Z ]+PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+PRIVATE KEY-----/g,
+  /bearer\s+[a-zA-Z0-9\-._~+/]+=*/gi,        // Bearer tokens
+  /password\s*[:=]\s*\S+/gi,                 // password assignments
+  /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, // emails
+];
+
+export function sanitizeForModel(text) {
+  let out = String(text || '');
+  for (const re of SECRET_PATTERNS) {
+    out = out.replace(re, '[REDACTED]');
+  }
+  return out;
+}
+
 function getAwsConfig() {
   // AWS is connected BY DEFAULT via environment variables (owner's account).
   // No per-user plugin setup needed — invite-only, owner controls the keys.
@@ -48,12 +71,14 @@ export async function chatWithAI(messages, system, ctx) {
     region: cfg.region,
     credentials: cfg.credentials,
   });
+  // Privacy gateway (Dark-Moon technique): strip secrets/PII before the model.
+  const clean = (t) => sanitizeForModel(String(t || ''));
   const cmd = new ConverseCommand({
     modelId: cfg.model,
-    system: system ? [{ text: system }] : undefined,
+    system: system ? [{ text: clean(system) }] : undefined,
     messages: (messages || []).map((m) => ({
       role: m.role === 'assistant' ? 'assistant' : 'user',
-      content: [{ text: String(m.text || '').slice(0, 8000) }],
+      content: [{ text: clean(m.text).slice(0, 8000) }],
     })),
     inferenceConfig: { maxTokens: 1500, temperature: 0.7 },
   });

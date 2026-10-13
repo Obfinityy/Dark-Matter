@@ -21,6 +21,9 @@ export { getPlaybook, playbookSummary, recordHuntExperience, reflectHunt } from 
 export { generateLogicTests, checkInvariants, classifyTarget, BL_MODULES, blModulesFor } from './logicTester.js';
 export { HUNT_MODES, MODE_ORDER, TIERS, getMode, modesForTier, canUseMode } from './modes.js';
 export { evidenceGate, verifyPipeline, VERIFY_STEPS } from './differential.js';
+export { createTaskTree, addTask, findNode, setTaskStatus, attachFinding, summarizeTree, serializeTree, deserializeTree } from './taskTree.js';
+export { TECHNIQUE_CATALOG, techniquesByTactic, searchTechniques } from './attackCatalog.js';
+export { beamSearchChains } from './chainEngine.js';
 
 export function analyzeFindings(rawFindings, goal = 'rce') {
   const deduped = dedupeFindings(rawFindings || []);

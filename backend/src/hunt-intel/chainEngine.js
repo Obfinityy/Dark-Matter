@@ -177,3 +177,100 @@ export function planToGoal(findings, goal = 'rce') {
 function findingId(f) {
   return String(f.id || f.findingId || `${findingClass(f)}@${f.url || f.target || 'unknown'}`);
 }
+
+// ---- Beam search chain exploration (secmcp technique, MIT) ------------------
+// Instead of matching static chain equations, beam-search the capability
+// graph: from held capabilities, expand possible next primitives, keep the
+// top-k most promising paths, repeat. Finds chains the static list misses.
+
+const PRIMITIVE_TRANSITIONS = {
+  // from capability -> [{to, technique, likelihood}]
+  info_leak: [
+    { to: 'data_read', technique: 'error-based extraction', likelihood: 0.7 },
+    { to: 'source_leak', technique: 'source-map / .git exposure', likelihood: 0.5 },
+  ],
+  data_read: [
+    { to: 'auth_bypass', technique: 'IDOR on session objects', likelihood: 0.6 },
+    { to: 'data_write', technique: 'mass assignment', likelihood: 0.5 },
+  ],
+  data_write: [
+    { to: 'priv_esc', technique: 'role field tampering', likelihood: 0.6 },
+    { to: 'js_exec', technique: 'stored XSS via profile fields', likelihood: 0.5 },
+  ],
+  file_read: [
+    { to: 'code_exec', technique: 'log poisoning / LFI-to-RCE', likelihood: 0.4 },
+    { to: 'cred_leak', technique: 'config file disclosure', likelihood: 0.7 },
+  ],
+  cred_leak: [
+    { to: 'auth_bypass', technique: 'credential reuse', likelihood: 0.8 },
+    { to: 'priv_esc', technique: 'privileged credential use', likelihood: 0.6 },
+  ],
+  ssrf: [
+    { to: 'cloud_meta', technique: 'cloud metadata access', likelihood: 0.7 },
+    { to: 'code_exec', technique: 'internal admin SSRF-to-RCE', likelihood: 0.3 },
+  ],
+  cloud_meta: [
+    { to: 'priv_esc', technique: 'IAM credential theft', likelihood: 0.8 },
+    { to: 'code_exec', technique: 'metadata-driven RCE', likelihood: 0.4 },
+  ],
+  auth_bypass: [
+    { to: 'priv_esc', technique: 'forced browsing to admin', likelihood: 0.7 },
+    { to: 'data_read', technique: 'horizontal access', likelihood: 0.8 },
+  ],
+  priv_esc: [
+    { to: 'code_exec', technique: 'admin functionality abuse', likelihood: 0.5 },
+    { to: 'db_write', technique: 'privileged write', likelihood: 0.6 },
+  ],
+  js_exec: [
+    { to: 'session_theft', technique: 'cookie/token theft', likelihood: 0.8 },
+    { to: 'auth_bypass', technique: 'session hijack', likelihood: 0.7 },
+  ],
+  session_theft: [
+    { to: 'priv_esc', technique: 'hijack admin session', likelihood: 0.6 },
+  ],
+  file_write: [
+    { to: 'code_exec', technique: 'webshell upload', likelihood: 0.7 },
+  ],
+};
+
+const GOAL_CAPS = new Set(['code_exec', 'db_write', 'priv_esc', 'session_theft', 'cloud_meta']);
+
+/**
+ * Beam-search attack chains from held capabilities.
+ * @param {string[]} heldCaps — capabilities already demonstrated
+ * @param {{beamWidth?: number, maxDepth?: number}} opts
+ * @returns {Array<{path: string[], techniques: string[], score: number, goal: boolean}>}
+ */
+export function beamSearchChains(heldCaps, opts = {}) {
+  const beamWidth = opts.beamWidth || 4;
+  const maxDepth = opts.maxDepth || 4;
+  let beam = (heldCaps || []).map((c) => ({ path: [c], techniques: [], score: 1.0 }));
+  const results = [];
+
+  for (let depth = 0; depth < maxDepth; depth++) {
+    const candidates = [];
+    for (const node of beam) {
+      const last = node.path[node.path.length - 1];
+      const transitions = PRIMITIVE_TRANSITIONS[last] || [];
+      for (const t of transitions) {
+        if (node.path.includes(t.to)) continue; // no cycles
+        const newPath = [...node.path, t.to];
+        const newScore = node.score * t.likelihood;
+        candidates.push({
+          path: newPath,
+          techniques: [...node.techniques, t.technique],
+          score: newScore,
+          goal: GOAL_CAPS.has(t.to),
+        });
+      }
+    }
+    if (!candidates.length) break;
+    // Keep top-k by score; goals bubble up
+    candidates.sort((a, b) => (b.goal - a.goal) || (b.score - a.score));
+    const next = candidates.slice(0, beamWidth);
+    for (const n of next) if (n.goal) results.push(n);
+    beam = next;
+  }
+  results.sort((a, b) => b.score - a.score);
+  return results.slice(0, 10);
+}
