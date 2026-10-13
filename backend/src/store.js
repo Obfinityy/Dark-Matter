@@ -53,6 +53,16 @@ export function writeModelJobs(obj) {
   writeJsonAtomic(path.join(dataDir(), 'model-downloads.json'), obj);
 }
 
+// ---- Users (auth) ------------------------------------------------------------
+
+export function readUsers() {
+  return readJson(path.join(dataDir(), 'users.json'), {});
+}
+
+export function writeUsers(obj) {
+  writeJsonAtomic(path.join(dataDir(), 'users.json'), obj);
+}
+
 // ---- Hunt event cache ------------------------------------------------------
 
 export function huntDir(huntId) {

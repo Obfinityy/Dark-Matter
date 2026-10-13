@@ -32,6 +32,7 @@ import {
   writeHuntMeta,
   readHuntMeta,
 } from '../store.js';
+import { requireAuth } from './auth.js';
 
 const router = Router();
 
@@ -59,7 +60,10 @@ export function isTargetAllowed(target) {
   });
 }
 
-router.post('/', async (req, res) => {
+// Hunt creation requires login (requireAuth) AND the existing authorized-
+// target checks below. Everything else (chat, plugins, reports, health,
+// browsing) stays public.
+router.post('/', requireAuth, async (req, res) => {
   const { target, scope, confirmedAuthorized } = req.body || {};
   if (typeof target !== 'string' || !target.trim()) {
     return res.status(400).json({
