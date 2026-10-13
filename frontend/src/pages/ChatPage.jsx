@@ -187,9 +187,9 @@ export default function ChatPage({
       {messages.length === 0 ? (
         <div className="empty-wrap dm-hero">
           <div className="dm-emblem">
-            <svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true">
-              <circle cx="32" cy="32" r="26" fill="none" stroke="#b8860b" strokeWidth="3" opacity="0.35" />
-              <circle cx="32" cy="32" r="17" fill="none" stroke="#b8860b" strokeWidth="4" />
+            <svg viewBox="0 0 64 64" width="56" height="56" aria-hidden="true">
+              <circle cx="32" cy="32" r="26" fill="none" stroke="#b8860b" strokeWidth="2.5" opacity="0.3" />
+              <circle cx="32" cy="32" r="17" fill="none" stroke="#b8860b" strokeWidth="3.5" />
               <circle cx="32" cy="32" r="6" fill="#b8860b" />
             </svg>
           </div>
