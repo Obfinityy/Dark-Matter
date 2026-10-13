@@ -1,7 +1,6 @@
-// Profile menu — Plugins, Reports, Settings, Backend switch, Log out.
+// Profile menu — Plugins, Reports, Settings, Log out.
 // Shared by the sidebar user row and the top-bar avatar.
-import React, { useState } from 'react';
-import { getBackendMode, setBackendMode, CLOUD_BACKEND_URL } from '../config';
+import React from 'react';
 import { useAuth } from '../lib/auth';
 import { toast } from '../lib/toast';
 
@@ -43,23 +42,10 @@ function IconLogout() {
 
 export default function ProfileMenu({ onNavigate, onClose, positionClass = '' }) {
   const { logout: authLogout } = useAuth();
-  const [mode, setMode] = useState(getBackendMode());
 
   function go(page) {
     onClose && onClose();
     onNavigate(page);
-  }
-
-  function chooseBackend(next) {
-    setBackendMode(next);
-    setMode(next);
-    toast(
-      next === 'cloud'
-        ? `Backend: Cloud (${CLOUD_BACKEND_URL}). Applies immediately.`
-        : 'Backend: My Device. Applies immediately.',
-      'success',
-    );
-    onClose && onClose();
   }
 
   function logout() {
@@ -78,24 +64,6 @@ export default function ProfileMenu({ onNavigate, onClose, positionClass = '' })
       </button>
       <button className="profile-menu-item" onClick={() => go('settings')} role="menuitem">
         <IconSettings /> Settings
-      </button>
-      <div className="profile-menu-divider" />
-      <div className="profile-menu-label">Backend</div>
-      <button className="profile-menu-item" onClick={() => chooseBackend('cloud')} role="menuitemradio" aria-checked={mode === 'cloud'}>
-        <span aria-hidden="true">☁</span> Cloud
-        {mode === 'cloud' && (
-          <svg className="check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
-            <path d="M4 12.5 9.5 18 20 6.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
-      </button>
-      <button className="profile-menu-item" onClick={() => chooseBackend('mydevice')} role="menuitemradio" aria-checked={mode === 'mydevice'}>
-        <span aria-hidden="true">▣</span> My Device
-        {mode === 'mydevice' && (
-          <svg className="check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
-            <path d="M4 12.5 9.5 18 20 6.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
       </button>
       <div className="profile-menu-divider" />
       <button className="profile-menu-item" onClick={logout} role="menuitem">
