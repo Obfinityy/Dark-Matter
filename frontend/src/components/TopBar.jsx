@@ -30,7 +30,7 @@ function IconUser() {
   );
 }
 
-export default function TopBar({ onMenu, showShare, onNavigate }) {
+export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate }) {
   const [modelOpen, setModelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const modelRef = useRef(null);
@@ -60,7 +60,7 @@ export default function TopBar({ onMenu, showShare, onNavigate }) {
   return (
     <header className="topbar">
       <div className="topbar-left" ref={modelRef} style={{ position: 'relative' }}>
-        <button className="icon-btn hamburger-btn" onClick={onMenu} aria-label="Open sidebar">
+        <button className="icon-btn hamburger-btn" onClick={onMenu} aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}>
           <IconMenu />
         </button>
         <button

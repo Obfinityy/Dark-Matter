@@ -76,7 +76,12 @@ button { font-family: inherit; }
 .topbar-left { display: flex; align-items: center; gap: 4px; }
 .topbar-right { display: flex; align-items: center; gap: 4px; }
 
-.hamburger-btn { display: none; }
+.topbar .hamburger-btn { display: none; }
+
+/* Desktop: collapsing the sidebar hides it; the hamburger reappears so it
+   can be reopened — the ChatGPT idiom. */
+.app.sidebar-collapsed .sidebar { display: none; }
+.app.sidebar-collapsed .topbar .hamburger-btn { display: inline-flex; }
 
 .brand-picker {
   display: flex;
@@ -1076,7 +1081,7 @@ h4.md-heading { font-size: 16px; }
     border: none;
     padding: 0;
   }
-  .hamburger-btn { display: inline-flex; }
+  .topbar .hamburger-btn { display: inline-flex; }
   .chat-thread { padding: 16px 16px 8px; }
   .message-user .message-body { max-width: 85%; }
   .composer-wrap { padding: 8px 8px 6px; }

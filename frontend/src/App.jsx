@@ -37,7 +37,9 @@ function deriveTitle(text) {
 export default function App() {
   const [page, setPage] = useState('chat');
   const [reportHuntId, setReportHuntId] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth > 768,
+  );
   const [chats, setChats] = useState(() => loadJson(CHATS_KEY, []));
   const [activeChatId, setActiveChatId] = useState(() => {
     const list = loadJson(CHATS_KEY, []);
@@ -142,7 +144,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
       <Sidebar
         chats={chats}
         activeChatId={activeChatId}
@@ -159,7 +161,8 @@ export default function App() {
       )}
       <main className="main">
         <TopBar
-          onMenu={() => setSidebarOpen(true)}
+          onMenu={() => setSidebarOpen((v) => !v)}
+          sidebarOpen={sidebarOpen}
           showShare={page === 'chat' && !!activeChat && activeChat.messages.length > 0}
           onNavigate={navigate}
         />
