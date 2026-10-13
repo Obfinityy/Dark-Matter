@@ -47,11 +47,13 @@ function routeFromPath() {
 }
 
 function AppInner() {
-  const { ready } = useAuth();
+  const { ready, user } = useAuth();
   const [page, setPage] = useState(routeFromPath);
   const [reportHuntId, setReportHuntId] = useState(null);
   const [authModal, setAuthModal] = useState(null); // null | 'login' | 'signup'
   const [huntSignal, setHuntSignal] = useState(0);
+  // If "New hunt" was clicked while logged out, open the hunt setup right after login.
+  const [pendingHunt, setPendingHunt] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(
     () => typeof window !== 'undefined' && window.innerWidth > 768,
   );
@@ -183,13 +185,31 @@ function AppInner() {
   }
 
   // Sidebar "New hunt" — go to chat and ask ChatPage to open the hunt modal.
+  // If logged out, remember the intent: the hunt modal opens right after login.
   function requestHuntModal() {
+    if (!user) {
+      setPendingHunt(true);
+      setAuthModal('login');
+      return;
+    }
     setPage('chat');
     try {
       window.history.replaceState(null, '', '/');
     } catch { /* ignore */ }
     setHuntSignal((s) => s + 1);
   }
+
+  // Fulfil a pending hunt request once the user is authenticated.
+  useEffect(() => {
+    if (user && pendingHunt) {
+      setPendingHunt(false);
+      setPage('chat');
+      try {
+        window.history.replaceState(null, '', '/');
+      } catch { /* ignore */ }
+      setHuntSignal((s) => s + 1);
+    }
+  }, [user, pendingHunt]);
 
   if (!ready) {
     return (

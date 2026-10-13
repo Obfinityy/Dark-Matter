@@ -106,3 +106,19 @@ export function writeHuntMeta(huntId, meta) {
 export function readHuntMeta(huntId) {
   return readJson(path.join(config.dataDir, 'hunts', String(huntId), 'meta.json'), null);
 }
+
+/** List all hunt metadata (for per-user filtering by the caller). */
+export function listHuntMetas() {
+  const out = [];
+  try {
+    const dir = path.join(dataDir(), 'hunts');
+    for (const name of fs.readdirSync(dir)) {
+      const meta = readJson(path.join(dir, name, 'meta.json'), null);
+      if (meta) out.push(meta);
+    }
+  } catch {
+    // no hunts yet
+  }
+  out.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  return out;
+}

@@ -95,6 +95,11 @@ export async function sendChat(message, huntId) {
 }
 
 // --- Hunts -----------------------------------------------------------------
+/** The user's hunts from the backend (survives browser close — re-attach). */
+export async function listHunts() {
+  return get('/api/v1/hunts');
+}
+
 export async function startHunt(target, scope) {
   const res = await post('/api/v1/hunts', { target, scope });
   if (!res.ok) return res;

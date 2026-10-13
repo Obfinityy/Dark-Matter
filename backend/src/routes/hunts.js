@@ -1,6 +1,7 @@
 // Hunt routes — authorized-targets-only creation, engine proxying, reports.
 //
 //   POST /api/v1/hunts {target, scope, confirmedAuthorized}
+//   GET  /api/v1/hunts                    -> the user's hunts (re-attach after browser close)
 //   POST /api/v1/hunts/:id/pause | /resume | /stop
 //   GET  /api/v1/hunts/:id               -> engine status (502 if engine down)
 //   GET  /api/v1/hunts/:id/report?format=md|pdf  (works any time, even mid-hunt)
@@ -31,8 +32,23 @@ import {
   readHuntEvents,
   writeHuntMeta,
   readHuntMeta,
+  listHuntMetas,
 } from '../store.js';
 import { requireAuth } from './auth.js';
+
+/** Reject unless the hunt belongs to the authenticated user. */
+function requireHuntOwner(req, res) {
+  const meta = readHuntMeta(req.params.id);
+  if (!meta) {
+    res.status(404).json({ ok: false, error: 'hunt_not_found' });
+    return null;
+  }
+  if (meta.userId && meta.userId !== req.user.id) {
+    res.status(403).json({ ok: false, error: 'forbidden' });
+    return null;
+  }
+  return meta;
+}
 
 const router = Router();
 
@@ -101,6 +117,7 @@ router.post('/', requireAuth, async (req, res) => {
       huntId,
       target,
       scope: scope || null,
+      userId: req.user.id,
       createdAt: new Date().toISOString(),
       authorized: true,
     });
@@ -111,7 +128,38 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+// List the authenticated user's hunts (newest first). This is what powers
+// "close the browser, come back days later": hunts live on the engine +
+// backend, not in the browser, so the user re-attaches to them here.
+router.get('/', requireAuth, async (req, res) => {
+  const mine = listHuntMetas().filter(
+    (m) => !m.userId || m.userId === req.user.id
+  );
+  // Enrich with live engine status where reachable; fall back to cached meta.
+  const hunts = await Promise.all(
+    mine.map(async (m) => {
+      let status = m.status || 'unknown';
+      try {
+        const live = await getEngineHunt(m.huntId);
+        if (live && live.status) status = live.status;
+      } catch {
+        // engine down — cached status still shows
+      }
+      return {
+        huntId: m.huntId,
+        target: m.target,
+        scope: m.scope || null,
+        createdAt: m.createdAt || null,
+        status,
+      };
+    })
+  );
+  res.json({ ok: true, hunts });
+});
+
+router.get('/:id', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
   try {
     const data = await getEngineHunt(req.params.id);
     res.json({ ok: true, hunt: data });
@@ -125,8 +173,10 @@ for (const [route, fn, verb] of [
   ['resume', resumeEngineHunt, 'resumed'],
   ['stop', stopEngineHunt, 'stopped'],
 ]) {
-  router.post(`/:id/${route}`, async (req, res) => {
+  router.post(`/:id/${route}`, requireAuth, async (req, res) => {
     const huntId = req.params.id;
+    const meta = requireHuntOwner(req, res);
+    if (!meta) return;
     try {
       const data = await fn(huntId);
       // resume-via-recreate returns a NEW hunt id (a stopped flow can never be
@@ -160,8 +210,10 @@ for (const [route, fn, verb] of [
 // dependency). If pdfkit were ever missing, we fall back to markdown with a
 // clear note instead of failing.
 
-router.get('/:id/report', async (req, res) => {
+router.get('/:id/report', requireAuth, async (req, res) => {
   const huntId = req.params.id;
+  const meta0 = requireHuntOwner(req, res);
+  if (!meta0) return;
   const format = String(req.query.format || 'md').toLowerCase();
   const events = readHuntEvents(huntId);
   const meta = readHuntMeta(huntId);

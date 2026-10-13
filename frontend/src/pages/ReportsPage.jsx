@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Markdown from '../components/Markdown';
-import { fetchReportMarkdown, reportPdfUrl } from '../lib/api';
+import { fetchReportMarkdown, reportPdfUrl, listHunts } from '../lib/api';
+import { useAuth } from '../lib/auth';
 import { toast } from '../lib/toast';
 
 const HUNTS_KEY = 'dm.hunts';
@@ -14,7 +15,20 @@ function loadHunts() {
   }
 }
 
+/** Merge backend hunts (survive browser close) with local ones, dedup by id. */
+function mergeHunts(local, remote) {
+  const byId = new Map();
+  for (const h of local) if (h && h.huntId) byId.set(h.huntId, h);
+  for (const h of remote) {
+    if (!h || !h.huntId) continue;
+    const prev = byId.get(h.huntId);
+    byId.set(h.huntId, prev ? { ...prev, ...h, status: h.status || prev.status } : h);
+  }
+  return [...byId.values()];
+}
+
 export default function ReportsPage({ preselectedHuntId }) {
+  const { user } = useAuth();
   const [hunts, setHunts] = useState(() => loadHunts());
   const [manualId, setManualId] = useState('');
   const [selectedId, setSelectedId] = useState(preselectedHuntId || null);
@@ -32,7 +46,16 @@ export default function ReportsPage({ preselectedHuntId }) {
 
   useEffect(() => {
     setHunts(loadHunts());
-  }, []);
+    // Pull the user's hunts from the backend too — these survive browser
+    // close, so a hunt started days ago reappears here with its status.
+    if (user) {
+      listHunts().then((res) => {
+        if (res.ok && res.data && Array.isArray(res.data.hunts)) {
+          setHunts((prev) => mergeHunts(prev, res.data.hunts));
+        }
+      }).catch(() => { /* offline — local hunts still show */ });
+    }
+  }, [user]);
 
   function select(id) {
     setSelectedId(id);
