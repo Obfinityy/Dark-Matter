@@ -1,7 +1,9 @@
-// Top bar — ChatGPT idiom: hamburger (mobile), "Dark Matter ▾" brand picker,
-// Share + avatar on the right.
+// Top bar — ChatGPT logged-out idiom: hamburger, "Dark Matter" wordmark +
+// chevron (brand picker). Right: "Log in" black pill + "Sign up for free"
+// outline pill when logged out; avatar + profile menu when logged in.
 import React, { useEffect, useRef, useState } from 'react';
 import ProfileMenu from './ProfileMenu';
+import { useAuth } from '../lib/auth';
 import { toast } from '../lib/toast';
 
 function IconMenu() {
@@ -21,16 +23,8 @@ function IconShare() {
   );
 }
 
-function IconUser() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate }) {
+  const { user } = useAuth();
   const [modelOpen, setModelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const modelRef = useRef(null);
@@ -56,6 +50,9 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate }) {
       toast('Clipboard is not available.', 'error');
     }
   }
+
+  const initial = user && user.name ? user.name.trim().charAt(0).toUpperCase()
+    : user && user.email ? user.email.trim().charAt(0).toUpperCase() : '•';
 
   return (
     <header className="topbar">
@@ -94,11 +91,24 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate }) {
             <IconShare />
           </button>
         )}
-        <button className="avatar-btn" aria-label="Profile" aria-haspopup="menu" onClick={() => setProfileOpen((v) => !v)}>
-          <IconUser />
-        </button>
-        {profileOpen && (
-          <ProfileMenu positionClass="top-right" onNavigate={onNavigate} onClose={() => setProfileOpen(false)} />
+        {user ? (
+          <>
+            <button className="avatar-btn" aria-label="Profile" aria-haspopup="menu" onClick={() => setProfileOpen((v) => !v)}>
+              {initial}
+            </button>
+            {profileOpen && (
+              <ProfileMenu positionClass="top-right" onNavigate={onNavigate} onClose={() => setProfileOpen(false)} />
+            )}
+          </>
+        ) : (
+          <>
+            <button className="pill-btn pill-btn-solid" onClick={() => onNavigate('login')}>
+              Log in
+            </button>
+            <button className="pill-btn pill-btn-outline" onClick={() => onNavigate('signup')}>
+              Sign up for free
+            </button>
+          </>
         )}
       </div>
     </header>

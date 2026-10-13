@@ -207,6 +207,35 @@ export default function ChatInput({
   return (
     <div className="composer-wrap">
       <div className="composer">
+        <div className="composer-left" ref={attachRef}>
+          <button
+            className="plus-btn"
+            title="More actions"
+            aria-label="More actions"
+            aria-haspopup="menu"
+            onClick={() => setAttachOpen((v) => !v)}
+          >
+            <IconPlus />
+          </button>
+          {attachOpen && (
+            <div className="attach-menu" role="menu">
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setAttachOpen(false);
+                  onStartHunt();
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <circle cx="12" cy="12" r="4.5" />
+                  <circle cx="12" cy="12" r="1" fill="currentColor" />
+                </svg>
+                New hunt
+              </button>
+            </div>
+          )}
+        </div>
         <textarea
           ref={textareaRef}
           placeholder="Ask anything"
@@ -224,72 +253,41 @@ export default function ChatInput({
             }
           }}
         />
-        <div className="composer-row">
-          <div className="composer-left" ref={attachRef}>
-            <button
-              className="icon-btn attach-btn"
-              title="More actions"
-              aria-label="More actions"
-              aria-haspopup="menu"
-              onClick={() => setAttachOpen((v) => !v)}
-            >
-              <IconPlus />
+        <div className="composer-right">
+          <button
+            className={`icon-btn${recording ? ' recording' : ''}`}
+            title={recording ? 'Stop recording' : 'Voice input'}
+            aria-label={recording ? 'Stop recording' : 'Voice input'}
+            onClick={toggleRecording}
+            disabled={transcribing}
+          >
+            <IconMic />
+          </button>
+          <button
+            className="icon-btn"
+            title={speakerOn ? 'Voice mode on — tap to mute spoken replies' : 'Voice mode — speak replies aloud'}
+            aria-label={speakerOn ? 'Mute spoken replies' : 'Speak replies aloud'}
+            aria-pressed={speakerOn}
+            onClick={onToggleSpeaker}
+            style={speakerOn || speaking ? { color: 'var(--dm-text)' } : undefined}
+          >
+            <IconWave />
+          </button>
+          {generating ? (
+            <button className="send-btn stop" onClick={onStop} title="Stop" aria-label="Stop generating">
+              <IconStop />
             </button>
-            {attachOpen && (
-              <div className="attach-menu" role="menu">
-                <button
-                  role="menuitem"
-                  onClick={() => {
-                    setAttachOpen(false);
-                    onStartHunt();
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                    <circle cx="12" cy="12" r="9" />
-                    <circle cx="12" cy="12" r="4.5" />
-                    <circle cx="12" cy="12" r="1" fill="currentColor" />
-                  </svg>
-                  New hunt
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="composer-right">
+          ) : (
             <button
-              className={`icon-btn${recording ? ' recording' : ''}`}
-              title={recording ? 'Stop recording' : 'Voice input'}
-              aria-label={recording ? 'Stop recording' : 'Voice input'}
-              onClick={toggleRecording}
-              disabled={transcribing}
+              className={`send-btn${hasText ? ' ready' : ''}`}
+              disabled={!hasText}
+              onClick={submit}
+              title="Send message"
+              aria-label="Send message"
             >
-              <IconMic />
+              <IconArrowUp />
             </button>
-            <button
-              className="icon-btn"
-              title={speakerOn ? 'Voice mode on — tap to mute spoken replies' : 'Voice mode — speak replies aloud'}
-              aria-label={speakerOn ? 'Mute spoken replies' : 'Speak replies aloud'}
-              aria-pressed={speakerOn}
-              onClick={onToggleSpeaker}
-              style={speakerOn || speaking ? { color: '#fff' } : undefined}
-            >
-              <IconWave />
-            </button>
-            {generating ? (
-              <button className="send-btn stop" onClick={onStop} title="Stop" aria-label="Stop generating">
-                <IconStop />
-              </button>
-            ) : (
-              <button
-                className="send-btn"
-                disabled={!hasText}
-                onClick={submit}
-                title="Send message"
-                aria-label="Send message"
-              >
-                <IconArrowUp />
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
       {(recording || transcribing) && (
@@ -297,7 +295,7 @@ export default function ChatInput({
           {recording ? 'Listening… tap the mic to stop.' : 'Transcribing…'}
         </div>
       )}
-      <div className="disclaimer">Dark Matter can make mistakes. Check important info.</div>
+      <div className="disclaimer">Dark Matter is AI. Check important info.</div>
     </div>
   );
 }

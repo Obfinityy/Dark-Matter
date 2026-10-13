@@ -1,9 +1,31 @@
 // ============================================================================
 // Dark Matter frontend — API client for the v1 backend contract.
-// Auth: none (free product). Every call degrades gracefully when the backend
+// Auth: Bearer token from localStorage (`dm_token`) is attached to every
+// request when present. Every call degrades gracefully when the backend
 // is unreachable; callers receive { ok:false, error } and show honest toasts.
 // ============================================================================
 import { resolveApiBase } from '../config';
+
+const TOKEN_KEY = 'dm_token';
+
+export function getAuthToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function setAuthToken(token) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch { /* storage unavailable */ }
+}
+
+export function clearAuthToken() {
+  setAuthToken('');
+}
 
 function apiUrl(path) {
   return `${resolveApiBase()}${path}`;
@@ -19,16 +41,24 @@ async function parseJsonSafe(res) {
 
 async function request(method, path, body) {
   try {
+    const headers = {};
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    const token = getAuthToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch(apiUrl(path), {
       method,
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     const data = await parseJsonSafe(res);
     if (!res.ok) {
-      return { ok: false, error: (data && (data.error || data.message)) || `Request failed (${res.status})` };
+      return {
+        ok: false,
+        status: res.status,
+        error: (data && (data.error || data.message)) || `Request failed (${res.status})`,
+      };
     }
-    return { ok: true, data };
+    return { ok: true, status: res.status, data };
   } catch (err) {
     return { ok: false, error: 'Backend unreachable. Check Settings → backend connection.' };
   }
@@ -37,6 +67,19 @@ async function request(method, path, body) {
 const get = (path) => request('GET', path);
 const post = (path, body) => request('POST', path, body);
 const put = (path, body) => request('PUT', path, body);
+
+// --- Auth ------------------------------------------------------------------
+export async function signup(name, email, password) {
+  return post('/api/v1/auth/signup', { name, email, password });
+}
+
+export async function login(email, password) {
+  return post('/api/v1/auth/login', { email, password });
+}
+
+export async function me() {
+  return get('/api/v1/auth/me');
+}
 
 // --- Health ----------------------------------------------------------------
 export async function health() {
@@ -100,6 +143,10 @@ export async function listModels() {
 
 export async function downloadModel(modelId) {
   return post('/api/v1/models/download', { modelId });
+}
+
+export async function getDownloadJob(jobId) {
+  return get(`/api/v1/models/downloads/${encodeURIComponent(jobId)}`);
 }
 
 // --- Voice -------------------------------------------------------------------

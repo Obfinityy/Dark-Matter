@@ -5,7 +5,10 @@ import ChatPage from './pages/ChatPage';
 import PluginsPage from './pages/PluginsPage';
 import ReportsPage from './pages/ReportsPage';
 import SettingsPage from './pages/SettingsPage';
+import AuthPage from './pages/AuthPage';
+import AuthModal from './components/AuthModal';
 import ToastHost from './components/ToastHost';
+import { AuthProvider, useAuth } from './lib/auth';
 
 const CHATS_KEY = 'dm.chats';
 const HUNTS_KEY = 'dm.hunts';
@@ -34,9 +37,21 @@ function deriveTitle(text) {
   return t.length > 42 ? `${t.slice(0, 42)}…` : t || 'Untitled chat';
 }
 
-export default function App() {
-  const [page, setPage] = useState('chat');
+function routeFromPath() {
+  try {
+    const p = window.location.pathname.replace(/\/+$/, '') || '/';
+    if (p === '/login') return 'login';
+    if (p === '/signup') return 'signup';
+  } catch { /* ignore */ }
+  return 'chat';
+}
+
+function AppInner() {
+  const { ready } = useAuth();
+  const [page, setPage] = useState(routeFromPath);
   const [reportHuntId, setReportHuntId] = useState(null);
+  const [authModal, setAuthModal] = useState(null); // null | 'login' | 'signup'
+  const [huntSignal, setHuntSignal] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(
     () => typeof window !== 'undefined' && window.innerWidth > 768,
   );
@@ -47,6 +62,24 @@ export default function App() {
   });
 
   useEffect(() => saveJson(CHATS_KEY, chats), [chats]);
+
+  // Deep components can request the auth modal: openAuthModal('login'|'signup').
+  useEffect(() => {
+    function onOpenAuth(e) {
+      setAuthModal((e && e.detail && e.detail.mode) === 'signup' ? 'signup' : 'login');
+    }
+    window.addEventListener('dm:open-auth', onOpenAuth);
+    return () => window.removeEventListener('dm:open-auth', onOpenAuth);
+  }, []);
+
+  // Back/forward button support for /login and /signup.
+  useEffect(() => {
+    function onPop() {
+      setPage(routeFromPath());
+    }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   const activeChat = chats.find((c) => c.id === activeChatId) || null;
 
@@ -141,6 +174,39 @@ export default function App() {
 
   function navigate(p) {
     setPage(p);
+    try {
+      const path = p === 'login' ? '/login' : p === 'signup' ? '/signup' : '/';
+      window.history.replaceState(null, '', path);
+    } catch { /* ignore */ }
+    // Opening the auth pages from the app shell should not leave the modal up.
+    if (p === 'login' || p === 'signup') setAuthModal(null);
+  }
+
+  // Sidebar "New hunt" — go to chat and ask ChatPage to open the hunt modal.
+  function requestHuntModal() {
+    setPage('chat');
+    try {
+      window.history.replaceState(null, '', '/');
+    } catch { /* ignore */ }
+    setHuntSignal((s) => s + 1);
+  }
+
+  if (!ready) {
+    return (
+      <div className="app">
+        <main className="main" />
+        <ToastHost />
+      </div>
+    );
+  }
+
+  if (page === 'login' || page === 'signup') {
+    return (
+      <div className="app">
+        <AuthPage mode={page} onDone={() => navigate('chat')} />
+        <ToastHost />
+      </div>
+    );
   }
 
   return (
@@ -148,11 +214,12 @@ export default function App() {
       <Sidebar
         chats={chats}
         activeChatId={activeChatId}
+        activePage={page}
         onSelectChat={setActiveChatId}
-        onNewChat={createChat}
+        onNewHunt={requestHuntModal}
+        onNavigate={navigate}
         onRenameChat={renameChat}
         onDeleteChat={deleteChat}
-        onNavigate={navigate}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -175,13 +242,29 @@ export default function App() {
             onRecordHunt={recordHunt}
             onUpdateHunt={updateHunt}
             onOpenReports={openReports}
+            huntSignal={huntSignal}
           />
         )}
         {page === 'plugins' && <PluginsPage />}
         {page === 'reports' && <ReportsPage preselectedHuntId={reportHuntId} />}
         {page === 'settings' && <SettingsPage />}
       </main>
+      {authModal && (
+        <AuthModal
+          mode={authModal}
+          onClose={() => setAuthModal(null)}
+          onDone={() => setPage('chat')}
+        />
+      )}
       <ToastHost />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
   );
 }

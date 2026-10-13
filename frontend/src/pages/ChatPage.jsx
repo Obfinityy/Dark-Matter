@@ -1,12 +1,14 @@
-// Chat page — ChatGPT layout: empty state ("What can I help with?" + centered
-// composer) or thread + bottom composer. ■ stop aborts the reply stream and
-// stops any running hunts in this chat. All chat/hunt logic unchanged.
+// Chat page — ChatGPT logged-out layout: "Where should we begin?" empty state
+// or thread + bottom pill composer. Hunts REQUIRE login: logged-out users get
+// the auth modal + "Log in to start a hunt." toast. ■ stop aborts the reply
+// stream and stops any running hunts in this chat. All chat/hunt logic unchanged.
 import React, { useEffect, useRef, useState } from 'react';
 import ChatThread from '../components/ChatThread';
 import ChatInput from '../components/ChatInput';
 import NewHuntModal from '../components/NewHuntModal';
 import { sendChat, startHunt, stopHunt } from '../lib/api';
 import { streamReveal } from '../lib/streaming';
+import { useAuth, openAuthModal } from '../lib/auth';
 import { toast } from '../lib/toast';
 
 function uid() {
@@ -21,7 +23,9 @@ export default function ChatPage({
   onRecordHunt,
   onUpdateHunt,
   onOpenReports,
+  huntSignal,
 }) {
+  const { user } = useAuth();
   const [sending, setSending] = useState(false);
   const [streamingId, setStreamingId] = useState(null);
   const [huntModalOpen, setHuntModalOpen] = useState(false);
@@ -37,6 +41,12 @@ export default function ChatPage({
   const streamTokenRef = useRef(null);
 
   const messages = chat ? chat.messages : [];
+
+  // Sidebar "New hunt" requests the modal (works even right after navigating).
+  useEffect(() => {
+    if (huntSignal > 0 && ensureHuntAuth()) setHuntModalOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [huntSignal]);
 
   useEffect(() => {
     if (threadEndRef.current) {
@@ -56,6 +66,16 @@ export default function ChatPage({
       localStorage.setItem('dm.speakerOn', String(next));
     } catch { /* ignore */ }
     toast(next ? 'Spoken replies enabled.' : 'Spoken replies muted.', 'info');
+  }
+
+  /** Hunts require login — otherwise open the auth modal. */
+  function ensureHuntAuth() {
+    if (!user) {
+      openAuthModal('login');
+      toast('Log in to start a hunt.', 'info');
+      return false;
+    }
+    return true;
   }
 
   /** ■ stop: abort the reply stream and stop any running hunts in this chat. */
@@ -120,11 +140,17 @@ export default function ChatPage({
   }
 
   async function handleStartHunt(target, scope) {
+    if (!ensureHuntAuth()) return;
     const chatId = chat ? chat.id : onNewChat();
     setLaunching(true);
     const res = await startHunt(target, scope);
     setLaunching(false);
     if (!res.ok || !res.data.huntId) {
+      if (res.status === 401 || res.error === 'auth_required') {
+        openAuthModal('login');
+        toast('Log in to start a hunt.', 'info');
+        return;
+      }
       toast(res.error || 'Could not start the hunt.', 'error');
       return;
     }
@@ -155,7 +181,9 @@ export default function ChatPage({
       sending={sending}
       generating={generating}
       onStop={handleStop}
-      onStartHunt={() => setHuntModalOpen(true)}
+      onStartHunt={() => {
+        if (ensureHuntAuth()) setHuntModalOpen(true);
+      }}
       speakerOn={speakerOn}
       onToggleSpeaker={toggleSpeaker}
     />
@@ -165,7 +193,7 @@ export default function ChatPage({
     <div className="chat-page">
       {messages.length === 0 ? (
         <div className="empty-wrap">
-          <h1>What can I help with?</h1>
+          <h1>Where should we begin?</h1>
           <div className="empty-composer">{composer}</div>
         </div>
       ) : (

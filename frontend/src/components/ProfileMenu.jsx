@@ -1,7 +1,8 @@
-// Profile menu — ChatGPT idiom: Plugins, Reports, Settings, Backend switch, Log out.
+// Profile menu — Plugins, Reports, Settings, Backend switch, Log out.
 // Shared by the sidebar user row and the top-bar avatar.
 import React, { useState } from 'react';
 import { getBackendMode, setBackendMode, CLOUD_BACKEND_URL } from '../config';
+import { useAuth } from '../lib/auth';
 import { toast } from '../lib/toast';
 
 function IconPlugins() {
@@ -41,6 +42,7 @@ function IconLogout() {
 }
 
 export default function ProfileMenu({ onNavigate, onClose, positionClass = '' }) {
+  const { logout: authLogout } = useAuth();
   const [mode, setMode] = useState(getBackendMode());
 
   function go(page) {
@@ -61,8 +63,9 @@ export default function ProfileMenu({ onNavigate, onClose, positionClass = '' })
   }
 
   function logout() {
+    authLogout();
     onClose && onClose();
-    toast('This build has no accounts — you are already signed out.', 'info');
+    toast('Signed out.', 'info');
   }
 
   return (
