@@ -69,11 +69,17 @@ function AppInner() {
 
   // Re-attach backend hunts on login: hunts keep running on the backend even
   // if the browser is closed. Any hunt missing from the local chats gets its
-  // own chat card so it is never "gone".
+  // own chat card so it is never "gone". Also re-syncs when the tab regains
+  // focus, so a hunt started from another browser/device appears without a
+  // manual reload.
   useEffect(() => {
     if (!ready || !user) return;
     let cancelled = false;
-    (async () => {
+    let lastSync = 0;
+    async function syncHunts() {
+      const now = Date.now();
+      if (now - lastSync < 15000) return; // don't hammer the backend on rapid focus flips
+      lastSync = now;
       try {
         const { listHunts } = await import('./lib/api');
         const res = await listHunts();
@@ -103,8 +109,13 @@ function AppInner() {
           return [...restored, ...prev];
         });
       } catch { /* offline — local chats still work */ }
-    })();
-    return () => { cancelled = true; };
+    }
+    syncHunts();
+    window.addEventListener('focus', syncHunts);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', syncHunts);
+    };
   }, [ready, user]);
 
   // Deep components can request the auth modal.

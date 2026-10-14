@@ -254,7 +254,13 @@ async function agentIteration(huntId, target, recon, findings, iteration, maxIte
       'You are an elite bug-bounty hunter. Output ONLY the requested JSON array, no prose.',
       { huntId }
     );
-    if (!reply) return null;
+    if (!reply) {
+      think(huntId, 'Model gave no reply this iteration — skipping to next.');
+      return null;
+    }
+    // Show the model's raw thinking in the terminal (truncated) so the
+    // operator can SEE the brain working, not just templated summaries.
+    think(huntId, `model raw plan: ${String(reply).replace(/\s+/g, ' ').slice(0, 600)}`);
     const m = /\[[\s\S]*\]/.exec(reply);
     plans = m ? JSON.parse(m[0]) : [];
   } catch {

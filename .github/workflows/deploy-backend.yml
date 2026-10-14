@@ -1,0 +1,57 @@
+# Dark Matter — auto-deploy the backend to EC2 on every push to main.
+#
+# How it works: any push to main that touches backend/ (or this file) SSHes
+# into the EC2 box, pulls the latest main, installs backend deps, and
+# restarts the dark-matter-backend systemd service. The frontend already
+# auto-deploys via Cloudflare Pages, so after this both halves deploy
+# themselves on `git push`.
+#
+# One-time setup (repo Settings → Secrets and variables → Actions → New secret):
+#   EC2_HOST     the EC2 public IP or hostname (e.g. 13.233.230.240)
+#   EC2_USER     the SSH user (e.g. ubuntu)
+#   EC2_SSH_KEY  the PRIVATE key that can SSH into that box (the whole
+#                -----BEGIN ... PRIVATE KEY----- ... -----END block).
+#                Use a dedicated deploy key if you can; keep it out of chat.
+#
+# The deploy user needs passwordless sudo for systemctl, or run the service
+# restart via a sudoers rule, e.g. on EC2:
+#   echo "ubuntu ALL=(ALL) NOPASSWD: /bin/systemctl restart dark-matter-backend, /bin/systemctl is-active dark-matter-backend" | sudo tee /etc/sudoers.d/dark-matter-deploy
+
+name: Deploy backend to EC2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  deploy:
+    name: Pull + restart on EC2
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd /opt/Dark-Matter
+            echo "--- pulling latest main ---"
+            git pull --ff-only
+            echo "--- backend deps ---"
+            cd backend
+            npm ci --omit=dev
+            echo "--- restarting backend ---"
+            sudo systemctl restart dark-matter-backend
+            sleep 10
+            sudo systemctl is-active dark-matter-backend
+            echo "--- health check ---"
+            curl -sf http://localhost:4000/api/v1/health
+            echo
+            echo "--- deployed revision ---"
+            git rev-parse --short HEAD
