@@ -7,7 +7,7 @@ import ChatThread from '../components/ChatThread';
 import ChatInput from '../components/ChatInput';
 import NewHuntModal from '../components/NewHuntModal';
 import VoiceMode from '../components/VoiceMode';
-import { sendChat, startHunt, stopHunt } from '../lib/api';
+import { sendChat, startHunt } from '../lib/api';
 import { streamReveal } from '../lib/streaming';
 import { useAuth, openAuthModal } from '../lib/auth';
 import { toast } from '../lib/toast';
@@ -49,10 +49,9 @@ export default function ChatPage({
     }
   }, [messages, streamingId]);
 
-  const runningHunts = messages.filter(
-    (m) => m.role === 'hunt' && (m.hunt.status === 'running' || m.hunt.status === 'idle'),
-  );
-  const generating = sending || streamingId !== null || runningHunts.length > 0;
+  // Chat "generating" is ONLY about the chat reply stream — a running hunt must
+  // never block sending chat messages. The hunt has its own Stop on its card.
+  const generating = sending || streamingId !== null;
 
   function toggleSpeaker() {
     const next = !speakerOn;
@@ -73,23 +72,13 @@ export default function ChatPage({
     return true;
   }
 
-  /** ■ stop: abort the reply stream and stop any running hunts in this chat. */
-  async function handleStop() {
+  /** ■ stop: abort the chat reply stream only. Hunts are stopped from their
+      own Stop button on the hunt card — never from the chat stop. */
+  function handleStop() {
     if (streamTokenRef.current) streamTokenRef.current.aborted = true;
     setSending(false);
     setStreamingId(null);
-    const act = runningHunts;
-    for (const m of act) {
-      const res = await stopHunt(m.hunt.huntId);
-      if (res.ok) {
-        if (chat) onUpdateHunt(chat.id, m.hunt.huntId, 'stopped');
-      } else {
-        toast(res.error || 'Could not stop the hunt.', 'error');
-      }
-    }
-    if (act.length > 0) {
-      toast(`Stopped ${act.length} hunt${act.length === 1 ? '' : 's'}.`, 'info');
-    }
+    toast('Stopped generating.', 'info');
   }
 
   async function handleSend(text, speak) {
