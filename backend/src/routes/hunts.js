@@ -190,7 +190,9 @@ router.get('/', requireAuth, async (req, res) => {
   // Enrich with live engine status where reachable; fall back to cached meta.
   const hunts = await Promise.all(
     mine.map(async (m) => {
-      let status = m.status || 'unknown';
+      // The agent loop writes lifecycle into meta.state (running/paused/
+      // stopped/finished/failed); m.status is the legacy key. Prefer state.
+      let status = m.state || m.status || 'unknown';
       try {
         const live = await getEngineHunt(m.huntId);
         if (live && live.status) status = live.status;

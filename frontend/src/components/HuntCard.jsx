@@ -222,6 +222,15 @@ export default function HuntCard({ hunt, onStatusChange }) {
               <li key={idx} className={`finding ${SEVERITY_CLASS[f.severity] || 'sev-low'}`}>
                 <span className="finding-sev">{f.severity}</span>
                 <span className="finding-title">{f.title}</span>
+                {f.verified === true ? (
+                  <span className="finding-badge finding-verified" title={f.verification || 'Verified'}>
+                    ✓ verified
+                  </span>
+                ) : (
+                  <span className="finding-badge finding-unverified" title="Lead only — not yet confirmed by the verification pipeline">
+                    unverified lead
+                  </span>
+                )}
                 {f.detail && <div className="finding-detail">{f.detail}</div>}
               </li>
             ))}

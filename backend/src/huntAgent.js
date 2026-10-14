@@ -408,7 +408,10 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
 
     // Spawn is done by the route; ensure container exists
     const { container } = await spawnHuntContainer(huntId, target, { mode });
-    writeHuntMeta(huntId, { container });
+    // MERGE — writeHuntMeta replaces the whole file, so spreading the
+    // existing meta preserves userId/target/mode/createdAt. Also mark the
+    // hunt running so the status is honest everywhere (list, reports, UI).
+    writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, container, state: 'running' });
     appendHuntEvent(huntId, { type: 'status', state: 'container_spawned', container });
 
     // Phase 1: recon
@@ -490,8 +493,14 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
 
     think(huntId, `Hunt finished: ${findings.length} findings (${findings.filter((f) => f.verified).length} verified).`);
     appendHuntEvent(huntId, { type: 'status', state: 'finished', findings: findings.length });
+    try {
+      writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, state: 'finished' });
+    } catch { /* meta is best-effort here */ }
   } catch (err) {
     appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
+    try {
+      writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, state: 'failed' });
+    } catch { /* meta is best-effort here */ }
   } finally {
     // Always clean up the container
     try {

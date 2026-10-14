@@ -46,7 +46,20 @@ jobs:
             echo "--- backend deps ---"
             cd backend
             npm ci --omit=dev
-            echo "--- restarting backend ---"
+            echo "--- checking for active hunts ---"
+            ACTIVE=$(node -e "
+              import('./src/store.js').then((s) => {
+                const ms = s.listHuntMetas();
+                const active = ms.filter((m) => ['running','created','starting','paused'].includes(m.state) && !['stopped','finished','failed'].includes(m.state));
+                console.log(active.length);
+              }).catch(() => console.log(0));
+            " 2>/dev/null || echo 0)
+            if [ "${ACTIVE}" != "0" ]; then
+              echo "SKIP restart: ${ACTIVE} hunt(s) still active — new code is pulled and will apply on the next manual restart."
+              git rev-parse --short HEAD
+              exit 0
+            fi
+            echo "--- restarting backend (no active hunts) ---"
             sudo systemctl restart dark-matter-backend
             sleep 10
             sudo systemctl is-active dark-matter-backend
