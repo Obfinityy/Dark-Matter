@@ -16,6 +16,9 @@ const SEVERITY_CLASS = {
 function statusClass(status) {
   switch (status) {
     case 'running': return 'status-pill status-running';
+    case 'idle':
+    case 'created':
+    case 'starting': return 'status-pill status-running';
     case 'paused': return 'status-pill status-paused';
     case 'out_of_credits': return 'status-pill status-paused';
     case 'done': return 'status-pill status-completed';
@@ -28,19 +31,24 @@ function statusClass(status) {
 function statusLabel(status) {
   switch (status) {
     case 'running': return 'Running';
+    case 'idle':
+    case 'created':
+    case 'starting': return 'Starting';
     case 'paused': return 'Paused';
     case 'out_of_credits': return 'Out of credits';
     case 'done': return 'Completed';
     case 'stopped': return 'Stopped';
     case 'error': return 'Failed';
-    default: return 'Paused';
+    default: return status ? String(status) : 'Paused';
   }
 }
 
 function statusText(status, target) {
   switch (status) {
     case 'running': return `Hunting ${target}…`;
-    case 'idle': return 'Starting hunt…';
+    case 'idle':
+    case 'created':
+    case 'starting': return 'Starting hunt…';
     case 'paused': return 'Hunt paused';
     case 'out_of_credits': return 'Out of credits — top up, then press Resume.';
     case 'done': return 'Hunt completed';
@@ -229,7 +237,7 @@ export default function HuntCard({ hunt, onStatusChange }) {
         )}
         <button
           className="hunt-pill-btn"
-          disabled={busy || status !== 'running'}
+          disabled={busy || !['running', 'idle', 'created', 'starting'].includes(status)}
           onClick={() => runControl('pause', pauseHunt, 'Hunt paused.')}
         >
           ❚❚ Pause
