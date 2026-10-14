@@ -50,7 +50,7 @@ function routeFromPath() {
 }
 
 function AppInner() {
-  const { ready } = useAuth();
+  const { ready, user } = useAuth();
   const [page, setPage] = useState(routeFromPath);
   const [reportHuntId, setReportHuntId] = useState(null);
   const [authModal, setAuthModal] = useState(null); // null | 'login'
@@ -66,6 +66,46 @@ function AppInner() {
   });
 
   useEffect(() => saveJson(CHATS_KEY, chats), [chats]);
+
+  // Re-attach backend hunts on login: hunts keep running on the backend even
+  // if the browser is closed. Any hunt missing from the local chats gets its
+  // own chat card so it is never "gone".
+  useEffect(() => {
+    if (!ready || !user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { listHunts } = await import('./lib/api');
+        const res = await listHunts();
+        if (cancelled || !res.ok || !res.data || !Array.isArray(res.data.hunts)) return;
+        const known = new Set();
+        setChats((prev) => {
+          prev.forEach((c) =>
+            (c.messages || []).forEach((m) => {
+              if (m.role === 'hunt' && m.hunt && m.hunt.huntId) known.add(m.hunt.huntId);
+            })
+          );
+          const missing = res.data.hunts.filter((h) => h && h.huntId && !known.has(h.huntId));
+          if (missing.length === 0) return prev;
+          const restored = missing.map((h) => ({
+            id: uid(),
+            title: `Hunt: ${h.target || h.huntId}`,
+            createdAt: h.createdAt || new Date().toISOString(),
+            restored: true,
+            messages: [
+              {
+                id: uid(),
+                role: 'hunt',
+                hunt: { huntId: h.huntId, target: h.target, scope: h.scope || '', status: h.status || 'unknown' },
+              },
+            ],
+          }));
+          return [...restored, ...prev];
+        });
+      } catch { /* offline — local chats still work */ }
+    })();
+    return () => { cancelled = true; };
+  }, [ready, user]);
 
   // Deep components can request the auth modal.
   useEffect(() => {

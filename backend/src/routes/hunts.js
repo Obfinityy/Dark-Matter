@@ -10,11 +10,11 @@
 // Authorization policy: a hunt is created ONLY when BOTH hold:
 //   1. body.confirmedAuthorized === true  (frontend sends this after the user
 //      confirms they own / are permitted to test the target), AND
-//   2. `target` matches ALLOWED_TARGETS (env, comma-separated). Matching: the
-//      target URL's hostname equals an entry or is a subdomain of it, or the
-//      target string starts with an entry.
-// Otherwise: HTTP 403 and the attempt is logged. No allowlist configured ->
-// also 403 (secure default).
+//   2. the caller is admin (owner — may hunt any typed target) OR `target`
+//      matches ALLOWED_TARGETS (env, comma-separated; applies to member
+//      accounts). Matching: the target URL's hostname equals an entry or is
+//      a subdomain of it, or the target string starts with an entry.
+// Otherwise: HTTP 403 and the attempt is logged.
 
 import { Router } from 'express';
 import PDFDocument from 'pdfkit';
@@ -105,7 +105,9 @@ router.post('/', requireAuth, async (req, res) => {
         'to confirm you own or are permitted to test this target.',
     });
   }
-  if (!isTargetAllowed(target)) {
+  // Allowlist: the owner (admin) can hunt any target they type in the chat
+  // box; member accounts are restricted to ALLOWED_TARGETS.
+  if (req.user.role !== 'admin' && !isTargetAllowed(target)) {
     console.warn(
       `[hunts] REJECTED create: target "${target}" is not in ALLOWED_TARGETS ` +
         `(${config.allowedTargets.length ? config.allowedTargets.join(', ') : 'allowlist empty'})`
