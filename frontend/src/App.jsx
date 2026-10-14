@@ -266,12 +266,14 @@ function AppInner() {
   }, [chats, draftChat]);
 
   const appendMessage = useCallback((chatId, message) => {
+    // Every message gets a timestamp if it doesn't have one.
+    const stamped = message.createdAt ? message : { ...message, createdAt: new Date().toISOString() };
     // First message in a draft chat commits it to history.
     if (draftChat && draftChat.id === chatId) {
-      const messages = [message];
+      const messages = [stamped];
       let title = draftChat.title;
-      if (message.role === 'user') title = deriveTitle(message.text);
-      else if (message.role === 'hunt') title = deriveTitle(`Hunt: ${message.hunt.target}`);
+      if (stamped.role === 'user') title = deriveTitle(stamped.text);
+      else if (stamped.role === 'hunt') title = deriveTitle(`Hunt: ${stamped.hunt.target}`);
       const committed = { ...draftChat, title, messages, updatedAt: new Date().toISOString() };
       setDraftChat(null);
       setChats((prev) => [committed, ...prev]);
@@ -280,7 +282,7 @@ function AppInner() {
     setChats((prev) =>
       prev.map((c) => {
         if (c.id !== chatId) return c;
-        const messages = [...c.messages, message];
+        const messages = [...c.messages, stamped];
         let title = c.title;
         if (c.title === 'New chat' && message.role === 'user') {
           title = deriveTitle(message.text);

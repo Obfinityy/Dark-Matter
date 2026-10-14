@@ -43,14 +43,22 @@ import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
 import { getBalanceUsd } from '../billing/credits.js';
 import { teardownHuntContainer } from '../huntRunner.js';
 
-/** Reject unless the hunt belongs to the authenticated user. */
+/** Reject unless the hunt belongs to the authenticated user.
+ *  Hunts without a userId are orphaned (pre-isolation) — admin only. */
 function requireHuntOwner(req, res) {
   const meta = readHuntMeta(req.params.id);
   if (!meta) {
     res.status(404).json({ ok: false, error: 'hunt_not_found' });
     return null;
   }
-  if (meta.userId && meta.userId !== req.user.id) {
+  if (!meta.userId) {
+    if (req.user.role !== 'admin') {
+      res.status(403).json({ ok: false, error: 'forbidden' });
+      return null;
+    }
+    return meta;
+  }
+  if (meta.userId !== req.user.id) {
     res.status(403).json({ ok: false, error: 'forbidden' });
     return null;
   }
@@ -184,8 +192,11 @@ router.post('/', requireAuth, async (req, res) => {
 // "close the browser, come back days later": hunts live on the engine +
 // backend, not in the browser, so the user re-attaches to them here.
 router.get('/', requireAuth, async (req, res) => {
+  // Strict per-user isolation: only my hunts. Orphaned hunts (no userId,
+  // pre-isolation) are visible to admin only.
+  const isAdmin = req.user.role === 'admin';
   const mine = listHuntMetas().filter(
-    (m) => !m.userId || m.userId === req.user.id
+    (m) => (m.userId && m.userId === req.user.id) || (!m.userId && isAdmin)
   );
   // Enrich with live engine status where reachable; fall back to cached meta.
   const hunts = await Promise.all(

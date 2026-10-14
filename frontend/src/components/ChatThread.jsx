@@ -63,8 +63,17 @@ function UserActions({ text, onEdit }) {
   );
 }
 
+function IconHeart() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M19.5 12.6 12 20l-7.5-7.4A5 5 0 1 1 12 6.2a5 5 0 1 1 7.5 6.4Z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function AssistantActions({ text }) {
   const [vote, setVote] = useState(null); // 'up' | 'down' | null
+  const [loved, setLoved] = useState(false);
 
   function copy() {
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -105,8 +114,35 @@ function AssistantActions({ text }) {
       >
         <IconThumbDown />
       </button>
+      <button
+        className={`msg-action-btn${loved ? ' voted' : ''}`}
+        title="Love this"
+        aria-label="Love this response"
+        aria-pressed={loved}
+        onClick={() => {
+          setLoved((v) => !v);
+          toast(loved ? 'Removed love.' : 'Loved! ❤️', 'info');
+        }}
+      >
+        <IconHeart />
+      </button>
     </div>
   );
+}
+
+function formatMsgTime(ts) {
+  if (!ts) return '';
+  try {
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return '';
+    let h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2, '0');
+    const ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${m} ${ap}`;
+  } catch {
+    return '';
+  }
 }
 
 export default function ChatThread({ messages, streaming, onHuntStatusChange, onOpenReports, onEditMessage, onRerunHunt }) {
@@ -130,7 +166,12 @@ export default function ChatThread({ messages, streaming, onHuntStatusChange, on
             <div key={msg.id} className="message message-user">
               <div className="message-body">
                 <div className="user-text">{msg.text}</div>
-                <UserActions text={msg.text} onEdit={() => onEditMessage && onEditMessage(msg)} />
+                <div className="msg-meta">
+                  {formatMsgTime(msg.createdAt) && (
+                    <span className="msg-time">{formatMsgTime(msg.createdAt)}</span>
+                  )}
+                  <UserActions text={msg.text} onEdit={() => onEditMessage && onEditMessage(msg)} />
+                </div>
               </div>
             </div>
           );
@@ -142,7 +183,12 @@ export default function ChatThread({ messages, streaming, onHuntStatusChange, on
                 <Markdown text={msg.text} />
                 {streaming === msg.id && <span className="typing-caret" aria-hidden="true" />}
               </div>
-              {msg.text && <AssistantActions text={msg.text} />}
+              <div className="msg-meta">
+                {formatMsgTime(msg.createdAt) && (
+                  <span className="msg-time">{formatMsgTime(msg.createdAt)}</span>
+                )}
+                {msg.text && <AssistantActions text={msg.text} />}
+              </div>
             </div>
           </div>
         );

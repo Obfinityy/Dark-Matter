@@ -84,14 +84,17 @@ export default function HuntCard({ hunt, onStatusChange, onRerun }) {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, [isTerminal]);
-  const elapsedMs = Math.max(0, now - new Date(hunt.createdAt || Date.now()).getTime());
-  const elapsedStr = (() => {
-    const s = Math.floor(elapsedMs / 1000);
+  // Elapsed HH:MM:SS since hunt start, for log timestamps.
+  const huntStartMs = new Date(hunt.createdAt || Date.now()).getTime();
+  function elapsedStamp(at) {
+    const ms = Math.max(0, (at || Date.now()) - huntStartMs);
+    const s = Math.floor(ms / 1000);
     const h = String(Math.floor(s / 3600)).padStart(2, '0');
     const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
     const sec = String(s % 60).padStart(2, '0');
     return `${h}:${m}:${sec}`;
-  })();
+  }
+  const elapsedStr = elapsedStamp(now);
 
   // Plain-English activity feed: translate technical log entries into
   // "I did this" narration anyone can understand.
@@ -128,7 +131,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun }) {
       }
       if (human && !seen.has(human)) {
         seen.add(human);
-        out.push({ emoji, text: human });
+        out.push({ emoji, text: human, at: entry.at });
       }
     }
     return out.slice(-8);
@@ -166,12 +169,12 @@ export default function HuntCard({ hunt, onStatusChange, onRerun }) {
     const handlers = {
       onEvent: (type, payload) => {
         if (type === 'thinking') {
-          setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: payload.text || payload.message || '' }]);
+          setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: payload.text || payload.message || '', at: Date.now() }]);
         } else if (type === 'tool_call') {
           const line = payload.output
             ? `${payload.tool} → output received`
             : `${payload.tool}${payload.args ? ` ${payload.args}` : ''}`;
-          setLogs((prev) => [...prev.slice(-99), { kind: 'tool', text: line }]);
+          setLogs((prev) => [...prev.slice(-99), { kind: 'tool', text: line, at: Date.now() }]);
         } else if (type === 'finding') {
           setFindings((prev) => [
             ...prev,
@@ -187,7 +190,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun }) {
         } else if (type === 'done') {
           updateStatus('done');
           if (payload.summary) {
-            setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: payload.summary }]);
+            setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: payload.summary, at: Date.now() }]);
           }
         }
       },
@@ -291,6 +294,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun }) {
           {logs.length === 0 && <div className="empty-hint">Waiting for hunt output…</div>}
           {logs.map((entry, idx) => (
             <div key={idx} className={`log-line${entry.kind === 'tool' ? ' log-tool' : entry.kind === 'finding' ? ' log-finding' : ' log-think'}`}>
+              <span className="log-time">[{elapsedStamp(entry.at)}]</span>
               <span className="log-prefix" aria-hidden="true">
                 {entry.kind === 'tool' ? '$' : entry.kind === 'finding' ? '✓' : '›'}
               </span>
@@ -395,6 +399,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun }) {
           )}
           {humanLogEntries.map((entry, idx) => (
             <div key={idx} className="hunt-human-line">
+              <span className="log-time">[{elapsedStamp(entry.at)}]</span>
               <span className="hunt-human-emoji">{entry.emoji}</span>
               <span>{entry.text}</span>
             </div>

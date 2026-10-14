@@ -87,14 +87,10 @@ import {
   fingerprintWaf,
 } from './hunt-intel/index.js';
 
-const MODE_ITERATIONS = {
-  normal: 15,
-  medium: 30,
-  high: 60,
-  ultra_high: 120,
-  max: 250,
-  infinity: 1000,
-};
+// REMOVED (owner directive 15 Oct 2026): iteration budgets are gone.
+// Hunts run unlimited until the user stops them or the wallet runs out.
+// Money is the only limit. This constant is kept for reference only.
+const MODE_ITERATIONS = null;
 
 function think(huntId, text) {
   appendHuntEvent(huntId, { type: 'thinking', text: String(text).slice(0, 2000) });
@@ -210,7 +206,7 @@ async function reconPhase(huntId, target) {
 }
 
 /** Phase 2+: Bedrock picks the next test; we execute and verify. */
-async function agentIteration(huntId, target, recon, findings, iteration, maxIterations, playbook) {
+async function agentIteration(huntId, target, recon, findings, iteration, playbook) {
   const confirmed = findings.filter((f) => f.verified);
 
   // Playbook: what worked on similar targets before?
@@ -233,7 +229,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, maxIte
     '',
     context,
     '',
-    `Iteration ${iteration}/${maxIterations}.`,
+    `Iteration ${iteration} — hunting unlimited.`,
   ].join('\n');
 
   let plans = [];
@@ -294,6 +290,21 @@ async function executeWithEvasion(huntId, target, command) {
   return result;
 }
 
+/** Extract the key "interesting signal" from output for reproducibility comparison. */
+function extractSignal(output) {
+  const t = output.toLowerCase();
+  const signals = [];
+  if (/sql syntax|mysql|postgres|sqlite|ora-\d+|sql error/i.test(t)) signals.push('sql-error');
+  if (/stack trace|traceback|exception in|at .*\(.*\.js:/i.test(t)) signals.push('stack-trace');
+  if (/root:|uid=0|uid=\d+\(/i.test(t)) signals.push('cmd-exec');
+  if (/<script>alert|onerror=|onload=/i.test(t)) signals.push('xss-reflect');
+  if (/admin|administrator|dashboard/i.test(t)) signals.push('admin-exposure');
+  if (/\.env|secret|private key|api[_-]?key/i.test(t)) signals.push('secret-exposure');
+  if (/directory listing|index of\//i.test(t)) signals.push('dir-listing');
+  if (/bypass|403.*200|unauthorized.*authorized/i.test(t)) signals.push('auth-bypass');
+  return signals.sort().join(',');
+}
+
 /** Assess a test result: weirdness check → evidence gate → verify. */
 async function assessResult(huntId, target, plan, result) {
   const output = (result.stdout + '\n' + result.stderr).slice(0, 3000);
@@ -329,11 +340,31 @@ function inferSeverity(testName, output) {
   const { pass, gated } = evidenceGate(cand);
   if (!pass) return null;
 
+  // REAL VERIFICATION (not hardcoded): re-run the exact test to confirm
+  // reproducibility. A one-off anomaly is not a vulnerability.
+  let confirmed = false;
+  try {
+    think(huntId, `Verifying: re-running the test to confirm reproducibility…`);
+    const retry = await execInHuntContainer(huntId, String(plan.command).slice(0, 500), 120000);
+    const confirmOutput = (retry.stdout + '\n' + retry.stderr).slice(0, 3000);
+    // Confirmation: second run shows the same interesting signals
+    const sig1 = extractSignal(output);
+    const sig2 = extractSignal(confirmOutput);
+    confirmed = sig1.length > 0 && sig1 === sig2;
+    if (confirmed) {
+      think(huntId, `Verified: reproducible finding (${sig1}).`);
+    } else {
+      think(huntId, `Not confirmed: second run differed — treating as one-off anomaly.`);
+    }
+  } catch (err) {
+    think(huntId, `Verification re-run failed: ${err.message || err}`);
+  }
+
   const v = verifyPipeline({
-    reachability: true,
-    payload_validation: output.length > 100,
-    impact_assessment: /vulnerable|bypass|injection|leak/i.test(output),
-    exploit_confirmation: false,
+    reachability: output.length > 50,
+    payload_validation: /vulnerable|exposed|bypass|injection|leak|admin|secret|token|password|error.*sql|stack trace/i.test(output),
+    impact_assessment: weird.score >= 40 || /vulnerable|bypass|injection|leak/i.test(output),
+    exploit_confirmation: confirmed,
   });
   const rec = { ...gated, verification: v.verdict, verified: v.verified };
   finding(huntId, rec);
@@ -392,18 +423,20 @@ async function generatePoC(huntId, target, findingRec) {
  * Never throws — all failures become hunt events.
  */
 export async function runAutonomousHunt(huntId, target, mode = 'normal', userId = null, opts = {}) {
-  const maxIterations = MODE_ITERATIONS[mode] || MODE_ITERATIONS.normal;
   const startIteration = Math.max(1, opts.startIteration || 1);
   const isResume = Boolean(opts.isResume);
+  // UNLIMITED HUNTING (owner directive): no iteration cap, no rate limit.
+  // The hunt runs until the user stops it or the wallet runs out of money.
+  // Money is the ONLY limit.
   // On resume, rebuild findings from the persisted event log so the agent
   // doesn't lose what it already found before the interruption.
   const findings = Array.isArray(opts.findings) ? opts.findings : [];
 
   try {
     if (isResume) {
-      think(huntId, `Checkpoint resume — continuing from iteration ${startIteration}/${maxIterations} with ${findings.length} finding(s) already recorded.`);
+      think(huntId, `Checkpoint resume — continuing from iteration ${startIteration} with ${findings.length} finding(s) already recorded. Hunting unlimited until you stop me or credits run out.`);
     } else {
-      think(huntId, `Autonomous hunt starting — mode ${mode}, budget ${maxIterations} iterations.`);
+      think(huntId, `Autonomous hunt starting — mode ${mode}. No iteration limit: I hunt until you stop me or the wallet runs out.`);
     }
 
     if (!(await dockerAvailable())) {
@@ -441,13 +474,17 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
       }
     } catch { /* intel is best-effort */ }
 
-    // Phase 2+: agent loop
+    // Phase 2+: agent loop — UNLIMITED. Stops only when:
+    //   1. the user stops it (isStopped),
+    //   2. the wallet runs out (chargeIteration returns false → out_of_credits),
+    //   3. AI backend or Docker becomes unavailable.
+    // There is no iteration cap and no rate limit.
     const hasAI = aiAvailable();
     if (!hasAI) {
       think(huntId, 'No AI backend configured — hunt completed with recon results only.');
     }
 
-    for (let i = startIteration; i <= maxIterations; i++) {
+    for (let i = startIteration; ; i++) {
       // CHECKPOINT — persist progress every iteration so a killed backend
       // can resume this hunt from here instead of from zero. The per-hunt
       // memory folder (data/hunts/<id>/) is the source of truth.
@@ -470,8 +507,8 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
         break;
       }
       // Stop conditions are explicit and user-visible: the operator stops the
-      // hunt, the wallet runs out (out_of_credits pause), or the mode's
-      // iteration budget is reached. No silent internal caps.
+      // hunt, or the wallet runs out (out_of_credits pause). No iteration
+      // cap, no rate limit, no silent internal caps.
       if (!hasAI) break;
       if (!(await dockerAvailable())) break;
 
@@ -479,7 +516,7 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
       if (!chargeIteration(huntId, userId, mode, i)) break;
 
       try {
-        await agentIteration(huntId, target, recon, findings, i, maxIterations, playbook);
+        await agentIteration(huntId, target, recon, findings, i, playbook);
       } catch (err) {
         think(huntId, `Iteration ${i} failed safely: ${err.message || err}`);
       }
