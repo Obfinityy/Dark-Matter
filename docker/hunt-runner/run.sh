@@ -1,7 +1,7 @@
 #!/bin/bash
 # Dark Matter hunt container entrypoint.
 # Emits JSON event lines on stdout -> backend tails `docker logs`.
-# Env: DM_HUNT_ID, DM_TARGET, DM_MODE, AWS_* / BEDROCK_MODEL
+# Env: DM_HUNT_ID, DM_TARGET, DM_MODE (no cloud credentials — the host is the brain)
 
 set -u
 
@@ -41,17 +41,11 @@ if command -v nuclei >/dev/null 2>&1; then
   done
 fi
 
-# Phase 3: hand off to the Bedrock agent loop (node)
-if [ -f /opt/hunt/agent.js ]; then
-  emit "{\"type\":\"thinking\",\"huntId\":\"$HUNT_ID\",\"text\":\"Starting Bedrock agent loop\"}"
-  node /opt/hunt/agent.js
-  rc=$?
-  if [ $rc -ne 0 ]; then
-    emit "{\"type\":\"status\",\"state\":\"failed\",\"huntId\":\"$HUNT_ID\",\"error\":\"agent loop exited $rc\"}"
-    exit $rc
-  fi
-else
-  emit "{\"type\":\"thinking\",\"huntId\":\"$HUNT_ID\",\"text\":\"Recon complete (agent loop not bundled)\"}"
-fi
-
-emit "{\"type\":\"status\",\"state\":\"finished\",\"huntId\":\"$HUNT_ID\"}"
+# Phase 3: stay alive — the HOST backend (backend/src/huntAgent.js) is the SOLE
+# brain and drives this container via `docker exec`. There is intentionally NO
+# in-container model loop (no Bedrock/AWS calls from inside the sandbox).
+emit "{\"type\":\"thinking\",\"huntId\":\"$HUNT_ID\",\"text\":\"Hands ready — awaiting host brain instructions\"}"
+emit "{\"type\":\"status\",\"state\":\"ready\",\"huntId\":\"$HUNT_ID\"}"
+# Keep the container alive for the whole hunt; the host destroys it on
+# terminal stop/timeout. `exec` replaces this shell so signals propagate.
+exec sleep infinity

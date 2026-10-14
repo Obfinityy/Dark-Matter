@@ -65,11 +65,9 @@ export async function spawnHuntContainer(huntId, target, opts = {}) {
     '-e', `DM_HUNT_ID=${huntId}`,
     '-e', `DM_TARGET=${target}`,
     '-e', `DM_MODE=${opts.mode || 'normal'}`,
-    // Bedrock creds for the in-container agent (never logged)
-    '-e', `AWS_ACCESS_KEY_ID=${process.env.AWS_ACCESS_KEY_ID || ''}`,
-    '-e', `AWS_SECRET_ACCESS_KEY=${process.env.AWS_SECRET_ACCESS_KEY || ''}`,
-    '-e', `AWS_REGION=${process.env.AWS_REGION || 'us-east-1'}`,
-    '-e', `BEDROCK_MODEL=${process.env.BEDROCK_MODEL || 'anthropic.claude-3-5-sonnet-20241022-v2:0'}`,
+    // NOTE: no cloud credentials are passed into hunt containers. The host
+    // backend is the sole brain (LLM lives on the host); the container is
+    // only hands (tools). This keeps AWS keys out of the sandbox.
   ];
 
   await docker([
