@@ -39,7 +39,8 @@ import { requireAuth } from './auth.js';
 import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience, getMode, HUNT_MODES, MODE_ORDER, TIERS } from '../hunt-intel/index.js';
 import { getHuntCost, getUserCosts } from '../costTracker.js';
 import { understandTarget } from '../targetIntel.js';
-import { spawnHuntContainer, teardownHuntContainer, dockerAvailable } from '../huntRunner.js';
+import { runAutonomousHunt } from '../huntAgent.js';
+import { teardownHuntContainer } from '../huntRunner.js';
 
 /** Reject unless the hunt belongs to the authenticated user. */
 function requireHuntOwner(req, res) {
@@ -141,20 +142,12 @@ router.post('/', requireAuth, async (req, res) => {
     // AI understands the target first (async, non-blocking): tech stack,
     // endpoints, forms — becomes hunt context for the engine + chat.
     understandTarget(huntId, target).catch(() => {});
-    // Auto-spawn an isolated hunt container (the hunt's own VM).
-    // Non-blocking: if Docker is unavailable, the hunt still exists and the
-    // engine flow continues; the container is best-effort isolation.
-    (async () => {
-      try {
-        if (await dockerAvailable()) {
-          const { container } = await spawnHuntContainer(huntId, target, { mode: huntMode.id });
-          writeHuntMeta(huntId, { container });
-          appendHuntEvent(huntId, { type: 'status', state: 'container_spawned', container });
-        }
-      } catch (err) {
-        appendHuntEvent(huntId, { type: 'status', state: 'container_failed', error: err.message });
-      }
-    })();
+    // Launch the autonomous hunt agent (non-blocking): spawns the isolated
+    // container, runs recon → Bedrock agent loop → verify → chain → teardown.
+    // The user can close the browser; the hunt continues on the backend.
+    runAutonomousHunt(huntId, target, huntMode.id, req.user.id).catch((err) => {
+      appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
+    });
     res.status(201).json({ ok: true, huntId });
   } catch (err) {
     engineErrorResponse(res, err);
@@ -247,8 +240,13 @@ for (const [route, fn, verb] of [
         at: new Date().toISOString(),
         ...(effectiveId !== huntId ? { newHuntId: effectiveId } : {}),
       });
-      // On terminal stop, destroy the hunt's isolated container.
+      // On terminal stop, mark stopped (agent loop checks this) and destroy
+      // the hunt's isolated container.
       if (route === 'stop') {
+        try {
+          const m = readHuntMeta(huntId) || {};
+          writeHuntMeta(huntId, { ...m, stopped: true, state: 'stopped' });
+        } catch { /* ignore */ }
         teardownHuntContainer(huntId).then((torn) => {
           if (torn) appendHuntEvent(huntId, { type: 'status', state: 'container_destroyed' });
         }).catch(() => {});

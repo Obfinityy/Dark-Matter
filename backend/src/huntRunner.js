@@ -125,6 +125,27 @@ export async function teardownHuntContainer(huntId) {
   }
 }
 
+/**
+ * Execute a command inside the hunt container.
+ * @returns {{stdout: string, stderr: string, code: number}}
+ */
+export async function execInHuntContainer(huntId, cmd, timeoutMs = 120000) {
+  const name = containerName(huntId);
+  try {
+    const { stdout, stderr } = await execFileAsync('docker', ['exec', name, 'sh', '-c', cmd], {
+      timeout: timeoutMs,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    return { stdout: String(stdout || ''), stderr: String(stderr || ''), code: 0 };
+  } catch (err) {
+    return {
+      stdout: String(err.stdout || ''),
+      stderr: String(err.stderr || err.message),
+      code: typeof err.code === 'number' ? err.code : 1,
+    };
+  }
+}
+
 /** Sweep: destroy containers older than the hunt timeout. */
 export async function sweepStaleHuntContainers() {
   try {
