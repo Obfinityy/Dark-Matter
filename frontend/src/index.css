@@ -804,6 +804,48 @@ button { font-family: inherit; }
 }
 .hunt-money { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .hunt-burn-rate { margin-left: auto; opacity: 0.85; }
+.hunt-timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--dm-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+/* Plain-English agent activity feed */
+.hunt-human-log {
+  border-top: 1px solid var(--dm-border);
+  padding: 10px 18px 14px;
+}
+.hunt-human-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dm-secondary);
+  margin-bottom: 6px;
+}
+.hunt-human-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.hunt-human-line {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 13px;
+  color: var(--dm-text);
+  line-height: 1.45;
+}
+.hunt-human-emoji { flex: none; }
+.hunt-human-empty {
+  font-size: 13px;
+  color: var(--dm-faint);
+  font-style: italic;
+}
 .sev {
   font-size: 11px;
   padding: 2px 9px;

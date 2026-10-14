@@ -76,6 +76,64 @@ export default function HuntCard({ hunt, onStatusChange }) {
   const [showFeed, setShowFeed] = useState(true);
   const logEndRef = useRef(null);
 
+  // Elapsed-time ticker: shows how long the hunt has been running
+  // (00:00:05 → 00:01:00 → 01:00:00). Ticks every second while live.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (isTerminal) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [isTerminal]);
+  const elapsedMs = Math.max(0, now - new Date(hunt.createdAt || Date.now()).getTime());
+  const elapsedStr = (() => {
+    const s = Math.floor(elapsedMs / 1000);
+    const h = String(Math.floor(s / 3600)).padStart(2, '0');
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+    const sec = String(s % 60).padStart(2, '0');
+    return `${h}:${m}:${sec}`;
+  })();
+
+  // Plain-English activity feed: translate technical log entries into
+  // "I did this" narration anyone can understand.
+  const humanLogEntries = (() => {
+    const out = [];
+    const seen = new Set();
+    for (const entry of logs) {
+      const text = entry.text || '';
+      let emoji = '💭';
+      let human = null;
+      if (entry.kind === 'finding') {
+        emoji = '🎯';
+        human = `I found something: ${text.slice(0, 120)}`;
+      } else if (entry.kind === 'tool') {
+        const t = text.toLowerCase();
+        if (t.includes('nmap')) { emoji = '🔍'; human = 'I scanned the target for open ports'; }
+        else if (t.includes('subdomain') || t.includes('subfinder') || t.includes('amass')) { emoji = '🌐'; human = 'I enumerated subdomains'; }
+        else if (t.includes('nuclei')) { emoji = '🔬'; human = 'I ran vulnerability checks'; }
+        else if (t.includes('curl') || t.includes('wget')) { emoji = '📡'; human = 'I fetched a web page to inspect it'; }
+        else if (t.includes('sqlmap') || t.includes('sql')) { emoji = '💉'; human = 'I tested for SQL injection'; }
+        else if (t.includes('xss')) { emoji = '⚡'; human = 'I tested for cross-site scripting'; }
+        else { emoji = '🔧'; human = `I ran a security test`; }
+      } else {
+        // thinking entries — make them first-person and friendly
+        const t = text.toLowerCase();
+        if (t.includes('reconnaissance') || t.includes('mapping the attack')) { emoji = '🗺️'; human = 'I started mapping the website'; }
+        else if (t.includes('understanding target')) { emoji = '👀'; human = `I'm looking at ${hunt.target}`; }
+        else if (t.includes('iteration')) { const m = text.match(/iteration\s+(\d+)/i); emoji = '🔄'; human = m ? `I'm on round ${m[1]} of testing` : 'I continued testing'; }
+        else if (t.includes('business-logic') || t.includes('bl module')) { emoji = '🧠'; human = 'I planned business-logic attack scenarios'; }
+        else if (t.includes('checkpoint') || t.includes('resum')) { emoji = '💾'; human = 'I picked up from where I left off'; }
+        else if (t.includes('finished')) { emoji = '✅'; human = 'I finished the hunt'; }
+        else if (t.includes('paused')) { emoji = '⏸️'; human = 'I paused — waiting for you'; }
+        else if (t.includes('stopped')) { emoji = '⏹️'; human = 'I stopped the hunt'; }
+      }
+      if (human && !seen.has(human)) {
+        seen.add(human);
+        out.push({ emoji, text: human });
+      }
+    }
+    return out.slice(-8);
+  })();
+
   const updateStatus = (next) => {
     setStatus(next);
     onStatusChange && onStatusChange(hunt.huntId, next);
@@ -190,6 +248,11 @@ export default function HuntCard({ hunt, onStatusChange }) {
       <div className="hunt-statusline">
         <span className={statusClass(status)}><span className="dot" aria-hidden="true" />{statusLabel(status)}</span>
         <span className="hunt-status-text">{statusText(status, hunt.target)}</span>
+        {!isTerminal && (
+          <span className="hunt-timer" title="Time since this hunt started">
+            ⏱ {elapsedStr}
+          </span>
+        )}
         {phase && <span className="hunt-target-inline">{phase}</span>}
         {logs.length > 0 && (
           <button
@@ -293,6 +356,23 @@ export default function HuntCard({ hunt, onStatusChange }) {
           ■ Stop
         </button>
         <span className="hunt-id">ID: {hunt.huntId}</span>
+      </div>
+
+      {/* Plain-English activity: what the agent is doing, in words anyone
+          can understand. Below the controls so it's always visible. */}
+      <div className="hunt-human-log">
+        <div className="hunt-human-title">🤖 Agent activity</div>
+        <div className="hunt-human-feed">
+          {humanLogEntries.length === 0 && (
+            <div className="hunt-human-empty">Waking up the agent…</div>
+          )}
+          {humanLogEntries.map((entry, idx) => (
+            <div key={idx} className="hunt-human-line">
+              <span className="hunt-human-emoji">{entry.emoji}</span>
+              <span>{entry.text}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

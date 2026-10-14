@@ -157,7 +157,7 @@ function inferAppPurpose(endpoints, html) {
 
 /** Phase 1: recon inside the container. Returns {ports, endpoints, profile}. */
 async function reconPhase(huntId, target) {
-  think(huntId, 'Phase 1: reconnaissance — mapping the attack surface.');
+  think(huntId, 'I started mapping the attack surface — checking what this target exposes.');
   const host = target.replace(/^https?:\/\//, '').split('/')[0];
   const recon = { ports: [], endpoints: [], profile: 'generic' };
 
@@ -182,7 +182,7 @@ async function reconPhase(huntId, target) {
     recon.endpoints = rankEndpoints(mined).slice(0, 30);
     recon.profile = classifyTarget(recon.endpoints);
     recon.purpose = inferAppPurpose(recon.endpoints, html);
-    think(huntId, `Mined ${mined.length} endpoints; profile: ${recon.profile}; purpose: ${recon.purpose}.`);
+    think(huntId, `I mapped ${mined.length} endpoints. This looks like: ${recon.profile} (${recon.purpose}).`);
   }
 
   // Nuclei quick scan
