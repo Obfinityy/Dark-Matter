@@ -112,7 +112,17 @@ export function ensureAdmin() {
     return null;
   }
   const users = readUsers();
-  if (users[adminUser]) return users[adminUser]; // already exists
+  const existing = users[adminUser];
+  if (existing) {
+    // If the env hash rotated, adopt the new credentials instead of keeping stale ones.
+    if (existing.passHash !== adminHash || existing.salt !== adminSalt) {
+      existing.passHash = adminHash;
+      existing.salt = adminSalt;
+      writeUsers(users);
+      console.log(`[auth] Admin credentials rotated from env: ${adminUser}`);
+    }
+    return existing;
+  }
   const admin = {
     id: crypto.randomUUID(),
     username: adminUser,
