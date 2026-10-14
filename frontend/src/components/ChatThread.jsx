@@ -30,6 +30,39 @@ function IconThumbDown() {
   );
 }
 
+function IconEdit() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M12 20h9" strokeLinecap="round" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function UserActions({ text, onEdit }) {
+  function copy() {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        () => toast('Copied to clipboard.', 'success'),
+        () => toast('Could not copy.', 'error'),
+      );
+    } else {
+      toast('Clipboard is not available.', 'error');
+    }
+  }
+
+  return (
+    <div className="msg-actions msg-actions-user" aria-label="Message actions">
+      <button className="msg-action-btn" onClick={copy} title="Copy message" aria-label="Copy message">
+        <IconCopy />
+      </button>
+      <button className="msg-action-btn" onClick={onEdit} title="Edit and resend" aria-label="Edit message">
+        <IconEdit />
+      </button>
+    </div>
+  );
+}
+
 function AssistantActions({ text }) {
   const [vote, setVote] = useState(null); // 'up' | 'down' | null
 
@@ -76,7 +109,7 @@ function AssistantActions({ text }) {
   );
 }
 
-export default function ChatThread({ messages, streaming, onHuntStatusChange, onOpenReports }) {
+export default function ChatThread({ messages, streaming, onHuntStatusChange, onOpenReports, onEditMessage }) {
   return (
     <div className="chat-thread">
       {messages.map((msg) => {
@@ -97,6 +130,7 @@ export default function ChatThread({ messages, streaming, onHuntStatusChange, on
             <div key={msg.id} className="message message-user">
               <div className="message-body">
                 <div className="user-text">{msg.text}</div>
+                <UserActions text={msg.text} onEdit={() => onEditMessage && onEditMessage(msg)} />
               </div>
             </div>
           );

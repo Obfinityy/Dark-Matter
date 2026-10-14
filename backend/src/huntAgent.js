@@ -307,13 +307,22 @@ async function assessResult(huntId, target, plan, result) {
     think(huntId, `Weird response (score ${weird.score}): ${weird.signals.join(', ')} — investigating.`);
   }
 
+/** Infer severity from the test name and output — not everything is medium. */
+function inferSeverity(testName, output) {
+  const t = (testName + ' ' + output).toLowerCase();
+  if (/rce|remote code execution|sql injection|sqli|auth bypass|authentication bypass|ssrf|server-side request forgery|arbitrary file|path traversal.*write|command injection/i.test(t)) return 'critical';
+  if (/xss|cross-site scripting|ssti|idor|open redirect|csrf|xxe|file inclusion|lfi|rfi|jwt/i.test(t)) return 'high';
+  if (/info disclosure|information disclosure|verbose error|stack trace|directory listing|cors|clickjacking|missing header/i.test(t)) return 'low';
+  return 'medium';
+}
+
   const interesting = weird.score >= 40 || /vulnerable|exposed|bypass|injection|leak|admin|secret|token|password|error.*sql|stack trace/i.test(output);
   if (!interesting || output.trim().length < 50) return null;
 
   const cand = {
     class: 'agent_finding',
     title: plan.test || 'agent-discovered anomaly',
-    severity: 'medium',
+    severity: inferSeverity(plan.test || '', output),
     url: target,
     evidence: { request: plan.command, response: output.slice(0, 800) },
   };

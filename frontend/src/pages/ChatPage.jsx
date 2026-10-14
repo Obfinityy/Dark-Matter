@@ -184,12 +184,15 @@ export default function ChatPage({
     onUpdateHunt(chat.id, huntId, status);
   }
 
+  const [editText, setEditText] = useState(null);
+
   const composer = (
     <ChatInput
       onSend={handleSend}
       sending={sending}
       generating={generating}
       onStop={handleStop}
+      editText={editText}
       onStartHunt={() => {
         if (ensureHuntAuth()) setHuntModalOpen(true);
       }}
@@ -246,6 +249,7 @@ export default function ChatPage({
               streaming={streamingId}
               onHuntStatusChange={handleHuntStatusChange}
               onOpenReports={onOpenReports}
+              onEditMessage={(msg) => setEditText(msg.text)}
             />
             <div ref={threadEndRef} />
           </div>

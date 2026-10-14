@@ -71,8 +71,16 @@ export default function ChatInput({
   speakerOn,
   onToggleSpeaker,
   onOpenVoice,
+  editText,
 }) {
   const [value, setValue] = useState('');
+  // External edit request (from message edit button) fills the composer.
+  useEffect(() => {
+    if (editText) {
+      setValue(editText);
+      try { textareaRef.current && textareaRef.current.focus(); } catch {}
+    }
+  }, [editText]);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [speaking, setSpeaking] = useState(false);

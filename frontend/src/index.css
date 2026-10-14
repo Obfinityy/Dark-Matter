@@ -726,8 +726,12 @@ button { font-family: inherit; }
   color: #c9d1d9;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
 }
 .hunt-feed .empty-hint { color: #6e7681; }
+.hunt-feed .log-line { user-select: text; -webkit-user-select: text; }
 .hunt-stream-warning {
   display: flex;
   align-items: center;
