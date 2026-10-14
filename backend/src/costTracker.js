@@ -48,7 +48,7 @@ export function modelCostUsd(model, inputTokens, outputTokens) {
 
 /**
  * Record a spend event.
- * @param {{userId, huntId?, kind: 'bedrock'|'ec2', model?, inputTokens?, outputTokens?, amountUsd?, note?}} evt
+ * @param {{userId, huntId?, kind: 'bedrock'|'ec2'|'ollama', model?, inputTokens?, outputTokens?, amountUsd?, note?}} evt
  */
 export function recordCost(evt) {
   const data = readCosts();
