@@ -13,7 +13,7 @@
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { recordCost } from './costTracker.js';
 
-const DEFAULT_MODEL = process.env.BEDROCK_MODEL || 'anthropic.claude-3-5-sonnet-20241022-v2:0';
+const DEFAULT_MODEL = process.env.BEDROCK_MODEL || 'meta.llama3-1-70b-instruct-v1:0';
 const DEFAULT_REGION = process.env.AWS_REGION || 'us-east-1';
 
 // ---- Privacy gateway --------------------------------------------------------
