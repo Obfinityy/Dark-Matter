@@ -24,6 +24,8 @@ export { evidenceGate, verifyPipeline, VERIFY_STEPS } from './differential.js';
 export { createTaskTree, addTask, findNode, setTaskStatus, attachFinding, summarizeTree, serializeTree, deserializeTree } from './taskTree.js';
 export { TECHNIQUE_CATALOG, techniquesByTactic, searchTechniques } from './attackCatalog.js';
 export { beamSearchChains, SSRF_CHAINS, SSRF_CONFIRM_LADDER, inferProducerConsumer } from './chainEngine.js';
+export { scoreWeirdness, isWorthInvestigating } from './anomalyIntel.js';
+export { parseScope, prioritizeByBounty, isInScope } from './scopeIntel.js';
 export { mineJsEndpoints, semanticUrlUsage, findSourceMaps, rankEndpoints } from './jsIntel.js';
 export { verdictBAC, findCapabilityMarkers, BAC_CONFIDENCE } from './accessControl.js';
 export { fingerprintWaf, recordEvasionResult, isKnownBlocked, encodePayload, ENCODERS } from './wafIntel.js';

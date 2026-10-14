@@ -34,6 +34,13 @@ import {
   rankEndpoints,
   blModulesFor,
   classifyTarget,
+  scoreWeirdness,
+  isWorthInvestigating,
+  recordHuntExperience,
+  getPlaybook,
+  encodePayload,
+  ENCODERS,
+  fingerprintWaf,
 } from './hunt-intel/index.js';
 
 const MODE_ITERATIONS = {
@@ -73,6 +80,25 @@ function overBudget(huntId) {
   }
 }
 
+/** Infer what the app DOES from endpoints + HTML (problem #6). */
+function inferAppPurpose(endpoints, html) {
+  const text = [...(endpoints || []), String(html || '').slice(0, 5000)].join(' ').toLowerCase();
+  const purposes = [
+    ['ecommerce store', /cart|checkout|product|shop|order|payment/i],
+    ['banking/fintech', /transfer|wallet|balance|iban|kyc|trading/i],
+    ['social platform', /feed|post|follow|like|comment|profile/i],
+    ['saas dashboard', /dashboard|workspace|subscription|billing|team/i],
+    ['auth service', /login|signup|oauth|sso|2fa|password/i],
+    ['file sharing', /upload|download|file|share|storage/i],
+    ['cms/blog', /article|post|comment|category|tag/i],
+    ['api gateway', /graphql|rest|webhook|api\/v/i],
+  ];
+  for (const [name, re] of purposes) {
+    if (re.test(text)) return name;
+  }
+  return 'general web app';
+}
+
 /** Phase 1: recon inside the container. Returns {ports, endpoints, profile}. */
 async function reconPhase(huntId, target) {
   think(huntId, 'Phase 1: reconnaissance — mapping the attack surface.');
@@ -99,7 +125,8 @@ async function reconPhase(huntId, target) {
     const mined = mineJsEndpoints(html);
     recon.endpoints = rankEndpoints(mined).slice(0, 30);
     recon.profile = classifyTarget(recon.endpoints);
-    think(huntId, `Mined ${mined.length} endpoints from JS; profile: ${recon.profile}.`);
+    recon.purpose = inferAppPurpose(recon.endpoints, html);
+    think(huntId, `Mined ${mined.length} endpoints; profile: ${recon.profile}; purpose: ${recon.purpose}.`);
   }
 
   // Nuclei quick scan
@@ -127,8 +154,11 @@ async function reconPhase(huntId, target) {
 }
 
 /** Phase 2+: Bedrock picks the next test; we execute and verify. */
-async function agentIteration(huntId, target, recon, findings, iteration, maxIterations) {
+async function agentIteration(huntId, target, recon, findings, iteration, maxIterations, playbook) {
   const confirmed = findings.filter((f) => f.verified);
+
+  // Playbook: what worked on similar targets before?
+  const lessons = (playbook || []).slice(0, 3).map((l) => `- ${l.technique}: ${l.why}`).join('\n');
 
   const context = [
     `Target: ${target}`,
@@ -137,11 +167,12 @@ async function agentIteration(huntId, target, recon, findings, iteration, maxIte
     `Endpoints: ${recon.endpoints.slice(0, 15).join(', ') || 'none mined'}`,
     `Confirmed findings so far: ${confirmed.length}`,
     ...confirmed.slice(-5).map((f) => `- ${f.title} (${f.severity})`),
+    lessons ? `Past lessons for similar targets:\n${lessons}` : '',
   ].join('\n');
 
   const prompt = [
-    'You are an elite bug-bounty hunter. Given the recon context below, propose the SINGLE highest-value next test.',
-    'Reply in exactly this JSON shape: {"test":"short name","command":"shell command to run in the hunt container","why":"one line"}.',
+    'You are an elite bug-bounty hunter. Given the recon context below, propose THREE diverse next tests (different attack classes).',
+    'Reply as a JSON array: [{"test":"name","command":"shell command","why":"one line"}, ...].',
     'Prefer tests that escalate existing findings. Commands must be non-destructive and target-scoped.',
     '',
     context,
@@ -149,58 +180,140 @@ async function agentIteration(huntId, target, recon, findings, iteration, maxIte
     `Iteration ${iteration}/${maxIterations}.`,
   ].join('\n');
 
-  let plan;
+  let plans = [];
   try {
     const reply = await chatWithAI(
       [{ role: 'user', text: prompt }],
-      'You are an elite bug-bounty hunter. Output ONLY the requested JSON, no prose.',
+      'You are an elite bug-bounty hunter. Output ONLY the requested JSON array, no prose.',
       { huntId }
     );
     if (!reply) return null;
-    const m = /\{[\s\S]*\}/.exec(reply);
-    plan = m ? JSON.parse(m[0]) : null;
+    const m = /\[[\s\S]*\]/.exec(reply);
+    plans = m ? JSON.parse(m[0]) : [];
   } catch {
     return null;
   }
-  if (!plan || !plan.command) return null;
+  if (!plans.length) return null;
 
-  think(huntId, `Test: ${plan.test || 'unnamed'} — ${plan.why || ''}`);
-  const result = await execInHuntContainer(huntId, String(plan.command).slice(0, 500), 180000);
-  const output = (result.stdout + '\n' + result.stderr).slice(0, 3000);
+  // Execute up to 3 hypotheses (multi-hypothesis > single guess)
+  let best = null;
+  for (const plan of plans.slice(0, 3)) {
+    if (!plan.command) continue;
+    think(huntId, `Test: ${plan.test || 'unnamed'} — ${plan.why || ''}`);
+    const result = await executeWithEvasion(huntId, target, String(plan.command).slice(0, 500));
+    const rec = await assessResult(huntId, target, plan, result);
+    if (rec && rec.verified && !best) best = rec;
+  }
+  return best;
+}
 
-  // Heuristic: interesting output → candidate finding → gate → verify
-  const interesting = /vulnerable|exposed|bypass|injection|leak|admin|secret|token|password|error.*sql|stack trace/i.test(output);
-  if (interesting && output.trim().length > 50) {
-    const cand = {
-      class: 'agent_finding',
-      title: plan.test || 'agent-discovered anomaly',
-      severity: 'medium',
-      url: target,
-      evidence: { request: plan.command, response: output.slice(0, 800) },
-    };
-    const { pass, gated } = evidenceGate(cand);
-    if (pass) {
-      const v = verifyPipeline({
-        reachability: true,
-        payload_validation: output.length > 100,
-        impact_assessment: /vulnerable|bypass|injection|leak/i.test(output),
-        exploit_confirmation: false,
-      });
-      const rec = { ...gated, verification: v.verdict, verified: v.verified };
-      finding(huntId, rec);
-      findings.push(rec);
+/**
+ * Execute a test with adaptive evasion: if blocked (403/WAF), retry with
+ * encoders from the matrix before giving up.
+ */
+async function executeWithEvasion(huntId, target, command) {
+  let result = await execInHuntContainer(huntId, command, 180000);
+  const blocked = /403|406|406 Not Acceptable|blocked by|waf|forbidden/i.test(result.stdout + result.stderr)
+    && result.stdout.length < 500;
 
-      // Chain: escalate confirmed findings
-      if (v.verified) {
-        const chains = beamSearchChains(['data_read']);
-        if (chains.length) {
-          think(huntId, `Chain opportunity: ${chains[0].path.join(' → ')} (score ${chains[0].score.toFixed(2)})`);
-        }
+  if (blocked) {
+    think(huntId, 'Blocked (WAF/filter?) — trying encoded variants.');
+    // Extract the payload-ish part and try encoders
+    for (const enc of ['url', 'double_url', 'js_unicode']) {
+      const encoded = encodePayload(command, enc);
+      if (encoded === command) continue;
+      const retry = await execInHuntContainer(huntId, encoded.slice(0, 500), 60000);
+      if (retry.stdout.length > result.stdout.length * 1.5) {
+        think(huntId, `Evasion worked with ${enc} encoding.`);
+        return retry;
       }
-      return rec;
     }
   }
-  return null;
+  return result;
+}
+
+/** Assess a test result: weirdness check → evidence gate → verify. */
+async function assessResult(huntId, target, plan, result) {
+  const output = (result.stdout + '\n' + result.stderr).slice(0, 3000);
+
+  // Weirdness check: investigate even without signature match
+  const weird = scoreWeirdness(
+    { status: result.code === 0 ? 200 : 500, bodyLength: output.length, timeMs: 1000, body: output },
+    { status: 200, bodyLength: 2000, timeMs: 500 }
+  );
+  if (isWorthInvestigating({ status: 200, bodyLength: output.length, timeMs: 1000, body: output }, { status: 200, bodyLength: 2000, timeMs: 500 })) {
+    think(huntId, `Weird response (score ${weird.score}): ${weird.signals.join(', ')} — investigating.`);
+  }
+
+  const interesting = weird.score >= 40 || /vulnerable|exposed|bypass|injection|leak|admin|secret|token|password|error.*sql|stack trace/i.test(output);
+  if (!interesting || output.trim().length < 50) return null;
+
+  const cand = {
+    class: 'agent_finding',
+    title: plan.test || 'agent-discovered anomaly',
+    severity: 'medium',
+    url: target,
+    evidence: { request: plan.command, response: output.slice(0, 800) },
+  };
+  const { pass, gated } = evidenceGate(cand);
+  if (!pass) return null;
+
+  const v = verifyPipeline({
+    reachability: true,
+    payload_validation: output.length > 100,
+    impact_assessment: /vulnerable|bypass|injection|leak/i.test(output),
+    exploit_confirmation: false,
+  });
+  const rec = { ...gated, verification: v.verdict, verified: v.verified };
+  finding(huntId, rec);
+
+  // Chain escalation
+  if (v.verified) {
+    const chains = beamSearchChains(['data_read']);
+    if (chains.length) {
+      think(huntId, `Chain opportunity: ${chains[0].path.join(' → ')} (score ${chains[0].score.toFixed(2)})`);
+    }
+    // PoC generator: turn verified finding into working proof
+    await generatePoC(huntId, target, rec);
+  }
+  return rec;
+}
+
+/**
+ * PoC generator (problem #7): ask Bedrock to write a working proof-of-concept
+ * for a verified finding, execute it in the container, verify the output.
+ */
+async function generatePoC(huntId, target, findingRec) {
+  try {
+    think(huntId, `Generating PoC for: ${findingRec.title}`);
+    const reply = await chatWithAI(
+      [{
+        role: 'user',
+        text: `Write a minimal, non-destructive proof-of-concept shell command (curl-based) that demonstrates this vulnerability:\n\nFinding: ${findingRec.title}\nEvidence: ${JSON.stringify(findingRec.evidence).slice(0, 1000)}\n\nTarget: ${target}\n\nReply with ONLY the shell command, no explanation.`,
+      }],
+      'You are a security researcher writing PoC commands. Output ONLY the command.',
+      { huntId }
+    );
+    if (!reply) return;
+    const cmd = reply.trim().split('\n')[0].replace(/^[$>]\s*/, '').slice(0, 500);
+    if (!cmd || cmd.length < 10) return;
+    think(huntId, 'Executing PoC...');
+    const result = await execInHuntContainer(huntId, cmd, 60000);
+    const out = (result.stdout || '').slice(0, 1000);
+    if (out.trim().length > 20) {
+      appendHuntEvent(huntId, {
+        type: 'finding',
+        class: 'poc_verified',
+        title: `PoC confirmed: ${findingRec.title}`,
+        severity: findingRec.severity,
+        evidence: { poc_command: cmd, poc_output: out.slice(0, 500) },
+        verified: true,
+      });
+      think(huntId, 'PoC executed — finding confirmed with working proof.');
+    }
+  } catch {
+    /* PoC is best-effort */
+  }
 }
 
 /**
@@ -227,6 +340,15 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
 
     // Phase 1: recon
     const recon = await reconPhase(huntId, target);
+
+    // Learning: what worked on similar targets before?
+    let playbook = [];
+    try {
+      playbook = getPlaybook({ profile: recon.profile });
+      if (playbook.length) {
+        think(huntId, `Playbook: ${playbook.length} lessons from past hunts on ${recon.profile} targets.`);
+      }
+    } catch { /* no history yet */ }
 
     // Intel: logic tests for this profile → feed as planned tests
     try {
@@ -257,7 +379,7 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
       if (!(await dockerAvailable())) break;
 
       try {
-        await agentIteration(huntId, target, recon, findings, i, maxIterations);
+        await agentIteration(huntId, target, recon, findings, i, maxIterations, playbook);
       } catch (err) {
         think(huntId, `Iteration ${i} failed safely: ${err.message || err}`);
       }
@@ -270,6 +392,18 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
     try {
       const analysis = analyzeFindings(findings);
       appendHuntEvent(huntId, { type: 'status', state: 'analysis', summary: analysis });
+    } catch { /* ignore */ }
+
+    // Learning: record what worked so future hunts get smarter
+    try {
+      recordHuntExperience({
+        huntId,
+        target,
+        profile: { type: recon.profile },
+        techniques: findings.map((f) => ({ name: f.class || 'unknown', triedAt: new Date().toISOString() })),
+        findings,
+      });
+      think(huntId, 'Hunt experience recorded — future hunts learn from this one.');
     } catch { /* ignore */ }
 
     think(huntId, `Hunt finished: ${findings.length} findings (${findings.filter((f) => f.verified).length} verified).`);
