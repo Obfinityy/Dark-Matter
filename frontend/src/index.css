@@ -213,6 +213,23 @@ button { font-family: inherit; }
   padding: 6px 8px;
 }
 
+.brand-symbol {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex: none;
+}
+
+.auth-symbol {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  object-fit: cover;
+  display: block;
+  margin: 0 auto 12px;
+}
+
 .close-sidebar-btn {
   width: 36px;
   height: 36px;

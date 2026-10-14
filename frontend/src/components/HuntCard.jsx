@@ -17,6 +17,7 @@ function statusClass(status) {
   switch (status) {
     case 'running': return 'status-pill status-running';
     case 'paused': return 'status-pill status-paused';
+    case 'out_of_credits': return 'status-pill status-paused';
     case 'done': return 'status-pill status-completed';
     case 'stopped': return 'status-pill status-stopped';
     case 'error': return 'status-pill status-failed';
@@ -28,6 +29,7 @@ function statusLabel(status) {
   switch (status) {
     case 'running': return 'Running';
     case 'paused': return 'Paused';
+    case 'out_of_credits': return 'Out of credits';
     case 'done': return 'Completed';
     case 'stopped': return 'Stopped';
     case 'error': return 'Failed';
@@ -40,6 +42,7 @@ function statusText(status, target) {
     case 'running': return `Hunting ${target}…`;
     case 'idle': return 'Starting hunt…';
     case 'paused': return 'Hunt paused';
+    case 'out_of_credits': return 'Out of credits — top up, then press Resume.';
     case 'done': return 'Hunt completed';
     case 'stopped': return 'Hunt stopped';
     case 'error': return 'Stream unavailable';
@@ -233,7 +236,7 @@ export default function HuntCard({ hunt, onStatusChange }) {
         </button>
         <button
           className="hunt-pill-btn"
-          disabled={busy || status !== 'paused'}
+          disabled={busy || (status !== 'paused' && status !== 'out_of_credits')}
           onClick={() => runControl('resume', resumeHunt, 'Hunt resumed.')}
         >
           ▶ Resume

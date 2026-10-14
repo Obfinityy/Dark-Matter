@@ -19,6 +19,7 @@ import chatRouter from './routes/chat.js';
 import pluginsRouter from './routes/plugins.js';
 import modelsRouter from './routes/models.js';
 import voiceRouter from './routes/voice.js';
+import billingRouter from './routes/billing.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -63,6 +64,7 @@ app.use('/api/v1/chat', chatRouter);
 app.use('/api/v1/plugins', pluginsRouter);
 app.use('/api/v1/models', modelsRouter);
 app.use('/api/v1/voice', voiceRouter);
+app.use('/api/v1/billing', billingRouter);
 
 // 404 for unknown API routes (JSON, not HTML).
 app.use('/api/', (req, res) => {

@@ -201,8 +201,25 @@ export default function Sidebar({
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
+  const [balanceText, setBalanceText] = useState('');
   const profileRef = useRef(null);
   const searchRef = useRef(null);
+
+  // Credit balance pill next to "Top up" (logged in only; silent on failure).
+  useEffect(() => {
+    if (!user) { setBalanceText(''); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { billingStatus } = await import('../lib/api');
+        const res = await billingStatus();
+        if (!cancelled && res.ok && res.data && typeof res.data.balanceUsd === 'number') {
+          setBalanceText(`$${res.data.balanceUsd.toFixed(2)}`);
+        }
+      } catch { /* offline — no pill */ }
+    })();
+    return () => { cancelled = true; };
+  }, [user, activePage]);
 
   useEffect(() => {
     if (!profileOpen) return;
@@ -253,11 +270,12 @@ export default function Sidebar({
     closeIfMobile();
   }
 
-  const initial = user && user.name ? user.name.trim().charAt(0).toUpperCase() : '•';
+  const initial = user && (user.username || user.name) ? (user.username || user.name).trim().charAt(0).toUpperCase() : '•';
 
   return (
     <aside className={`sidebar${open ? ' open' : ''}`} aria-label="Navigation">
       <div className="sidebar-top">
+        <img src="/dark-matter-symbol.png" alt="Dark Matter" className="brand-symbol" />
         <span className="wordmark">Dark Matter</span>
         <button
           className="close-sidebar-btn"
@@ -279,8 +297,8 @@ export default function Sidebar({
         <button className={`nav-item${activePage === 'reports' ? ' active' : ''}`} onClick={() => go('reports')}>
           <IconChart /> Reports
         </button>
-        <button className={`nav-item${activePage === 'premium' ? ' active' : ''}`} onClick={() => go('premium')}>
-          <IconHexagon /> Premium
+        <button className={`nav-item${activePage === 'topup' ? ' active' : ''}`} onClick={() => go('topup')}>
+          <IconHexagon /> Top up{balanceText ? ` · ${balanceText}` : ''}
         </button>
         <button className={`nav-item${activePage === 'settings' ? ' active' : ''}`} onClick={() => go('settings')}>
           <IconGear /> Settings

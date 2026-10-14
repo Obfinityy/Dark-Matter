@@ -32,6 +32,7 @@ export function AuthCard({ onDone }) {
 
   return (
     <div className="auth-card" role="dialog" aria-modal="true" aria-label="Log in">
+      <img src="/dark-matter-symbol.png" alt="Dark Matter" className="auth-symbol" />
       <h2>Welcome back</h2>
       <p className="auth-sub">Invite-only. Use the credentials your admin gave you.</p>
       <form onSubmit={submit}>

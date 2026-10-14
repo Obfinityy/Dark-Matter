@@ -23,7 +23,51 @@ import {
 } from './huntRunner.js';
 import { chatWithAI, aiAvailable } from './llm.js';
 import { getHuntCost } from './costTracker.js';
-import { appendHuntEvent, writeHuntMeta, readHuntMeta } from './store.js';
+import { appendHuntEvent, writeHuntMeta, readHuntMeta, readUsers } from './store.js';
+import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
+
+// Credit price per hunt iteration (USD), by hunt mode. The hunt auto-pauses
+// with state 'out_of_credits' when the wallet can't cover the next iteration;
+// topping up + Resume continues it. Admins (owner) are exempt.
+const ITERATION_PRICE_USD = {
+  normal: 0.1,
+  medium: 0.15,
+  high: 0.25,
+  ultra_high: 0.4,
+  max: 0.6,
+  infinity: 1.0,
+};
+
+/** Price of one hunt iteration, in integer USD cents. */
+export function iterationPriceCents(mode) {
+  return Math.round((ITERATION_PRICE_USD[mode] || ITERATION_PRICE_USD.normal) * 100);
+}
+
+function isAdminUser(userId) {
+  try {
+    if (!userId) return false;
+    const users = readUsers();
+    const u = Object.values(users).find((x) => x && x.id === userId);
+    return u && u.role === 'admin';
+  } catch {
+    return false;
+  }
+}
+
+/** Deduct one iteration's price. Returns true if the hunt may proceed. */
+function chargeIteration(huntId, userId, mode, iteration) {
+  if (isAdminUser(userId)) return true; // owner testing is free
+  const priceCents = Math.round((ITERATION_PRICE_USD[mode] || ITERATION_PRICE_USD.normal) * 100);
+  if (getBalanceUsd(userId) * 100 < priceCents) {
+    const m = readHuntMeta(huntId) || {};
+    writeHuntMeta(huntId, { ...m, state: 'out_of_credits', paused: true });
+    think(huntId, 'Out of credits — hunt paused. Top up your balance and press Resume to continue.');
+    appendHuntEvent(huntId, { type: 'status', state: 'out_of_credits', iteration });
+    return false;
+  }
+  deductCreditsUsd(userId, priceCents, { huntId, iteration, mode });
+  return true;
+}
 import {
   generateLogicTests,
   evidenceGate,
@@ -377,6 +421,9 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
       }
       if (!hasAI) break;
       if (!(await dockerAvailable())) break;
+
+      // Credits gate: each iteration costs a little; pause when the wallet is empty.
+      if (!chargeIteration(huntId, userId, mode, i)) break;
 
       try {
         await agentIteration(huntId, target, recon, findings, i, maxIterations, playbook);

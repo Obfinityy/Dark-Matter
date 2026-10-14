@@ -39,7 +39,8 @@ import { requireAuth } from './auth.js';
 import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience, getMode, HUNT_MODES, MODE_ORDER, TIERS } from '../hunt-intel/index.js';
 import { getHuntCost, getUserCosts } from '../costTracker.js';
 import { understandTarget } from '../targetIntel.js';
-import { runAutonomousHunt } from '../huntAgent.js';
+import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
+import { getBalanceUsd } from '../billing/credits.js';
 import { teardownHuntContainer } from '../huntRunner.js';
 
 /** Reject unless the hunt belongs to the authenticated user. */
@@ -126,6 +127,19 @@ router.post('/', requireAuth, async (req, res) => {
       error: 'control_restricted',
       message: `Mode "${huntMode.id}" requires maximum control. Your admin set your level to minimal.`,
     });
+  }
+  // Credits gate: non-admin users need balance for at least one iteration.
+  // Admins (owner) hunt free.
+  if (req.user.role !== 'admin') {
+    const priceCents = iterationPriceCents(huntMode.id);
+    if (getBalanceUsd(req.user.id) * 100 < priceCents) {
+      return res.status(402).json({
+        ok: false,
+        error: 'out_of_credits',
+        message: 'You are out of hunt credits. Top up your balance to start hunting.',
+        priceUsd: priceCents / 100,
+      });
+    }
   }
   try {
     const { huntId } = await createEngineHunt(target, scope);
@@ -228,6 +242,25 @@ for (const [route, fn, verb] of [
     const huntId = req.params.id;
     const meta = requireHuntOwner(req, res);
     if (!meta) return;
+    // Wallet resume: a hunt paused for out_of_credits restarts its agent loop
+    // directly (the loop already tore down its container when it paused).
+    if (route === 'resume' && meta.state === 'out_of_credits') {
+      const priceCents = iterationPriceCents(meta.mode || 'normal');
+      const canPay = req.user.role === 'admin' || getBalanceUsd(req.user.id) * 100 >= priceCents;
+      if (!canPay) {
+        return res.status(402).json({
+          ok: false,
+          error: 'out_of_credits',
+          message: 'Top up your balance to resume this hunt.',
+        });
+      }
+      writeHuntMeta(huntId, { ...meta, state: 'running', paused: false, stopped: false });
+      appendHuntEvent(huntId, { type: 'status', state: 'resumed', reason: 'topped_up', at: new Date().toISOString() });
+      runAutonomousHunt(huntId, meta.target, meta.mode || 'normal', req.user.id).catch((err) => {
+        appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
+      });
+      return res.json({ ok: true, action: 'resume', huntId });
+    }
     try {
       const data = await fn(huntId);
       // resume-via-recreate returns a NEW hunt id (a stopped flow can never be

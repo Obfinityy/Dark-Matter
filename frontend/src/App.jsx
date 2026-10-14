@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import ActivityDrawer from './components/ActivityDrawer';
-import PremiumPage from './pages/PremiumPage';
+import TopUpPage from './pages/TopUpPage';
 import AdminPage from './pages/AdminPage';
 import ChatPage from './pages/ChatPage';
 import PluginsPage from './pages/PluginsPage';
@@ -292,7 +292,7 @@ function AppInner() {
         )}
         {page === 'plugins' && <PluginsPage />}
         {page === 'reports' && <ReportsPage preselectedHuntId={reportHuntId} />}
-        {page === 'premium' && <PremiumPage />}
+        {page === 'topup' && <TopUpPage />}
         {page === 'settings' && <SettingsPage />}
       </main>
       {authModal && (

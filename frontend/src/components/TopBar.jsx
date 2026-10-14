@@ -74,7 +74,7 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onA
     }
   }
 
-  const initial = user && user.name ? user.name.trim().charAt(0).toUpperCase()
+  const initial = user && (user.username || user.name) ? (user.username || user.name).trim().charAt(0).toUpperCase()
     : user && user.email ? user.email.trim().charAt(0).toUpperCase() : '•';
 
   return (

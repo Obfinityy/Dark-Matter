@@ -91,6 +91,19 @@ export async function sendChat(message, huntId) {
   return { ok: true, data: { reply } };
 }
 
+// --- Billing / top-up ---------------------------------------------------------
+export async function billingStatus() {
+  return get('/api/v1/billing/status');
+}
+
+export async function createTopupOrder(amountUsd) {
+  return post('/api/v1/billing/order', { amountUsd });
+}
+
+export async function verifyTopup(orderId, paymentId, signature) {
+  return post('/api/v1/billing/verify', { orderId, paymentId, signature });
+}
+
 // --- Hunts -----------------------------------------------------------------
 /** The user's hunts from the backend (survives browser close — re-attach). */
 export async function listHunts() {
