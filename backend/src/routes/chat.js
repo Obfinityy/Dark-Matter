@@ -11,6 +11,7 @@
 import { Router } from 'express';
 import {
   EngineUnreachableError,
+  EngineError,
   getEngineHunt,
   getEngineEvents,
   pauseEngineHunt,
@@ -49,7 +50,14 @@ async function resumeHuntResilient(huntId, user) {
     await resumeEngineHunt(huntId);
     return;
   } catch (err) {
-    if (!(err instanceof EngineUnreachableError)) throw err;
+    // No engine on this box: EngineUnreachableError (fetch failed) OR
+    // EngineError 409 ("no checkpoint") — resumeEngineHunt swallows the
+    // unreachable error via .catch(() => null) and then throws 409 because
+    // the engine never tracked this host-side hunt. Both mean: drive the
+    // host-side meta flags instead.
+    const noEngine =
+      err instanceof EngineUnreachableError || err instanceof EngineError;
+    if (!noEngine) throw err;
   }
   const m0 = readHuntMeta(huntId) || {};
   if (['stopped', 'finished', 'failed'].includes(m0.state)) {

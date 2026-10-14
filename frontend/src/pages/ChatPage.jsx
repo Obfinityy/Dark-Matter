@@ -121,6 +121,13 @@ export default function ChatPage({
     }
 
     const reply = res.data.reply || '(empty reply)';
+    // Steering actions (pause/resume/stop) change the hunt's state on the
+    // backend — mirror it in the UI immediately so the chip and the
+    // Pause/Resume/Stop buttons update without a reload.
+    if (huntId && res.data && res.data.action) {
+      const mapped = { pause: 'paused', resume: 'running', stop: 'stopped' }[res.data.action];
+      if (mapped && typeof onUpdateHunt === 'function') onUpdateHunt(chatId, huntId, mapped);
+    }
     const assistantId = uid();
     onAppendMessage(chatId, { id: assistantId, role: 'assistant', text: '' });
     setStreamingId(assistantId);
