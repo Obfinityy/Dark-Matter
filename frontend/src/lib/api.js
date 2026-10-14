@@ -55,7 +55,9 @@ async function request(method, path, body) {
       return {
         ok: false,
         status: res.status,
-        error: (data && (data.error || data.message)) || `Request failed (${res.status})`,
+        // Prefer the human-readable message (e.g. the real Razorpay error)
+        // over the machine code so users see WHY something failed.
+        error: (data && (data.message || data.error)) || `Request failed (${res.status})`,
       };
     }
     return { ok: true, status: res.status, data };
