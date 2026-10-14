@@ -212,6 +212,7 @@ export default function HuntCard({ hunt, onStatusChange }) {
       )}
 
       {showFeed && (
+        <>
         <div className="hunt-money-strip" title="Wallet balance, money burnt on this hunt, and burn rate per iteration">
           <span className="hunt-money">💰 {balance === null ? '…' : `$${Number(balance).toFixed(2)}`} balance</span>
           <span className="hunt-money">🔥 ${cost && cost.totalUsd ? cost.totalUsd.toFixed(2) : '0.00'} burnt</span>
@@ -228,6 +229,7 @@ export default function HuntCard({ hunt, onStatusChange }) {
             </div>
           ))}
         </div>
+        </>
       )}
 
       {totalFindings > 0 && (

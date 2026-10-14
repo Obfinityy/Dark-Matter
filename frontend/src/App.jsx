@@ -60,6 +60,10 @@ function AppInner() {
     () => typeof window !== 'undefined' && window.innerWidth > 768,
   );
   const [chats, setChats] = useState(() => loadJson(CHATS_KEY, []));
+  // Draft chat: "New hunt" opens a fresh page WITHOUT creating a history
+  // entry. The entry is committed to history only when the user sends their
+  // first message or starts a hunt (ChatGPT-style).
+  const [draftChat, setDraftChat] = useState(null);
   const [activeChatId, setActiveChatId] = useState(() => {
     const list = loadJson(CHATS_KEY, []);
     return list.length > 0 ? list[0].id : null;
@@ -178,25 +182,53 @@ function AppInner() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  const activeChat = chats.find((c) => c.id === activeChatId) || null;
+  const activeChat =
+    chats.find((c) => c.id === activeChatId) ||
+    (draftChat && draftChat.id === activeChatId ? draftChat : null);
 
   const createChat = useCallback(() => {
-    // Reuse ANY existing empty chat — never stack up infinite blank chats
-    // when the user bounces between New chat and older chats.
+    // If there's already an untouched draft, just go back to it —
+    // never stack up blank entries in history.
+    if (draftChat && draftChat.messages.length === 0) {
+      setActiveChatId(draftChat.id);
+      setPage('chat');
+      return draftChat.id;
+    }
+    // Reuse any existing empty committed chat instead of making another.
     const empty = chats.find((c) => c.messages.length === 0);
     if (empty) {
+      setDraftChat(null);
       setActiveChatId(empty.id);
       setPage('chat');
       return empty.id;
     }
-    const chat = { id: uid(), title: 'New chat', messages: [], createdAt: new Date().toISOString() };
-    setChats((prev) => [chat, ...prev]);
+    // Fresh draft: NOT added to history yet. It gets committed when the
+    // first message is sent or a hunt is started.
+    const chat = {
+      id: uid(),
+      title: 'New chat',
+      messages: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setDraftChat(chat);
     setActiveChatId(chat.id);
     setPage('chat');
     return chat.id;
-  }, [chats]);
+  }, [chats, draftChat]);
 
   const appendMessage = useCallback((chatId, message) => {
+    // First message in a draft chat commits it to history.
+    if (draftChat && draftChat.id === chatId) {
+      const messages = [message];
+      let title = draftChat.title;
+      if (message.role === 'user') title = deriveTitle(message.text);
+      else if (message.role === 'hunt') title = deriveTitle(`Hunt: ${message.hunt.target}`);
+      const committed = { ...draftChat, title, messages, updatedAt: new Date().toISOString() };
+      setDraftChat(null);
+      setChats((prev) => [committed, ...prev]);
+      return;
+    }
     setChats((prev) =>
       prev.map((c) => {
         if (c.id !== chatId) return c;
@@ -207,10 +239,10 @@ function AppInner() {
         } else if (c.title === 'New chat' && message.role === 'hunt') {
           title = deriveTitle(`Hunt: ${message.hunt.target}`);
         }
-        return { ...c, title, messages };
+        return { ...c, title, messages, updatedAt: new Date().toISOString() };
       }),
     );
-  }, []);
+  }, [draftChat]);
 
   const updateMessage = useCallback((chatId, messageId, text) => {
     setChats((prev) =>
