@@ -14,6 +14,13 @@ import ToastHost from './components/ToastHost';
 import { AuthProvider, useAuth } from './lib/auth';
 
 const CHATS_KEY = 'dm.chats';
+// Per-user storage key — User A's chats must NEVER be visible to User B,
+// even on the same device. Logged-out state uses the legacy shared key
+// only as a migration source, never as the live store.
+function chatsKeyFor(user) {
+  const uid = user && (user.id || user.username);
+  return uid ? `${CHATS_KEY}.${String(uid)}` : CHATS_KEY;
+}
 const HUNTS_KEY = 'dm.hunts';
 
 function uid() {
@@ -59,17 +66,47 @@ function AppInner() {
   const [sidebarOpen, setSidebarOpen] = useState(
     () => typeof window !== 'undefined' && window.innerWidth > 768,
   );
-  const [chats, setChats] = useState(() => loadJson(CHATS_KEY, []));
+  const [chats, setChats] = useState([]);
+  const [chatsKey, setChatsKey] = useState(() => chatsKeyFor(user));
   // Draft chat: "New hunt" opens a fresh page WITHOUT creating a history
   // entry. The entry is committed to history only when the user sends their
   // first message or starts a hunt (ChatGPT-style).
   const [draftChat, setDraftChat] = useState(null);
-  const [activeChatId, setActiveChatId] = useState(() => {
-    const list = loadJson(CHATS_KEY, []);
-    return list.length > 0 ? list[0].id : null;
-  });
+  const [activeChatId, setActiveChatId] = useState(null);
 
-  useEffect(() => saveJson(CHATS_KEY, chats), [chats]);
+  // SECURITY: chats are strictly per-user. When the account changes (login,
+  // logout, switch), wipe in-memory chats and load only that user's store.
+  // A logged-out session sees NO chats at all.
+  useEffect(() => {
+    const key = chatsKeyFor(user);
+    setChatsKey(key);
+    if (!user) {
+      setChats([]);
+      setDraftChat(null);
+      setActiveChatId(null);
+      return;
+    }
+    let list = loadJson(key, []);
+    // One-time migration: pre-isolation chats lived under the shared key.
+    // Move them into this user's private store, then delete the shared copy
+    // so no other account can ever see them.
+    if ((!Array.isArray(list) || list.length === 0)) {
+      const legacy = loadJson(CHATS_KEY, []);
+      if (Array.isArray(legacy) && legacy.length > 0) {
+        list = legacy;
+        saveJson(key, legacy);
+        try { localStorage.removeItem(CHATS_KEY); } catch { /* ignore */ }
+      }
+    }
+    setChats(Array.isArray(list) ? list : []);
+    setDraftChat(null);
+    setActiveChatId(list.length > 0 ? list[0].id : null);
+  }, [user && (user.id || user.username)]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!user) return; // never persist chats without an owner
+    saveJson(chatsKey, chats);
+  }, [chats, chatsKey, user]);
 
   // ---- Full chat-message sync: history follows the account across devices ----
   // Push: whenever a chat's messages change, debounced-push to the backend.
