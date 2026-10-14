@@ -119,6 +119,9 @@ async function chatWithOllama(messages, system, ctx) {
   }
   let res;
   try {
+    // Defensive: never hang forever if the model stalls — fail cleanly so
+    // callers fall back to deterministic replies instead of hanging the
+    // request (and the reverse proxy in front of us).
     res = await fetch(`${OLLAMA_URL}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -128,6 +131,7 @@ async function chatWithOllama(messages, system, ctx) {
         stream: false,
         options: { num_predict: 1500, temperature: 0.7 },
       }),
+      signal: AbortSignal.timeout(300000),
     });
   } catch (err) {
     console.error(`[llm] Ollama unreachable at ${OLLAMA_URL}: ${err.message}`);

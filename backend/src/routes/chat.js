@@ -17,12 +17,73 @@ import {
   resumeEngineHunt,
   stopEngineHunt,
 } from '../engine.js';
-import { readHuntEvents, readHuntMeta } from '../store.js';
+import { readHuntEvents, readHuntMeta, writeHuntMeta, appendHuntEvent } from '../store.js';
 import { recordEngineEvent } from './hunts.js';
+import { requireAuth } from './auth.js';
+import { getBalanceUsd } from '../billing/credits.js';
+import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
 import { chatWithAI, aiAvailable } from '../llm.js';
 import { analyzeFindings } from '../hunt-intel/index.js';
 
 const router = Router();
+
+/**
+ * Host-side pause/resume/stop — mirrors the fallback in routes/hunts.js.
+ * The PentAGI engine (port 8080) was never set up on this box; hunts run
+ * host-side, so steering must drive the same meta flags the agent loop
+ * honors. Without this, chat steering returned 502 engine_unreachable.
+ */
+async function pauseHuntResilient(huntId) {
+  try {
+    await pauseEngineHunt(huntId);
+  } catch (err) {
+    if (!(err instanceof EngineUnreachableError)) throw err;
+    const m0 = readHuntMeta(huntId) || {};
+    writeHuntMeta(huntId, { ...m0, huntId, paused: true, state: 'paused' });
+    appendHuntEvent(huntId, { type: 'status', state: 'paused', at: new Date().toISOString() });
+  }
+}
+
+async function resumeHuntResilient(huntId, user) {
+  try {
+    await resumeEngineHunt(huntId);
+    return;
+  } catch (err) {
+    if (!(err instanceof EngineUnreachableError)) throw err;
+  }
+  const m0 = readHuntMeta(huntId) || {};
+  if (['stopped', 'finished', 'failed'].includes(m0.state)) {
+    throw new Error(`Hunt is ${m0.state}; cannot resume.`);
+  }
+  // Wallet resume: a hunt paused for out_of_credits restarts its agent loop
+  // (same as POST /api/v1/hunts/:id/resume in routes/hunts.js).
+  if (m0.state === 'out_of_credits') {
+    const priceCents = iterationPriceCents(m0.mode || 'normal');
+    const canPay = (user && user.role === 'admin') || getBalanceUsd(user.id) * 100 >= priceCents;
+    if (!canPay) throw new Error('Top up your balance to resume this hunt.');
+    writeHuntMeta(huntId, { ...m0, huntId, state: 'running', paused: false, stopped: false });
+    appendHuntEvent(huntId, { type: 'status', state: 'resumed', reason: 'topped_up', at: new Date().toISOString() });
+    runAutonomousHunt(huntId, m0.target, m0.mode || 'normal', user.id).catch((e) => {
+      appendHuntEvent(huntId, { type: 'status', state: 'failed', error: e.message || String(e) });
+    });
+    return;
+  }
+  writeHuntMeta(huntId, { ...m0, huntId, paused: false, stopped: false, state: 'running' });
+  appendHuntEvent(huntId, { type: 'status', state: 'resumed', at: new Date().toISOString() });
+}
+
+async function stopHuntResilient(huntId) {
+  try {
+    await stopEngineHunt(huntId);
+  } catch (err) {
+    if (!(err instanceof EngineUnreachableError)) throw err;
+    const m0 = readHuntMeta(huntId) || {};
+    writeHuntMeta(huntId, { ...m0, huntId, stopped: true, paused: false, state: 'stopped' });
+    appendHuntEvent(huntId, { type: 'status', state: 'stopped', at: new Date().toISOString() });
+    const { teardownHuntContainer } = await import('../huntRunner.js');
+    teardownHuntContainer(huntId).catch(() => {});
+  }
+}
 
 function detectSteering(message) {
   const m = String(message || '').toLowerCase();
@@ -34,10 +95,27 @@ function detectSteering(message) {
   return null;
 }
 
-router.post('/', async (req, res) => {
+router.post(
+  '/',
+  // Hunt-scoped chat is owner-only (same rule as the hunt routes): the
+  // caller must be logged in, and steering a hunt requires owning it
+  // (admins may steer any hunt). Public chat (no huntId) stays open.
+  (req, res, next) => {
+    if (req.body && req.body.huntId) return requireAuth(req, res, next);
+    next();
+  },
+  async (req, res) => {
   const { message, huntId } = req.body || {};
   if (typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ ok: false, error: 'missing_message' });
+  }
+
+  // Ownership check for hunt-scoped chat: your hunts are yours alone.
+  if (huntId && req.user) {
+    const meta0 = readHuntMeta(huntId);
+    if (meta0 && meta0.userId && meta0.userId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
   }
 
   const action = detectSteering(message);
@@ -108,15 +186,15 @@ router.post('/', async (req, res) => {
 
   try {
     if (action === 'pause') {
-      await pauseEngineHunt(huntId);
+      await pauseHuntResilient(huntId);
       return res.json({ ok: true, action: 'pause', reply: `Hunt paused. ${ctx}` });
     }
     if (action === 'resume') {
-      await resumeEngineHunt(huntId);
+      await resumeHuntResilient(huntId, req.user);
       return res.json({ ok: true, action: 'resume', reply: `Hunt resumed. ${ctx}` });
     }
     if (action === 'stop') {
-      await stopEngineHunt(huntId);
+      await stopHuntResilient(huntId);
       return res.json({ ok: true, action: 'stop', reply: `Hunt stopped. ${ctx}` });
     }
     if (action === 'summary') {
