@@ -13,13 +13,14 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching }) {
   const [target, setTarget] = useState('');
   const [scope, setScope] = useState('');
   const [mode, setMode] = useState('normal');
+  const [confirmed, setConfirmed] = useState(false);
 
   if (!open) return null;
 
   function submit() {
     const t = target.trim();
-    if (!t) return;
-    onSubmit(t, scope.trim(), mode);
+    if (!t || !confirmed) return;
+    onSubmit(t, scope.trim(), mode, confirmed);
   }
 
   return (
@@ -67,11 +68,19 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching }) {
             ))}
           </div>
         </div>
+        <label className="auth-confirm">
+          <input
+            type="checkbox"
+            checked={confirmed}
+            onChange={(e) => setConfirmed(e.target.checked)}
+          />
+          <span>I am authorized to test this target (I own it or it is an in-scope bug-bounty asset).</span>
+        </label>
         <div className="modal-actions">
           <button className="btn btn-ghost" onClick={onClose} disabled={launching}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={submit} disabled={!target.trim() || launching}>
+          <button className="btn btn-primary" onClick={submit} disabled={!target.trim() || !confirmed || launching}>
             {launching ? 'Starting…' : 'Start hunt'}
           </button>
         </div>

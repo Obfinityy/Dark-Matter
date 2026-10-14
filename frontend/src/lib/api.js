@@ -110,8 +110,8 @@ export async function getTotalCosts() {
   return get('/api/v1/hunts/costs');
 }
 
-export async function startHunt(target, scope, mode) {
-  const res = await post('/api/v1/hunts', { target, scope, mode });
+export async function startHunt(target, scope, mode, confirmedAuthorized) {
+  const res = await post('/api/v1/hunts', { target, scope, mode, confirmedAuthorized: !!confirmedAuthorized });
   if (!res.ok) return res;
   return { ok: true, data: { huntId: res.data && (res.data.huntId || res.data.id) } };
 }

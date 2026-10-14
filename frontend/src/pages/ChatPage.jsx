@@ -132,11 +132,11 @@ export default function ChatPage({
     }
   }
 
-  async function handleStartHunt(target, scope, mode) {
+  async function handleStartHunt(target, scope, mode, confirmed) {
     if (!ensureHuntAuth()) return;
     const chatId = chat ? chat.id : onNewChat();
     setLaunching(true);
-    const res = await startHunt(target, scope, mode);
+    const res = await startHunt(target, scope, mode, confirmed);
     setLaunching(false);
     if (!res.ok || !res.data.huntId) {
       if (res.status === 401 || res.error === 'auth_required') {
