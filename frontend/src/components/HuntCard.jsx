@@ -58,7 +58,7 @@ export default function HuntCard({ hunt, onStatusChange }) {
   const [phase, setPhase] = useState(hunt.phase || '');
   const [busy, setBusy] = useState(false);
   const [streamError, setStreamError] = useState(false);
-  const [showFeed, setShowFeed] = useState(false);
+  const [showFeed, setShowFeed] = useState(true);
   const logEndRef = useRef(null);
 
   const updateStatus = (next) => {
@@ -172,7 +172,7 @@ export default function HuntCard({ hunt, onStatusChange }) {
             onClick={() => setShowFeed((v) => !v)}
             aria-expanded={showFeed}
           >
-            {showFeed ? 'Hide progress' : 'Show progress'}
+            {showFeed ? 'Hide terminal' : 'Show terminal'}
           </button>
         )}
       </div>
@@ -190,9 +190,9 @@ export default function HuntCard({ hunt, onStatusChange }) {
         <div className="hunt-feed" ref={logEndRef} aria-live="polite">
           {logs.length === 0 && <div className="empty-hint">Waiting for hunt output…</div>}
           {logs.map((entry, idx) => (
-            <div key={idx} className="log-line">
+            <div key={idx} className={`log-line${entry.kind === 'tool' ? ' log-tool' : entry.kind === 'finding' ? ' log-finding' : ' log-think'}`}>
               <span className="log-prefix" aria-hidden="true">
-                {entry.kind === 'tool' ? '▸' : '…'}
+                {entry.kind === 'tool' ? '$' : entry.kind === 'finding' ? '✓' : '›'}
               </span>
               <span>{entry.text}</span>
             </div>

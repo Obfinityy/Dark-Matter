@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ChatThread from '../components/ChatThread';
 import ChatInput from '../components/ChatInput';
 import NewHuntModal from '../components/NewHuntModal';
+import VoiceMode from '../components/VoiceMode';
 import { sendChat, startHunt, stopHunt } from '../lib/api';
 import { streamReveal } from '../lib/streaming';
 import { useAuth, openAuthModal } from '../lib/auth';
@@ -29,6 +30,7 @@ export default function ChatPage({
   const [streamingId, setStreamingId] = useState(null);
   const [huntModalOpen, setHuntModalOpen] = useState(false);
   const [launching, setLaunching] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const [speakerOn, setSpeakerOn] = useState(() => {
     try {
       return localStorage.getItem('dm.speakerOn') === 'true';
@@ -132,6 +134,13 @@ export default function ChatPage({
     }
   }
 
+  /** A finished voice turn: drop both sides into the thread (no re-send). */
+  function handleVoiceExchange(userText, replyText) {
+    const chatId = chat ? chat.id : onNewChat();
+    onAppendMessage(chatId, { id: uid(), role: 'user', text: userText });
+    onAppendMessage(chatId, { id: uid(), role: 'assistant', text: replyText });
+  }
+
   async function handleStartHunt(target, scope, mode, confirmed) {
     if (!ensureHuntAuth()) return;
     const chatId = chat ? chat.id : onNewChat();
@@ -179,8 +188,15 @@ export default function ChatPage({
       }}
       speakerOn={speakerOn}
       onToggleSpeaker={toggleSpeaker}
+      onOpenVoice={() => {
+        if (ensureHuntAuth()) setVoiceOpen(true);
+      }}
     />
   );
+
+  // Most recent hunt in this chat — voice turns keep the same hunt context.
+  const voiceHunt = [...messages].reverse().find((m) => m.role === 'hunt');
+  const voiceHuntId = voiceHunt ? voiceHunt.hunt.huntId : undefined;
 
   return (
     <div className="chat-page">
@@ -240,6 +256,13 @@ export default function ChatPage({
         onSubmit={handleStartHunt}
         launching={launching}
       />
+      {voiceOpen && (
+        <VoiceMode
+          huntId={voiceHuntId}
+          onExchange={handleVoiceExchange}
+          onClose={() => setVoiceOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -53,6 +53,15 @@ function IconStop() {
   );
 }
 
+function IconVoiceCircle() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export default function ChatInput({
   onSend,
   sending,
@@ -61,6 +70,7 @@ export default function ChatInput({
   onStartHunt,
   speakerOn,
   onToggleSpeaker,
+  onOpenVoice,
 }) {
   const [value, setValue] = useState('');
   const [recording, setRecording] = useState(false);
@@ -262,6 +272,14 @@ export default function ChatInput({
             disabled={transcribing}
           >
             <IconMic />
+          </button>
+          <button
+            className="icon-btn"
+            title="Voice conversation"
+            aria-label="Voice conversation"
+            onClick={onOpenVoice}
+          >
+            <IconVoiceCircle />
           </button>
           <button
             className="icon-btn"
