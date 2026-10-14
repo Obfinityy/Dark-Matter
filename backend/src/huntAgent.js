@@ -115,6 +115,29 @@ function isStopped(huntId) {
   }
 }
 
+function isPaused(huntId) {
+  try {
+    const meta = readHuntMeta(huntId);
+    return meta && (meta.paused === true || meta.state === 'paused');
+  } catch {
+    return false;
+  }
+}
+
+/** Operator pause: hold the loop here until resumed or stopped. */
+async function waitWhilePaused(huntId) {
+  let waited = 0;
+  let announced = false;
+  while (isPaused(huntId) && !isStopped(huntId)) {
+    if (!announced) {
+      think(huntId, 'Hunt paused by user — holding position.');
+      announced = true;
+    }
+    await new Promise((r) => setTimeout(r, 5000));
+    waited += 5;
+  }
+}
+
 function overBudget(huntId) {
   try {
     const cost = getHuntCost(huntId);
@@ -410,6 +433,12 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
     }
 
     for (let i = 1; i <= maxIterations; i++) {
+      if (isStopped(huntId)) {
+        think(huntId, 'Hunt stopped by user.');
+        break;
+      }
+      // Operator pause holds the loop here (resume just clears the flag).
+      await waitWhilePaused(huntId);
       if (isStopped(huntId)) {
         think(huntId, 'Hunt stopped by user.');
         break;

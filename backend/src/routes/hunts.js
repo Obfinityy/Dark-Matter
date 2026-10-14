@@ -144,7 +144,17 @@ router.post('/', requireAuth, async (req, res) => {
     }
   }
   try {
-    const { huntId } = await createEngineHunt(target, scope);
+    let huntId;
+    try {
+      ({ huntId } = await createEngineHunt(target, scope));
+    } catch (err) {
+      if (!(err instanceof EngineUnreachableError)) throw err;
+      // No PentAGI engine on this box — the host agent loop (runAutonomousHunt)
+      // is the real hunter, so mint a local hunt id and run fully host-side.
+      const { randomBytes } = await import('node:crypto');
+      huntId = 'h_' + randomBytes(6).toString('hex');
+      console.warn(`[hunts] engine unreachable — hunt ${huntId} runs host-side only`);
+    }
     writeHuntMeta(huntId, {
       huntId,
       target,
@@ -231,6 +241,10 @@ router.get('/:id', requireAuth, async (req, res) => {
     const data = await getEngineHunt(req.params.id);
     res.json({ ok: true, hunt: data });
   } catch (err) {
+    if (err instanceof EngineUnreachableError) {
+      // Host-side hunt: serve the cached meta + live event tail.
+      return res.json({ ok: true, hunt: { ...meta, hostSide: true } });
+    }
     engineErrorResponse(res, err);
   }
 });
@@ -264,7 +278,35 @@ for (const [route, fn, verb] of [
       return res.json({ ok: true, action: 'resume', huntId });
     }
     try {
-      const data = await fn(huntId);
+      let data;
+      try {
+        data = await fn(huntId);
+      } catch (err) {
+        if (!(err instanceof EngineUnreachableError)) throw err;
+        // No engine on this box — host-side fallback driven by hunt meta
+        // flags, which the agent loop honors directly.
+        const m0 = readHuntMeta(huntId) || {};
+        if (route === 'pause') {
+          writeHuntMeta(huntId, { ...m0, paused: true, state: 'paused' });
+          appendHuntEvent(huntId, { type: 'status', state: 'paused', at: new Date().toISOString() });
+          return res.json({ ok: true, action: 'pause', huntId, hostSide: true });
+        }
+        if (route === 'resume') {
+          if (['stopped', 'finished', 'failed'].includes(m0.state)) {
+            return res.status(409).json({ ok: false, error: 'hunt_terminal', message: `Hunt is ${m0.state}; cannot resume.` });
+          }
+          writeHuntMeta(huntId, { ...m0, paused: false, stopped: false, state: 'running' });
+          appendHuntEvent(huntId, { type: 'status', state: 'resumed', at: new Date().toISOString() });
+          return res.json({ ok: true, action: 'resume', huntId, hostSide: true });
+        }
+        // stop: mark stopped (agent loop checks this) and destroy container.
+        writeHuntMeta(huntId, { ...m0, stopped: true, paused: false, state: 'stopped' });
+        appendHuntEvent(huntId, { type: 'status', state: 'stopped', at: new Date().toISOString() });
+        teardownHuntContainer(huntId).then((torn) => {
+          if (torn) appendHuntEvent(huntId, { type: 'status', state: 'container_destroyed' });
+        }).catch(() => {});
+        return res.json({ ok: true, action: 'stop', huntId, hostSide: true });
+      }
       // resume-via-recreate returns a NEW hunt id (a stopped flow can never be
       // resumed in place) — report the new id so the client follows it.
       const effectiveId =
