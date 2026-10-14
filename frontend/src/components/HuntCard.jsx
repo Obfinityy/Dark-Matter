@@ -60,7 +60,14 @@ function statusText(status, target) {
 
 export default function HuntCard({ hunt, onStatusChange }) {
   const [status, setStatus] = useState(hunt.status || 'idle');
+  // Button visibility rule (owner's spec): a live hunt shows Pause + Stop;
+  // a paused hunt shows Resume + Stop. Terminal hunts show nothing clickable.
+  const isPaused = status === 'paused' || status === 'out_of_credits';
+  const isTerminal = ['done', 'stopped', 'failed', 'error'].includes(status);
   const [cost, setCost] = useState(null);
+  const [balance, setBalance] = useState(null);
+  const ITERATION_PRICE = { normal: 0.1, medium: 0.15, high: 0.25, ultra_high: 0.4, max: 0.6, infinity: 1.0 };
+  const perIter = ITERATION_PRICE[hunt.mode] || ITERATION_PRICE.normal;
   const [logs, setLogs] = useState(hunt.logs || []);
   const [findings, setFindings] = useState(hunt.findings || []);
   const [phase, setPhase] = useState(hunt.phase || '');
@@ -79,10 +86,20 @@ export default function HuntCard({ hunt, onStatusChange }) {
     getHuntCost(hunt.huntId).then((res) => {
       if (!cancelled && res.ok) setCost(res);
     }).catch(() => {});
+    import('../lib/api').then(({ billingStatus }) =>
+      billingStatus().then((res) => {
+        if (!cancelled && res.ok && res.data) setBalance(res.data.balanceUsd);
+      }).catch(() => {})
+    );
     const t = setInterval(() => {
       getHuntCost(hunt.huntId).then((res) => {
         if (!cancelled && res.ok) setCost(res);
       }).catch(() => {});
+      import('../lib/api').then(({ billingStatus }) =>
+        billingStatus().then((res) => {
+          if (!cancelled && res.ok && res.data) setBalance(res.data.balanceUsd);
+        }).catch(() => {})
+      );
     }, 30000);
     return () => { cancelled = true; clearInterval(t); };
   }, [hunt.huntId]);
@@ -195,6 +212,11 @@ export default function HuntCard({ hunt, onStatusChange }) {
       )}
 
       {showFeed && (
+        <div className="hunt-money-strip" title="Wallet balance, money burnt on this hunt, and burn rate per iteration">
+          <span className="hunt-money">💰 {balance === null ? '…' : `$${Number(balance).toFixed(2)}`} balance</span>
+          <span className="hunt-money">🔥 ${cost && cost.totalUsd ? cost.totalUsd.toFixed(2) : '0.00'} burnt</span>
+          <span className="hunt-money hunt-burn-rate">⚡ ${perIter.toFixed(2)}/iter</span>
+        </div>
         <div className="hunt-feed" ref={logEndRef} aria-live="polite">
           {logs.length === 0 && <div className="empty-hint">Waiting for hunt output…</div>}
           {logs.map((entry, idx) => (
@@ -244,23 +266,26 @@ export default function HuntCard({ hunt, onStatusChange }) {
             🔥 ${cost.totalUsd.toFixed(2)}
           </span>
         )}
-        <button
-          className="hunt-pill-btn"
-          disabled={busy || !['running', 'idle', 'created', 'starting'].includes(status)}
-          onClick={() => runControl('pause', pauseHunt, 'Hunt paused.')}
-        >
-          ❚❚ Pause
-        </button>
-        <button
-          className="hunt-pill-btn"
-          disabled={busy || (status !== 'paused' && status !== 'out_of_credits')}
-          onClick={() => runControl('resume', resumeHunt, 'Hunt resumed.')}
-        >
-          ▶ Resume
-        </button>
+        {isPaused ? (
+          <button
+            className="hunt-pill-btn"
+            disabled={busy}
+            onClick={() => runControl('resume', resumeHunt, 'Hunt resumed.')}
+          >
+            ▶ Resume
+          </button>
+        ) : (
+          <button
+            className="hunt-pill-btn"
+            disabled={busy || isTerminal}
+            onClick={() => runControl('pause', pauseHunt, 'Hunt paused.')}
+          >
+            ❚❚ Pause
+          </button>
+        )}
         <button
           className="hunt-pill-btn danger"
-          disabled={busy || status === 'done' || status === 'stopped'}
+          disabled={busy || isTerminal}
           onClick={() => runControl('stop', stopHunt, 'Hunt stopped.')}
         >
           ■ Stop

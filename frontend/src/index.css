@@ -791,6 +791,19 @@ button { font-family: inherit; }
 }
 .finding-verified { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.4); }
 .finding-unverified { background: rgba(234, 179, 8, 0.12); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.35); }
+.hunt-money-strip {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--dm-secondary);
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
+}
+.hunt-money { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hunt-burn-rate { margin-left: auto; opacity: 0.85; }
 .sev {
   font-size: 11px;
   padding: 2px 9px;
@@ -1556,6 +1569,16 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 @media (max-width: 480px) {
   .mode-grid { grid-template-columns: 1fr 1fr; }
   .composer-wrap { padding: 6px 6px 4px; }
+}
+/* Mobile bug-bounty: hunt card stays fully usable on small screens */
+@media (max-width: 768px) {
+  .hunt-card { border-radius: 12px; }
+  .hunt-feed { max-height: 46dvh; font-size: 12px; }
+  .hunt-money-strip { gap: 10px; font-size: 11px; padding: 6px 10px; }
+  .hunt-controls { padding: 10px 12px; gap: 6px; }
+  .hunt-pill-btn { font-size: 12px; padding: 8px 12px; }
+  .hunt-id { display: none; }
+  .findings-list { font-size: 13px; }
 }
 
 /* ==========================================================================

@@ -118,6 +118,48 @@ function AppInner() {
     };
   }, [ready, user]);
 
+  // Chat title sync: renames follow the account across browsers/devices.
+  // Pull on login; push (debounced) whenever local titles change.
+  useEffect(() => {
+    if (!ready || !user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getChatTitles } = await import('./lib/api');
+        const res = await getChatTitles();
+        if (cancelled || !res.ok || !res.data || !Array.isArray(res.data.chats)) return;
+        const remote = new Map(res.data.chats.map((c) => [c.id, c]));
+        if (remote.size === 0) return;
+        setChats((prev) =>
+          prev.map((c) => {
+            const r = remote.get(c.id);
+            if (r && String(r.updatedAt || '') > String(c.updatedAt || '')) {
+              return { ...c, title: r.title, updatedAt: r.updatedAt };
+            }
+            return c;
+          })
+        );
+      } catch { /* offline — local titles still work */ }
+    })();
+    return () => { cancelled = true; };
+  }, [ready, user]);
+
+  // Push title changes (debounced 4s so renames don't spam the backend).
+  useEffect(() => {
+    if (!ready || !user) return;
+    const t = setTimeout(() => {
+      import('./lib/api').then(({ syncChatTitles }) => {
+        const titles = chats.map((c) => ({
+          id: c.id,
+          title: c.title,
+          updatedAt: c.updatedAt || c.createdAt || new Date().toISOString(),
+        }));
+        syncChatTitles(titles).catch(() => {});
+      });
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [chats, ready, user]);
+
   // Deep components can request the auth modal.
   useEffect(() => {
     function onOpenAuth() {
@@ -139,19 +181,20 @@ function AppInner() {
   const activeChat = chats.find((c) => c.id === activeChatId) || null;
 
   const createChat = useCallback(() => {
-    // Reuse the active chat if it's still empty — avoids "New chat" spam
-    // in history when New Hunt is clicked repeatedly.
-    const active = chats.find((c) => c.id === activeChatId);
-    if (active && active.messages.length === 0) {
+    // Reuse ANY existing empty chat — never stack up infinite blank chats
+    // when the user bounces between New chat and older chats.
+    const empty = chats.find((c) => c.messages.length === 0);
+    if (empty) {
+      setActiveChatId(empty.id);
       setPage('chat');
-      return active.id;
+      return empty.id;
     }
     const chat = { id: uid(), title: 'New chat', messages: [], createdAt: new Date().toISOString() };
     setChats((prev) => [chat, ...prev]);
     setActiveChatId(chat.id);
     setPage('chat');
     return chat.id;
-  }, [chats, activeChatId]);
+  }, [chats]);
 
   const appendMessage = useCallback((chatId, message) => {
     setChats((prev) =>
@@ -180,7 +223,11 @@ function AppInner() {
   }, []);
 
   const renameChat = useCallback((chatId, title) => {
-    setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, title } : c)));
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === chatId ? { ...c, title, updatedAt: new Date().toISOString() } : c
+      )
+    );
   }, []);
 
   const deleteChat = useCallback(

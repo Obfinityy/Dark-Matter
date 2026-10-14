@@ -96,8 +96,6 @@ const MODE_ITERATIONS = {
   infinity: 1000,
 };
 
-const HUNT_BUDGET_USD = Number(process.env.HUNT_BUDGET_USD || 25);
-
 function think(huntId, text) {
   appendHuntEvent(huntId, { type: 'thinking', text: String(text).slice(0, 2000) });
 }
@@ -135,15 +133,6 @@ async function waitWhilePaused(huntId) {
     }
     await new Promise((r) => setTimeout(r, 5000));
     waited += 5;
-  }
-}
-
-function overBudget(huntId) {
-  try {
-    const cost = getHuntCost(huntId);
-    return cost.totalUsd >= HUNT_BUDGET_USD;
-  } catch {
-    return false;
   }
 }
 
@@ -398,7 +387,7 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
   const findings = [];
 
   try {
-    think(huntId, `Autonomous hunt starting — mode ${mode}, budget ${maxIterations} iterations / $${HUNT_BUDGET_USD}.`);
+    think(huntId, `Autonomous hunt starting — mode ${mode}, budget ${maxIterations} iterations.`);
 
     if (!(await dockerAvailable())) {
       think(huntId, 'Docker unavailable — running intel-only analysis (no container).');
@@ -452,11 +441,9 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
         think(huntId, 'Hunt stopped by user.');
         break;
       }
-      if (overBudget(huntId)) {
-        think(huntId, `Budget cap $${HUNT_BUDGET_USD} reached — stopping to protect your wallet.`);
-        appendHuntEvent(huntId, { type: 'status', state: 'budget_capped' });
-        break;
-      }
+      // Stop conditions are explicit and user-visible: the operator stops the
+      // hunt, the wallet runs out (out_of_credits pause), or the mode's
+      // iteration budget is reached. No silent internal caps.
       if (!hasAI) break;
       if (!(await dockerAvailable())) break;
 

@@ -284,9 +284,14 @@ for (const [route, fn, verb] of [
       try {
         data = await fn(huntId);
       } catch (err) {
-        if (!(err instanceof EngineUnreachableError)) throw err;
-        // No engine on this box — host-side fallback driven by hunt meta
-        // flags, which the agent loop honors directly.
+        // No engine on this box: EngineUnreachableError (fetch failed) OR
+        // EngineError 409 ("no checkpoint") — resumeEngineHunt swallows the
+        // unreachable error via .catch(() => null) and then throws 409
+        // because the engine never tracked this host-side hunt. Both mean:
+        // drive the hunt via meta flags, which the agent loop honors.
+        const noEngine =
+          err instanceof EngineUnreachableError || err instanceof EngineError;
+        if (!noEngine) throw err;
         const m0 = readHuntMeta(huntId) || {};
         if (route === 'pause') {
           writeHuntMeta(huntId, { ...m0, paused: true, state: 'paused' });

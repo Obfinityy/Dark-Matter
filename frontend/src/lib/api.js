@@ -91,6 +91,15 @@ export async function sendChat(message, huntId) {
   return { ok: true, data: { reply } };
 }
 
+// --- Chat title sync (renames follow the account across devices) -----------
+export async function getChatTitles() {
+  return get('/api/v1/chats');
+}
+
+export async function syncChatTitles(chats) {
+  return post('/api/v1/chats/sync', { chats });
+}
+
 // --- Billing / top-up ---------------------------------------------------------
 export async function billingStatus() {
   return get('/api/v1/billing/status');

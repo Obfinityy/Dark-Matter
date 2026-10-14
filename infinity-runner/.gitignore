@@ -1,5 +1,0 @@
-# Build outputs — never commit
-node_modules/
-build-resources/
-dist/
-*.log
