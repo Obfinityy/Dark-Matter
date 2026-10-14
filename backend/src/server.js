@@ -181,4 +181,31 @@ server.listen(config.port, () => {
   console.log(
     `[backend] allowlist -> ${config.allowedTargets.length ? config.allowedTargets.join(', ') : '(empty — hunt creation is disabled until ALLOWED_TARGETS is set)'}`
   );
+
+  // CHECKPOINT RESUME — hunts that were mid-flight when the process died
+  // (state 'running' in their memory folder) pick up from their last
+  // checkpoint instead of being lost. Explicitly paused/stopped/finished
+  // hunts are left alone.
+  setTimeout(async () => {
+    try {
+      const { listHuntMetas } = await import('./store.js');
+      const { resumeInterruptedHunt } = await import('./huntAgent.js');
+      let resumed = 0;
+      for (const meta of listHuntMetas()) {
+        if (meta && meta.state === 'running' && meta.huntId) {
+          const ok = await resumeInterruptedHunt(meta.huntId).catch((err) => {
+            console.error(`[resume] ${meta.huntId} failed:`, err.message || err);
+            return false;
+          });
+          if (ok) {
+            resumed++;
+            console.log(`[resume] ${meta.huntId} resumed from checkpoint`);
+          }
+        }
+      }
+      if (resumed) console.log(`[resume] ${resumed} interrupted hunt(s) resumed`);
+    } catch (err) {
+      console.error('[resume] boot scan failed:', err.message || err);
+    }
+  }, 8000);
 });

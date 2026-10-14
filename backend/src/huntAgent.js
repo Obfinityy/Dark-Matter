@@ -23,7 +23,7 @@ import {
 } from './huntRunner.js';
 import { chatWithAI, aiAvailable } from './llm.js';
 import { getHuntCost } from './costTracker.js';
-import { appendHuntEvent, writeHuntMeta, readHuntMeta, readUsers } from './store.js';
+import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers } from './store.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
 
 // Credit price per hunt iteration (USD), by hunt mode. The hunt auto-pauses
@@ -382,12 +382,20 @@ async function generatePoC(huntId, target, findingRec) {
  * Run the full autonomous hunt. Called async after hunt creation.
  * Never throws — all failures become hunt events.
  */
-export async function runAutonomousHunt(huntId, target, mode = 'normal', userId = null) {
+export async function runAutonomousHunt(huntId, target, mode = 'normal', userId = null, opts = {}) {
   const maxIterations = MODE_ITERATIONS[mode] || MODE_ITERATIONS.normal;
-  const findings = [];
+  const startIteration = Math.max(1, opts.startIteration || 1);
+  const isResume = Boolean(opts.isResume);
+  // On resume, rebuild findings from the persisted event log so the agent
+  // doesn't lose what it already found before the interruption.
+  const findings = Array.isArray(opts.findings) ? opts.findings : [];
 
   try {
-    think(huntId, `Autonomous hunt starting — mode ${mode}, budget ${maxIterations} iterations.`);
+    if (isResume) {
+      think(huntId, `Checkpoint resume — continuing from iteration ${startIteration}/${maxIterations} with ${findings.length} finding(s) already recorded.`);
+    } else {
+      think(huntId, `Autonomous hunt starting — mode ${mode}, budget ${maxIterations} iterations.`);
+    }
 
     if (!(await dockerAvailable())) {
       think(huntId, 'Docker unavailable — running intel-only analysis (no container).');
@@ -430,7 +438,18 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
       think(huntId, 'No AI backend configured — hunt completed with recon results only.');
     }
 
-    for (let i = 1; i <= maxIterations; i++) {
+    for (let i = startIteration; i <= maxIterations; i++) {
+      // CHECKPOINT — persist progress every iteration so a killed backend
+      // can resume this hunt from here instead of from zero. The per-hunt
+      // memory folder (data/hunts/<id>/) is the source of truth.
+      try {
+        writeHuntMeta(huntId, {
+          ...(readHuntMeta(huntId) || {}),
+          huntId, iteration: i, phase: 'hunting', state: 'running',
+          checkpointAt: new Date().toISOString(),
+        });
+      } catch { /* checkpoint is best-effort */ }
+
       if (isStopped(huntId)) {
         think(huntId, 'Hunt stopped by user.');
         break;
@@ -495,4 +514,52 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
       appendHuntEvent(huntId, { type: 'status', state: 'container_destroyed' });
     } catch { /* ignore */ }
   }
+}
+
+/**
+ * Resume a hunt that was interrupted (backend killed/restarted mid-run).
+ * Reads the checkpoint from the hunt's memory folder (meta.json) and the
+ * findings from the persisted event log, then continues the agent loop from
+ * the next iteration — never from zero.
+ *
+ * Returns true if a resume was launched, false if there was nothing to resume
+ * (hunt already stopped/finished/paused, or no checkpoint).
+ */
+export async function resumeInterruptedHunt(huntId) {
+  const meta = readHuntMeta(huntId);
+  if (!meta || meta.state !== 'running') return false;
+  const { target, mode, userId } = meta;
+  if (!target) return false;
+
+  // Rebuild findings from the persisted event log (strip the event wrapper).
+  const findings = [];
+  try {
+    for (const e of readHuntEvents(huntId)) {
+      if (e && e.type === 'finding') {
+        const { type, cachedAt, ...f } = e;
+        findings.push(f);
+      }
+    }
+  } catch { /* findings are best-effort */ }
+
+  const lastIteration = Number(meta.iteration) || 0;
+  appendHuntEvent(huntId, {
+    type: 'status',
+    state: 'resumed_from_checkpoint',
+    fromIteration: lastIteration + 1,
+    findingsRecovered: findings.length,
+    at: new Date().toISOString(),
+  });
+  // Fire and forget — the loop drives itself from here.
+  runAutonomousHunt(huntId, target, mode || 'normal', userId || null, {
+    isResume: true,
+    startIteration: lastIteration + 1,
+    findings,
+  }).catch((err) => {
+    appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
+    try {
+      writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, state: 'failed' });
+    } catch { /* ignore */ }
+  });
+  return true;
 }
