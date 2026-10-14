@@ -9,7 +9,7 @@
 const env = (typeof import.meta !== 'undefined' && import.meta.env) || {};
 
 export const CLOUD_BACKEND_URL =
-  env.VITE_BACKEND_URL || 'https://dark-matter-90nw.onrender.com';
+  env.VITE_BACKEND_URL || 'https://api.thebhavesh.online';
 
 /** Resolve the API base URL for all backend calls — always the hosted backend. */
 export function resolveApiBase() {
