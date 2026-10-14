@@ -1,10 +1,32 @@
 // Central configuration — all values come from environment variables.
 // No secrets are hardcoded here; see .env.example and README.md.
 
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+
+// Minimal .env loader (no dependency): backend/.env populates process.env
+// for keys not already set in the real environment.
+(function loadDotEnv() {
+  try {
+    const envPath = path.join(here, '..', '.env');
+    if (!fs.existsSync(envPath)) return;
+    for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) continue;
+      const eq = t.indexOf('=');
+      if (eq === -1) continue;
+      const k = t.slice(0, eq).trim();
+      let v = t.slice(eq + 1).trim();
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+        v = v.slice(1, -1);
+      }
+      if (k && !(k in process.env)) process.env[k] = v;
+    }
+  } catch { /* .env is optional */ }
+})();
 
 function csv(name) {
   return (process.env[name] || '')
