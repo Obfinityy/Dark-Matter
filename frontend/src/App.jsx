@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import ActivityDrawer from './components/ActivityDrawer';
@@ -70,6 +70,54 @@ function AppInner() {
   });
 
   useEffect(() => saveJson(CHATS_KEY, chats), [chats]);
+
+  // ---- Full chat-message sync: history follows the account across devices ----
+  // Push: whenever a chat's messages change, debounced-push to the backend.
+  // Only chats whose content actually changed are pushed (signature check).
+  const lastPushedRef = useRef({});
+  useEffect(() => {
+    if (!ready || !user) return;
+    const timers = [];
+    for (const chat of chats) {
+      if (!chat || !chat.id) continue;
+      const sig = JSON.stringify(chat.messages || []);
+      if (lastPushedRef.current[chat.id] === sig) continue;
+      const t = setTimeout(async () => {
+        try {
+          const { saveChatMessages } = await import('./lib/api');
+          const r = await saveChatMessages(chat.id, chat.messages || []);
+          if (r && r.ok) lastPushedRef.current[chat.id] = sig;
+        } catch { /* offline — will retry on next change */ }
+      }, 2500);
+      timers.push(t);
+    }
+    return () => timers.forEach(clearTimeout);
+  }, [chats, ready, user]);
+
+  // Pull: when the active chat opens (or on login), fetch remote messages and
+  // fill in anything missing locally. Local messages win on id conflicts (they
+  // may carry live hunt state); remote-only messages are appended.
+  useEffect(() => {
+    if (!ready || !user || !activeChatId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getChatMessages } = await import('./lib/api');
+        const res = await getChatMessages(activeChatId);
+        if (cancelled || !res.ok || !res.data || !Array.isArray(res.data.messages)) return;
+        const remote = res.data.messages;
+        if (remote.length === 0) return;
+        setChats((prev) => prev.map((c) => {
+          if (c.id !== activeChatId) return c;
+          const localIds = new Set((c.messages || []).map((m) => m && m.id));
+          const missing = remote.filter((m) => m && m.id && !localIds.has(m.id));
+          if (missing.length === 0) return c;
+          return { ...c, messages: [...(c.messages || []), ...missing] };
+        }));
+      } catch { /* offline — local chats still work */ }
+    })();
+    return () => { cancelled = true; };
+  }, [activeChatId, ready, user]);
 
   // Re-attach backend hunts on login: hunts keep running on the backend even
   // if the browser is closed. Any hunt missing from the local chats gets its

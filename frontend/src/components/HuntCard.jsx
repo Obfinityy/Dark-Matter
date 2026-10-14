@@ -218,14 +218,20 @@ export default function HuntCard({ hunt, onStatusChange, onRerun }) {
     }
   }, [logs]);
 
+  // 100% truth rule: only VERIFIED findings are shown as vulnerabilities.
+  // Unverified leads are hypotheses, not vulnerabilities — they are counted
+  // separately as "under investigation" and never presented as findings.
+  const verifiedFindings = findings.filter((f) => f && f.verified === true);
+  const unverifiedCount = findings.filter((f) => f && f.verified !== true).length;
+
   const counts = useMemo(() => {
     const c = { critical: 0, high: 0, medium: 0, low: 0 };
-    findings.forEach((f) => {
+    verifiedFindings.forEach((f) => {
       if (c[f.severity] !== undefined) c[f.severity] += 1;
       else c.low += 1;
     });
     return c;
-  }, [findings]);
+  }, [verifiedFindings]);
 
   async function runControl(action, fn, successMsg) {
     setBusy(true);
@@ -241,7 +247,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun }) {
     }
   }
 
-  const totalFindings = findings.length;
+  const totalFindings = verifiedFindings.length;
 
   return (
     <div className="hunt-card">
@@ -295,33 +301,41 @@ export default function HuntCard({ hunt, onStatusChange, onRerun }) {
         </>
       )}
 
-      {totalFindings > 0 && (
+      {(totalFindings > 0 || unverifiedCount > 0) && (
         <div className="hunt-findings-block">
           <div className="hunt-findings-title">
-            Findings
+            {totalFindings > 0 ? 'Confirmed vulnerabilities' : 'Vulnerabilities'}
             {counts.critical > 0 && <span className="sev sev-critical">{counts.critical} critical</span>}
             {counts.high > 0 && <span className="sev sev-high">{counts.high} high</span>}
             {counts.medium > 0 && <span className="sev sev-medium">{counts.medium} medium</span>}
             {counts.low > 0 && <span className="sev sev-low">{counts.low} low</span>}
           </div>
+          {totalFindings === 0 && (
+            <div className="hunt-no-confirmed">
+              No confirmed vulnerabilities yet
+              {unverifiedCount > 0 && ` — ${unverifiedCount} lead${unverifiedCount === 1 ? '' : 's'} under investigation`}
+              .
+            </div>
+          )}
+          {totalFindings > 0 && (
           <ul className="findings-list">
-            {findings.map((f, idx) => (
+            {verifiedFindings.map((f, idx) => (
               <li key={idx} className={`finding ${SEVERITY_CLASS[f.severity] || 'sev-low'}`}>
                 <span className="finding-sev">{f.severity}</span>
                 <span className="finding-title">{f.title}</span>
-                {f.verified === true ? (
-                  <span className="finding-badge finding-verified" title={f.verification || 'Verified'}>
-                    ✓ verified
-                  </span>
-                ) : (
-                  <span className="finding-badge finding-unverified" title="Lead only — not yet confirmed by the verification pipeline">
-                    unverified lead
-                  </span>
-                )}
+                <span className="finding-badge finding-verified" title={f.verification || 'Verified'}>
+                  ✓ verified
+                </span>
                 {f.detail && <div className="finding-detail">{f.detail}</div>}
               </li>
             ))}
           </ul>
+          )}
+          {totalFindings > 0 && unverifiedCount > 0 && (
+            <div className="hunt-investigating">
+              + {unverifiedCount} lead{unverifiedCount === 1 ? '' : 's'} under investigation
+            </div>
+          )}
         </div>
       )}
 

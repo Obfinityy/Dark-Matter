@@ -102,6 +102,18 @@ export async function syncChatTitles(chats) {
   return post('/api/v1/chats/sync', { chats });
 }
 
+// --- Chat message sync (full history follows the account across devices) ---
+export async function getChatMessages(chatId) {
+  return get(`/api/v1/chats/${encodeURIComponent(chatId)}/messages`);
+}
+
+export async function saveChatMessages(chatId, messages) {
+  return post(`/api/v1/chats/${encodeURIComponent(chatId)}/messages`, {
+    messages,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
 // --- Billing / top-up ---------------------------------------------------------
 export async function billingStatus() {
   return get('/api/v1/billing/status');
