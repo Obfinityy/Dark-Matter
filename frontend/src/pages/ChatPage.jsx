@@ -184,6 +184,13 @@ export default function ChatPage({
     onUpdateHunt(chat.id, huntId, status);
   }
 
+  /** Re-run a stopped/finished hunt: start a fresh hunt against the same target. */
+  async function handleRerunHunt(hunt) {
+    if (!ensureHuntAuth()) return;
+    // The target was already authorized when the original hunt was started.
+    await handleStartHunt(hunt.target, hunt.scope || '', hunt.mode || 'normal', true);
+  }
+
   const [editText, setEditText] = useState(null);
 
   const composer = (
@@ -250,6 +257,7 @@ export default function ChatPage({
               onHuntStatusChange={handleHuntStatusChange}
               onOpenReports={onOpenReports}
               onEditMessage={(msg) => setEditText(msg.text)}
+              onRerunHunt={handleRerunHunt}
             />
             <div ref={threadEndRef} />
           </div>

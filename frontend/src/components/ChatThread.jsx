@@ -109,14 +109,14 @@ function AssistantActions({ text }) {
   );
 }
 
-export default function ChatThread({ messages, streaming, onHuntStatusChange, onOpenReports, onEditMessage }) {
+export default function ChatThread({ messages, streaming, onHuntStatusChange, onOpenReports, onEditMessage, onRerunHunt }) {
   return (
     <div className="chat-thread">
       {messages.map((msg) => {
         if (msg.role === 'hunt') {
           return (
             <div key={msg.id} className="message message-hunt">
-              <HuntCard hunt={msg.hunt} onStatusChange={onHuntStatusChange} />
+              <HuntCard hunt={msg.hunt} onStatusChange={onHuntStatusChange} onRerun={onRerunHunt} />
               {msg.hunt.status === 'done' && (
                 <button className="btn btn-ghost btn-sm report-link" onClick={() => onOpenReports(msg.hunt.huntId)}>
                   View report →

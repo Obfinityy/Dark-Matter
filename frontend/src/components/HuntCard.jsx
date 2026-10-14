@@ -58,7 +58,7 @@ function statusText(status, target) {
   }
 }
 
-export default function HuntCard({ hunt, onStatusChange }) {
+export default function HuntCard({ hunt, onStatusChange, onRerun }) {
   const [status, setStatus] = useState(hunt.status || 'idle');
   // Button visibility rule (owner's spec): a live hunt shows Pause + Stop;
   // a paused hunt shows Resume + Stop. Terminal hunts show nothing clickable.
@@ -355,6 +355,19 @@ export default function HuntCard({ hunt, onStatusChange }) {
         >
           ■ Stop
         </button>
+        {isTerminal && onRerun && (
+          <button
+            className="hunt-pill-btn"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              onRerun(hunt).finally(() => setBusy(false));
+            }}
+            title="Start a fresh hunt against the same target"
+          >
+            ↻ Re-run
+          </button>
+        )}
         <span className="hunt-id">ID: {hunt.huntId}</span>
       </div>
 
