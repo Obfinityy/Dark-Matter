@@ -1,0 +1,1 @@
+{"dependencies":{"@aws-sdk/client-bedrock-runtime":"^3.1150.0"},"name":"dm-hunt-runner","private":true,"type":"module","version":"1.0.0"}

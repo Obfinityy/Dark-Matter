@@ -1,0 +1,28 @@
+# Dark Matter per-hunt container image.
+# Each hunt gets a FRESH, ISOLATED container from this image — the hunt's own
+# "virtual machine". Spawned by backend/src/huntRunner.js on hunt creation,
+# destroyed on completion/failure/timeout.
+#
+# The container runs /opt/hunt/run.sh which:
+#   1. Reads DM_TARGET, DM_HUNT_ID, DM_MODE from env
+#   2. Runs the recon pipeline (subdomain -> ports -> nuclei -> dalfox ...)
+#   3. Runs the Bedrock-powered agent loop for deep testing
+#   4. Emits JSON event lines to stdout -> backend streams them as hunt events
+#
+# Build: docker build -f docker/Dockerfile.hunt -t darkmatter/hunt:latest .
+
+FROM kalilinux/kali-rolling
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip nodejs npm curl wget git jq \
+    nmap nikto sqlmap \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/hunt
+COPY docker/hunt-runner/ ./
+
+RUN chmod +x run.sh && npm install --omit=dev || true
+
+ENTRYPOINT ["/opt/hunt/run.sh"]
