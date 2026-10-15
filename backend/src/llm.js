@@ -129,13 +129,40 @@ async function chatWithOllama(messages, system, ctx) {
         model: OLLAMA_MODEL,
         messages: ollamaMessages,
         stream: false,
-        options: { num_predict: 1500, temperature: 0.7 },
+        // Tuned for 2vCPU EC2: smaller context + fewer tokens = faster.
+        // num_ctx caps KV cache to avoid OOM; num_predict keeps plans short.
+        options: {
+          num_predict: parseInt(process.env.OLLAMA_NUM_PREDICT || '600', 10),
+          num_ctx: parseInt(process.env.OLLAMA_NUM_CTX || '8192', 10),
+          temperature: 0.7,
+        },
       }),
-      signal: AbortSignal.timeout(300000),
+      // 2vCPU is slow: 150s per attempt, with one retry below.
+      signal: AbortSignal.timeout(parseInt(process.env.OLLAMA_TIMEOUT_MS || '150000', 10)),
     });
   } catch (err) {
-    console.error(`[llm] Ollama unreachable at ${OLLAMA_URL}: ${err.message}`);
-    return null;
+    console.error(`[llm] Ollama attempt 1 failed at ${OLLAMA_URL}: ${err.message}`);
+    // One retry — transient stalls are common on 2vCPU.
+    try {
+      res = await fetch(`${OLLAMA_URL}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: OLLAMA_MODEL,
+          messages: ollamaMessages,
+          stream: false,
+          options: {
+            num_predict: parseInt(process.env.OLLAMA_NUM_PREDICT || '600', 10),
+            num_ctx: parseInt(process.env.OLLAMA_NUM_CTX || '8192', 10),
+            temperature: 0.7,
+          },
+        }),
+        signal: AbortSignal.timeout(parseInt(process.env.OLLAMA_TIMEOUT_MS || '150000', 10)),
+      });
+    } catch (err2) {
+      console.error(`[llm] Ollama unreachable at ${OLLAMA_URL} after retry: ${err2.message}`);
+      return null;
+    }
   }
   if (!res.ok) {
     console.error(`[llm] Ollama HTTP ${res.status} for model ${OLLAMA_MODEL}`);

@@ -249,7 +249,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     );
     if (!reply) {
       think(huntId, 'Model gave no reply this iteration — skipping to next.');
-      return null;
+      return { aiOk: false, best: null };
     }
     // Show the model's raw thinking in the terminal (truncated) so the
     // operator can SEE the brain working, not just templated summaries.
@@ -257,9 +257,9 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     const m = /\[[\s\S]*\]/.exec(reply);
     plans = m ? JSON.parse(m[0]) : [];
   } catch {
-    return null;
+    return { aiOk: false, best: null };
   }
-  if (!plans.length) return null;
+  if (!plans.length) return { aiOk: false, best: null };
 
   // Execute up to 3 hypotheses (multi-hypothesis > single guess)
   let best = null;
@@ -270,7 +270,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     const rec = await assessResult(huntId, target, plan, result);
     if (rec && rec.verified && !best) best = rec;
   }
-  return best;
+  return { aiOk: true, best };
 }
 
 /**
@@ -512,6 +512,8 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
     if (!hasAI) {
       think(huntId, 'No AI backend configured — hunt completed with recon results only.');
     }
+    // Consecutive AI failures — circuit breaker trips at 3.
+    let aiFailStreak = 0;
 
     for (let i = startIteration; ; i++) {
       // CHECKPOINT — persist progress every iteration so a killed backend
@@ -544,10 +546,27 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
       // Credits gate: each iteration costs a little; pause when the wallet is empty.
       if (!chargeIteration(huntId, userId, mode, i)) break;
 
+      // CIRCUIT BREAKER: if the AI brain fails repeatedly (Ollama too slow
+      // on 2vCPU, model down, etc.), pause the hunt with a clear message
+      // instead of spinning forever doing nothing.
+      let iterResult = null;
       try {
-        await agentIteration(huntId, target, recon, findings, i, playbook);
+        iterResult = await agentIteration(huntId, target, recon, findings, i, playbook);
       } catch (err) {
         think(huntId, `Iteration ${i} failed safely: ${err.message || err}`);
+      }
+      if (iterResult === null || (iterResult && iterResult.aiOk === false)) {
+        aiFailStreak++;
+        if (aiFailStreak >= 3) {
+          think(huntId, `AI brain unreachable ${aiFailStreak}x in a row — pausing hunt. The model (Ollama) may be overloaded. Resume when it's responsive.`);
+          appendHuntEvent(huntId, { type: 'status', state: 'paused', reason: 'ai_unreachable', at: new Date().toISOString() });
+          try {
+            writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, state: 'paused', pausedReason: 'ai_unreachable' });
+          } catch { /* best-effort */ }
+          break;
+        }
+      } else {
+        aiFailStreak = 0;
       }
 
       // Gentle pacing — don't hammer the target
