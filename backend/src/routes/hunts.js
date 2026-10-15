@@ -129,8 +129,11 @@ router.post('/', requireAuth, async (req, res) => {
   // Credits gate: non-admin users need balance for at least one iteration.
   // Admins (owner) hunt free.
   if (req.user.role !== 'admin') {
+    console.log(`[hunts] Checking credits for ${req.user.username}...`);
     const priceCents = iterationPriceCents(huntMode.id);
-    if (getBalanceUsd(req.user.id) * 100 < priceCents) {
+    const balance = getBalanceUsd(req.user.id);
+    console.log(`[hunts] Balance: $${balance}, required: $${priceCents/100}`);
+    if (balance * 100 < priceCents) {
       return res.status(402).json({
         ok: false,
         error: 'out_of_credits',
@@ -139,6 +142,7 @@ router.post('/', requireAuth, async (req, res) => {
       });
     }
   }
+  console.log(`[hunts] Credits OK, checking dedupe...`);
   // DEDUPE: if this user already has a hunt for the same target (any state),
   // return the existing one instead of creating a duplicate.
   try {
