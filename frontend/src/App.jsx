@@ -380,6 +380,7 @@ function AppInner() {
 
   const deleteChat = useCallback(
     (chatId) => {
+      console.log('[delete] deleteChat called for:', chatId);
       // Show confirmation dialog first — user asked for explicit confirm
       setConfirmingDelete(chatId);
     },
@@ -388,6 +389,7 @@ function AppInner() {
 
   const confirmDeleteChat = useCallback(
     (chatId) => {
+      console.log('[delete] confirmDeleteChat called for:', chatId);
       setConfirmingDelete(null);
       // Record a tombstone so the delete syncs to the backend and the chat
       // doesn't resurrect on refresh/other devices.
