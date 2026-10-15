@@ -3,22 +3,23 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth';
-import { listAdminUsers, createAdminUser, updateAdminUser, deleteAdminUser } from '../lib/api';
+import { listAdminUsers, createAdminUser, updateAdminUser, deleteAdminUser, listAdminHunts, getAuthToken } from '../lib/api';
+import { resolveApiBase } from '../config';
 import { toast } from '../lib/toast';
 
 export default function AdminPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
+  const [hunts, setHunts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ username: '', password: '', control: 'minimal' });
-  const [busy, setBusy] = useState(false);
 
   async function load() {
     setLoading(true);
-    const res = await listAdminUsers();
+    const [uRes, hRes] = await Promise.all([listAdminUsers(), listAdminHunts()]);
     setLoading(false);
-    if (res.ok) setUsers(res.users || []);
-    else toast(res.error || 'Could not load users.', 'error');
+    if (uRes.ok) setUsers(uRes.users || []);
+    else toast(uRes.error || 'Could not load users.', 'error');
+    if (hRes.ok) setHunts(hRes.hunts || []);
   }
 
   useEffect(() => { load(); }, []);
@@ -61,6 +62,27 @@ export default function AdminPage() {
     const res = await deleteAdminUser(u.id);
     if (res.ok) { toast('Deleted.', 'info'); load(); }
     else toast(res.error || 'Failed.', 'error');
+  }
+
+  async function handleDownloadMemory(huntId) {
+    try {
+      const res = await fetch(`${resolveApiBase()}/api/v1/hunts/${encodeURIComponent(huntId)}/memory`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      });
+      if (!res.ok) throw new Error('download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `hunt-${huntId}-memory.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast('Memory downloaded.', 'success');
+    } catch {
+      toast('Could not download hunt memory.', 'error');
+    }
   }
 
   return (
@@ -124,6 +146,37 @@ export default function AdminPage() {
                       <button className="btn btn-ghost" onClick={() => handleDelete(u)}>Delete</button>
                     </div>
                   )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="admin-section">
+          <h2>Hunts on this backend ({hunts.length})</h2>
+          <p className="page-sub">Only one hunt runs at a time. Download any hunt's full memory (meta + events) as JSON.</p>
+          {loading ? <p className="page-sub">Loading…</p> : (
+            <div className="admin-users">
+              {hunts.length === 0 && <p className="page-sub">No hunts yet.</p>}
+              {hunts.map((h) => (
+                <div key={h.huntId} className="admin-user-row">
+                  <div>
+                    <div className="admin-username">
+                      {h.state === 'running' ? '🟢 ' : h.state === 'paused' ? '⏸️ ' : '⚪ '}
+                      {h.target}
+                    </div>
+                    <div className="admin-meta">
+                      {h.huntId} · {h.state} · {h.mode} · iter {h.iteration}
+                    </div>
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => handleDownloadMemory(h.huntId)}
+                    >
+                      ⬇ Memory
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

@@ -35,6 +35,29 @@ router.get('/users', requireAdmin, (req, res) => {
   res.json({ ok: true, users: Object.values(users).map(publicUser) });
 });
 
+// ---- All hunts on the backend (admin sees everything).
+// GET /api/v1/admin/hunts -> [{huntId, target, state, mode, userId, createdAt, iteration}]
+router.get('/hunts', requireAdmin, async (req, res) => {
+  const { listHuntMetas } = await import('../store.js');
+  const hunts = listHuntMetas().map((m) => ({
+    huntId: m.huntId,
+    target: m.target,
+    state: m.state,
+    mode: m.mode,
+    userId: m.userId || null,
+    createdAt: m.createdAt || null,
+    iteration: m.iteration || 0,
+    checkpointAt: m.checkpointAt || null,
+  }));
+  // Running/paused first, then by recency.
+  hunts.sort((a, b) => {
+    const rank = (s) => (s === 'running' ? 0 : s === 'paused' ? 1 : 2);
+    if (rank(a.state) !== rank(b.state)) return rank(a.state) - rank(b.state);
+    return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+  });
+  res.json({ ok: true, hunts });
+});
+
 router.post('/users', requireAdmin, (req, res) => {
   const { username, password, control } = req.body || {};
   const cleanUsername = String(username || '').trim().toLowerCase();

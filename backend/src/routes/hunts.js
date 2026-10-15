@@ -151,6 +151,23 @@ router.post('/', requireAuth, async (req, res) => {
       });
     }
   }
+  // ONE HUNT AT A TIME: the backend runs a single hunt. If one is already
+  // running (or paused), reject the new hunt with the active hunt's id so
+  // the UI can point the user at it.
+  try {
+    const { listHuntMetas } = await import('../store.js');
+    const active = listHuntMetas().find((h) => ['running', 'paused'].includes(h.state));
+    if (active) {
+      return res.status(409).json({
+        ok: false,
+        error: 'hunt_already_running',
+        message: 'Only one hunt runs at a time. Stop or finish the current hunt first.',
+        activeHuntId: active.huntId,
+        activeTarget: active.target,
+        activeState: active.state,
+      });
+    }
+  } catch { /* best-effort — don't block hunt creation on guard failure */ }
   try {
     let huntId;
     try {
@@ -406,6 +423,25 @@ router.get('/:id/events', requireAuth, (req, res) => {  const meta = requireHunt
   const limit = Math.min(parseInt(req.query.limit || '200', 10) || 200, 1000);
   const events = readHuntEvents(req.params.id);
   res.json({ ok: true, huntId: req.params.id, events: events.slice(-limit) });
+});
+
+// ---- Download full hunt memory: meta + all events + findings as JSON.
+// The admin can download any hunt's complete memory from the admin panel.
+router.get('/:id/memory', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const huntId = req.params.id;
+  const events = readHuntEvents(huntId);
+  const memory = {
+    huntId,
+    exportedAt: new Date().toISOString(),
+    meta,
+    events,
+    eventCount: events.length,
+  };
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="hunt-${huntId}-memory.json"`);
+  res.send(JSON.stringify(memory, null, 2));
 });
 
 // ---- Money burnt on this hunt (Bedrock tokens + EC2).

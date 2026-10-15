@@ -192,6 +192,10 @@ export async function listAdminUsers() {
   return get('/api/v1/admin/users');
 }
 
+export async function listAdminHunts() {
+  return get('/api/v1/admin/hunts');
+}
+
 export async function createAdminUser({ username, password, control }) {
   return post('/api/v1/admin/users', { username, password, control });
 }
