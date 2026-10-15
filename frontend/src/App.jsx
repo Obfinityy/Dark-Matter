@@ -323,13 +323,13 @@ function AppInner() {
   const createChat = useCallback(() => {
     // If there's already an untouched draft, just go back to it —
     // never stack up blank entries in history.
-    if (draftChat && draftChat.messages.length === 0) {
+    if (draftChat && (draftChat.messages || []).length === 0) {
       setActiveChatId(draftChat.id);
       setPage('chat');
       return draftChat.id;
     }
     // Reuse any existing empty committed chat instead of making another.
-    const empty = chats.find((c) => c.messages.length === 0);
+    const empty = chats.find((c) => (c.messages || []).length === 0);
     if (empty) {
       setDraftChat(null);
       setActiveChatId(empty.id);
@@ -570,7 +570,7 @@ function AppInner() {
         <TopBar
           onMenu={() => setSidebarOpen((v) => !v)}
           sidebarOpen={sidebarOpen}
-          showShare={page === 'chat' && !!activeChat && activeChat.messages.length > 0}
+          showShare={page === 'chat' && !!activeChat && (activeChat.messages || []).length > 0}
           onNavigate={navigate}
           onActivity={() => setActivityOpen(true)}
         />
