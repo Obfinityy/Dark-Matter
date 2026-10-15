@@ -66,6 +66,7 @@ router.post('/sync', requireAuth, (req, res) => {
         .filter((d) => d && typeof d.id === 'string' && d.id)
         .map((d) => ({ id: d.id.slice(0, 64), deletedAt: String(d.deletedAt || new Date().toISOString()) }))
     : [];
+  console.log(`[chats/sync] user=${req.user.id} incoming=${incoming.length} tombstones=${tombstones.length} ids=${tombstones.map(t=>t.id).join(',')}`);
   const merged = new Map();
   for (const c of readTitles(req.user.id)) merged.set(c.id, c);
   for (const c of incoming) {
