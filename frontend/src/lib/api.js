@@ -98,8 +98,8 @@ export async function getChatTitles() {
   return get('/api/v1/chats');
 }
 
-export async function syncChatTitles(chats) {
-  return post('/api/v1/chats/sync', { chats });
+export async function syncChatTitles(chats, deleted) {
+  return post('/api/v1/chats/sync', { chats, deleted });
 }
 
 // --- Chat message sync (full history follows the account across devices) ---

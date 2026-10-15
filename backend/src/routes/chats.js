@@ -60,6 +60,12 @@ router.post('/sync', requireAuth, (req, res) => {
   const incoming = Array.isArray(req.body && req.body.chats)
     ? req.body.chats.map(clean).filter(Boolean)
     : [];
+  // Tombstones: chats the client deleted. {id, deletedAt}
+  const tombstones = Array.isArray(req.body && req.body.deleted)
+    ? req.body.deleted
+        .filter((d) => d && typeof d.id === 'string' && d.id)
+        .map((d) => ({ id: d.id.slice(0, 64), deletedAt: String(d.deletedAt || new Date().toISOString()) }))
+    : [];
   const merged = new Map();
   for (const c of readTitles(req.user.id)) merged.set(c.id, c);
   for (const c of incoming) {
@@ -68,6 +74,27 @@ router.post('/sync', requireAuth, (req, res) => {
       merged.set(c.id, c);
     }
   }
+  // Apply tombstones: drop any chat deleted after its last update.
+  // Persist tombstones so a later sync from another device can't resurrect.
+  const tombFile = path.join(dataDir(), 'chats', `${String(req.user.id)}.deleted.json`);
+  let known = [];
+  try { known = JSON.parse(fs.readFileSync(tombFile, 'utf8')) || []; } catch { /* none */ }
+  const tombMap = new Map(known.map((t) => [t.id, t.deletedAt]));
+  for (const t of tombstones) {
+    const prev = tombMap.get(t.id);
+    if (!prev || String(t.deletedAt) >= String(prev)) tombMap.set(t.id, t.deletedAt);
+  }
+  for (const [id, deletedAt] of tombMap) {
+    const c = merged.get(id);
+    if (c && String(deletedAt) >= String(c.updatedAt || '')) {
+      merged.delete(id);
+      // Also wipe its message history.
+      try { fs.unlinkSync(messagesFile(req.user.id, id)); } catch { /* none */ }
+    }
+  }
+  try {
+    fs.writeFileSync(tombFile, JSON.stringify([...tombMap.entries()].map(([id, deletedAt]) => ({ id, deletedAt })).slice(-500)));
+  } catch { /* best-effort */ }
   const list = [...merged.values()]
     .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
     .slice(0, 500);

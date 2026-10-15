@@ -243,7 +243,12 @@ function AppInner() {
           title: c.title,
           updatedAt: c.updatedAt || c.createdAt || new Date().toISOString(),
         }));
-        syncChatTitles(titles).catch(() => {});
+        let deleted = [];
+        try {
+          const raw = localStorage.getItem(`dm.deleted.${user.id}`);
+          deleted = raw ? JSON.parse(raw) : [];
+        } catch { /* none */ }
+        syncChatTitles(titles, deleted).catch(() => {});
       });
     }, 4000);
     return () => clearTimeout(t);
@@ -351,6 +356,15 @@ function AppInner() {
 
   const deleteChat = useCallback(
     (chatId) => {
+      // Record a tombstone so the delete syncs to the backend and the chat
+      // doesn't resurrect on refresh/other devices.
+      try {
+        const key = `dm.deleted.${user?.id || 'anon'}`;
+        const raw = localStorage.getItem(key);
+        const arr = raw ? JSON.parse(raw) : [];
+        arr.push({ id: chatId, deletedAt: new Date().toISOString() });
+        localStorage.setItem(key, JSON.stringify(arr.slice(-500)));
+      } catch { /* best-effort */ }
       setChats((prev) => {
         const next = prev.filter((c) => c.id !== chatId);
         if (chatId === activeChatId) {
@@ -359,7 +373,7 @@ function AppInner() {
         return next;
       });
     },
-    [activeChatId],
+    [activeChatId, user],
   );
 
   const recordHunt = useCallback((hunt) => {
