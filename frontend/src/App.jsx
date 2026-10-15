@@ -358,13 +358,19 @@ function AppInner() {
     (chatId) => {
       // Record a tombstone so the delete syncs to the backend and the chat
       // doesn't resurrect on refresh/other devices.
+      const tombstone = { id: chatId, deletedAt: new Date().toISOString() };
       try {
         const key = `dm.deleted.${user?.id || 'anon'}`;
         const raw = localStorage.getItem(key);
         const arr = raw ? JSON.parse(raw) : [];
-        arr.push({ id: chatId, deletedAt: new Date().toISOString() });
+        arr.push(tombstone);
         localStorage.setItem(key, JSON.stringify(arr.slice(-500)));
       } catch { /* best-effort */ }
+      // Send the tombstone IMMEDIATELY — don't wait for the debounced sync,
+      // or a quick refresh loses the delete.
+      import('./lib/api').then(({ syncChatTitles }) => {
+        syncChatTitles([], [tombstone]).catch(() => {});
+      });
       setChats((prev) => {
         const next = prev.filter((c) => c.id !== chatId);
         if (chatId === activeChatId) {
