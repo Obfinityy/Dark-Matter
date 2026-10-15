@@ -113,21 +113,10 @@ router.post('/', requireAuth, async (req, res) => {
         'to confirm you own or are permitted to test this target.',
     });
   }
-  // Allowlist: the owner (admin) can hunt any target they type in the chat
-  // box; member accounts are restricted to ALLOWED_TARGETS.
-  if (req.user.role !== 'admin' && !isTargetAllowed(target)) {
-    console.warn(
-      `[hunts] REJECTED create: target "${target}" is not in ALLOWED_TARGETS ` +
-        `(${config.allowedTargets.length ? config.allowedTargets.join(', ') : 'allowlist empty'})`
-    );
-    return res.status(403).json({
-      ok: false,
-      error: 'target_not_allowed',
-      message:
-        'This target is not on the authorized allowlist (env ALLOWED_TARGETS). ' +
-        'Hunts are permitted only against explicitly authorized targets.',
-    });
-  }
+  // Allowlist REMOVED (15 Oct 2026, owner order): all accounts are manually
+  // created by the owner (invite-only, trusted users). The explicit
+  // authorization checkbox (confirmedAuthorized) is sufficient — no
+  // ALLOWED_TARGETS restriction.
   // Control-level enforcement BEFORE creating anything: minimal users get Normal/Medium only.
   const huntMode = getMode(mode);
   const control = req.user.control || 'minimal';
