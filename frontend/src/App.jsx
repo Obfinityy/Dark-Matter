@@ -439,22 +439,21 @@ function AppInner() {
     [activeChatId, user],
   );
 
+  // Hunts are NEVER stored in localStorage — backend is the single source
+  // of truth. Always fetch fresh via listHunts().
   const recordHunt = useCallback((hunt) => {
-    const list = loadJson(HUNTS_KEY, []);
-    saveJson(HUNTS_KEY, [
-      { huntId: hunt.huntId, target: hunt.target, status: hunt.status, createdAt: hunt.createdAt },
-      ...list.filter((h) => h.huntId !== hunt.huntId),
-    ]);
+    // No-op: backend stores hunts. Kept for API compatibility.
   }, []);
 
   const updateHunt = useCallback(
     (chatId, huntId, status) => {
+      // Update in-memory chat messages only. Hunt state lives on the backend.
       setChats((prev) =>
         prev.map((c) =>
           c.id === chatId
             ? {
                 ...c,
-                messages: c.messages.map((m) =>
+                messages: (c.messages || []).map((m) =>
                   m.role === 'hunt' && m.hunt.huntId === huntId
                     ? { ...m, hunt: { ...m.hunt, status } }
                     : m,
@@ -462,11 +461,6 @@ function AppInner() {
               }
             : c,
         ),
-      );
-      const list = loadJson(HUNTS_KEY, []);
-      saveJson(
-        HUNTS_KEY,
-        list.map((h) => (h.huntId === huntId ? { ...h, status } : h)),
       );
     },
     [],

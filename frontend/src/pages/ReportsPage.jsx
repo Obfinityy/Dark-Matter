@@ -4,41 +4,16 @@ import { fetchReportMarkdown, reportPdfUrl, listHunts } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { toast } from '../lib/toast';
 
-const HUNTS_KEY = 'dm.hunts';
+const HUNTS_KEY = 'dm.hunts'; // legacy — no longer used, kept to clear stale data
 
-function loadHunts() {
-  try {
-    const raw = localStorage.getItem(HUNTS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-/** Merge backend hunts (survive browser close) with local ones, dedup by id.
- *  IMPORTANT: any local hunt NOT present in the backend list is REMOVED —
- *  this handles admin deletions and stale cache. Backend is the source of truth. */
-function mergeHunts(local, remote) {
-  const remoteIds = new Set(remote.filter(h => h && h.huntId).map(h => h.huntId));
-  const byId = new Map();
-  // Only keep local hunts that still exist on the backend
-  for (const h of local) {
-    if (h && h.huntId && remoteIds.has(h.huntId)) byId.set(h.huntId, h);
-  }
-  for (const h of remote) {
-    if (!h || !h.huntId) continue;
-    const prev = byId.get(h.huntId);
-    byId.set(h.huntId, prev ? { ...prev, ...h, status: h.status || prev.status } : h);
-  }
-  const result = [...byId.values()];
-  // Persist the cleaned list back to localStorage
-  try { localStorage.setItem(HUNTS_KEY, JSON.stringify(result)); } catch {}
-  return result;
+/** Clear any stale hunt data from localStorage (migration to backend-only). */
+function clearStaleHunts() {
+  try { localStorage.removeItem(HUNTS_KEY); } catch { /* ignore */ }
 }
 
 export default function ReportsPage({ preselectedHuntId }) {
   const { user } = useAuth();
-  const [hunts, setHunts] = useState(() => loadHunts());
+  const [hunts, setHunts] = useState([]);
   const [manualId, setManualId] = useState('');
   const [selectedId, setSelectedId] = useState(preselectedHuntId || null);
   const [markdown, setMarkdown] = useState('');
@@ -54,15 +29,16 @@ export default function ReportsPage({ preselectedHuntId }) {
   }, [preselectedHuntId]);
 
   useEffect(() => {
-    setHunts(loadHunts());
-    // Pull the user's hunts from the backend too — these survive browser
-    // close, so a hunt started days ago reappears here with its status.
+    // Clear any stale localStorage hunt data (migration to backend-only).
+    clearStaleHunts();
+    setHunts([]);
+    // Hunts ALWAYS come fresh from the backend — no localStorage.
     if (user) {
       listHunts().then((res) => {
         if (res.ok && res.data && Array.isArray(res.data.hunts)) {
-          setHunts((prev) => mergeHunts(prev, res.data.hunts));
+          setHunts(res.data.hunts);
         }
-      }).catch(() => { /* offline — local hunts still show */ });
+      }).catch(() => { /* offline */ });
     }
   }, [user]);
 
