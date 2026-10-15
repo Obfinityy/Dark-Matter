@@ -122,3 +122,78 @@ export function listHuntMetas() {
   out.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
   return out;
 }
+
+// ---- Per-target shared intelligence ----------------------------------------
+// Each target (e.g. "example.com") gets a unique folder under data/targets/.
+// Shared intel (endpoints, technologies, findings) accumulates here across
+// all hunts and all users. Private hunt data (events, user chats) stays in
+// data/hunts/<hunt-id>/ — only sanitized, identity-free intel is shared.
+
+/** Normalize a target URL/host to a safe folder name. */
+export function targetFolderName(target) {
+  const host = String(target || '')
+    .replace(/^https?:\/\//i, '')
+    .split('/')[0]
+    .split(':')[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9.-]/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 100);
+  return host || 'unknown-target';
+}
+
+export function targetDir(target) {
+  return ensureDir(path.join(dataDir(), 'targets', targetFolderName(target)));
+}
+
+/** Read shared intel for a target (endpoints, tech stack, findings summary). */
+export function readTargetIntel(target) {
+  const file = path.join(targetDir(target), 'intel.json');
+  return readJson(file, {
+    target: targetFolderName(target),
+    endpoints: [],
+    technologies: [],
+    findings: [],
+    huntCount: 0,
+    lastHuntAt: null,
+    createdAt: new Date().toISOString(),
+  });
+}
+
+/** Merge new intel into the shared target folder. */
+export function writeTargetIntel(target, intel) {
+  const dir = targetDir(target);
+  const existing = readTargetIntel(target);
+  const merged = {
+    ...existing,
+    ...intel,
+    target: targetFolderName(target),
+    // Append-only for arrays (dedupe by JSON)
+    endpoints: [...new Set([...(existing.endpoints || []), ...((intel && intel.endpoints) || [])].map(JSON.stringify))].map(JSON.parse),
+    technologies: [...new Set([...(existing.technologies || []), ...((intel && intel.technologies) || [])])],
+    findings: [...(existing.findings || []), ...((intel && intel.findings) || [])],
+    huntCount: (existing.huntCount || 0) + 1,
+    lastHuntAt: new Date().toISOString(),
+  };
+  writeJsonAtomic(path.join(dir, 'intel.json'), merged);
+  return merged;
+}
+
+/** Record that a hunt targeted this target (for "already processing" detection). */
+export function recordTargetHunt(target, huntId, userId) {
+  try {
+    const file = path.join(targetDir(target), 'hunts.jsonl');
+    fs.appendFileSync(file, JSON.stringify({
+      huntId, userId, startedAt: new Date().toISOString(),
+    }) + '\n');
+  } catch { /* best-effort */ }
+}
+
+/** Check if a target is currently being hunted (for shared frontend). */
+export function isTargetBeingHunted(target) {
+  const activeHunts = listHuntMetas().filter((h) =>
+    ['running', 'paused'].includes(h.state) &&
+    targetFolderName(h.target) === targetFolderName(target)
+  );
+  return activeHunts.length > 0 ? activeHunts[0] : null;
+}

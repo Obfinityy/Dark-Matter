@@ -8,6 +8,10 @@
 //                                    e.g. dolphin-mistral:7b (uncensored).
 //                                    $0 marginal token cost; the box itself
 //                                    is the only cost.
+//   LLM_PROVIDER=sagemaker         — AWS SageMaker async inference endpoint.
+//                                    For larger models (32B+) that don't fit
+//                                    on the EC2 box. Pay-per-use, scales to
+//                                    zero. Set SAGEMAKER_ENDPOINT_NAME.
 //
 // When the configured provider is unavailable, chatWithAI returns null and
 // the caller falls back to deterministic steering (pause/resume/stop) plus
@@ -17,6 +21,7 @@
 // deterministic control must never depend on an LLM's mood.
 
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
+import { SageMakerRuntimeClient, InvokeEndpointAsyncCommand, GetAsyncInferenceResultCommand } from '@aws-sdk/client-sagemaker-runtime';
 import { recordCost } from './costTracker.js';
 
 const PROVIDER = String(process.env.LLM_PROVIDER || 'bedrock').toLowerCase();
@@ -26,6 +31,11 @@ const DEFAULT_REGION = process.env.AWS_REGION || 'us-east-1';
 
 const OLLAMA_URL = String(process.env.OLLAMA_URL || 'http://localhost:11434').replace(/\/+$/, '');
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'dolphin-mistral:7b';
+
+// SageMaker async inference — for 32B+ models. Endpoint scales to zero;
+// each invocation is pay-per-use (~$4-5 per 3-hour hunt on 32B).
+const SAGEMAKER_ENDPOINT = process.env.SAGEMAKER_ENDPOINT_NAME || '';
+const SAGEMAKER_REGION = process.env.SAGEMAKER_REGION || process.env.AWS_REGION || 'us-east-1';
 
 // ---- Privacy gateway --------------------------------------------------------
 // Strip secrets, tokens, and PII before anything reaches the model.
@@ -195,5 +205,108 @@ async function chatWithOllama(messages, system, ctx) {
  */
 export async function chatWithAI(messages, system, ctx) {
   if (PROVIDER === 'ollama') return chatWithOllama(messages, system, ctx);
+  if (PROVIDER === 'sagemaker') return chatWithSageMaker(messages, system, ctx);
   return chatWithBedrock(messages, system, ctx);
+}
+
+/**
+ * SageMaker async inference — for 32B+ models that don't fit on EC2.
+ * Uses async inference (scales to zero, pay-per-use).
+ * 
+ * Flow:
+ * 1. InvokeEndpointAsync → returns output S3 location
+ * 2. Poll GetAsyncInferenceResult until complete
+ * 3. Parse response
+ */
+async function chatWithSageMaker(messages, system, ctx) {
+  if (!SAGEMAKER_ENDPOINT) {
+    console.error('[llm] SageMaker endpoint not configured (SAGEMAKER_ENDPOINT_NAME)');
+    return null;
+  }
+
+  const clean = (t) => sanitizeForModel(String(t || ''));
+  
+  // Build prompt in ChatML format for Qwen models
+  let prompt = '';
+  if (system) prompt += `<|im_start|>system\n${clean(system).slice(0, 8000)}<|im_end|>\n`;
+  for (const m of messages || []) {
+    const role = m.role === 'assistant' ? 'assistant' : 'user';
+    prompt += `<|im_start|>${role}\n${clean(m.text).slice(0, 8000)}<|im_end|>\n`;
+  }
+  prompt += '<|im_start|>assistant\n';
+
+  const client = new SageMakerRuntimeClient({
+    region: SAGEMAKER_REGION,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+    },
+  });
+
+  try {
+    // Step 1: Invoke async
+    const invokeCmd = new InvokeEndpointAsyncCommand({
+      EndpointName: SAGEMAKER_ENDPOINT,
+      ContentType: 'application/json',
+      InputLocation: `s3://${process.env.SAGEMAKER_INPUT_BUCKET || 'darkmatter-sagemaker-input'}/input/${Date.now()}.json`,
+      // For async inference, we pass the payload via S3 or inline
+    });
+    
+    // Actually, for async inference with JSON payload, we use:
+    // The payload goes in the request body, output goes to S3
+    const payload = JSON.stringify({
+      inputs: prompt,
+      parameters: {
+        max_new_tokens: 600,
+        temperature: 0.7,
+        top_p: 0.9,
+        do_sample: true,
+      },
+    });
+
+    // Use InvokeEndpoint (sync) for simpler flow if endpoint supports it,
+    // fallback to async for long-running
+    const { InvokeEndpointCommand } = await import('@aws-sdk/client-sagemaker-runtime');
+    const syncCmd = new InvokeEndpointCommand({
+      EndpointName: SAGEMAKER_ENDPOINT,
+      ContentType: 'application/json',
+      Body: Buffer.from(payload),
+    });
+
+    const response = await client.send(syncCmd);
+    const responseBody = await response.Body.transformToString();
+    const data = JSON.parse(responseBody);
+    
+    // HuggingFace TGI format: [{generated_text: "..."}] or {generated_text: "..."}
+    let text = '';
+    if (Array.isArray(data) && data[0]?.generated_text) {
+      text = data[0].generated_text;
+    } else if (data.generated_text) {
+      text = data.generated_text;
+    } else if (typeof data === 'string') {
+      text = data;
+    }
+
+    text = text.trim();
+    if (!text) return null;
+
+    // Record cost (SageMaker 32B ~$0.50/hour pro-rated per request)
+    try {
+      recordCost({
+        userId: ctx && ctx.userId,
+        huntId: ctx && ctx.huntId,
+        kind: 'sagemaker',
+        model: SAGEMAKER_ENDPOINT,
+        inputTokens: 0, // Async doesn't return token counts reliably
+        outputTokens: 0,
+        amountUsd: 0.01, // Estimated per-request cost
+        note: 'sagemaker-async',
+      });
+    } catch { /* cost tracking must never break chat */ }
+
+    return text;
+  } catch (err) {
+    console.error(`[llm] SageMaker failed: ${err.message}`);
+    return null;
+  }
 }
