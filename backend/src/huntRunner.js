@@ -61,10 +61,14 @@ export async function spawnHuntContainer(huntId, target, opts = {}) {
   // Clean up any stale container with the same name first
   try { await docker(['rm', '-f', name]); } catch { /* didn't exist */ }
 
+  // Live terminal streaming (PiP): ttyd port on loopback only.
+  const TTYD_PORT = process.env.HUNT_TTYD_PORT || '17681';
+
   const env = [
     '-e', `DM_HUNT_ID=${huntId}`,
     '-e', `DM_TARGET=${target}`,
     '-e', `DM_MODE=${opts.mode || 'normal'}`,
+    '-e', `DM_TTYD_PORT=${TTYD_PORT}`,
     // NOTE: no cloud credentials are passed into hunt containers. The host
     // backend is the sole brain (LLM lives on the host); the container is
     // only hands (tools). This keeps AWS keys out of the sandbox.
@@ -77,11 +81,12 @@ export async function spawnHuntContainer(huntId, target, opts = {}) {
     '--cpus', HUNT_CPUS,
     '--network', 'bridge',
     '--restart', 'no',
+    '-p', `127.0.0.1:${TTYD_PORT}:${TTYD_PORT}`,
     ...env,
     HUNT_IMAGE,
   ]);
 
-  return { container: name, spawnedAt: new Date().toISOString() };
+  return { container: name, spawnedAt: new Date().toISOString(), ttydPort: TTYD_PORT };
 }
 
 /**
@@ -129,6 +134,13 @@ export async function teardownHuntContainer(huntId) {
  */
 export async function execInHuntContainer(huntId, cmd, timeoutMs = 120000) {
   const name = containerName(huntId);
+  
+  // Try tmux-routed execution first (makes terminal PiP truthful).
+  // Falls back to direct exec if tmux isn't available (old image).
+  const tmuxResult = await execViaTmux(name, cmd, timeoutMs);
+  if (tmuxResult !== null) return tmuxResult;
+  
+  // Fallback: direct one-shot exec (original behavior)
   try {
     const { stdout, stderr } = await execFileAsync('docker', ['exec', name, 'sh', '-c', cmd], {
       timeout: timeoutMs,
@@ -141,6 +153,61 @@ export async function execInHuntContainer(huntId, cmd, timeoutMs = 120000) {
       stderr: String(err.stderr || err.message),
       code: typeof err.code === 'number' ? err.code : 1,
     };
+  }
+}
+
+/**
+ * Execute via tmux session (for live terminal streaming).
+ * Returns null if tmux is not available (caller falls back to direct exec).
+ */
+async function execViaTmux(containerName, cmd, timeoutMs) {
+  try {
+    // Check if tmux session exists
+    await execFileAsync('docker', ['exec', containerName, 'tmux', 'has-session', '-t', 'huntshell'], { timeout: 5000 });
+  } catch {
+    return null; // No tmux — fall back to direct exec
+  }
+  
+  try {
+    // Sanitize: limit command length, escape for send-keys -l (literal mode)
+    const safeCmd = String(cmd).slice(0, 2000);
+    // Wrap with exit code sentinel
+    const wrapped = `{ ${safeCmd}; echo "DM_EXIT:$?"; }`;
+    
+    // Send command to tmux session (literal mode = no shell interpretation of keys)
+    await execFileAsync('docker', ['exec', containerName, 'tmux', 'send-keys', '-t', 'huntshell', '-l', wrapped], { timeout: 10000 });
+    await execFileAsync('docker', ['exec', containerName, 'tmux', 'send-keys', '-t', 'huntshell', 'Enter'], { timeout: 10000 });
+    
+    // Poll for completion sentinel
+    const startTime = Date.now();
+    const pollInterval = 500;
+    while (Date.now() - startTime < timeoutMs) {
+      await new Promise((r) => setTimeout(r, pollInterval));
+      try {
+        const { stdout } = await execFileAsync('docker', ['exec', containerName, 'tmux', 'capture-pane', '-p', '-t', 'huntshell'], { timeout: 10000 });
+        const pane = String(stdout || '');
+        const match = /DM_EXIT:(\d+)/.exec(pane);
+        if (match) {
+          const code = parseInt(match[1], 10);
+          // Extract output between command and sentinel (best-effort)
+          // For now, return the pane tail as stdout
+          const lines = pane.split('\n');
+          const sentinelIdx = lines.findIndex((l) => l.includes('DM_EXIT:'));
+          const output = lines.slice(Math.max(0, sentinelIdx - 50), sentinelIdx).join('\n');
+          // Clear the sentinel so next command doesn't match stale output
+          await execFileAsync('docker', ['exec', containerName, 'tmux', 'send-keys', '-t', 'huntshell', '-l', 'clear; '], { timeout: 5000 }).catch(() => {});
+          return { stdout: output, stderr: '', code };
+        }
+      } catch { /* poll again */ }
+    }
+    
+    // Timeout: interrupt and return partial
+    try {
+      await execFileAsync('docker', ['exec', containerName, 'tmux', 'send-keys', '-t', 'huntshell', 'C-c'], { timeout: 5000 });
+    } catch { /* ignore */ }
+    return { stdout: '', stderr: 'Command timed out in tmux session', code: 124 };
+  } catch (err) {
+    return null; // tmux failed — fall back to direct exec
   }
 }
 

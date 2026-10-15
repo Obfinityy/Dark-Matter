@@ -58,12 +58,18 @@ function statusText(status, target) {
   }
 }
 
+import HuntPiP from './HuntPiP';
+import HuntTerminalModal from './HuntTerminalModal';
+
 export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, onGetReport }) {
   const [status, setStatus] = useState(hunt.status || 'idle');
   // Button visibility rule (owner's spec): a live hunt shows Pause + Stop;
   // a paused hunt shows Resume + Stop. Terminal hunts show nothing clickable.
   const isPaused = status === 'paused' || status === 'out_of_credits';
   const isTerminal = ['done', 'stopped', 'failed', 'error'].includes(status);
+  const isActive = ['running', 'paused'].includes(status);
+  const [showPiP, setShowPiP] = useState(false);
+  const [showTerminalModal, setShowTerminalModal] = useState(false);
   const [cost, setCost] = useState(null);
   const [balance, setBalance] = useState(null);
   const ITERATION_PRICE = { normal: 0.1, medium: 0.15, high: 0.25, ultra_high: 0.4, max: 0.6, infinity: 1.0 };
@@ -412,8 +418,37 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
             Get Report
           </button>
         )}
+        {isActive && (
+          <button
+            className="hunt-pill-btn"
+            onClick={() => setShowPiP((v) => !v)}
+            title="Watch live terminal — see what the AI is doing"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <rect x="2" y="4" width="20" height="14" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M8 22h8M12 18v4" strokeLinecap="round" />
+            </svg>
+            {showPiP ? 'Hide Terminal' : 'Live Terminal'}
+          </button>
+        )}
         <span className="hunt-id">ID: {hunt.huntId}</span>
       </div>
+
+      {showPiP && isActive && (
+        <HuntPiP
+          huntId={hunt.huntId}
+          target={hunt.target}
+          onExpand={() => setShowTerminalModal(true)}
+          onClose={() => setShowPiP(false)}
+        />
+      )}
+      {showTerminalModal && (
+        <HuntTerminalModal
+          huntId={hunt.huntId}
+          target={hunt.target}
+          onClose={() => setShowTerminalModal(false)}
+        />
+      )}
 
       {/* Plain-English activity: what the agent is doing, in words anyone
           can understand. Below the controls so it's always visible. */}

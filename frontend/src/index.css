@@ -1740,3 +1740,72 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 @media (max-width: 768px) {
   .admin-user-row { flex-direction: column; align-items: flex-start; }
 }
+
+/* ---- Hunt PiP (live terminal) ---- */
+.hunt-pip {
+  position: fixed;
+  width: 320px;
+  height: 220px;
+  background: #0a0a0a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  cursor: move;
+  user-select: none;
+}
+.pip-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
+  font-size: 12px;
+  cursor: move;
+}
+.pip-live { font-weight: 600; font-size: 11px; color: #666; }
+.pip-live.on { color: #ff4444; animation: pip-blink 1.5s infinite; }
+@keyframes pip-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.pip-target { flex: 1; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pip-controls { display: flex; gap: 4px; cursor: default; }
+.pip-controls button {
+  background: none; border: none; color: #888; cursor: pointer;
+  font-size: 14px; padding: 2px 6px; border-radius: 4px;
+}
+.pip-controls button:hover { background: #2a2a2a; color: #fff; }
+.pip-terminal { flex: 1; min-height: 0; }
+.pip-terminal .xterm { height: 100%; padding: 4px; }
+.pip-ended {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.85); color: #888;
+  text-align: center; padding: 8px; font-size: 12px;
+}
+
+/* ---- Terminal modal (expanded) ---- */
+.terminal-modal {
+  width: min(900px, 92vw);
+  height: min(600px, 85vh);
+  background: #0a0a0a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.terminal-modal-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
+}
+.terminal-modal-target { flex: 1; color: #999; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.terminal-modal-body { flex: 1; min-height: 0; }
+.terminal-modal-body .xterm { height: 100%; padding: 8px; }
+.terminal-modal-footer {
+  padding: 8px 16px; background: #1a1a1a;
+  border-top: 1px solid #2a2a2a;
+  color: #666; font-size: 12px; text-align: center;
+}

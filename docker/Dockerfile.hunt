@@ -38,6 +38,14 @@ RUN pip3 install --no-cache-dir --break-system-packages \
     pyjwt python-whois dnspython \
     || true
 
+# --- Live terminal streaming (PiP) ---
+# ttyd: single static binary, serves the agent's PTY over WebSocket (read-only).
+# tmux: persistent shell session so the streamed terminal shows actual agent activity.
+RUN curl -sL https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 \
+    -o /usr/local/bin/ttyd && chmod +x /usr/local/bin/ttyd || true
+RUN apt-get update && apt-get install -y --no-install-recommends tmux \
+    && rm -rf /var/lib/apt/lists/* || true
+
 WORKDIR /opt/hunt
 COPY docker/hunt-runner/ ./
 

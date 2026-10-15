@@ -90,15 +90,111 @@ const wss = new WebSocketServer({ noServer: true });
 const STREAM_POLL_MS = parseInt(process.env.STREAM_POLL_MS || '1000', 10);
 
 server.on('upgrade', (req, socket, head) => {
-  const m = /^\/api\/v1\/hunts\/([^/]+)\/stream$/.exec(req.url.split('?')[0] || '');
-  if (!m) {
-    socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
-    socket.destroy();
+  const streamMatch = /^\/api\/v1\/hunts\/([^/]+)\/stream$/.exec(req.url.split('?')[0] || '');
+  if (streamMatch) {
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit('connection', ws, req, decodeURIComponent(streamMatch[1]));
+    });
     return;
   }
-  wss.handleUpgrade(req, socket, head, (ws) => {
-    wss.emit('connection', ws, req, decodeURIComponent(m[1]));
-  });
+  const termMatch = /^\/api\/v1\/hunts\/([^/]+)\/terminal$/.exec(req.url.split('?')[0] || '');
+  if (termMatch) {
+    // Terminal WS: validate ticket from query param
+    const url = new URL(req.url, 'http://localhost');
+    const ticket = url.searchParams.get('ticket');
+    if (!ticket) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+    wssTerm.handleUpgrade(req, socket, head, (ws) => {
+      wssTerm.emit('connection', ws, req, decodeURIComponent(termMatch[1]), ticket);
+    });
+    return;
+  }
+  socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+  socket.destroy();
+  return;
+});
+
+// ---- WebSocket: WS /api/v1/hunts/:id/terminal?ticket=... --------------------
+// Proxies to the hunt container's ttyd (read-only terminal streaming for PiP).
+// Ticket is a 60s JWT bound to (userId, huntId). Client->server frames are
+// dropped (defence in depth — ttyd is already read-only without --writable).
+const wssTerm = new WebSocketServer({ noServer: true });
+const TERM_VIEWERS = new Map(); // huntId -> Set<ws>
+const MAX_TERM_VIEWERS = 2;
+
+wssTerm.on('connection', async (ws, req, huntId, ticket) => {
+  let ttydWs = null;
+  try {
+    // Validate ticket
+    const jwt = await import('jsonwebtoken').catch(() => null);
+    if (!jwt) throw new Error('jwt not available');
+    const secret = process.env.JWT_SECRET || 'darkmatter-terminal-secret';
+    const payload = jwt.default.verify(ticket, secret);
+    if (payload.type !== 'terminal' || payload.huntId !== huntId) {
+      throw new Error('invalid ticket');
+    }
+    
+    // Check hunt is still active
+    const { readHuntMeta } = await import('./store.js');
+    const meta = readHuntMeta(huntId);
+    if (!meta || !['running', 'paused'].includes(meta.state)) {
+      throw new Error('hunt not active');
+    }
+    
+    // Cap viewers
+    const viewers = TERM_VIEWERS.get(huntId) || new Set();
+    if (viewers.size >= MAX_TERM_VIEWERS) {
+      ws.close(1013, 'too many viewers');
+      return;
+    }
+    viewers.add(ws);
+    TERM_VIEWERS.set(huntId, viewers);
+    
+    // Connect to ttyd (loopback only)
+    const TTYD_PORT = process.env.HUNT_TTYD_PORT || '17681';
+    const WebSocket = (await import('ws')).default;
+    ttydWs = new WebSocket(`ws://127.0.0.1:${TTYD_PORT}/ws`);
+    
+    ttydWs.on('open', () => {
+      // ttyd connected — start proxying
+    });
+    
+    ttydWs.on('message', (data) => {
+      // ttyd -> client (terminal output)
+      if (ws.readyState === ws.OPEN) ws.send(data);
+    });
+    
+    ttydWs.on('close', () => {
+      if (ws.readyState === ws.OPEN) ws.close(1000, 'terminal closed');
+    });
+    
+    ttydWs.on('error', () => {
+      if (ws.readyState === ws.OPEN) ws.close(1011, 'terminal unreachable');
+    });
+    
+    ws.on('message', () => {
+      // Drop client->server (read-only). Defence in depth.
+    });
+    
+    ws.on('close', () => {
+      viewers.delete(ws);
+      if (viewers.size === 0) TERM_VIEWERS.delete(huntId);
+      if (ttydWs) ttydWs.close();
+    });
+    
+    // Idle timeout: 10 minutes
+    const idleTimer = setTimeout(() => {
+      if (ws.readyState === ws.OPEN) ws.close(1000, 'idle timeout');
+    }, 10 * 60 * 1000);
+    ws.on('close', () => clearTimeout(idleTimer));
+    
+  } catch (err) {
+    if (ws.readyState === ws.OPEN) ws.close(1008, 'auth failed');
+    if (ttydWs) ttydWs.close();
+  }
 });
 
 wss.on('connection', async (ws, req, huntId) => {

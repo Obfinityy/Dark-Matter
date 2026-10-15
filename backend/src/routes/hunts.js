@@ -279,6 +279,47 @@ router.delete('/queue/:queueId', requireAuth, async (req, res) => {
   res.json({ ok: true, message: 'Removed from queue.' });
 });
 
+// ---- Live terminal (PiP): ticket for WebSocket access ----
+// GET /api/v1/hunts/:id/terminal/ticket -> { ok, ticket }
+// Ticket is a short-lived JWT bound to (userId, huntId). Used for WS auth.
+router.get('/:id/terminal/ticket', requireAuth, async (req, res) => {
+  const huntId = req.params.id;
+  try {
+    const { readHuntMeta } = await import('../store.js');
+    const meta = readHuntMeta(huntId);
+    if (!meta) return res.status(404).json({ ok: false, error: 'hunt_not_found' });
+    
+    // Ownership check: user owns the hunt or is admin
+    const isOwner = meta.userId === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ ok: false, error: 'not_your_hunt' });
+    }
+    
+    // Hunt must be active (running or paused)
+    if (!['running', 'paused'].includes(meta.state)) {
+      return res.status(400).json({ ok: false, error: 'hunt_not_active' });
+    }
+    
+    // Issue ticket (simple signed token - 60s expiry)
+    const jwt = await import('jsonwebtoken').catch(() => null);
+    if (!jwt) {
+      return res.status(500).json({ ok: false, error: 'jwt_not_available' });
+    }
+    const secret = process.env.JWT_SECRET || 'darkmatter-terminal-secret';
+    const ticket = jwt.default.sign(
+      { userId: req.user.id, huntId, type: 'terminal' },
+      secret,
+      { expiresIn: '60s' }
+    );
+    
+    res.json({ ok: true, ticket });
+  } catch (err) {
+    console.error('[terminal] ticket error:', err.message);
+    res.status(500).json({ ok: false, error: 'ticket_failed' });
+  }
+});
+
 // Hunt modes + premium tiers (public — the frontend renders the picker).
 router.get('/modes', (req, res) => {
   res.json({
