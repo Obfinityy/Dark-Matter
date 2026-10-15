@@ -75,8 +75,9 @@ function AppInner() {
   const [draftChat, setDraftChat] = useState(null);
   const [activeChatId, setActiveChatId] = useState(null);
 
-  // SECURITY: chats are strictly per-user. When the account changes (login,
-  // logout, switch), wipe in-memory chats and load only that user's store.
+  // CHATS: Backend is the single source of truth. On login/account change,
+  // fetch the chat list fresh from the backend. localStorage is NOT used for
+  // chats anymore. Deleting a chat sends a tombstone to the backend immediately.
   // A logged-out session sees NO chats at all.
   useEffect(() => {
     const key = chatsKeyFor(user);
@@ -87,45 +88,49 @@ function AppInner() {
       setActiveChatId(null);
       return;
     }
-    let list = loadJson(key, []);
-    // One-time migration: pre-isolation chats lived under the shared key.
-    // Move them into this user's private store, then delete the shared copy
-    // so no other account can ever see them.
-    if ((!Array.isArray(list) || list.length === 0)) {
-      const legacy = loadJson(CHATS_KEY, []);
-      if (Array.isArray(legacy) && legacy.length > 0) {
-        list = legacy;
-        saveJson(key, legacy);
-        try { localStorage.removeItem(CHATS_KEY); } catch { /* ignore */ }
-      }
-    }
-    // CRITICAL: filter out tombstoned (deleted) chats on load.
-    // If the user deleted chats and refreshed before the persist effect ran,
-    // localStorage still has the old list — tombstones are the source of truth.
+    // Clear any stale localStorage chat data (migration to backend-only).
     try {
-      const rawDeleted = localStorage.getItem(`dm.deleted.${user.id}`);
-      if (rawDeleted) {
-        const tombstones = JSON.parse(rawDeleted);
-        if (Array.isArray(tombstones) && tombstones.length > 0) {
-          const deletedIds = new Set(tombstones.map((t) => t.id));
-          const before = list.length;
-          list = list.filter((c) => !deletedIds.has(c.id));
-          if (list.length !== before) {
-            // Persist the cleaned list immediately
-            saveJson(key, list);
-          }
+      localStorage.removeItem(key);
+      localStorage.removeItem(CHATS_KEY);
+      localStorage.removeItem(`dm.deleted.${user.id}`);
+    } catch { /* ignore */ }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getChatTitles } = await import('./lib/api');
+        const res = await getChatTitles();
+        if (cancelled) return;
+        if (res.ok && res.data && Array.isArray(res.data.chats)) {
+          const chats = res.data.chats.map((c) => ({
+            id: c.id,
+            title: c.title || 'Untitled chat',
+            updatedAt: c.updatedAt,
+            createdAt: c.updatedAt,
+            messages: [],
+          }));
+          setChats(chats);
+          setDraftChat(null);
+          setActiveChatId(chats.length > 0 ? chats[0].id : null);
+        } else {
+          setChats([]);
+          setDraftChat(null);
+          setActiveChatId(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setChats([]);
+          setDraftChat(null);
+          setActiveChatId(null);
         }
       }
-    } catch { /* best-effort */ }
-    setChats(Array.isArray(list) ? list : []);
-    setDraftChat(null);
-    setActiveChatId(list.length > 0 ? list[0].id : null);
+    })();
+    return () => { cancelled = true; };
   }, [user && (user.id || user.username)]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (!user) return; // never persist chats without an owner
-    saveJson(chatsKey, chats);
-  }, [chats, chatsKey, user]);
+  // NOTE: chats are NOT persisted to localStorage anymore — backend is the
+  // single source of truth. Messages are pushed to the backend via the sync
+  // effect below.
 
   // ---- Full chat-message sync: history follows the account across devices ----
   // Push: whenever a chat's messages change, debounced-push to the backend.
