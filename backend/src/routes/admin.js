@@ -40,26 +40,50 @@ router.get('/users', requireAdmin, (req, res) => {
 });
 
 // ---- All hunts on the backend (admin sees everything).
-// GET /api/v1/admin/hunts -> [{huntId, target, state, mode, userId, createdAt, iteration}]
+// GET /api/v1/admin/hunts -> [{huntId, target, state, mode, userId, username, createdAt, iteration, elapsed, findings}]
 router.get('/hunts', requireAdmin, async (req, res) => {
-  const { listHuntMetas } = await import('../store.js');
-  const hunts = listHuntMetas().map((m) => ({
-    huntId: m.huntId,
-    target: m.target,
-    state: m.state,
-    mode: m.mode,
-    userId: m.userId || null,
-    createdAt: m.createdAt || null,
-    iteration: m.iteration || 0,
-    checkpointAt: m.checkpointAt || null,
-  }));
+  const { listHuntMetas, readUsers } = await import('../store.js');
+  const users = readUsers();
+  const userMap = {};
+  for (const [username, u] of Object.entries(users)) {
+    userMap[u.id] = username;
+  }
+  const hunts = listHuntMetas().map((m) => {
+    // Calculate elapsed time
+    let elapsed = null;
+    if (m.createdAt) {
+      const start = new Date(m.createdAt).getTime();
+      const end = m.endedAt ? new Date(m.endedAt).getTime() : Date.now();
+      elapsed = Math.floor((end - start) / 1000);
+    }
+    return {
+      huntId: m.huntId,
+      target: m.target,
+      state: m.state,
+      mode: m.mode,
+      userId: m.userId || null,
+      username: (m.userId && userMap[m.userId]) || 'unknown',
+      createdAt: m.createdAt || null,
+      iteration: m.iteration || 0,
+      checkpointAt: m.checkpointAt || null,
+      elapsedSec: elapsed,
+      findings: m.findingsCount || 0,
+      scope: m.scope || null,
+    };
+  });
   // Running/paused first, then by recency.
   hunts.sort((a, b) => {
     const rank = (s) => (s === 'running' ? 0 : s === 'paused' ? 1 : 2);
     if (rank(a.state) !== rank(b.state)) return rank(a.state) - rank(b.state);
     return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
   });
-  res.json({ ok: true, hunts });
+  // Also get queue
+  let queue = [];
+  try {
+    const { getQueue } = await import('../store.js');
+    queue = getQueue() || [];
+  } catch { /* no queue */ }
+  res.json({ ok: true, hunts, queue, queueCount: queue.length });
 });
 
 // ---- Hunt queue management (admin) ----

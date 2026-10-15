@@ -15,6 +15,7 @@ export default function AdminPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [hunts, setHunts] = useState([]);
+  const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ username: '', password: '', control: 'minimal' });
   const [busy, setBusy] = useState(false);
@@ -31,7 +32,10 @@ export default function AdminPage() {
     setLoading(false);
     if (uRes.ok) setUsers(uRes.users || []);
     else toast(uRes.error || 'Could not load users.', 'error');
-    if (hRes.ok) setHunts(hRes.hunts || []);
+    if (hRes.ok) {
+      setHunts(hRes.hunts || []);
+      setQueue(hRes.queue || []);
+    }
   }
 
   useEffect(() => { load(); }, []);
@@ -286,57 +290,104 @@ export default function AdminPage() {
 
         {activeTab === 'hunts' && (
           <section className="admin-section">
-            <h2>All Hunts</h2>
-            <p className="page-sub">Monitor and control hunts across all users.</p>
+            <h2>🎯 All Hunts</h2>
+            <p className="page-sub">Monitor and control hunts across all users. Running hunts appear first.</p>
             {loading ? <p className="page-sub">Loading…</p> : (
-              <div className="admin-grid">
-                {hunts.length === 0 && <p className="page-sub">No hunts yet.</p>}
-                {hunts.map((h) => (
-                  <div key={h.huntId} className="admin-card">
-                    <div className="admin-card-header">
-                      <div>
-                        <div className="admin-username">
-                          {h.state === 'running' ? '🟢 ' : h.state === 'paused' ? '⏸️ ' : '⚪ '}
-                          {h.target}
+              <>
+                {/* Live status summary */}
+                <div className="hunt-stats">
+                  <div className="stat-card">
+                    <div className="stat-num">{hunts.filter(h => h.state === 'running').length}</div>
+                    <div className="stat-label">🟢 Running</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-num">{hunts.filter(h => h.state === 'paused').length}</div>
+                    <div className="stat-label">⏸️ Paused</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-num">{hunts.filter(h => !['running','paused'].includes(h.state)).length}</div>
+                    <div className="stat-label">⚪ Finished</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-num">{queue.length}</div>
+                    <div className="stat-label">📋 Queued</div>
+                  </div>
+                </div>
+                <div className="admin-grid">
+                  {hunts.length === 0 && <p className="page-sub">No hunts yet.</p>}
+                  {hunts.map((h) => {
+                    const elapsed = h.elapsedSec != null
+                      ? `${Math.floor(h.elapsedSec/3600)}h ${Math.floor((h.elapsedSec%3600)/60)}m`
+                      : '—';
+                    return (
+                      <div key={h.huntId} className={`admin-card hunt-card ${h.state}`}>
+                        <div className="admin-card-header">
+                          <div>
+                            <div className="admin-username">
+                              {h.state === 'running' ? '🟢 ' : h.state === 'paused' ? '⏸️ ' : '⚪ '}
+                              {h.target || '(unknown target)'}
+                            </div>
+                            <div className="admin-meta">
+                              👤 {h.username || 'unknown'} · {h.mode || 'normal'} mode
+                            </div>
+                            <div className="admin-meta">
+                              🆔 {h.huntId?.slice(0, 16)}… · 🔄 iter {h.iteration || 0} · ⏱️ {elapsed}
+                            </div>
+                            <div className="admin-meta">
+                              📅 {h.createdAt ? new Date(h.createdAt).toLocaleString() : '—'}
+                            </div>
+                            {h.state === 'running' && (
+                              <div className="hunt-live-badge">● LIVE</div>
+                            )}
+                          </div>
                         </div>
-                        <div className="admin-meta">
-                          {h.huntId?.slice(0, 12)}… · {h.state} · {h.mode} · iter {h.iteration || 0}
-                        </div>
-                        {h.username && (
-                          <div className="admin-meta">by {h.username}</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="admin-card-actions">
-                      {(h.state === 'running' || h.state === 'paused') && (
-                        <>
-                          {h.state === 'running' ? (
-                            <button
-                              className="btn btn-ghost small danger"
-                              onClick={() => handleStopHunt(h.huntId)}
-                            >
-                              ⏹️ Stop
-                            </button>
-                          ) : (
-                            <button
-                              className="btn btn-ghost small"
-                              onClick={() => handleResumeHunt(h.huntId)}
-                            >
-                              ▶️ Resume
-                            </button>
+                        <div className="admin-card-actions">
+                          {(h.state === 'running' || h.state === 'paused') && (
+                            <>
+                              {h.state === 'running' ? (
+                                <button
+                                  className="btn btn-ghost small danger"
+                                  onClick={() => handleStopHunt(h.huntId)}
+                                >
+                                  ⏹️ Stop Hunt
+                                </button>
+                              ) : (
+                                <button
+                                  className="btn btn-ghost small"
+                                  onClick={() => handleResumeHunt(h.huntId)}
+                                >
+                                  ▶️ Resume Hunt
+                                </button>
+                              )}
+                            </>
                           )}
-                        </>
-                      )}
-                      <button
-                        className="btn btn-ghost small"
-                        onClick={() => handleDownloadMemory(h.huntId)}
-                      >
-                        ⬇️ Memory
-                      </button>
+                          <button
+                            className="btn btn-ghost small"
+                            onClick={() => handleDownloadMemory(h.huntId)}
+                          >
+                            ⬇️ Memory
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Queue section */}
+                {queue.length > 0 && (
+                  <div style={{ marginTop: 24 }}>
+                    <h3>📋 Hunt Queue ({queue.length})</h3>
+                    <div className="admin-grid">
+                      {queue.map((q, i) => (
+                        <div key={q.queueId || i} className="admin-card">
+                          <div className="admin-username">#{i+1} {q.target}</div>
+                          <div className="admin-meta">👤 {q.username || 'unknown'} · {q.mode}</div>
+                          <div className="admin-meta">Priority: {q.priority || 'normal'}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </section>
         )}
@@ -452,6 +503,51 @@ export default function AdminPage() {
         .admin-card.blocked {
           border-color: #ff4444;
           background: #fff5f5;
+        }
+        .hunt-stats {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          gap: 12px;
+          margin: 16px 0 20px 0;
+        }
+        .stat-card {
+          background: #f8f9fa;
+          border: 1px solid #e0e0e0;
+          border-radius: 10px;
+          padding: 14px;
+          text-align: center;
+        }
+        .stat-num {
+          font-size: 28px;
+          font-weight: 700;
+        }
+        .stat-label {
+          font-size: 12px;
+          color: #666;
+          margin-top: 4px;
+        }
+        .hunt-card.running {
+          border-color: #22cc66;
+          border-width: 2px;
+        }
+        .hunt-card.paused {
+          border-color: #ffaa00;
+          border-width: 2px;
+        }
+        .hunt-live-badge {
+          display: inline-block;
+          background: #22cc66;
+          color: white;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 3px 10px;
+          border-radius: 12px;
+          margin-top: 8px;
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
         }
         .admin-card-header { margin-bottom: 12px; }
         .admin-username {
