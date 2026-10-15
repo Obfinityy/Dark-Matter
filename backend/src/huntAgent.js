@@ -563,7 +563,13 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
           try {
             writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, state: 'paused', pausedReason: 'ai_unreachable' });
           } catch { /* best-effort */ }
-          break;
+          // Return early — do NOT fall through to "finished". This hunt is
+          // paused, not done. Resume will pick up from the checkpoint.
+          try {
+            await teardownHuntContainer(huntId);
+            appendHuntEvent(huntId, { type: 'status', state: 'container_destroyed' });
+          } catch { /* ignore */ }
+          return;
         }
       } else {
         aiFailStreak = 0;
