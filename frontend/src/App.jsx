@@ -98,6 +98,24 @@ function AppInner() {
         try { localStorage.removeItem(CHATS_KEY); } catch { /* ignore */ }
       }
     }
+    // CRITICAL: filter out tombstoned (deleted) chats on load.
+    // If the user deleted chats and refreshed before the persist effect ran,
+    // localStorage still has the old list — tombstones are the source of truth.
+    try {
+      const rawDeleted = localStorage.getItem(`dm.deleted.${user.id}`);
+      if (rawDeleted) {
+        const tombstones = JSON.parse(rawDeleted);
+        if (Array.isArray(tombstones) && tombstones.length > 0) {
+          const deletedIds = new Set(tombstones.map((t) => t.id));
+          const before = list.length;
+          list = list.filter((c) => !deletedIds.has(c.id));
+          if (list.length !== before) {
+            // Persist the cleaned list immediately
+            saveJson(key, list);
+          }
+        }
+      }
+    } catch { /* best-effort */ }
     setChats(Array.isArray(list) ? list : []);
     setDraftChat(null);
     setActiveChatId(list.length > 0 ? list[0].id : null);
