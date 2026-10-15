@@ -12,6 +12,8 @@ export default function AdminPage() {
   const [users, setUsers] = useState([]);
   const [hunts, setHunts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ username: '', password: '', control: 'minimal' });
+  const [busy, setBusy] = useState(false);
 
   async function load() {
     setLoading(true);
