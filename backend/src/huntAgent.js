@@ -175,17 +175,45 @@ async function reconPhase(huntId, target) {
     }
   }
 
-  // Fetch homepage HTML for JS mining + profiling
+  // Fetch homepage HTML for JS mining + profiling + TECH DETECTION
   const curl = await execInHuntContainer(
     huntId,
-    `curl -skL --max-time 25 -A "Mozilla/5.0" "${target}" 2>/dev/null | head -c 200000`
+    `curl -skL --max-time 25 -A "Mozilla/5.0" -D /tmp/headers.txt "${target}" 2>/dev/null | head -c 200000; echo "---HEADERS---"; cat /tmp/headers.txt 2>/dev/null | head -30`
   );
   const html = curl.stdout || '';
   if (html) {
-    const mined = mineJsEndpoints(html);
+    const [bodyPart, headerPart] = html.split('---HEADERS---');
+    const mined = mineJsEndpoints(bodyPart || html);
     recon.endpoints = rankEndpoints(mined).slice(0, 30);
     recon.profile = classifyTarget(recon.endpoints);
-    recon.purpose = inferAppPurpose(recon.endpoints, html);
+    recon.purpose = inferAppPurpose(recon.endpoints, bodyPart || html);
+    
+    // INTELLIGENT TECH DETECTION — think first, then act
+    try {
+      const { detectTechnologies, getToolChain, buildIntelligentPrompt } = await import('./toolChains.js');
+      const detection = detectTechnologies(headerPart || '', bodyPart || html);
+      recon.detection = detection;
+      recon.intelligentPrompt = buildIntelligentPrompt(detection, target, []);
+      
+      const techList = detection.techs.length ? detection.techs.join(', ') : 'unknown';
+      const dbInfo = detection.database ? `Database: ${detection.database}` : 'No database detected';
+      think(huntId, `I analyzed the target: [${techList}]. ${dbInfo}. I will only run appropriate tests.`);
+      
+      // Get intelligent tool chain based on detection
+      const chain = getToolChain(detection, target);
+      recon.toolChain = chain;
+      think(huntId, `My attack plan has ${chain.length} targeted steps based on what I found.`);
+      
+      appendHuntEvent(huntId, { 
+        type: 'recon_intel', 
+        techs: detection.techs, 
+        database: detection.database,
+        chainSteps: chain.length,
+      });
+    } catch (err) {
+      console.error('[hunt] tech detection failed:', err.message);
+    }
+    
     think(huntId, `I mapped ${mined.length} endpoints. This looks like: ${recon.profile} (${recon.purpose}).`);
   }
 
@@ -228,12 +256,16 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     `Confirmed findings so far: ${confirmed.length}`,
     ...confirmed.slice(-5).map((f) => `- ${f.title} (${f.severity})`),
     lessons ? `Past lessons for similar targets:\n${lessons}` : '',
+    // INTELLIGENT CONTEXT: tech detection tells AI what NOT to try
+    // (e.g., never suggest SQLi on a MongoDB target)
+    recon.intelligentPrompt ? `\n--- TARGET INTELLIGENCE (follow strictly) ---\n${recon.intelligentPrompt}` : '',
   ].join('\n');
 
   const prompt = [
     'You are an elite bug-bounty hunter. Given the recon context below, propose THREE diverse next tests (different attack classes).',
     'Reply as a JSON array: [{"test":"name","command":"shell command","why":"one line"}, ...].',
     'Prefer tests that escalate existing findings. Commands must be non-destructive and target-scoped.',
+    'CRITICAL: Respect the TARGET INTELLIGENCE section — never suggest tests for technologies not present (e.g., no SQLi on MongoDB).',
     '',
     context,
     '',
