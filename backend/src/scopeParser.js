@@ -1,0 +1,119 @@
+// Dark Matter — Scope understanding for bug bounty hunts.
+//
+// When a user enters a target + scope, the agent automatically understands:
+// - What's in scope (domains, paths, features)
+// - What's OUT of scope (must never touch)
+// - Program rules (no DoS, no heavy scanning, custom User-Agent, etc.)
+//
+// This is how the agent hunts like a human who read the program brief.
+
+/**
+ * Parse the user's scope text into structured rules.
+ * @param {string} target - The target URL/host
+ * @param {string} scopeText - User's scope description (can be free text)
+ * @returns {Object} { inScope, outOfScope, rules, userAgent }
+ */
+export function parseScope(target, scopeText = '') {
+  const scope = String(scopeText || '');
+  const lower = scope.toLowerCase();
+
+  // Extract target domain
+  let domain = target;
+  try {
+    const u = new URL(target.includes('://') ? target : `https://${target}`);
+    domain = u.hostname;
+  } catch { /* use as-is */ }
+
+  const result = {
+    target,
+    domain,
+    inScope: [domain],
+    outOfScope: [],
+    rules: {
+      noDoS: true,           // Always: never DoS
+      noHeavyScan: false,    // Set true if program forbids it
+      customUserAgent: null, // Set if program requires it
+      maxRequestsPerMin: 60, // Conservative default
+    },
+    rawScope: scope,
+  };
+
+  // Detect common out-of-scope patterns from scope text
+  const oosPatterns = [
+    [/out[\s-]of[\s-]scope:?\s*([^\n]+)/gi],
+    [/exclude:?\s*([^\n]+)/gi],
+    [/do not test:?\s*([^\n]+)/gi],
+    [/not in scope:?\s*([^\n]+)/gi],
+  ];
+  for (const [regex] of oosPatterns) {
+    let m;
+    while ((m = regex.exec(scope)) !== null) {
+      result.outOfScope.push(m[1].trim());
+    }
+  }
+
+  // Detect program rules
+  if (/no[\s-]?dos|denial of service.*forbidden|dos.*not allowed/i.test(scope)) {
+    result.rules.noDoS = true;
+  }
+  if (/no.*automated|no.*scanner|do not use.*scanner/i.test(scope)) {
+    result.rules.noHeavyScan = true;
+    result.rules.maxRequestsPerMin = 20;
+  }
+  // Custom User-Agent
+  const uaMatch = scope.match(/user[\s-]?agent.*?(?:must be|set to|use)[:\s]*["']?([^"'\n]+)["']?/i);
+  if (uaMatch) {
+    result.rules.customUserAgent = uaMatch[1].trim();
+  }
+
+  // Infomaniak-specific defaults (YesWeHack program)
+  if (/infomaniak/i.test(target) || /infomaniak/i.test(scope)) {
+    result.rules.customUserAgent = 'Infomaniak-YWH-Bugbounty';
+    result.rules.noDoS = true;
+    result.rules.noHeavyScan = true;
+    result.rules.maxRequestsPerMin = 20;
+    result.outOfScope.push(
+      'DoS/DDoS attacks',
+      'Brute force attacks',
+      'Automated scanners with heavy traffic',
+      'OpenStack dashboard (Horizon)',
+      'Customer subdomains (*.ftp, *.vps, *.myd, *.jcloud)',
+      'HTML injection in emails',
+      'Business logic errors (unless critical PII leak)',
+    );
+  }
+
+  return result;
+}
+
+/**
+ * Check if a URL/path is in scope.
+ * @param {string} url - URL to check
+ * @param {Object} parsedScope - Result from parseScope()
+ * @returns {boolean}
+ */
+export function isInScope(url, parsedScope) {
+  if (!parsedScope) return true;
+  try {
+    const u = new URL(url.includes('://') ? url : `https://${url}`);
+    const host = u.hostname.toLowerCase();
+    // Must match target domain or subdomain
+    const domain = parsedScope.domain.toLowerCase();
+    if (host !== domain && !host.endsWith('.' + domain)) return false;
+    // Check against out-of-scope list
+    const path = (u.pathname + u.search).toLowerCase();
+    for (const oos of parsedScope.outOfScope) {
+      if (path.includes(oos.toLowerCase())) return false;
+    }
+    return true;
+  } catch {
+    return true; // If we can't parse, allow it (human would investigate)
+  }
+}
+
+/**
+ * Get the User-Agent to use for this hunt.
+ */
+export function getHuntUserAgent(parsedScope) {
+  return parsedScope?.rules?.customUserAgent || 'DarkMatter-Hunt/1.0 (bug-bounty; authorized)';
+}

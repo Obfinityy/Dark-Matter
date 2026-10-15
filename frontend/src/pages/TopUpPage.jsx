@@ -44,8 +44,8 @@ export default function TopUpPage() {
   async function pay() {
     setMsg(null);
     const usd = Number(effectiveAmount);
-    if (!Number.isFinite(usd) || usd < 1 || usd > 500) {
-      setMsg({ kind: 'error', text: 'Enter an amount between $1 and $500.' });
+    if (!Number.isFinite(usd) || usd < 1 || usd > 50000) {
+      setMsg({ kind: 'error', text: 'Enter an amount between $1 and $50,000.' });
       return;
     }
     setBusy(true);

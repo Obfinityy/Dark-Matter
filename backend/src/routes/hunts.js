@@ -208,10 +208,16 @@ router.post('/', requireAuth, async (req, res) => {
       huntId = 'h_' + randomBytes(6).toString('hex');
       console.warn(`[hunts] engine unreachable — hunt ${huntId} runs host-side only`);
     }
+    // Parse scope: agent auto-understands what's in/out of scope, program rules,
+    // custom User-Agent, etc. This is how it hunts like a human who read the brief.
+    const { parseScope } = await import('../scopeParser.js');
+    const parsedScope = parseScope(target, scope);
+    console.log(`[hunts] Scope parsed for ${huntId}: UA=${parsedScope.rules.customUserAgent || 'default'}, noHeavyScan=${parsedScope.rules.noHeavyScan}`);
     writeHuntMeta(huntId, {
       huntId,
       target,
       scope: scope || null,
+      parsedScope,
       mode: huntMode.id,
       userId: req.user.id,
       createdAt: new Date().toISOString(),
