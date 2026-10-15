@@ -58,6 +58,29 @@ router.get('/hunts', requireAdmin, async (req, res) => {
   res.json({ ok: true, hunts });
 });
 
+// ---- Hunt queue management (admin) ----
+router.get('/queue', requireAdmin, async (req, res) => {
+  const { readQueue } = await import('../store.js');
+  const queue = readQueue()
+    .sort((a, b) => (b.priority - a.priority) || (a.createdAt < b.createdAt ? -1 : 1));
+  res.json({ ok: true, queue });
+});
+
+router.put('/queue/:queueId/priority', requireAdmin, async (req, res) => {
+  const { setQueuePriority } = await import('../store.js');
+  const { priority } = req.body || {};
+  const ok = setQueuePriority(req.params.queueId, priority);
+  if (!ok) return res.status(404).json({ ok: false, error: 'not_found' });
+  res.json({ ok: true, message: 'Priority updated.' });
+});
+
+router.delete('/queue/:queueId', requireAdmin, async (req, res) => {
+  const { removeFromQueue } = await import('../store.js');
+  const ok = removeFromQueue(req.params.queueId, null, true);
+  if (!ok) return res.status(404).json({ ok: false, error: 'not_found' });
+  res.json({ ok: true, message: 'Removed from queue.' });
+});
+
 router.post('/users', requireAdmin, (req, res) => {
   const { username, password, control } = req.body || {};
   const cleanUsername = String(username || '').trim().toLowerCase();

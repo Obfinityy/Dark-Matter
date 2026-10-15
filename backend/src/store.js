@@ -197,3 +197,91 @@ export function isTargetBeingHunted(target) {
   );
   return activeHunts.length > 0 ? activeHunts[0] : null;
 }
+
+// ---- Hunt queue ------------------------------------------------------------
+// One hunt runs at a time. Additional requests go into a FIFO queue with
+// admin-settable priority. When the active hunt finishes/stops, the next
+// queued hunt auto-starts.
+
+export function readQueue() {
+  return readJson(path.join(dataDir(), 'hunt-queue.json'), []);
+}
+
+export function writeQueue(queue) {
+  writeJsonAtomic(path.join(dataDir(), 'hunt-queue.json'), queue);
+}
+
+/** Add a hunt request to the queue. Returns {position, queueId}. */
+export function enqueueHunt({ userId, username, target, scope, mode }) {
+  const queue = readQueue();
+  const queueId = 'q_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const entry = {
+    queueId,
+    userId,
+    username: username || 'unknown',
+    target,
+    scope: scope || null,
+    mode: mode || 'normal',
+    priority: 0, // admin can raise (higher = sooner)
+    status: 'queued',
+    createdAt: new Date().toISOString(),
+  };
+  queue.push(entry);
+  writeQueue(queue);
+  // Position among queued (not started) entries, sorted by priority then FIFO
+  const sorted = [...queue]
+    .filter((e) => e.status === 'queued')
+    .sort((a, b) => (b.priority - a.priority) || (a.createdAt < b.createdAt ? -1 : 1));
+  const position = sorted.findIndex((e) => e.queueId === queueId) + 1;
+  return { queueId, position, total: sorted.length };
+}
+
+/** Get next hunt from queue (highest priority, then oldest). */
+export function dequeueNextHunt() {
+  const queue = readQueue();
+  const queued = queue
+    .filter((e) => e.status === 'queued')
+    .sort((a, b) => (b.priority - a.priority) || (a.createdAt < b.createdAt ? -1 : 1));
+  if (!queued.length) return null;
+  const next = queued[0];
+  // Mark as started (caller will create the actual hunt)
+  const idx = queue.findIndex((e) => e.queueId === next.queueId);
+  if (idx >= 0) {
+    queue[idx].status = 'started';
+    queue[idx].startedAt = new Date().toISOString();
+    writeQueue(queue);
+  }
+  return next;
+}
+
+/** Remove a queue entry (user cancelled or admin removed). */
+export function removeFromQueue(queueId, userId, isAdmin) {
+  const queue = readQueue();
+  const idx = queue.findIndex((e) => e.queueId === queueId);
+  if (idx < 0) return false;
+  // Users can only remove their own; admin can remove any
+  if (!isAdmin && queue[idx].userId !== userId) return false;
+  queue.splice(idx, 1);
+  writeQueue(queue);
+  return true;
+}
+
+/** Admin: set priority for a queue entry. */
+export function setQueuePriority(queueId, priority) {
+  const queue = readQueue();
+  const idx = queue.findIndex((e) => e.queueId === queueId);
+  if (idx < 0) return false;
+  queue[idx].priority = Math.max(0, Math.min(100, parseInt(priority, 10) || 0));
+  writeQueue(queue);
+  return true;
+}
+
+/** Get user's position in queue. */
+export function getQueuePosition(userId) {
+  const queue = readQueue();
+  const sorted = queue
+    .filter((e) => e.status === 'queued')
+    .sort((a, b) => (b.priority - a.priority) || (a.createdAt < b.createdAt ? -1 : 1));
+  const idx = sorted.findIndex((e) => e.userId === userId);
+  return idx >= 0 ? { position: idx + 1, total: sorted.length, entry: sorted[idx] } : null;
+}

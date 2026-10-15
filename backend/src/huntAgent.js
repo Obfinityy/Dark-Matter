@@ -602,6 +602,25 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
     try {
       writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, state: 'finished' });
     } catch { /* meta is best-effort here */ }
+
+    // QUEUE: auto-start next hunt if queued
+    try {
+      const { dequeueNextHunt } = await import('./store.js');
+      const next = dequeueNextHunt();
+      if (next) {
+        console.log(`[hunt] Queue: auto-starting ${next.queueId} for ${next.username} (target: ${next.target})`);
+        // Import and call the hunt creation (deferred to avoid circular imports)
+        const { default: createHunt } = await import('./huntCreator.js').catch(() => ({ default: null }));
+        if (createHunt) {
+          createHunt(next).catch((err) => console.error('[hunt] queue auto-start failed:', err.message));
+        } else {
+          // Fallback: log for manual start (huntCreator not yet implemented)
+          console.log(`[hunt] Queue: next hunt ready (manual): ${JSON.stringify(next)}`);
+        }
+      }
+    } catch (err) {
+      console.error('[hunt] queue auto-start check failed:', err.message);
+    }
   } catch (err) {
     appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
     try {

@@ -151,23 +151,35 @@ router.post('/', requireAuth, async (req, res) => {
       });
     }
   }
-  // ONE HUNT AT A TIME: the backend runs a single hunt. If one is already
-  // running (or paused), reject the new hunt with the active hunt's id so
-  // the UI can point the user at it.
+  // ONE HUNT AT A TIME with QUEUE: if a hunt is already running/paused,
+  // add this request to the queue instead of rejecting. User gets their
+  // queue position. Admin can prioritize from the admin portal.
   try {
-    const { listHuntMetas } = await import('../store.js');
+    const { listHuntMetas, enqueueHunt } = await import('../store.js');
     const active = listHuntMetas().find((h) => ['running', 'paused'].includes(h.state));
     if (active) {
-      return res.status(409).json({
-        ok: false,
-        error: 'hunt_already_running',
-        message: 'Only one hunt runs at a time. Stop or finish the current hunt first.',
+      const { queueId, position, total } = enqueueHunt({
+        userId: req.user.id,
+        username: req.user.username,
+        target: target.trim(),
+        scope: scope || null,
+        mode: huntMode.id,
+      });
+      return res.status(202).json({
+        ok: true,
+        queued: true,
+        queueId,
+        position,
+        totalInQueue: total,
+        message: `Hunt queued. You are #${position} in line. The hunt will start automatically when the current one finishes.`,
         activeHuntId: active.huntId,
         activeTarget: active.target,
-        activeState: active.state,
       });
     }
-  } catch { /* best-effort — don't block hunt creation on guard failure */ }
+  } catch (err) {
+    console.error('[hunts] queue check failed:', err.message);
+    /* fall through to direct creation on queue failure */
+  }
   try {
     let huntId;
     try {
@@ -237,6 +249,34 @@ router.get('/', requireAuth, async (req, res) => {
     })
   );
   res.json({ ok: true, hunts });
+});
+
+// ---- Hunt queue: check position, cancel own queued hunt ----
+router.get('/queue', requireAuth, async (req, res) => {
+  const { readQueue, getQueuePosition } = await import('../store.js');
+  const queue = readQueue().filter((e) => e.status === 'queued')
+    .sort((a, b) => (b.priority - a.priority) || (a.createdAt < b.createdAt ? -1 : 1));
+  const mine = getQueuePosition(req.user.id);
+  res.json({
+    ok: true,
+    queue: queue.map((e, i) => ({
+      queueId: e.queueId,
+      position: i + 1,
+      target: e.target,
+      username: e.username,
+      priority: e.priority,
+      createdAt: e.createdAt,
+      isMine: e.userId === req.user.id,
+    })),
+    myPosition: mine ? mine.position : null,
+  });
+});
+
+router.delete('/queue/:queueId', requireAuth, async (req, res) => {
+  const { removeFromQueue } = await import('../store.js');
+  const ok = removeFromQueue(req.params.queueId, req.user.id, req.user.role === 'admin');
+  if (!ok) return res.status(404).json({ ok: false, error: 'not_found_or_not_yours' });
+  res.json({ ok: true, message: 'Removed from queue.' });
 });
 
 // Hunt modes + premium tiers (public — the frontend renders the picker).
