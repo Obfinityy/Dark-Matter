@@ -212,6 +212,18 @@ export async function deleteAdminUser(id) {
   return del(`/api/v1/admin/users/${encodeURIComponent(id)}`);
 }
 
+export async function blockAdminUser(id, { durationHours, permanent }) {
+  return post(`/api/v1/admin/users/${encodeURIComponent(id)}/block`, { durationHours, permanent });
+}
+
+export async function unblockAdminUser(id) {
+  return post(`/api/v1/admin/users/${encodeURIComponent(id)}/unblock`, {});
+}
+
+export async function changeUserPassword(id, password) {
+  return post(`/api/v1/admin/users/${encodeURIComponent(id)}/password`, { password });
+}
+
 // --- Downloadable models -----------------------------------------------------
 export async function listModels() {
   return get('/api/v1/models');

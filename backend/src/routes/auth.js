@@ -201,6 +201,14 @@ router.post('/login', (req, res) => {
   if (!user || !verifyPassword(password, user.salt, user.passHash)) {
     return res.status(401).json({ ok: false, error: 'invalid_login', message: 'Invalid username or password.' });
   }
+  // Check if user is blocked
+  const isBlocked = user.blockedUntil === null || (user.blockedUntil && new Date(user.blockedUntil) > new Date());
+  if (isBlocked) {
+    const msg = user.blockedUntil === null
+      ? 'Your account has been permanently blocked. Contact the administrator.'
+      : `Your account is blocked until ${new Date(user.blockedUntil).toLocaleString()}. Contact the administrator.`;
+    return res.status(403).json({ ok: false, error: 'account_blocked', message: msg });
+  }
   const token = issueToken(user);
   res.json({ ok: true, token, user: publicUser(user) });
 });

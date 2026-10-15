@@ -52,10 +52,8 @@ function requireHuntOwner(req, res) {
     return null;
   }
   if (!meta.userId) {
-    if (req.user.role !== 'admin') {
-      res.status(403).json({ ok: false, error: 'forbidden' });
-      return null;
-    }
+    // Legacy hunts (created before user tracking): allow any authenticated
+    // user to access. These are shared/old hunts, not admin-only.
     return meta;
   }
   if (meta.userId !== req.user.id) {

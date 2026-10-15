@@ -20,6 +20,7 @@ const VALID_CONTROLS = ['minimal', 'maximum'];
 const USERNAME_RE = /^[a-z0-9._-]{3,32}$/;
 
 function publicUser(u) {
+  const isBlocked = u.blockedUntil === null || (u.blockedUntil && new Date(u.blockedUntil) > new Date());
   return {
     id: u.id,
     username: u.username,
@@ -27,6 +28,9 @@ function publicUser(u) {
     control: u.control || 'minimal',
     createdAt: u.createdAt,
     createdBy: u.createdBy || null,
+    blocked: !!isBlocked,
+    blockedUntil: u.blockedUntil || null,
+    blockedAt: u.blockedAt || null,
   };
 }
 
@@ -153,6 +157,69 @@ router.delete('/users/:id', requireAdmin, (req, res) => {
   delete users[key];
   writeUsers(users);
   res.json({ ok: true, deleted: req.params.id });
+});
+
+// Block a user for a duration (1/2/3 days, custom hours, or permanent).
+// POST /api/v1/admin/users/:id/block { durationHours | permanent: true }
+// Blocked users cannot log in until the block expires.
+router.post('/users/:id/block', requireAdmin, (req, res) => {
+  const { durationHours, permanent } = req.body || {};
+  const users = readUsers();
+  const user = Object.values(users).find((u) => u.id === req.params.id);
+  if (!user) {
+    return res.status(404).json({ ok: false, error: 'not_found', message: 'User not found.' });
+  }
+  if (user.role === 'admin') {
+    return res.status(400).json({ ok: false, error: 'cannot_block_admin', message: 'Admin cannot be blocked.' });
+  }
+  if (permanent) {
+    user.blockedUntil = null; // null = permanent block
+    user.blockedAt = new Date().toISOString();
+    user.blockReason = 'Blocked permanently by admin';
+  } else {
+    const hours = Number(durationHours);
+    if (!hours || hours < 1 || hours > 8760) {
+      return res.status(400).json({ ok: false, error: 'invalid_duration', message: 'Duration must be 1-8760 hours.' });
+    }
+    user.blockedUntil = new Date(Date.now() + hours * 3600 * 1000).toISOString();
+    user.blockedAt = new Date().toISOString();
+    user.blockReason = `Blocked for ${hours} hours by admin`;
+  }
+  writeUsers(users);
+  res.json({ ok: true, user: publicUser(user) });
+});
+
+// Unblock a user.
+router.post('/users/:id/unblock', requireAdmin, (req, res) => {
+  const users = readUsers();
+  const user = Object.values(users).find((u) => u.id === req.params.id);
+  if (!user) {
+    return res.status(404).json({ ok: false, error: 'not_found', message: 'User not found.' });
+  }
+  delete user.blockedUntil;
+  delete user.blockedAt;
+  delete user.blockReason;
+  writeUsers(users);
+  res.json({ ok: true, user: publicUser(user) });
+});
+
+// Change a user's password (admin).
+// POST /api/v1/admin/users/:id/password { password }
+router.post('/users/:id/password', requireAdmin, (req, res) => {
+  const { password } = req.body || {};
+  if (typeof password !== 'string' || password.length < 8) {
+    return res.status(400).json({ ok: false, error: 'weak_password', message: 'Password must be at least 8 characters.' });
+  }
+  const users = readUsers();
+  const user = Object.values(users).find((u) => u.id === req.params.id);
+  if (!user) {
+    return res.status(404).json({ ok: false, error: 'not_found', message: 'User not found.' });
+  }
+  const { salt, hash } = hashPassword(password);
+  user.salt = salt;
+  user.passHash = hash;
+  writeUsers(users);
+  res.json({ ok: true, message: 'Password updated.' });
 });
 
 export default router;
