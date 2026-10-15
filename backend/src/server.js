@@ -38,7 +38,12 @@ const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS ||
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+  // Allow exact matches plus any *.pages.dev deployment URL (each deploy gets a unique hash URL)
+  const isAllowed = origin && (
+    ALLOWED_ORIGINS.includes(origin) ||
+    /^https:\/\/[a-z0-9-]+\.dark-matter-frontend\.pages\.dev$/.test(origin)
+  );
+  if (isAllowed) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
   }
