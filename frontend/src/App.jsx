@@ -61,6 +61,7 @@ function AppInner() {
   const [page, setPage] = useState(routeFromPath);
   const [reportHuntId, setReportHuntId] = useState(null);
   const [authModal, setAuthModal] = useState(null); // null | 'login'
+  const [huntModalTrigger, setHuntModalTrigger] = useState(0); // increment to open hunt modal
   // Agent activity drawer (top-bar button).
   const [activityOpen, setActivityOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(
@@ -493,6 +494,8 @@ function AppInner() {
   function requestHuntModal() {
     createChat();
     setPage('chat');
+    // Trigger the hunt creation dialog to open automatically
+    setHuntModalTrigger((t) => t + 1);
     try {
       window.history.replaceState(null, '', '/');
     } catch { /* ignore */ }
@@ -581,6 +584,7 @@ function AppInner() {
             onRecordHunt={recordHunt}
             onUpdateHunt={updateHunt}
             onOpenReports={openReports}
+            huntModalTrigger={huntModalTrigger}
           />
         )}
         {page === 'plugins' && <PluginsPage />}

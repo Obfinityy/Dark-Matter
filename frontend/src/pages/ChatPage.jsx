@@ -24,6 +24,7 @@ export default function ChatPage({
   onRecordHunt,
   onUpdateHunt,
   onOpenReports,
+  huntModalTrigger,
 }) {
   const { user } = useAuth();
   const [sending, setSending] = useState(false);
@@ -31,6 +32,13 @@ export default function ChatPage({
   const [huntModalOpen, setHuntModalOpen] = useState(false);
   const [launching, setLaunching] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
+
+  // Open hunt modal when triggered from Sidebar "New hunt"
+  useEffect(() => {
+    if (huntModalTrigger > 0) {
+      if (ensureHuntAuth()) setHuntModalOpen(true);
+    }
+  }, [huntModalTrigger]);
   // When "Talk with AI" is pressed on a specific hunt card, the voice
   // conversation is scoped to that hunt (works even when paused/idle).
   const [voiceHuntIdOverride, setVoiceHuntIdOverride] = useState(null);

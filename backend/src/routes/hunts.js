@@ -139,6 +139,28 @@ router.post('/', requireAuth, async (req, res) => {
       });
     }
   }
+  // DEDUPE: if this user already has a hunt for the same target (any state),
+  // return the existing one instead of creating a duplicate.
+  try {
+    const { listHuntMetas } = await import('../store.js');
+    const normalizedTarget = target.trim().toLowerCase().replace(/\/$/, '');
+    const existing = listHuntMetas().find((h) => {
+      if (!h.userId || h.userId !== req.user.id) return false;
+      const hTarget = String(h.target || '').toLowerCase().replace(/\/$/, '');
+      return hTarget === normalizedTarget;
+    });
+    if (existing) {
+      console.log(`[hunts] REUSE existing hunt ${existing.huntId} for target "${target}" (user ${req.user.username})`);
+      return res.json({
+        ok: true,
+        reused: true,
+        huntId: existing.huntId,
+        target: existing.target,
+        state: existing.state,
+        message: 'Resuming your existing hunt for this target.',
+      });
+    }
+  } catch { /* best-effort dedupe */ }
   // ONE HUNT AT A TIME with QUEUE: if a hunt is already running/paused,
   // add this request to the queue instead of rejecting. User gets their
   // queue position. Admin can prioritize from the admin portal.
