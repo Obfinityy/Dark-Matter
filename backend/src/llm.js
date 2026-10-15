@@ -21,7 +21,10 @@
 // deterministic control must never depend on an LLM's mood.
 
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
-import { SageMakerRuntimeClient, InvokeEndpointAsyncCommand, GetAsyncInferenceResultCommand } from '@aws-sdk/client-sagemaker-runtime';
+// NOTE: SageMaker SDK is imported LAZILY (dynamic import) only when
+// LLM_PROVIDER=sagemaker, because the installed SDK version may not export
+// the async APIs as named ESM exports. A static import here crashes the
+// entire backend on startup if the exports don't exist.
 import { recordCost } from './costTracker.js';
 
 const PROVIDER = String(process.env.LLM_PROVIDER || 'bedrock').toLowerCase();
@@ -224,6 +227,22 @@ async function chatWithSageMaker(messages, system, ctx) {
     return null;
   }
 
+  // Lazy-load SageMaker SDK (may not export async APIs in all versions)
+  let SageMakerRuntimeClient, InvokeEndpointCommand;
+  try {
+    const pkg = await import('@aws-sdk/client-sagemaker-runtime');
+    // Handle both ESM named exports and CJS default export
+    const mod = pkg.default || pkg;
+    SageMakerRuntimeClient = mod.SageMakerRuntimeClient || pkg.SageMakerRuntimeClient;
+    InvokeEndpointCommand = mod.InvokeEndpointCommand || pkg.InvokeEndpointCommand;
+    if (!SageMakerRuntimeClient || !InvokeEndpointCommand) {
+      throw new Error('SageMaker SDK exports not found');
+    }
+  } catch (err) {
+    console.error('[llm] SageMaker SDK load failed:', err.message);
+    return null;
+  }
+
   const clean = (t) => sanitizeForModel(String(t || ''));
   
   // Build prompt in ChatML format for Qwen models
@@ -244,16 +263,6 @@ async function chatWithSageMaker(messages, system, ctx) {
   });
 
   try {
-    // Step 1: Invoke async
-    const invokeCmd = new InvokeEndpointAsyncCommand({
-      EndpointName: SAGEMAKER_ENDPOINT,
-      ContentType: 'application/json',
-      InputLocation: `s3://${process.env.SAGEMAKER_INPUT_BUCKET || 'darkmatter-sagemaker-input'}/input/${Date.now()}.json`,
-      // For async inference, we pass the payload via S3 or inline
-    });
-    
-    // Actually, for async inference with JSON payload, we use:
-    // The payload goes in the request body, output goes to S3
     const payload = JSON.stringify({
       inputs: prompt,
       parameters: {
@@ -264,9 +273,7 @@ async function chatWithSageMaker(messages, system, ctx) {
       },
     });
 
-    // Use InvokeEndpoint (sync) for simpler flow if endpoint supports it,
-    // fallback to async for long-running
-    const { InvokeEndpointCommand } = await import('@aws-sdk/client-sagemaker-runtime');
+    // Use InvokeEndpoint (sync) — simpler and works with standard endpoints
     const syncCmd = new InvokeEndpointCommand({
       EndpointName: SAGEMAKER_ENDPOINT,
       ContentType: 'application/json',
