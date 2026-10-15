@@ -1,15 +1,15 @@
-# Dark Matter per-hunt container image.
-# Each hunt gets a FRESH, ISOLATED container from this image — the hunt's own
-# "virtual machine". Spawned by backend/src/huntRunner.js on hunt creation,
-# destroyed on completion/failure/timeout.
+# Dark Matter per-hunt container image — the agent's "computer".
+# Each hunt gets a FRESH, ISOLATED Kali Linux container from this image.
+# Spawned by backend/src/huntRunner.js on hunt creation, destroyed on completion.
 #
-# The container runs /opt/hunt/run.sh which:
-#   1. Reads DM_TARGET, DM_HUNT_ID, DM_MODE from env
-#   2. Runs the recon pipeline (ports -> nuclei ...)
-#   3. Stays alive as "hands" — the HOST backend (huntAgent.js) is the sole
-#      brain and drives this container via `docker exec`. No model loop and
-#      no cloud credentials inside the sandbox.
-#   4. Emits JSON event lines to stdout -> backend streams them as hunt events
+# The container is the agent's hands: the HuntOrchestrator (head) directs
+# specialist workers THROUGH this container via `docker exec` — like a human
+# hacker's brain directing their hands on the keyboard. It can:
+#   - scan and enumerate (nmap, subfinder, amass, nikto)
+#   - test web vulns (sqlmap, nuclei, xsstrike-style manual payloads)
+#   - browse like a human (chromium + selenium for JS-heavy targets)
+#   - crack and analyze (john, hashcat-lite, jwt tools)
+#   - write and run custom exploit scripts (python3, nodejs)
 #
 # Build: docker build -f docker/Dockerfile.hunt -t darkmatter/hunt:latest .
 
@@ -20,7 +20,23 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip nodejs npm curl wget git jq \
     nmap nikto sqlmap \
+    subfinder amass \
+    chromium chromium-driver \
+    john hashcat \
+    dnsutils net-tools iputils-ping \
     && rm -rf /var/lib/apt/lists/*
+
+# Nuclei — vulnerability scanner with templates
+RUN curl -sL https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_Linux_x86_64.zip -o /tmp/nuclei.zip \
+    && unzip -o /tmp/nuclei.zip -d /usr/local/bin/ \
+    && rm /tmp/nuclei.zip \
+    && chmod +x /usr/local/bin/nuclei || true
+
+# Python hacking libs
+RUN pip3 install --no-cache-dir --break-system-packages \
+    requests beautifulsoup4 selenium webdriver-manager \
+    pyjwt python-whois dnspython \
+    || true
 
 WORKDIR /opt/hunt
 COPY docker/hunt-runner/ ./

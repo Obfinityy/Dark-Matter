@@ -21,6 +21,14 @@ import {
   execInHuntContainer,
   dockerAvailable,
 } from './huntRunner.js';
+import { HuntOrchestrator } from './orchestrator.js';
+
+// Active orchestrators by huntId — so assessResult can report verified
+// findings to the head even though it doesn't receive it as a parameter.
+const orchestrators = new Map();
+export function getOrchestrator(huntId) {
+  return orchestrators.get(huntId) || null;
+}
 import { chatWithAI, aiAvailable } from './llm.js';
 import { getHuntCost } from './costTracker.js';
 import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers } from './store.js';
@@ -92,7 +100,7 @@ import {
 // Money is the only limit. This constant is kept for reference only.
 const MODE_ITERATIONS = null;
 
-function think(huntId, text) {
+export function think(huntId, text) {
   appendHuntEvent(huntId, { type: 'thinking', text: String(text).slice(0, 2000) });
 }
 
@@ -369,6 +377,18 @@ function inferSeverity(testName, output) {
   const rec = { ...gated, verification: v.verdict, verified: v.verified };
   finding(huntId, rec);
 
+  // Head records verified findings for the final report
+  if (v.verified) {
+    const head = getOrchestrator(huntId);
+    if (head) {
+      const verifier = head.spawnWorker('verifier', `Independently confirm: ${rec.title}`);
+      head.findings.push(rec);
+      head.review(verifier, { ok: true, output: 'reproduced' }, () => true);
+      head.saveState();
+      think(huntId, `Head: confirmed vulnerability #${head.findings.length} — ${rec.title} (${rec.severity})`);
+    }
+  }
+
   // Chain escalation
   if (v.verified) {
     const chains = beamSearchChains(['data_read']);
@@ -453,8 +473,17 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
     writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, container, state: 'running' });
     appendHuntEvent(huntId, { type: 'status', state: 'container_spawned', container });
 
-    // Phase 1: recon
+    // ORCHESTRATOR: the head of the hunt team. It plans, spawns specialist
+    // workers, reviews their work, and writes the final report.
+    const head = new HuntOrchestrator(huntId, target, mode);
+    orchestrators.set(huntId, head);
+    think(huntId, `Head online: I am the lead hacker. Target: ${target}. Assembling my team.`);
+
+    // Phase 1: recon — head spawns a recon specialist worker
+    const reconWorker = head.spawnWorker('recon', `Map ${target}: open ports, services, tech stack, subdomains, endpoints.`);
     const recon = await reconPhase(huntId, target);
+    head.review(reconWorker, { ok: true, output: JSON.stringify(recon).slice(0, 500) }, () => recon && recon.profile);
+    head.saveState();
 
     // Learning: what worked on similar targets before?
     let playbook = [];

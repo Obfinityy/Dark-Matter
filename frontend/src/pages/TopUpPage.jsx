@@ -3,6 +3,7 @@
 // hunts auto-pause and resume after the next top-up.
 import React, { useCallback, useEffect, useState } from 'react';
 import { billingStatus, createTopupOrder, verifyTopup } from '../lib/api';
+import { useAuth } from '../lib/auth';
 
 const PRESETS = [1, 3, 5, 10];
 
@@ -18,6 +19,7 @@ function loadCheckoutJs() {
 }
 
 export default function TopUpPage() {
+  const { ready, user } = useAuth();
   const [balance, setBalance] = useState(null);
   const [configured, setConfigured] = useState(true);
   const [txns, setTxns] = useState([]);
@@ -89,6 +91,24 @@ export default function TopUpPage() {
       setBusy(false);
       setMsg({ kind: 'error', text: e.message || 'Payment could not start.' });
     }
+  }
+
+  // Wallet is per-user: top-up requires login. Show a clear gate instead of
+  // confusing payment errors.
+  if (ready && !user) {
+    return (
+      <div className="page">
+        <h2>Hunt credits</h2>
+        <p className="page-sub">Top up your balance to run hunts. Each hunt iteration costs a little based on its intensity — when credits run out, hunts pause until you recharge.</p>
+        <div className="balance-card">
+          <div className="balance-label">🔒 Log in to top up</div>
+          <p className="page-sub">Your wallet belongs to your account. Log in to see your balance and add credits.</p>
+          <button className="btn btn-primary" onClick={() => window.dispatchEvent(new CustomEvent('dm:open-auth'))}>
+            Log in
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
