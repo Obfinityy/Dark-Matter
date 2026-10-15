@@ -94,6 +94,7 @@ export function isTargetAllowed(target) {
 // browsing) stays public.
 router.post('/', requireAuth, async (req, res) => {
   const { target, scope, confirmedAuthorized, mode } = req.body || {};
+  console.log(`[hunts] CREATE attempt by ${req.user.username} (${req.user.id}): target=${target}, mode=${mode}, confirmed=${confirmedAuthorized}`);
   if (typeof target !== 'string' || !target.trim()) {
     return res.status(400).json({
       ok: false,
