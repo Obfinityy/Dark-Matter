@@ -354,8 +354,19 @@ function AppInner() {
     );
   }, []);
 
+  const [confirmingDelete, setConfirmingDelete] = useState(null);
+
   const deleteChat = useCallback(
     (chatId) => {
+      // Show confirmation dialog first — user asked for explicit confirm
+      setConfirmingDelete(chatId);
+    },
+    [],
+  );
+
+  const confirmDeleteChat = useCallback(
+    (chatId) => {
+      setConfirmingDelete(null);
       // Record a tombstone so the delete syncs to the backend and the chat
       // doesn't resurrect on refresh/other devices.
       const tombstone = { id: chatId, deletedAt: new Date().toISOString() };
@@ -540,6 +551,31 @@ function AppInner() {
         />
       )}
       <ToastHost />
+      {confirmingDelete && (
+        <div className="modal-backdrop" onClick={() => setConfirmingDelete(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Delete chat?</h3>
+            <p className="modal-text">
+              This will permanently delete this chat from your view on all devices.
+              This action cannot be undone.
+            </p>
+            <div className="modal-actions">
+              <button
+                className="btn-secondary"
+                onClick={() => setConfirmingDelete(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-danger"
+                onClick={() => confirmDeleteChat(confirmingDelete)}
+              >
+                Permanently Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
