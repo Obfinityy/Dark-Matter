@@ -887,6 +887,14 @@ button { font-family: inherit; }
 .hunt-pill-btn:hover:not(:disabled) { background: var(--dm-surface); }
 .hunt-pill-btn:disabled { opacity: 0.35; cursor: default; }
 .hunt-pill-btn.danger { color: var(--dm-red); border-color: rgba(196, 61, 43, 0.4); }
+.hunt-pill-btn.talk {
+  color: var(--dm-brand, #b8860b);
+  border-color: rgba(184, 134, 11, 0.45);
+  font-weight: 600;
+}
+.hunt-pill-btn.talk:hover:not(:disabled) {
+  background: var(--dm-brand-soft, #f5ead0);
+}
 .hunt-id {
   margin-left: auto;
   font-size: 11px;

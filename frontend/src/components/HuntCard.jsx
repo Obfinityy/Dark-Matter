@@ -58,7 +58,7 @@ function statusText(status, target) {
   }
 }
 
-export default function HuntCard({ hunt, onStatusChange, onRerun }) {
+export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI }) {
   const [status, setStatus] = useState(hunt.status || 'idle');
   // Button visibility rule (owner's spec): a live hunt shows Pause + Stop;
   // a paused hunt shows Resume + Stop. Terminal hunts show nothing clickable.
@@ -384,6 +384,19 @@ export default function HuntCard({ hunt, onStatusChange, onRerun }) {
             title="Start a fresh hunt against the same target"
           >
             ↻ Re-run
+          </button>
+        )}
+        {onTalkWithAI && (
+          <button
+            className="hunt-pill-btn talk"
+            onClick={() => onTalkWithAI(hunt.huntId)}
+            title="Talk with the AI about this hunt — voice conversation, works anytime"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <rect x="9" y="3" width="6" height="11" rx="3" />
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3" strokeLinecap="round" />
+            </svg>
+            Talk with AI
           </button>
         )}
         <span className="hunt-id">ID: {hunt.huntId}</span>

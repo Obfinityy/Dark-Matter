@@ -31,6 +31,9 @@ export default function ChatPage({
   const [huntModalOpen, setHuntModalOpen] = useState(false);
   const [launching, setLaunching] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  // When "Talk with AI" is pressed on a specific hunt card, the voice
+  // conversation is scoped to that hunt (works even when paused/idle).
+  const [voiceHuntIdOverride, setVoiceHuntIdOverride] = useState(null);
   const [speakerOn, setSpeakerOn] = useState(() => {
     try {
       return localStorage.getItem('dm.speakerOn') === 'true';
@@ -135,6 +138,19 @@ export default function ChatPage({
     const chatId = chat ? chat.id : onNewChat();
     onAppendMessage(chatId, { id: uid(), role: 'user', text: userText });
     onAppendMessage(chatId, { id: uid(), role: 'assistant', text: replyText });
+  }
+
+  /** "Talk with AI" on a hunt card: open voice mode scoped to that hunt.
+   *  Works anytime — running, paused, or finished. */
+  function handleTalkWithAI(huntId) {
+    if (!ensureHuntAuth()) return;
+    setVoiceHuntIdOverride(huntId || null);
+    setVoiceOpen(true);
+  }
+
+  function handleVoiceClose() {
+    setVoiceOpen(false);
+    setVoiceHuntIdOverride(null);
   }
 
   async function handleStartHunt(target, scope, mode, confirmed) {
@@ -247,6 +263,7 @@ export default function ChatPage({
               onOpenReports={onOpenReports}
               onEditMessage={(msg) => setEditText(msg.text)}
               onRerunHunt={handleRerunHunt}
+              onTalkWithAI={handleTalkWithAI}
             />
             <div ref={threadEndRef} />
           </div>
@@ -262,9 +279,9 @@ export default function ChatPage({
       />
       {voiceOpen && (
         <VoiceMode
-          huntId={voiceHuntId}
+          huntId={voiceHuntIdOverride || voiceHuntId}
           onExchange={handleVoiceExchange}
-          onClose={() => setVoiceOpen(false)}
+          onClose={handleVoiceClose}
         />
       )}
     </div>
