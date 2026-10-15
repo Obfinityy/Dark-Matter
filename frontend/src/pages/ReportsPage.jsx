@@ -15,16 +15,25 @@ function loadHunts() {
   }
 }
 
-/** Merge backend hunts (survive browser close) with local ones, dedup by id. */
+/** Merge backend hunts (survive browser close) with local ones, dedup by id.
+ *  IMPORTANT: any local hunt NOT present in the backend list is REMOVED —
+ *  this handles admin deletions and stale cache. Backend is the source of truth. */
 function mergeHunts(local, remote) {
+  const remoteIds = new Set(remote.filter(h => h && h.huntId).map(h => h.huntId));
   const byId = new Map();
-  for (const h of local) if (h && h.huntId) byId.set(h.huntId, h);
+  // Only keep local hunts that still exist on the backend
+  for (const h of local) {
+    if (h && h.huntId && remoteIds.has(h.huntId)) byId.set(h.huntId, h);
+  }
   for (const h of remote) {
     if (!h || !h.huntId) continue;
     const prev = byId.get(h.huntId);
     byId.set(h.huntId, prev ? { ...prev, ...h, status: h.status || prev.status } : h);
   }
-  return [...byId.values()];
+  const result = [...byId.values()];
+  // Persist the cleaned list back to localStorage
+  try { localStorage.setItem(HUNTS_KEY, JSON.stringify(result)); } catch {}
+  return result;
 }
 
 export default function ReportsPage({ preselectedHuntId }) {
