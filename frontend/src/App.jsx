@@ -236,15 +236,26 @@ function AppInner() {
         const res = await getChatTitles();
         if (cancelled || !res.ok || !res.data || !Array.isArray(res.data.chats)) return;
         const remote = new Map(res.data.chats.map((c) => [c.id, c]));
-        if (remote.size === 0) return;
+        // NOTE: Do NOT early-return when remote is empty — empty means all
+        // chats were deleted on the backend. Remove local chats not in the
+        // remote list, except very fresh local chats (created <10s ago) that
+        // haven't been pushed to the backend yet by the debounced sync.
+        const now = Date.now();
         setChats((prev) =>
-          prev.map((c) => {
-            const r = remote.get(c.id);
-            if (r && String(r.updatedAt || '') > String(c.updatedAt || '')) {
-              return { ...c, title: r.title, updatedAt: r.updatedAt };
-            }
-            return c;
-          })
+          prev
+            .filter((c) => {
+              if (remote.has(c.id)) return true;
+              const createdAt = c.createdAt ? new Date(c.createdAt).getTime() : 0;
+              if (createdAt && now - createdAt < 10000) return true; // not yet synced
+              return false;
+            })
+            .map((c) => {
+              const r = remote.get(c.id);
+              if (r && String(r.updatedAt || '') > String(c.updatedAt || '')) {
+                return { ...c, title: r.title, updatedAt: r.updatedAt };
+              }
+              return c;
+            })
         );
       } catch { /* offline — local titles still work */ }
     })();
