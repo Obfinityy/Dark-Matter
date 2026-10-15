@@ -145,14 +145,14 @@ function formatMsgTime(ts) {
   }
 }
 
-export default function ChatThread({ messages, streaming, onHuntStatusChange, onOpenReports, onEditMessage, onRerunHunt, onTalkWithAI }) {
+export default function ChatThread({ messages, streaming, onHuntStatusChange, onOpenReports, onEditMessage, onRerunHunt, onTalkWithAI, onGetReport }) {
   return (
     <div className="chat-thread">
       {messages.map((msg) => {
         if (msg.role === 'hunt') {
           return (
             <div key={msg.id} className="message message-hunt">
-              <HuntCard hunt={msg.hunt} onStatusChange={onHuntStatusChange} onRerun={onRerunHunt} onTalkWithAI={onTalkWithAI} />
+              <HuntCard hunt={msg.hunt} onStatusChange={onHuntStatusChange} onRerun={onRerunHunt} onTalkWithAI={onTalkWithAI} onGetReport={onGetReport} />
               {['done', 'stopped', 'failed', 'error'].includes(msg.hunt.status) && (
                 <button className="btn btn-ghost btn-sm report-link" onClick={() => onOpenReports(msg.hunt.huntId)}>
                   📄 View report →

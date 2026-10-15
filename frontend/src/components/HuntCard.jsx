@@ -58,7 +58,7 @@ function statusText(status, target) {
   }
 }
 
-export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI }) {
+export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, onGetReport }) {
   const [status, setStatus] = useState(hunt.status || 'idle');
   // Button visibility rule (owner's spec): a live hunt shows Pause + Stop;
   // a paused hunt shows Resume + Stop. Terminal hunts show nothing clickable.
@@ -397,6 +397,19 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI }
               <path d="M5 11a7 7 0 0 0 14 0M12 18v3" strokeLinecap="round" />
             </svg>
             Talk with AI
+          </button>
+        )}
+        {onGetReport && (
+          <button
+            className="hunt-pill-btn"
+            onClick={() => onGetReport(hunt.huntId)}
+            title="Generate a professional bug bounty report from this hunt's findings and memory"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Get Report
           </button>
         )}
         <span className="hunt-id">ID: {hunt.huntId}</span>

@@ -148,6 +148,14 @@ export default function ChatPage({
     setVoiceOpen(true);
   }
 
+  function handleGetReport(huntId) {
+    if (!ensureHuntAuth()) return;
+    // Open the professional bug bounty report in a new tab (markdown format)
+    // The backend generates it from hunt memory + findings via the Head agent
+    const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+    window.open(`${apiBase}/api/v1/hunts/${huntId}/report?format=md`, '_blank', 'noopener');
+  }
+
   function handleVoiceClose() {
     setVoiceOpen(false);
     setVoiceHuntIdOverride(null);
@@ -264,6 +272,7 @@ export default function ChatPage({
               onEditMessage={(msg) => setEditText(msg.text)}
               onRerunHunt={handleRerunHunt}
               onTalkWithAI={handleTalkWithAI}
+              onGetReport={handleGetReport}
             />
             <div ref={threadEndRef} />
           </div>
