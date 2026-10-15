@@ -192,8 +192,10 @@ router.post('/', requireAuth, async (req, res) => {
   }
   try {
     let huntId;
+    console.log(`[hunts] Creating engine hunt for target "${target}"...`);
     try {
       ({ huntId } = await createEngineHunt(target, scope));
+      console.log(`[hunts] Engine hunt created: ${huntId}`);
     } catch (err) {
       if (!(err instanceof EngineUnreachableError)) throw err;
       // No PentAGI engine on this box — the host agent loop (runAutonomousHunt)
