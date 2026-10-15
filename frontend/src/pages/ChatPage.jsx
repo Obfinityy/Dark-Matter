@@ -52,7 +52,7 @@ export default function ChatPage({
   const threadEndRef = useRef(null);
   const streamTokenRef = useRef(null);
 
-  const messages = chat ? chat.messages : [];
+  const messages = chat && Array.isArray(chat.messages) ? chat.messages : [];
 
   useEffect(() => {
     if (threadEndRef.current) {
