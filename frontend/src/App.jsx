@@ -241,7 +241,11 @@ function AppInner() {
         const titles = chats.map((c) => ({
           id: c.id,
           title: c.title,
-          updatedAt: c.updatedAt || c.createdAt || new Date().toISOString(),
+          // NEVER generate a fresh timestamp here — a "now" updatedAt would be
+          // newer than a delete tombstone and resurrect deleted chats.
+          // If the chat has no timestamp, omit it (backend keeps existing).
+          ...(c.updatedAt ? { updatedAt: c.updatedAt } : {}),
+          ...(c.createdAt ? { createdAt: c.createdAt } : {}),
         }));
         let deleted = [];
         try {

@@ -74,19 +74,19 @@ router.post('/sync', requireAuth, (req, res) => {
       merged.set(c.id, c);
     }
   }
-  // Apply tombstones: drop any chat deleted after its last update.
+  // Apply tombstones: a delete ALWAYS wins. The old timestamp comparison
+  // (deletedAt >= updatedAt) caused resurrection bugs when the client sent
+  // a fresh updatedAt newer than the tombstone. Delete means delete.
   // Persist tombstones so a later sync from another device can't resurrect.
   const tombFile = path.join(dataDir(), 'chats', `${String(req.user.id)}.deleted.json`);
   let known = [];
   try { known = JSON.parse(fs.readFileSync(tombFile, 'utf8')) || []; } catch { /* none */ }
   const tombMap = new Map(known.map((t) => [t.id, t.deletedAt]));
   for (const t of tombstones) {
-    const prev = tombMap.get(t.id);
-    if (!prev || String(t.deletedAt) >= String(prev)) tombMap.set(t.id, t.deletedAt);
+    tombMap.set(t.id, t.deletedAt);
   }
-  for (const [id, deletedAt] of tombMap) {
-    const c = merged.get(id);
-    if (c && String(deletedAt) >= String(c.updatedAt || '')) {
+  for (const [id] of tombMap) {
+    if (merged.has(id)) {
       merged.delete(id);
       // Also wipe its message history.
       try { fs.unlinkSync(messagesFile(req.user.id, id)); } catch { /* none */ }
