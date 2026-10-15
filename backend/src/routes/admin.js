@@ -31,6 +31,8 @@ function publicUser(u) {
     blocked: !!isBlocked,
     blockedUntil: u.blockedUntil || null,
     blockedAt: u.blockedAt || null,
+    approved: u.approved !== false,
+    approvedAt: u.approvedAt || null,
   };
 }
 
@@ -225,6 +227,39 @@ router.post('/users/:id/unblock', requireAdmin, (req, res) => {
   delete user.blockReason;
   writeUsers(users);
   res.json({ ok: true, user: publicUser(user) });
+});
+
+// Approve a pending signup (admin). The user can log in and use the service after this.
+// POST /api/v1/admin/users/:id/approve
+router.post('/users/:id/approve', requireAdmin, (req, res) => {
+  const users = readUsers();
+  const user = Object.values(users).find((u) => u.id === req.params.id);
+  if (!user) {
+    return res.status(404).json({ ok: false, error: 'not_found', message: 'User not found.' });
+  }
+  user.approved = true;
+  user.approvedAt = new Date().toISOString();
+  writeUsers(users);
+  console.log(`[admin] APPROVED user: ${user.username}`);
+  res.json({ ok: true, user: publicUser(user) });
+});
+
+// Reject a pending signup (admin) — deletes the account.
+// POST /api/v1/admin/users/:id/reject
+router.post('/users/:id/reject', requireAdmin, (req, res) => {
+  const users = readUsers();
+  const entry = Object.entries(users).find(([, u]) => u.id === req.params.id);
+  if (!entry) {
+    return res.status(404).json({ ok: false, error: 'not_found', message: 'User not found.' });
+  }
+  const [username, user] = entry;
+  if (user.approved !== false) {
+    return res.status(400).json({ ok: false, error: 'not_pending', message: 'Only pending signups can be rejected.' });
+  }
+  delete users[username];
+  writeUsers(users);
+  console.log(`[admin] REJECTED signup: ${username}`);
+  res.json({ ok: true, message: `Signup rejected for ${username}.` });
 });
 
 // Change a user's password (admin).

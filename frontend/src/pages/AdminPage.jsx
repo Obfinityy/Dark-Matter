@@ -221,8 +221,55 @@ export default function AdminPage() {
           <section className="admin-section">
             <h2>All Users</h2>
             {loading ? <p className="page-sub">Loading…</p> : (
-              <div className="admin-grid">
-                {users.map((u) => (
+              <>
+                {/* Pending approvals section */}
+                {users.filter(u => u.approved === false).length > 0 && (
+                  <div style={{ marginBottom: 24 }}>
+                    <h3>⏳ Pending Approvals ({users.filter(u => u.approved === false).length})</h3>
+                    <div className="admin-grid">
+                      {users.filter(u => u.approved === false).map((u) => (
+                        <div key={u.id} className="admin-card pending-approval">
+                          <div className="admin-card-header">
+                            <div>
+                              <div className="admin-username">⏳ {u.username}</div>
+                              <div className="admin-meta">
+                                Signed up: {u.createdAt ? new Date(u.createdAt).toLocaleString() : '—'}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="admin-card-actions">
+                            <button
+                              className="btn btn-primary small"
+                              onClick={async () => {
+                                const { approveAdminUser } = await import('../lib/api');
+                                const res = await approveAdminUser(u.id);
+                                if (res.ok) { toast(`Approved ${u.username}`, 'success'); load(); }
+                                else toast(res.error || 'Failed', 'error');
+                              }}
+                            >
+                              ✅ Approve
+                            </button>
+                            <button
+                              className="btn btn-ghost small danger"
+                              onClick={async () => {
+                                if (!confirm(`Reject signup for ${u.username}?`)) return;
+                                const { rejectAdminUser } = await import('../lib/api');
+                                const res = await rejectAdminUser(u.id);
+                                if (res.ok) { toast(`Rejected ${u.username}`, 'success'); load(); }
+                                else toast(res.error || 'Failed', 'error');
+                              }}
+                            >
+                              ❌ Reject
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <h3>Approved Users ({users.filter(u => u.approved !== false).length})</h3>
+                <div className="admin-grid">
+                {users.filter(u => u.approved !== false).map((u) => (
                   <div key={u.id} className={`admin-card ${u.blocked ? 'blocked' : ''}`}>
                     <div className="admin-card-header">
                       <div>
@@ -284,6 +331,7 @@ export default function AdminPage() {
                   </div>
                 ))}
               </div>
+              </>
             )}
           </section>
         )}
@@ -503,6 +551,11 @@ export default function AdminPage() {
         .admin-card.blocked {
           border-color: #ff4444;
           background: #fff5f5;
+        }
+        .admin-card.pending-approval {
+          border-color: #ffaa00;
+          border-width: 2px;
+          background: #fffdf5;
         }
         .hunt-stats {
           display: grid;

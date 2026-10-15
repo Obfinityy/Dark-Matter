@@ -76,6 +76,10 @@ export async function login(username, password) {
   return post('/api/v1/auth/login', { username, password });
 }
 
+export async function signup(username, password) {
+  return post('/api/v1/auth/signup', { username, password });
+}
+
 export async function me() {
   return get('/api/v1/auth/me');
 }
@@ -194,6 +198,14 @@ export async function saveProvider(id, payload) {
 // --- Admin portal ------------------------------------------------------------
 export async function listAdminUsers() {
   return get('/api/v1/admin/users');
+}
+
+export async function approveAdminUser(userId) {
+  return post(`/api/v1/admin/users/${userId}/approve`, {});
+}
+
+export async function rejectAdminUser(userId) {
+  return post(`/api/v1/admin/users/${userId}/reject`, {});
 }
 
 export async function listAdminHunts() {

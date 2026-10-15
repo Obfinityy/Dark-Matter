@@ -1,9 +1,12 @@
-// Auth routes — INVITE-ONLY for Dark Matter.
+// Auth routes — SIGNUP WITH ADMIN APPROVAL for Dark Matter.
 //
-//   POST /api/v1/auth/login   {username, password} -> {ok, token, user}
-//   GET  /api/v1/auth/me                          -> {ok, user} (Bearer)
+//   POST /api/v1/auth/signup   {username, password} -> {ok, message} (pending approval)
+//   POST /api/v1/auth/login    {username, password} -> {ok, token, user} (approved users only)
+//   GET  /api/v1/auth/me                           -> {ok, user} (Bearer)
 //
-// NO public signup. Only the admin creates accounts via /api/v1/admin/users.
+// Users sign up freely, but CANNOT use the service until the admin approves
+// them. Unapproved users see a "waiting for approval" screen.
+// Admin approves via POST /api/v1/admin/users/:id/approve.
 // Users are keyed by lowercased username. Passwords hashed with scrypt.
 // Tokens are JWT HS256 (node:crypto only). Payload: {sub:id, username, role,
 // control, iat, exp}, 30-day expiry.
@@ -147,6 +150,7 @@ function publicUser(u) {
     username: u.username,
     role: u.role || 'user',
     control: u.control || 'minimal',
+    approved: u.approved !== false, // default true for legacy/admin-created users
     createdAt: u.createdAt,
   };
 }
@@ -189,6 +193,41 @@ export function requireAdmin(req, res, next) {
 
 // ---- Routes -------------------------------------------------------------------
 
+// Public signup — creates a PENDING account. The user CANNOT log in or use
+// the service until an admin approves them.
+router.post('/signup', (req, res) => {
+  const { username, password } = req.body || {};
+  const cleanUsername = String(username || '').trim().toLowerCase();
+  if (!cleanUsername || cleanUsername.length < 3) {
+    return res.status(400).json({ ok: false, error: 'invalid_username', message: 'Username must be at least 3 characters.' });
+  }
+  if (!/^[a-z0-9_]+$/.test(cleanUsername)) {
+    return res.status(400).json({ ok: false, error: 'invalid_username', message: 'Username can only contain letters, numbers and underscore.' });
+  }
+  if (typeof password !== 'string' || password.length < 8) {
+    return res.status(400).json({ ok: false, error: 'weak_password', message: 'Password must be at least 8 characters.' });
+  }
+  const users = readUsers();
+  if (users[cleanUsername]) {
+    return res.status(409).json({ ok: false, error: 'username_taken', message: 'This username is already taken.' });
+  }
+  const { salt, hash } = hashPassword(password);
+  const id = crypto.randomUUID();
+  users[cleanUsername] = {
+    id,
+    username: cleanUsername,
+    salt,
+    passHash: hash,
+    role: 'user',
+    control: 'minimal',
+    approved: false, // <-- needs admin approval
+    createdAt: new Date().toISOString(),
+  };
+  writeUsers(users);
+  console.log(`[auth] SIGNUP pending approval: ${cleanUsername}`);
+  res.status(201).json({ ok: true, message: 'Account created. Waiting for admin approval.' });
+});
+
 // Login only. There is NO public signup — accounts are created by the admin.
 router.post('/login', (req, res) => {
   const { username, password } = req.body || {};
@@ -200,6 +239,14 @@ router.post('/login', (req, res) => {
   const user = users[cleanUsername];
   if (!user || !verifyPassword(password, user.salt, user.passHash)) {
     return res.status(401).json({ ok: false, error: 'invalid_login', message: 'Invalid username or password.' });
+  }
+  // Approval gate: pending users cannot log in until admin approves.
+  if (user.approved === false) {
+    return res.status(403).json({
+      ok: false,
+      error: 'pending_approval',
+      message: 'Your account is waiting for admin approval. Please check back later.',
+    });
   }
   // Check if user is blocked
   const isBlocked = user.blockedUntil === null || (user.blockedUntil && new Date(user.blockedUntil) > new Date());
