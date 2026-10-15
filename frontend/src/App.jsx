@@ -227,6 +227,9 @@ function AppInner() {
 
   // Chat title sync: renames follow the account across browsers/devices.
   // Pull on login; push (debounced) whenever local titles change.
+  // NOTE: This pull NEVER deletes local chats. Deletions are handled via
+  // tombstones (explicit user delete action). A backend list that is missing
+  // a local chat may mean it hasn't synced yet — deleting it would be data loss.
   useEffect(() => {
     if (!ready || !user) return;
     let cancelled = false;
@@ -236,27 +239,34 @@ function AppInner() {
         const res = await getChatTitles();
         if (cancelled || !res.ok || !res.data || !Array.isArray(res.data.chats)) return;
         const remote = new Map(res.data.chats.map((c) => [c.id, c]));
-        // NOTE: Do NOT early-return when remote is empty — empty means all
-        // chats were deleted on the backend. Remove local chats not in the
-        // remote list, except very fresh local chats (created <10s ago) that
-        // haven't been pushed to the backend yet by the debounced sync.
-        const now = Date.now();
-        setChats((prev) =>
-          prev
-            .filter((c) => {
-              if (remote.has(c.id)) return true;
-              const createdAt = c.createdAt ? new Date(c.createdAt).getTime() : 0;
-              if (createdAt && now - createdAt < 10000) return true; // not yet synced
-              return false;
-            })
-            .map((c) => {
-              const r = remote.get(c.id);
-              if (r && String(r.updatedAt || '') > String(c.updatedAt || '')) {
-                return { ...c, title: r.title, updatedAt: r.updatedAt };
-              }
-              return c;
-            })
-        );
+        // Only ADD new remote chats and UPDATE titles — never remove local chats here.
+        // Apply backend tombstones: filter out any local chat the backend says is deleted.
+        let tombstoneIds = new Set();
+        try {
+          const tRes = await (await import('./lib/api')).getChatTombstones();
+          if (tRes.ok && Array.isArray(tRes.data?.tombstones)) {
+            tombstoneIds = new Set(tRes.data.tombstones.map((t) => t.id));
+          }
+        } catch { /* best-effort */ }
+        setChats((prev) => {
+          // Remove chats that backend has tombstoned
+          let next = prev.filter((c) => !tombstoneIds.has(c.id));
+          // Add remote chats not present locally
+          const localIds = new Set(next.map((c) => c.id));
+          for (const [id, r] of remote) {
+            if (!localIds.has(id) && !tombstoneIds.has(id)) {
+              next.push({ id: r.id, title: r.title, updatedAt: r.updatedAt, createdAt: r.updatedAt });
+            }
+          }
+          // Update titles for existing
+          return next.map((c) => {
+            const r = remote.get(c.id);
+            if (r && String(r.updatedAt || '') > String(c.updatedAt || '')) {
+              return { ...c, title: r.title, updatedAt: r.updatedAt };
+            }
+            return c;
+          });
+        });
       } catch { /* offline — local titles still work */ }
     })();
     return () => { cancelled = true; };

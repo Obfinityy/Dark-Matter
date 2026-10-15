@@ -56,6 +56,21 @@ router.get('/', requireAuth, (req, res) => {
   res.json({ ok: true, chats: readTitles(req.user.id) });
 });
 
+// GET /api/v1/chats/tombstones — list of deleted chat IDs for this user.
+// Frontend uses this to remove locally-cached chats that were deleted
+// on the backend (from another device), without risking data loss for
+// unsynced new chats.
+router.get('/tombstones', requireAuth, (req, res) => {
+  const tombFile = path.join(dataDir(), 'chats', `${String(req.user.id)}.deleted.json`);
+  try {
+    const raw = fs.readFileSync(tombFile, 'utf8');
+    const arr = JSON.parse(raw);
+    res.json({ ok: true, tombstones: Array.isArray(arr) ? arr : [] });
+  } catch {
+    res.json({ ok: true, tombstones: [] });
+  }
+});
+
 router.post('/sync', requireAuth, (req, res) => {
   const incoming = Array.isArray(req.body && req.body.chats)
     ? req.body.chats.map(clean).filter(Boolean)

@@ -98,6 +98,10 @@ export async function getChatTitles() {
   return get('/api/v1/chats');
 }
 
+export async function getChatTombstones() {
+  return get('/api/v1/chats/tombstones');
+}
+
 export async function syncChatTitles(chats, deleted) {
   return post('/api/v1/chats/sync', { chats, deleted });
 }
