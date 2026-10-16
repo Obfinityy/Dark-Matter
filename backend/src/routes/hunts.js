@@ -488,6 +488,29 @@ for (const [route, fn, verb] of [
   });
 }
 
+// ---- Steer: talk to the brain mid-hunt --------------------------------------
+// POST /api/v1/hunts/:id/steer { message } — inject a user instruction.
+// The agent picks it up at the start of its next iteration and the message
+// is stored in the hunt's event log so it syncs across devices.
+router.post('/:id/steer', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const message = String((req.body && req.body.message) || '').trim().slice(0, 2000);
+  if (!message) return res.status(400).json({ ok: false, error: 'message required' });
+  const huntId = req.params.id;
+  try {
+    const { appendHuntEvent, readHuntMeta, writeHuntMeta } = await import('../store.js');
+    appendHuntEvent(huntId, { type: 'steer', from: req.user.username || req.user.id, message, at: new Date().toISOString() });
+    const m = readHuntMeta(huntId) || {};
+    const queue = Array.isArray(m.steerQueue) ? m.steerQueue : [];
+    queue.push({ message, from: req.user.username || req.user.id, at: new Date().toISOString() });
+    writeHuntMeta(huntId, { ...m, huntId, steerQueue: queue.slice(-10) });
+    res.json({ ok: true, queued: true });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // ---- Report: works ANY time, even mid-hunt --------------------------------
 // Assembled from the locally cached event stream (see WS bridge + engine
 // polls). Markdown is always available; PDF is rendered with pdfkit (bundled

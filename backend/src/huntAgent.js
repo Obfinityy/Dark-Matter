@@ -31,7 +31,7 @@ export function getOrchestrator(huntId) {
 }
 import { chatWithAI, aiAvailable } from './llm.js';
 import { getHuntCost } from './costTracker.js';
-import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers } from './store.js';
+import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel } from './store.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
 
 // Credit price per hunt iteration (USD), by hunt mode. The hunt auto-pauses
@@ -245,6 +245,19 @@ async function reconPhase(huntId, target) {
 async function agentIteration(huntId, target, recon, findings, iteration, playbook) {
   const confirmed = findings.filter((f) => f.verified);
 
+  // MID-HUNT STEERING: the user can talk to the brain from the frontend.
+  // Drain any queued instructions and follow them this iteration.
+  let steering = '';
+  try {
+    const m = readHuntMeta(huntId) || {};
+    const queue = Array.isArray(m.steerQueue) ? m.steerQueue : [];
+    if (queue.length) {
+      steering = queue.map((q) => `- ${q.from}: ${q.message}`).join('\n');
+      think(huntId, `Received your instruction — following it this round: ${queue[queue.length - 1].message.slice(0, 120)}`);
+      writeHuntMeta(huntId, { ...m, huntId, steerQueue: [] });
+    }
+  } catch { /* steering must never break the hunt */ }
+
   // Playbook: what worked on similar targets before?
   const lessons = (playbook || []).slice(0, 3).map((l) => `- ${l.technique}: ${l.why}`).join('\n');
 
@@ -268,6 +281,13 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // INTELLIGENT CONTEXT: tech detection tells AI what NOT to try
     // (e.g., never suggest SQLi on a MongoDB target)
     intel,
+    // LONG-TERM MEMORY: what past hunts learned about THIS target
+    recon.pastIntel && recon.pastIntel.huntCount > 0
+      ? `\n--- MEMORY OF PAST HUNTS ON THIS TARGET (${recon.pastIntel.huntCount} hunts) ---\n` +
+        `Past technologies: ${(recon.pastTechnologies || []).join(', ') || 'unknown'}\n` +
+        `Past findings: ${(recon.pastIntel.findings || []).slice(-5).map((f) => `${f.title} (${f.severity})`).join('; ') || 'none'}\n` +
+        `Do NOT repeat tests that already failed here — try new angles.`
+      : '',
   ].join('\n').slice(0, MAX_PROMPT_CHARS);
 
   const prompt = [
@@ -279,6 +299,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     context,
     '',
     `Iteration ${iteration} — hunting unlimited.`,
+    steering ? `\n--- USER INSTRUCTION (follow this round) ---\n${steering}` : '',
   ].join('\n');
 
   let plans = [];
@@ -365,6 +386,31 @@ async function assessResult(huntId, target, plan, result) {
   );
   if (isWorthInvestigating({ status: 200, bodyLength: output.length, timeMs: 1000, body: output }, { status: 200, bodyLength: 2000, timeMs: 500 })) {
     think(huntId, `Weird response (score ${weird.score}): ${weird.signals.join(', ')} — investigating.`);
+    // CURIOSITY: a human hunter doesn't shrug at anomalies — they poke harder.
+    // Ask the brain for one targeted follow-up probe into this weirdness.
+    try {
+      const followUp = await chatWithAI(
+        [{ role: 'user', text: `Something odd happened during a security test. Follow your curiosity — propose ONE follow-up probe to dig into this anomaly.\n\nOriginal test: ${plan.test}\nCommand: ${String(plan.command).slice(0, 300)}\nOdd signals: ${weird.signals.join(', ')}\nResponse excerpt: ${output.slice(0, 1200)}\n\nReply as JSON: {"test":"name","command":"shell command","why":"one line"}. Non-destructive, target-scoped.` }],
+        'You are a curious elite bug-bounty hunter. Output ONLY the requested JSON, no prose.',
+        { huntId }
+      );
+      const fm = /\{[\s\S]*\}/.exec(followUp || '');
+      const fp = fm ? JSON.parse(fm[0]) : null;
+      if (fp && fp.command) {
+        think(huntId, `Curiosity follow-up: ${fp.test || 'probing deeper'} — ${fp.why || ''}`);
+        const fres = await executeWithEvasion(huntId, target, String(fp.command).slice(0, 500));
+        const frecout = (fres.stdout + '\n' + fres.stderr).slice(0, 3000);
+        // If the follow-up confirms something interesting, treat it as a candidate
+        if (/vulnerable|exposed|bypass|injection|leak|admin|secret|token|password|error.*sql|stack trace/i.test(frecout) && frecout.trim().length > 50) {
+          const fcand = { class: 'agent_finding', title: `Curiosity find: ${fp.test}`, severity: inferSeverity(fp.test || '', frecout), url: target, evidence: { request: fp.command, response: frecout.slice(0, 800) } };
+          const { pass } = evidenceGate(fcand);
+          if (pass) {
+            appendHuntEvent(huntId, { type: 'finding', ...fcand, verified: false, via: 'curiosity' });
+            think(huntId, `Curiosity paid off — queued for verification: ${fp.test}`);
+          }
+        }
+      }
+    } catch { /* curiosity must never break the hunt */ }
   }
 
 /** Infer severity from the test name and output — not everything is medium. */
@@ -439,6 +485,13 @@ function inferSeverity(testName, output) {
     // PoC generator: turn verified finding into working proof
     await generatePoC(huntId, target, rec);
   }
+  // Share verified learnings into the target's long-term memory
+  try {
+    if (rec && rec.verified) {
+      const { writeTargetIntel: _wti } = await import('./store.js');
+      _wti(target, { findings: [{ title: rec.title, severity: rec.severity, at: new Date().toISOString() }] });
+    }
+  } catch { /* memory write must never break the hunt */ }
   return rec;
 }
 
@@ -524,6 +577,32 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
     const reconWorker = head.spawnWorker('recon', `Map ${target}: open ports, services, tech stack, subdomains, endpoints.`);
     const recon = await reconPhase(huntId, target);
     head.review(reconWorker, { ok: true, output: JSON.stringify(recon).slice(0, 500) }, () => recon && recon.profile);
+
+    // PER-TARGET MEMORY: read what past hunts learned about this target, and
+    // save what this hunt discovers. This is the brain's long-term memory —
+    // every hunt starts smarter because of every hunt before it.
+    let pastIntel = null;
+    try {
+      pastIntel = readTargetIntel(target);
+      if (pastIntel && pastIntel.huntCount > 0) {
+        think(huntId, `I remember this target from ${pastIntel.huntCount} past hunt(s). Last: ${pastIntel.lastHuntAt || 'unknown'}. Using past learnings.`);
+        // Merge past endpoints into recon so the planner sees them
+        const known = (pastIntel.endpoints || []).map((e) => (typeof e === 'string' ? e : e.url || e.path || '')).filter(Boolean);
+        const seen = new Set(recon.endpoints);
+        for (const ep of known.slice(0, 20)) if (!seen.has(ep)) { recon.endpoints.push(ep); seen.add(ep); }
+        if (pastIntel.technologies && pastIntel.technologies.length) {
+          recon.pastTechnologies = pastIntel.technologies.slice(0, 10);
+        }
+      }
+      // Save this hunt's fresh recon into shared memory
+      writeTargetIntel(target, {
+        endpoints: (recon.endpoints || []).slice(0, 30),
+        technologies: ((recon.detection && recon.detection.techs) || []).slice(0, 10),
+      });
+    } catch (err) {
+      console.error('[hunt] target intel read/write failed:', err.message);
+    }
+    recon.pastIntel = pastIntel;
     head.saveState();
 
     // Learning: what worked on similar targets before?
