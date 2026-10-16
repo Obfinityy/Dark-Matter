@@ -824,3 +824,150 @@ When the infrastructure works, the combination exceeds what any single human can
 
 *120 reasons documented. Each is a specific, actionable gap.*
 *This is not pessimism — it's the engineering roadmap.*
+
+---
+
+## O. Next 100 Problems (Round 2)
+
+*Found through systematic audit of auth, API, frontend, and infrastructure.*
+
+### O.1 Authentication & Authorization (121-140)
+
+121. **No rate limiting on login** — Brute force possible (but owner forbids adding rate limiter per Rule 3).
+122. **JWT secret in env** — If leaked, all sessions compromised. No rotation mechanism.
+123. **No token refresh** — Users logged out when token expires, no silent refresh.
+124. **Password reset not implemented** — Users cannot recover accounts.
+125. **No 2FA** — Single factor authentication only.
+126. **Session not invalidated on password change** — Old tokens remain valid.
+127. **Admin routes may lack checks** — Need to verify `isAdmin` on all admin endpoints.
+128. **Hunt IDOR possible** — `readHuntMeta(req.params.id)` without visible ownership check in snippets.
+129. **No audit logging** — Admin actions not logged. Cannot trace who did what.
+130. **Weak password policy** — 8 chars minimum, no complexity requirements.
+131. **Username enumeration** — Login error messages may reveal if username exists.
+132. **No account lockout** — Cannot lock account after failed attempts (would need rate limiting).
+133. **Token in localStorage** — XSS could steal tokens. Should use httpOnly cookies.
+134. **No device management** — Cannot see/revoke active sessions.
+135. **Invite-only but no invite flow** — Admin creates accounts manually, no secure invite link.
+136. **No email verification** — Cannot verify user identity.
+137. **Password stored as hash+salt** — Good, but no pepper. Database leak + code leak = crackable.
+138. **No breach detection** — Cannot detect if passwords leaked elsewhere.
+139. **Admin can see all hunts** — Privacy concern, no justification logged.
+140. **No GDPR deletion** — Users cannot delete their data.
+
+### O.2 API Security (141-160)
+
+141. **Missing input validation** — Many endpoints accept raw `req.body` without schema validation.
+142. **No request size limits** — Large payloads could cause DoS.
+143. **Error messages leak internals** — Stack traces may reach client in dev mode.
+144. **CORS misconfiguration risk** — Need to verify allowed origins.
+145. **No API versioning** — Breaking changes affect all clients.
+146. **Inconsistent status codes** — Some errors return 200 with `ok: false`.
+147. **No pagination** — Hunt list could return thousands of records.
+148. **N+1 queries** — File-based storage, but loops may read files repeatedly.
+149. **No caching headers** — Static responses not cached.
+150. **WebSocket auth** — Need to verify WS `/stream` validates JWT.
+151. **File upload unrestricted** — If any upload exists, check type/size limits.
+152. **Path traversal risk** — Hunt IDs used in file paths. Sanitization verified? (`[^a-zA-Z0-9_-]` — good)
+153. **Command injection** — `execInHuntContainer` passes user-influenced commands to Docker.
+154. **SSRF via target URL** — Hunt target could be internal IP (169.254.169.254).
+155. **DNS rebinding** — Target domain could resolve to internal IP after validation.
+156. **Redirect following** — Tools may follow redirects out of scope.
+157. **No scope validation on redirect** — If target redirects to evil.com, do tools follow?
+158. **Subdomain takeover** — Not checked during recon.
+159. **Certificate validation** — Tools may ignore TLS errors.
+160. **Information disclosure** — `/health` may expose version info.
+
+### O.3 Hunt Agent Logic (161-180)
+
+161. **No timeout on AI planning** — If AI hangs, hunt hangs (mitigated by AbortSignal, verify).
+162. **Infinite loop risk** — Unlimited hunting with no circuit breaker except AI failures.
+163. **No cost ceiling** — Wallet check exists but not verified to work.
+164. **Duplicate findings** — Same vuln found via different vectors not deduplicated.
+165. **Finding severity inconsistent** — `inferSeverity` uses keywords, not impact analysis.
+166. **No false positive learning** — Rejected hypotheses not remembered.
+167. **Tool output truncation** — 4MB max buffer, large outputs lost.
+168. **No tool version pinning** — Nuclei templates update, results not reproducible.
+169. **Parallel execution race** — 5 concurrent AI calls may corrupt shared state.
+170. **No graceful degradation** — If Docker fails, hunt degrades but user not clearly informed.
+171. **Checkpoint corruption** — If write fails mid-hunt, resume may use stale data.
+172. **Event log unbounded** — `events.jsonl` grows forever, no rotation.
+173. **Memory leak in orchestrators** — `orchestrators.set(huntId)` never cleaned on hunt end.
+174. **No hunt prioritization** — All hunts equal, cannot prioritize important targets.
+175. **AI prompt injection** — Target HTML could contain prompt injection for the AI.
+176. **Tool output injection** — Malicious target could inject fake "vulnerability found" into tool output.
+177. **No sandbox escape detection** — If container is compromised, no alert.
+178. **Resource exhaustion** — Hunt container has memory/cpu limits, but host could still be affected.
+179. **No network isolation** — Container uses bridge network, could scan internal network.
+180. **Secrets in container** — Env vars passed to container, could leak if container compromised.
+
+### O.4 Frontend (181-200)
+
+181. **XSS in hunt output** — Tool output rendered as HTML? Check for `dangerouslySetInnerHTML`.
+182. **No CSP headers** — Content Security Policy not set.
+183. **Sensitive data in localStorage** — Chats, tokens stored in plain text.
+184. **No offline handling** — App breaks if backend unreachable, no cached state.
+185. **Hunt state desync** — UI shows "running" but backend paused. No reconciliation.
+186. **No optimistic updates** — Every action waits for server, feels slow.
+187. **Large bundle size** — Vite build not optimized, slow load.
+188. **No code splitting** — Entire app loaded at once.
+189. **Accessibility issues** — No ARIA labels, keyboard navigation broken.
+190. **Mobile layout broken** — Hunt cards overflow on small screens.
+191. **No error boundaries** — React crash takes down entire app.
+192. **Stale data after logout** — Previous user's hunts visible briefly.
+193. **WebSocket reconnection** — If WS drops, no auto-reconnect.
+194. **No loading skeletons** — Blank screens during data fetch.
+195. **Date formatting** — Timezone issues (user reported 3PM vs 5:41PM).
+196. **Relative time wrong** — "started 3 hours ago" incorrect.
+197. **Log viewer unusable** — Raw JSON shown to users, not human-readable.
+198. **No search** — Cannot search hunts, findings, chats.
+199. **No filtering** — Cannot filter by severity, status, date.
+200. **Export broken** — PDF report generation not verified to work.
+
+### O.5 Infrastructure & DevOps (201-220)
+
+201. **No CI/CD** — Manual deploys, no automated tests on push.
+202. **No staging environment** — Changes go straight to production.
+203. **Secrets in .env** — On EC2, readable by any process as ubuntu user.
+204. **No backup** — Hunt data, user data not backed up. Disk failure = data loss.
+205. **No monitoring** — If backend crashes, no alert (except 15-min watchdog).
+206. **Log rotation missing** — Journal logs grow forever, disk fills.
+207. **No health check** — Load balancer doesn't know if backend is healthy.
+208. **Single point of failure** — One EC2 instance, no redundancy.
+209. **No auto-scaling** — Cannot handle load spikes.
+210. **Manual SSL renewal** — Let's Encrypt certs expire, manual renewal?
+211. **Nginx misconfiguration** — Need to verify security headers, rate limiting.
+212. **Docker image outdated** — Hunt image not rebuilt regularly, missing tool updates.
+213. **No vulnerability scanning** — Dependencies not scanned for CVEs.
+214. **npm audit not run** — Unknown vulnerable packages.
+215. **Node.js version** — Check if LTS, security patches applied.
+216. **OS patches** — EC2 Ubuntu may have unpatched CVEs.
+217. **Firewall rules** — Security group may be too permissive.
+218. **SSH key management** — Who has access? Key rotation?
+219. **No WAF** — API directly exposed, no Web Application Firewall.
+220. **DDoS vulnerable** — No protection against volumetric attacks.
+
+---
+
+### Summary: 100 New Problems
+
+| Category | Count | Critical |
+|---|---|---|
+| Auth & Authorization | 20 | #128: Hunt IDOR possible |
+| API Security | 20 | #154: SSRF via target URL |
+| Hunt Agent Logic | 20 | #175: AI prompt injection |
+| Frontend | 20 | #181: XSS in hunt output |
+| Infrastructure | 20 | #204: No backup |
+| **Total** | **100** | |
+
+**New P0 items:**
+- #128: Verify hunt ownership checks (IDOR)
+- #154: Validate target URL against SSRF (block internal IPs)
+- #175: Sanitize tool output before AI prompt (prompt injection)
+- #181: Audit frontend for XSS (dangerouslySetInnerHTML)
+- #204: Implement backup for hunt/user data
+
+---
+
+*Round 2 complete. 100 new problems documented.*
+*Total problems found: 220 (120 + 100).*
+*Fixed so far: 7 (from round 1).*
