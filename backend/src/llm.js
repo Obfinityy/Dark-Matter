@@ -233,6 +233,7 @@ async function chatWithOpenRouter(messages, system, ctx) {
     });
   }
   try {
+    console.log('[llm] OpenRouter calling model:', model);
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
