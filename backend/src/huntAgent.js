@@ -479,9 +479,35 @@ function extractSignal(output) {
   return signals.sort().join(',');
 }
 
+/**
+ * FIX #175: Sanitize tool output before feeding to AI.
+ * Prevents prompt injection from malicious targets.
+ * Removes/neutralizes common injection patterns.
+ */
+function sanitizeForAI(text) {
+  if (!text) return '';
+  let clean = String(text);
+  // Remove common prompt injection patterns
+  const injectionPatterns = [
+    /ignore\s+(all\s+)?previous\s+instructions/gi,
+    /disregard\s+(all\s+)?previous/gi,
+    /you\s+are\s+now\s+a/gi,
+    /new\s+instructions:/gi,
+    /system\s*:\s*/gi,
+    /\[system\]/gi,
+    /<\|.*?\|>/g, // Special tokens
+  ];
+  for (const pattern of injectionPatterns) {
+    clean = clean.replace(pattern, '[FILTERED]');
+  }
+  // Limit length and remove excessive newlines
+  clean = clean.slice(0, 3000).replace(/\n{4,}/g, '\n\n\n');
+  return clean;
+}
+
 /** Assess a test result: weirdness check → evidence gate → verify. */
 async function assessResult(huntId, target, plan, result) {
-  const output = (result.stdout + '\n' + result.stderr).slice(0, 3000);
+  const output = sanitizeForAI(result.stdout + '\n' + result.stderr).slice(0, 3000);
 
   // Weirdness check: investigate even without signature match
   const weird = scoreWeirdness(
