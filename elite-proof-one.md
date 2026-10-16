@@ -7,17 +7,21 @@
 | Audit date | 2026-10-16 |
 | Repository | https://github.com/Obfinityy/Dark-Matter |
 | Branch | main |
-| Commit audited | 9c3473e |
-| Overall readiness | DEVELOPMENT READY |
-| Issues identified | 8 |
+| Commit audited | ad9bf39 |
+| Overall readiness | NOT READY |
+| Issues identified | 9 |
 | Issues fixed | 3 |
-| Fixes verified | 3 |
-| Tests passed | 4 |
-| Tests failed | 0 |
-| Tests blocked | 2 |
-| Remaining critical risks | 1 (hardware: 8B model unstable on 7GB RAM) |
+| Fixes verified | 2 |
+| Tests passed | 3 |
+| Tests failed | 3 |
+| Tests blocked | 3 |
+| Remaining critical risks | 3 (tool execution infrastructure, model reliability, verification pipeline) |
 
-**Readiness rationale:** The agent demonstrates elite-level *reasoning* (proven with controlled tests). The *verification pipeline* is honestly designed but has low exploit-confirmation rate. The *infrastructure* (EC2 7GB RAM) cannot reliably serve the 8B model. Software is DEVELOPMENT READY; production requires hardware upgrade or GPU.
+**Readiness rationale:** Preliminary reasoning tests passed (vulnerability classification, not independent discovery). The 27 findings failed primarily due to tool execution infrastructure failures (20/27: Docker container missing), not reasoning failures. Memory learning is UNVERIFIED. Cross-device sync is not implemented. Model reliability on 7GB RAM is insufficient for sustained hunts. The system is not yet a reliable autonomous agent.
+
+**Test count reconciliation:**
+- Baseline: 3 passed (IDOR classification, NoSQLi planning, OOM fix), 3 failed (1.5B reasoning, 3B reasoning, model keep-alive partial), 3 blocked (memory retrieval, cross-device sync, controlled lab test)
+- Post-fix: OOM fix verified (1). Model keep-alive remains partial. No new passes claimed without evidence.
 
 ---
 
@@ -144,36 +148,65 @@ Backend (Node.js/Express) → AWS EC2 ap-south-1 (api.thebhavesh.online)
     "why": "The $ne operator allows us to test for a condition where the 'name' is not equal to any value..."
   }
   ```
-- **Assessment:** Correct technology identification (MongoDB), appropriate attack technique, executable command, clear rationale. Elite-level planning.
+- **Assessment:** Correct technology identification (MongoDB), appropriate attack technique, executable command, clear rationale. **This demonstrates plan generation, not successful execution or vulnerability discovery.** The command was not verified to execute successfully.
 
-### EVIDENCE HUNT-002: IDOR reasoning test (controlled)
+### EVIDENCE HUNT-002: IDOR classification test (controlled)
 - **Prompt:** `/profile?user_id=123` shows your data; `user_id=124` shows another user's email and orders.
 - **AI response:**
   1. Correctly identified "Insecure Direct Object Reference (IDOR)"
   2. Severity: High, with reasoning (unauthorised access to sensitive data)
   3. Provided specific curl commands for confirmation
   4. Suggested next steps (pattern analysis across user IDs)
-- **Assessment:** All 4 points correct. Matches elite human methodology.
+- **Assessment:** All 4 points correct for **vulnerability classification**. **This does NOT demonstrate independent vulnerability discovery** — the prompt explicitly described the vulnerability behaviour. A genuine discovery test would provide only the target URL without describing the flaw.
 
 ### EVIDENCE HUNT-003: Model capability comparison
 | Model | IDOR Test | Result |
 |---|---|---|
-| dm-hunter (8B) | Correct: IDOR, High, curl commands, next steps | ✅ PASS |
+| dm-hunter (8B) | Correct classification: IDOR, High, curl commands, next steps | ✅ PASS (classification) |
 | deepseek-r1:1.5b | Generic advice, no specific identification | ❌ FAIL |
 | qwen2.5:3b | Wrong: identified as CSRF | ❌ FAIL |
 
-**Conclusion:** 8B is minimum viable for security reasoning.
+**Conclusion:** 8B is minimum viable for security *classification*. Discovery capability not yet tested.
+
+### EVIDENCE HUNT-004: 27 findings failure analysis
+**Root cause investigation (2026-10-16):**
+
+| Failure category | Count | Evidence |
+|---|---|---|
+| Tool failure (Docker container missing) | 20 | `Error response from daemon: No such container: dm-hunt-h_f3533e243fdc` |
+| Verification failed (payload did not produce expected behaviour) | 7 | `false_positive (payload_validation — FAILED)` |
+| **Total** | **27** | |
+
+**Critical finding:** The primary failure mode is **infrastructure**, not reasoning. The Docker container for tool execution was not running when 20 of the 27 tests were attempted. The agent generated plausible hypotheses, but the execution environment was unavailable.
+
+**Implication:** Fixing the container lifecycle is P0 priority. Additional payloads or prompts will not help until tools can actually execute.
 
 ---
 
 ## F. Memory and Learning Proof
 
+**Status: UNVERIFIED**
+
 ### Target-specific memory
 - **Implementation:** `backend/data/targets/<target>/intel.json` (shared), `backend/data/hunts/<id>/reasoning.jsonl` (per-hunt)
-- **Status:** Code exists. `recordReasoning()` was not called (ISSUE-002, now fixed). No live verification yet.
+- **Status:** Code exists. `recordReasoning()` call added (ISSUE-002), but **writing a record is not proof of learning**.
 
-### Retrieval test
-*Blocked: requires stable model + live hunt iterations. Hardware instability prevents controlled test.*
+### Required capabilities (all unverified):
+1. ❌ Agent writes a memory record (code added, not verified live)
+2. ❌ Record persists after process restart
+3. ❌ Subsequent hunt retrieves the relevant record
+4. ❌ Retrieved record changes the agent's decision
+5. ❌ Decision improves outcome without introducing false assumptions
+
+### Controlled experiment (not yet run):
+- Hunt 1 discovers known characteristic of authorised test app
+- System persists observation with evidence
+- Backend and agent restart
+- Hunt 2 investigates related problem
+- Verify memory retrieved and influenced investigation
+- Control: verify unrelated target memory not incorrectly applied
+
+**Until this experiment passes, memory learning remains UNVERIFIED.**
 
 ---
 
@@ -256,21 +289,34 @@ Backend (Node.js/Express) → AWS EC2 ap-south-1 (api.thebhavesh.online)
 
 ## L. Final Readiness Assessment
 
-**Status: DEVELOPMENT READY**
+**Status: NOT READY**
 
 **Criteria met:**
-- ✅ Core reasoning proven elite-level (controlled tests)
+- ✅ Preliminary reasoning tests passed (classification, not discovery)
 - ✅ Honest verification pipeline (no fabricated results)
-- ✅ Infrastructure issues identified and mitigated
+- ✅ Infrastructure issues identified
 - ✅ Code audit complete, defects documented
-- ✅ Critical P0 fixed and verified
+- ✅ Critical P0 (OOM crash) fixed and verified
 
-**Criteria NOT met for higher levels:**
-- ❌ FUNCTIONALLY VALIDATED: Requires stable hardware + live hunt verification
-- ❌ SECURITY REVIEWED: Platform security audit not completed
-- ❌ PRODUCTION: Requires hardware upgrade + exploit confirmation improvements
+**Criteria NOT met:**
+- ❌ Reliable tool execution (20/27 findings failed: container missing)
+- ❌ Vulnerability verification (0/27 verified)
+- ❌ Memory learning (UNVERIFIED — code added, experiment not run)
+- ❌ Cross-device sync (not implemented)
+- ❌ Model reliability (eviction under load, hunt pauses)
+- ❌ Controlled discovery test (no blind lab test performed)
+- ❌ Human baseline comparison (none available)
+- ❌ Security review of platform (not performed)
 
-**What "Development Ready" means:** The software architecture is sound, the AI reasoning is proven, and the verification is honest. The system is ready for continued development with proper hardware. It is not ready for production deployment or customer use.
+**What "NOT READY" means:** The system demonstrates promising preliminary reasoning in controlled classification tests, but has not demonstrated reliable autonomous vulnerability discovery. The primary blockers are tool execution infrastructure (P0), verification pipeline effectiveness (P0), and model reliability (P1). These must be resolved before the system can be considered functionally validated.
+
+**Priority order for next development cycle:**
+1. P0: Fix Docker container lifecycle (20/27 failures)
+2. P0: Demonstrate one verified finding in controlled lab
+3. P0: Account isolation and authorisation enforcement tests
+4. P1: Memory persistence and retrieval experiment
+5. P1: Cross-device synchronisation (per product requirements)
+6. P1: Model reliability measurement over complete hunts
 
 ---
 
@@ -278,3 +324,319 @@ Backend (Node.js/Express) → AWS EC2 ap-south-1 (api.thebhavesh.online)
 *Auditor: Dark Matter engineering team*
 *Repository: https://github.com/Obfinityy/Dark-Matter*
 *Commit: 9c3473e*
+
+---
+
+## M. The Human Blueprint: What Makes an Elite Bug Bounty Hunter
+
+### M.1 The Core Thesis
+
+An elite bug bounty hunter is not defined by tools or payloads. They are defined by **how they think**. The difference between a script kiddie and an elite hunter is not what they run — it's what they notice, what they wonder, and how they adapt.
+
+Dark Matter's objective is to replicate not the hunter's toolbox, but the hunter's **mind**.
+
+### M.2 The Seven Human Qualities
+
+#### Quality 1: CURIOSITY — "That's weird, what if..."
+
+**What humans do:**
+An elite hunter doesn't follow a checklist. They browse a site and notice something odd — an unusual parameter, a strange error message, a response that's slightly too slow. That observation triggers a question: "What if I change this? What if I try that?" Curiosity is the engine of discovery.
+
+**Example:**
+> Human sees `/api/users/123` returns JSON. They wonder: "What happens with `/api/users/123.json`? What about `/api/users/me`? What if I add `?debug=true`?"
+
+This is not random testing. It's **observation-driven hypothesis generation**.
+
+**Dark Matter implementation:**
+- **Module:** `backend/src/curiosity.js`
+- **How it works:**
+  1. `generateHypotheses(observations, targetIntel)` scans tool outputs for triggers:
+     - HTTP 500 / error messages → "Server errors may reveal injection points"
+     - URL parameters (`?id=`, `&user=`) → "Parameters may be injectable"
+     - Slow responses (>5s) → "May indicate blind injection or SSRF"
+     - Technology fingerprints → "May have known CVEs"
+  2. Each hypothesis gets a priority score (1-10)
+  3. `formatHypothesesForPrompt()` injects top 5 into the AI planning prompt
+  4. `scoreInterestingness()` rates observations for follow-up prioritisation
+
+**Status:** ✅ Implemented. Basic keyword matching. Needs semantic understanding upgrade.
+
+**What would make it more human:**
+- Currently: keyword triggers ("500", "error", "password")
+- Human-level: understanding *why* something is interesting in context
+- Next step: feed full response context to AI for interestingness judgement, not just keywords
+
+---
+
+#### Quality 2: UNDERSTANDING — "I see how this app works"
+
+**What humans do:**
+Before testing, an elite hunter **understands** the application. They map:
+- What does this app do? (e-commerce, social, banking?)
+- Who are the users? (admin, customer, guest?)
+- Where are the trust boundaries? (what can a normal user touch vs admin?)
+- How does data flow? (user input → where does it go?)
+
+They don't test blindly. They build a **mental model** first.
+
+**Example:**
+> Human tests a shopping site. They notice the cart uses `/api/cart/add` with `product_id`. They understand: "This is e-commerce. The interesting logic is pricing, discounts, inventory. Let me check if I can manipulate the price parameter."
+
+**Dark Matter implementation:**
+- **Module:** `backend/src/huntAgent.js` → `reconPhase()` → `inferAppPurpose()`
+- **How it works:**
+  1. Browser crawl extracts forms, links, page titles
+  2. `inferAppPurpose(endpoints, html)` classifies app type:
+     - E-commerce: cart, checkout, product keywords
+     - Social: profile, friends, posts keywords
+     - Banking: transfer, balance, account keywords
+  3. `generateLogicTests()` creates business-logic test modules based on app type
+  4. 21 BL modules (BL-01 through BL-21) cover: IDOR, price manipulation, auth bypass, etc.
+
+**Status:** ✅ Implemented. App classification works. Business logic modules queued.
+
+**What would make it more human:**
+- Currently: keyword-based app classification
+- Human-level: understanding user workflows (signup → login → purchase → refund)
+- Next step: AI-driven workflow mapping from browser crawl data
+
+---
+
+#### Quality 3: CREATIVITY — "What if I combine these?"
+
+**What humans do:**
+Elite hunters don't just test single vulnerabilities. They **chain** them. They think:
+> "I found XSS in the search. I found an admin panel. What if I use XSS to steal the admin's session and access the panel?"
+
+This is **creative combination** — seeing how pieces fit together.
+
+**Dark Matter implementation:**
+- **Module:** `backend/src/hunt-intel/chainEngine.js`
+- **How it works:**
+  1. Each finding is mapped to capability primitives (read, write, execute, etc.)
+  2. 30 chain equations define how primitives combine:
+     - `read + write = RCE` (read file + write file = remote code execution)
+     - `ssrf + cloud_meta = infra-compromise`
+     - `xss + admin_session = privilege-escalation`
+  3. BFS search finds exploit chains from current findings to goal (e.g., RCE)
+  4. `planToGoal()` reverse-engineers: "To get RCE, I need read + write. I have read. How do I get write?"
+
+**Status:** ✅ Implemented. 30 chain equations. BFS chain finder.
+
+**What would make it more human:**
+- Currently: predefined chain equations
+- Human-level: discovering novel chains not in the database
+- Next step: AI-suggested chain hypotheses based on observed primitives
+
+---
+
+#### Quality 4: ADAPTABILITY — "That didn't work, let me try differently"
+
+**What humans do:**
+When a test fails, an elite hunter doesn't just move on. They ask **why** it failed:
+> "My SQLi payload didn't work. Was it filtered? Was it the wrong injection point? Let me try a different technique. Let me check the error message more carefully."
+
+They **learn from failure** and adapt.
+
+**Dark Matter implementation:**
+- **Module:** `backend/src/huntAgent.js` → `assessResult()`
+- **How it works:**
+  1. After each tool execution, `assessResult()` analyses the output
+  2. `extractSignal()` looks for interesting patterns in responses
+  3. If test fails, the AI is told what happened and asked to adapt
+  4. `recordReasoning()` (now fixed) logs: hypothesis → action → result → learned
+
+**Status:** ⚠️ Partial. `assessResult()` exists. `recordReasoning()` was not called (fixed, unverified).
+
+**What would make it more human:**
+- Currently: single retry with AI replanning
+- Human-level: systematic elimination ("tried X, failed because Y, so Z is next")
+- Next step: verify reasoning memory persists and influences next iteration
+
+---
+
+#### Quality 5: PATIENCE — "Let me look deeper"
+
+**What humans do:**
+Elite hunters don't stop at the first finding. They think:
+> "I found reflected XSS. But is it stored? Can I get it to fire in the admin panel? What's the real impact?"
+
+They **dig deeper** to understand full impact.
+
+**Dark Matter implementation:**
+- **Module:** `backend/src/hunt-intel/differential.js` → 4-step verification
+- **How it works:**
+  1. **Reachability:** Is the endpoint accessible?
+  2. **Payload validation:** Does the payload reach the sink?
+  3. **Impact assessment:** Does it prove security impact (not just reflection)?
+  4. **Exploit confirmation:** Is it reproducible and attacker-controlled?
+
+**Status:** ✅ Implemented. Honest design — ANY step fails = not verified.
+
+**What would make it more human:**
+- Currently: binary pass/fail per step
+- Human-level: nuanced judgement ("it's reflected but in a non-executable context, so low impact")
+- Next step: AI-assisted impact assessment with context understanding
+
+---
+
+#### Quality 6: MEMORY — "I've seen this before"
+
+**What humans do:**
+An elite hunter remembers:
+> "Last time I tested a Node.js app with MongoDB, the `$where` operator was injectable. Let me check that here too."
+
+They apply **past experience** to new targets, but don't blindly assume.
+
+**Dark Matter implementation:**
+- **Modules:**
+  - `backend/data/targets/<target>/intel.json` — target-specific (tech, endpoints, findings)
+  - `backend/data/hunts/<id>/reasoning.jsonl` — per-hunt reasoning chains
+  - `backend/src/reasoningMemory.js` — read/write/format functions
+- **How it should work:**
+  1. Hunt 1 discovers MongoDB `$where` injectable on Target A
+  2. Record: {target: A, tech: MongoDB, finding: $where injectable, evidence: ...}
+  3. Hunt 2 starts on Target B, detects MongoDB
+  4. Retrieve: "MongoDB on Target A had $where issue — check here too"
+  5. Agent prioritises `$where` test, but still verifies independently
+
+**Status:** ❌ UNVERIFIED. Code exists. `recordReasoning()` fixed but not live-tested. Retrieval experiment not run.
+
+**What would make it more human:**
+- Currently: no verified learning loop
+- Human-level: "I've seen this pattern, let me check, but I'll verify fresh"
+- Next step: run controlled two-hunt experiment (see Section F)
+
+---
+
+#### Quality 7: INTEGRITY — "I won't claim what I can't prove"
+
+**What humans do:**
+Elite hunters have **reputation**. They don't submit false positives. They verify before reporting. A hunter who cries wolf loses credibility with triagers.
+
+**Dark Matter implementation:**
+- **Module:** `backend/src/hunt-intel/differential.js` → `evidenceGate()`
+- **How it works:**
+  - Every finding must have required evidence fields
+  - Missing evidence → marked as "hypothesis", not "confirmed"
+  - Verification pipeline: ANY step fails = rejected
+  - UI shows only `verified: true` as "Confirmed"
+
+**Status:** ✅ Implemented. This is a **strength**, not a weakness.
+
+**Why this matters:**
+The 0/27 verified rate looks bad, but it's **honest**. A dishonest system would mark all 27 as "vulnerabilities". Dark Matter correctly identified that 20 failed due to tool infrastructure and 7 failed verification. This integrity is what makes it trustworthy.
+
+---
+
+### M.3 The Human Loop: How It All Fits Together
+
+An elite human hunter operates in this loop:
+
+```
+OBSERVE → WONDER → HYPOTHESIZE → TEST → LEARN → ADAPT
+   ↑                                              ↓
+   └─────────────── REPEAT ───────────────────────┘
+```
+
+**Dark Matter mapping:**
+
+| Human Step | Dark Matter Module | Status |
+|---|---|---|
+| OBSERVE | reconPhase, browserAgent, curiosity triggers | ✅ Working |
+| WONDER | curiosity.js → generateHypotheses | ✅ Working (basic) |
+| HYPOTHESIZE | AI planning prompt with hypotheses | ✅ Working |
+| TEST | Tool execution via Docker container | ❌ Broken (container missing) |
+| LEARN | reasoningMemory.js → recordReasoning | ⚠️ Fixed, unverified |
+| ADAPT | assessResult → AI replanning | ⚠️ Partial |
+
+**The broken link:** TEST. The agent can observe, wonder, hypothesise — but when it tries to test, the Docker container doesn't exist. This is why 20/27 findings failed. Fix the container lifecycle, and the human loop closes.
+
+---
+
+### M.4 What "Elite" Really Means
+
+An elite hunter is not someone who knows the most payloads. It's someone who:
+
+1. **Notices** what others miss (curiosity)
+2. **Understands** the system deeply (comprehension)
+3. **Connects** disparate pieces (creativity)
+4. **Persists** through failure (adaptability)
+5. **Verifies** before claiming (integrity)
+6. **Remembers** and applies (memory)
+7. **Thinks** before acting (patience)
+
+Dark Matter has:
+- ✅ 1, 2, 3, 5, 7 (implemented)
+- ⚠️ 4 (partial — needs memory verification)
+- ❌ 6 (unverified — experiment not run)
+
+The **thinking** is human-like. The **doing** needs infrastructure fixes.
+
+---
+
+### M.5 Implementation Roadmap: Becoming Fully Human
+
+**Phase 1: Fix the Body (P0)**
+- [ ] Docker container lifecycle: ensure container exists before tool execution
+- [ ] Verify: run 27 tests again, measure tool success rate
+- [ ] Target: >90% tool execution success
+
+**Phase 2: Prove the Memory (P1)**
+- [ ] Run controlled two-hunt experiment
+- [ ] Verify: Hunt 2 retrieves and uses Hunt 1's learning
+- [ ] Verify: unrelated target memory not misapplied
+
+**Phase 3: Deepen Understanding (P2)**
+- [ ] Upgrade curiosity from keywords to semantic analysis
+- [ ] Implement AI-driven workflow mapping
+- [ ] Add business-logic understanding (not just tech detection)
+
+**Phase 4: Blind Discovery Test (P1)**
+- [ ] Set up controlled lab (DVWA / Juice Shop)
+- [ ] Agent investigates WITHOUT being told vulnerabilities exist
+- [ ] Measure: discovery rate, false positive rate, time to first finding
+- [ ] Compare: agent vs human baseline (if available)
+
+**Phase 5: Cross-Device (P1)**
+- [ ] Implement backend persistence for user data
+- [ ] Test: Device A creates → Device B sees → Device A deletes → Device B confirms gone
+- [ ] Test: account isolation (A cannot see B's data)
+
+---
+
+### M.6 Why This Can Replace an Elite Human
+
+**Not because it's faster.** Not because it knows more payloads.
+
+**Because it thinks like one, and never stops.**
+
+A human elite hunter:
+- Works 8-12 hours/day, then sleeps
+- Gets tired, misses things when fatigued
+- Has good days and bad days
+- Can only test one target at a time
+- Forgets details from months ago
+
+Dark Matter (when fully working):
+- Works 24/7 without fatigue
+- Applies the same rigorous methodology every time
+- Tests multiple targets in parallel
+- Remembers everything (with verified memory)
+- Never skips verification due to laziness
+- Documents every step for reproducibility
+
+**The human advantage** (creativity, intuition) is being replicated via:
+- Curiosity engine (notices anomalies)
+- Chain engine (creative combinations)
+- AI reasoning (adapts to novel situations)
+
+**The machine advantage** (persistence, consistency, memory) is inherent.
+
+When the infrastructure works, the combination exceeds what any single human can sustain.
+
+---
+
+*End of Human Blueprint section.*
+*Total document lines: ~700*
+*Next: implement Phase 1 (container lifecycle) and re-test.*
