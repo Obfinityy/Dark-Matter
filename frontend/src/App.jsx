@@ -14,6 +14,19 @@ import ToastHost from './components/ToastHost';
 import { AuthProvider, useAuth } from './lib/auth';
 
 const CHATS_KEY = 'dm.chats';
+const CHAT_WIPE_VERSION = '2026-10-16-wipe1';
+(function wipeStaleChatsOnce() {
+  try {
+    if (localStorage.getItem('dm.chatWipe') === CHAT_WIPE_VERSION) return;
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(CHATS_KEY)) keys.push(k);
+    }
+    keys.forEach((k) => localStorage.removeItem(k));
+    localStorage.setItem('dm.chatWipe', CHAT_WIPE_VERSION);
+  } catch { /* never break app load */ }
+})();
 // Per-user storage key — User A's chats must NEVER be visible to User B,
 // even on the same device. Logged-out state uses the legacy shared key
 // only as a migration source, never as the live store.
