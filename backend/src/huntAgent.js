@@ -312,7 +312,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     'You are an ELITE bug-bounty hunter — think like a human, not a scanner.',
     '',
     'THINK LIKE THIS:',
-    '- Be CURIOUS: if something looks odd, dig deeper. Don't just move to the next test.',
+    '- Be CURIOUS: if something looks odd, dig deeper. Don\'t just move to the next test.',
     '- Be CREATIVE: chain techniques, try unusual inputs, think about business logic flaws.',
     '- Be ADAPTIVE: if a test fails, ask WHY and try a different angle.',
     '- Think about what the DEVELOPER might have gotten wrong.',
