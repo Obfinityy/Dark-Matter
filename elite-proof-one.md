@@ -971,3 +971,82 @@ When the infrastructure works, the combination exceeds what any single human can
 *Round 2 complete. 100 new problems documented.*
 *Total problems found: 220 (120 + 100).*
 *Fixed so far: 7 (from round 1).*
+
+---
+
+## P. Fixes Applied (Round 2)
+
+### P.1 FIX #21: Docker Container Lifecycle
+**Problem:** 20/27 findings failed with "No such container". Container destroyed on pause, not respawned reliably.
+**Fix:**
+- Added `huntContainerRunning()` check in `execInHuntContainer()` (huntRunner.js)
+- Returns `containerMissing: true` flag when container not running
+- Added `execWithRespawn()` wrapper in huntAgent.js — auto-respawns container and retries once
+**Files:** `backend/src/huntRunner.js`, `backend/src/huntAgent.js`
+**Commit:** 8d66f3b, 965175f
+**Status:** Fixed, needs live verification
+
+### P.2 FIX #40: Web Search Integration
+**Problem:** `webSearch` and `searchCVE` imported but never called. Agent couldn't look up CVEs.
+**Fix:** Added trigger after technology detection in `reconPhase()`. When techs detected, searches for CVEs for top 2 technologies. Results stored in `recon.cveIntel` and logged as `cve_intel` event.
+**Files:** `backend/src/huntAgent.js`
+**Commit:** 797b469
+**Status:** Fixed, needs live verification
+
+### P.3 FIX #35: Remove Playbook Stubs
+**Problem:** `backend/src/playbooks.js` contained stub functions returning empty arrays with misleading "human speed" claims.
+**Fix:** Deleted the file. The real `getPlaybook` comes from `hunt-intel/index.js`, not this stub.
+**Files:** `backend/src/playbooks.js` (deleted)
+**Commit:** a72f378
+**Status:** Fixed and verified (no references remain)
+
+### P.4 FIX #154: SSRF Protection
+**Problem:** Hunt targets not validated against SSRF. Could target internal IPs (169.254.169.254, 10.x, etc.).
+**Fix:**
+- Added `isPrivateIP()` and `validateTargetSSRF()` to `scopeParser.js`
+- Blocks: 10/8, 172.16/12, 192.168/16, 127/8, 169.254/16, 0.0.0.0/8, localhost
+- Integrated into POST /api/v1/hunts — rejects with 403 `ssrf_blocked`
+**Files:** `backend/src/scopeParser.js`, `backend/src/routes/hunts.js`
+**Commit:** 72d46ae
+**Status:** Fixed, needs live verification
+
+### P.5 FIX #128: Hunt IDOR — Legacy Hunts
+**Problem:** `requireHuntOwner()` allowed ANY authenticated user to access hunts without `userId` (legacy hunts).
+**Fix:** Changed to require admin role for legacy hunts. Also added admin override for normal hunts.
+**Files:** `backend/src/routes/hunts.js`
+**Commit:** fac3cc4
+**Status:** Fixed and verified (code inspection)
+
+### P.6 FIX #175: AI Prompt Injection Sanitization
+**Problem:** Raw tool output fed directly to AI prompt. Malicious target could inject "ignore previous instructions".
+**Fix:** Added `sanitizeForAI()` function that filters common injection patterns:
+- `ignore previous instructions`
+- `disregard previous`
+- `you are now a`
+- `new instructions:`
+- Special tokens `<|...|>`
+**Files:** `backend/src/huntAgent.js`
+**Commit:** b5c02a5
+**Status:** Fixed, needs live verification
+
+---
+
+### Summary of Round 2 Fixes
+
+| Issue | Severity | Fix | Verified |
+|---|---|---|---|
+| #21 Container lifecycle | P0 | Auto-respawn wrapper | Needs live test |
+| #40 Web search | P1 | CVE trigger on tech detect | Needs live test |
+| #35 Playbook stubs | P2 | Deleted unused file | ✅ Yes |
+| #154 SSRF | P0 | IP blocklist + validation | Needs live test |
+| #128 Hunt IDOR | P0 | Admin required for legacy | ✅ Yes (code) |
+| #175 Prompt injection | P0 | Output sanitization | Needs live test |
+
+**Total fixed in Round 2:** 6 issues (3 P0, 1 P1, 1 P2)
+**Total fixed overall:** 13 issues (7 from Round 1 + 6 from Round 2)
+**Remaining:** 207 problems documented, prioritized for next rounds.
+
+---
+
+*End of Round 2 fixes.*
+*Next: Deploy to EC2 and verify fixes live.*
