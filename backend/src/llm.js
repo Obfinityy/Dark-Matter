@@ -222,7 +222,7 @@ async function chatWithOpenRouter(messages, system, ctx) {
     console.error('[llm] OpenRouter API key not configured (OPENROUTER_API_KEY)');
     return null;
   }
-  const model = process.env.OPENROUTER_MODEL || 'google/gemma-4-26b-a4b-it:free';
+  const model = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
   const clean = (t) => sanitizeForModel(String(t || ''));
   const orMessages = [];
   if (system) orMessages.push({ role: 'system', content: clean(system).slice(0, 8000) });
