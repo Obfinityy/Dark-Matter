@@ -151,7 +151,7 @@ async function chatWithOllama(messages, system, ctx) {
         },
       }),
       // 2vCPU is slow: 150s per attempt, with one retry below.
-      signal: AbortSignal.timeout(parseInt(process.env.OLLAMA_TIMEOUT_MS || '150000', 10)),
+      signal: AbortSignal.timeout(parseInt(process.env.OLLAMA_TIMEOUT_MS || '300000', 10)),
     });
   } catch (err) {
     console.error(`[llm] Ollama attempt 1 failed at ${OLLAMA_URL}: ${err.message}`);
@@ -170,7 +170,7 @@ async function chatWithOllama(messages, system, ctx) {
             temperature: 0.7,
           },
         }),
-        signal: AbortSignal.timeout(parseInt(process.env.OLLAMA_TIMEOUT_MS || '150000', 10)),
+        signal: AbortSignal.timeout(parseInt(process.env.OLLAMA_TIMEOUT_MS || '300000', 10)),
       });
     } catch (err2) {
       console.error(`[llm] Ollama unreachable at ${OLLAMA_URL} after retry: ${err2.message}`);
