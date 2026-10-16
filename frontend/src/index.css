@@ -819,6 +819,12 @@ button { font-family: inherit; }
   white-space: nowrap;
 }
 /* Plain-English agent activity feed */
+.hunt-steer { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--border, #e5e5e5); border-radius: 10px; background: var(--bg-soft, #fafafa); }
+.hunt-steer-title { font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+.hunt-steer-row { display: flex; gap: 8px; }
+.hunt-steer-input { flex: 1; padding: 8px 10px; border: 1px solid var(--border, #ddd); border-radius: 8px; font-size: 13px; }
+.hunt-steer-ok { margin-top: 6px; font-size: 12px; color: #1a7f37; }
+
 .hunt-human-log {
   border-top: 1px solid var(--dm-border);
   padding: 10px 18px 14px;

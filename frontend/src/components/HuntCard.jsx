@@ -2,7 +2,7 @@
 // Status line ("Hunting <target>…"), expandable event feed, findings stream,
 // and Pause/Resume/Stop pill buttons. All stream/control logic unchanged.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { pauseHunt, resumeHunt, stopHunt, getHuntCost } from '../lib/api';
+import { pauseHunt, resumeHunt, stopHunt, getHuntCost, steerHunt } from '../lib/api';
 import { HuntStreamClient, createSimulatedStream, isDemoMode } from '../lib/huntStream';
 import { toast } from '../lib/toast';
 
@@ -80,6 +80,9 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
   const [busy, setBusy] = useState(false);
   const [streamError, setStreamError] = useState(false);
   const [showFeed, setShowFeed] = useState(true);
+  const [steerMsg, setSteerMsg] = useState('');
+  const [steerSent, setSteerSent] = useState(false);
+  const [steerBusy, setSteerBusy] = useState(false);
   const logEndRef = useRef(null);
 
   // Elapsed-time ticker: shows how long the hunt has been running
@@ -448,6 +451,47 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
           target={hunt.target}
           onClose={() => setShowTerminalModal(false)}
         />
+      )}
+
+      {isActive && (
+        <div className="hunt-steer">
+          <div className="hunt-steer-title">💬 Steer the hunter</div>
+          <div className="hunt-steer-row">
+            <input
+              className="hunt-steer-input"
+              value={steerMsg}
+              onChange={(e) => { setSteerMsg(e.target.value); setSteerSent(false); }}
+              placeholder="e.g. focus on the login page, try harder on XSS…"
+              maxLength={500}
+              disabled={steerBusy}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && steerMsg.trim() && !steerBusy) {
+                  setSteerBusy(true);
+                  steerHunt(hunt.huntId, steerMsg.trim()).then((r) => {
+                    setSteerBusy(false);
+                    if (r.ok) { setSteerSent(true); setSteerMsg(''); }
+                    else toast.error(r.error || 'Could not send instruction');
+                  });
+                }
+              }}
+            />
+            <button
+              className="hunt-pill-btn"
+              disabled={!steerMsg.trim() || steerBusy}
+              onClick={() => {
+                setSteerBusy(true);
+                steerHunt(hunt.huntId, steerMsg.trim()).then((r) => {
+                  setSteerBusy(false);
+                  if (r.ok) { setSteerSent(true); setSteerMsg(''); }
+                  else toast.error(r.error || 'Could not send instruction');
+                });
+              }}
+            >
+              {steerBusy ? 'Sending…' : 'Send'}
+            </button>
+          </div>
+          {steerSent && <div className="hunt-steer-ok">✓ The hunter will follow your instruction next round.</div>}
+        </div>
       )}
 
       {/* Plain-English activity: what the agent is doing, in words anyone

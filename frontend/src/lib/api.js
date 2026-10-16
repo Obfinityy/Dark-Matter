@@ -90,6 +90,10 @@ export async function health() {
 }
 
 // --- Chat ------------------------------------------------------------------
+export async function steerHunt(huntId, message) {
+  return post(`/api/v1/hunts/${encodeURIComponent(huntId)}/steer`, { message });
+}
+
 export async function sendChat(message, huntId) {
   const res = await post('/api/v1/chat', { message, ...(huntId ? { huntId } : {}) });
   if (!res.ok) return res;
