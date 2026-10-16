@@ -53,7 +53,12 @@ function clean(c) {
 }
 
 router.get('/', requireAuth, (req, res) => {
-  res.json({ ok: true, chats: readTitles(req.user.id) });
+  let wipedAt = null;
+  try {
+    const w = fs.readFileSync(path.join(dataDir(), 'chats', `${String(req.user.id)}.wipe`), 'utf8').trim();
+    if (w) wipedAt = w;
+  } catch { /* no wipe marker */ }
+  res.json({ ok: true, chats: readTitles(req.user.id), wipedAt });
 });
 
 // GET /api/v1/chats/tombstones — list of deleted chat IDs for this user.
