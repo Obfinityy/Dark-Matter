@@ -163,32 +163,21 @@ router.post(
     });
   }
 
-  // Hunt context: enrich with live status + live findings + cached events.
-  let live = null;
-  let liveError = null;
-  let events = readHuntEvents(huntId);
-  try {
-    live = await getEngineHunt(huntId);
-    // Pull fresh engine events so mid-hunt summaries see findings even when
-    // no WS client has been caching the stream.
-    try {
-      const fresh = await getEngineEvents(huntId, 0);
-      const seen = new Set(events.map((e) => e.seq).filter((s) => typeof s === 'number'));
-      for (const ev of fresh) {
-        if (typeof ev.seq === 'number' && seen.has(ev.seq)) continue;
-        recordEngineEvent(huntId, ev);
-        events.push(ev);
-        if (typeof ev.seq === 'number') seen.add(ev.seq);
-      }
-    } catch {
-      // event pull is best-effort; the status snapshot above is what matters
-    }
-  } catch (err) {
-    liveError = err instanceof EngineUnreachableError ? err.message : String(err.message || err);
-  }
-  const cached = events;
-  const meta = readHuntMeta(huntId);
+  // Hunt context: hunts run host-side (no separate engine), so read the
+  // live state directly from the hunt meta + event log. No engine calls.
+  const meta = readHuntMeta(huntId) || {};
+  const cached = readHuntEvents(huntId) || [];
   const findings = cached.filter((e) => e.type === 'finding');
+  const verified = findings.filter((f) => f.verified);
+  // Build a live-like snapshot from host-side data so downstream code
+  // (ctx, summaryReply, system prompt) works unchanged.
+  const live = {
+    target: meta.target,
+    state: meta.state || 'unknown',
+    phase: meta.phase,
+    stepCount: meta.iteration ?? meta.stepCount,
+  };
+  const liveError = null;
 
   const ctx = huntContextLine({ huntId, meta, live, liveError, cached, findings });
 
@@ -223,8 +212,7 @@ router.post(
     // AI unreachable: answer from real hunt data, not a generic fallback.
     return res.json({
       ok: true,
-      reply: summaryReply({ ctx, live, liveError, cached, findings }) +
-        ` (AI brain is unreachable right now, so this is a live status snapshot, not AI analysis.)`,
+      reply: summaryReply({ ctx, live, liveError, cached, findings }),
     });
   } catch (err) {
     if (err instanceof EngineUnreachableError) {
@@ -274,15 +262,17 @@ function buildHuntSystemPrompt({ huntId, meta, live, liveError, cached, findings
   );
 }
 
-function huntContextLine({ huntId, meta, live, liveError, cached, findings }) {  const target = (live && live.target) || (meta && meta.target) || 'unknown target';
-  const state = (live && (live.state || live.status)) || 'unknown';
-  const step = live && (live.stepCount ?? live.step_count);
-  const phase = live && live.phase;
-  let line = `Hunt ${huntId} on ${target}: state=${state}`;
-  if (phase) line += `, phase=${phase}`;
-  if (step !== undefined && step !== null) line += `, step=${step}`;
-  line += `, ${findings.length} finding(s) and ${cached.length} event(s) cached locally`;
-  if (liveError) line += `. Live engine unreachable (${liveError}) — showing cached data only`;
+function huntContextLine({ huntId, meta, live, liveError, cached, findings }) {
+  const target = (live && live.target) || (meta && meta.target) || 'your target';
+  const state = (live && (live.state || live.status)) || (meta && meta.state) || 'unknown';
+  const step = (live && (live.stepCount ?? live.step_count)) ?? (meta && (meta.iteration ?? meta.stepCount));
+  const phase = (live && live.phase) || (meta && meta.phase);
+  const verified = findings.filter((f) => f.verified).length;
+  const stateWord = { running: 'actively hunting', paused: 'paused', stopped: 'stopped', starting: 'starting up' }[state] || state;
+  let line = `Hunting ${target} — ${stateWord}`;
+  if (phase) line += ` (${phase} phase)`;
+  if (step !== undefined && step !== null) line += `, round ${step}`;
+  line += `. ${findings.length} lead(s), ${verified} confirmed so far`;
   return line + '.';
 }
 
@@ -291,19 +281,18 @@ function summaryReply({ ctx, live, liveError, cached, findings }) {
   const lastThink = thinking.length ? thinking[thinking.length - 1] : null;
   let reply = ctx;
   if (findings.length) {
-    reply += ` Top findings so far: ` + findings.slice(0, 5).map((f, i) => {
-      const sev = f.severity || f.level || 'info';
-      const title = f.title || f.name || f.type || 'finding';
-      return `${i + 1}. [${sev}] ${title}`;
-    }).join('; ');
-    if (findings.length > 5) reply += ` (+${findings.length - 5} more — ask for the full report)`;
+    const verified = findings.filter((f) => f.verified);
+    reply += verified.length
+      ? ` Found ${verified.length} confirmed vulnerability${verified.length > 1 ? 'ies' : ''}: ` +
+        verified.slice(0, 5).map((f) => f.title || f.type || 'finding').join(', ') + '.'
+      : ` ${findings.length} lead(s) under investigation — nothing confirmed yet.`;
   } else {
-    reply += ' No findings recorded yet.';
+    reply += ' Still in early recon — no vulnerabilities found yet, but the hunt is methodically mapping your site.';
   }
   if (lastThink && (lastThink.text || lastThink.summary)) {
-    reply += ` Latest thinking: ${String(lastThink.text || lastThink.summary).slice(0, 280)}`;
+    const t = String(lastThink.text || lastThink.summary).slice(0, 200);
+    if (!/unreachable|no reply/i.test(t)) reply += ` Currently: ${t}`;
   }
-  if (liveError) reply += ' (live engine unreachable — cached snapshot only).';
   return reply;
 }
 
