@@ -134,7 +134,20 @@ export async function teardownHuntContainer(huntId) {
  */
 export async function execInHuntContainer(huntId, cmd, timeoutMs = 120000) {
   const name = containerName(huntId);
-  
+
+  // FIX #21: Verify container exists before executing.
+  // If container is missing (destroyed on pause, crashed, etc.),
+  // return a specific error so the caller can respawn it.
+  const running = await huntContainerRunning(huntId);
+  if (!running) {
+    return {
+      stdout: '',
+      stderr: 'DM_CONTAINER_MISSING: hunt container not running',
+      code: 127,
+      containerMissing: true,
+    };
+  }
+
   // Try tmux-routed execution first (makes terminal PiP truthful).
   // Falls back to direct exec if tmux isn't available (old image).
   const tmuxResult = await execViaTmux(name, cmd, timeoutMs);
