@@ -621,6 +621,13 @@ function AppInner() {
             onRecordHunt={recordHunt}
             onUpdateHunt={updateHunt}
             onOpenReports={openReports}
+            onOpenHuntChat={(huntId) => {
+              // Find the chat containing this hunt and navigate to it
+              const found = chats.find((c) =>
+                (c.messages || []).some((m) => m.role === 'hunt' && m.hunt && m.hunt.huntId === huntId)
+              );
+              if (found) setActiveChatId(found.id);
+            }}
             huntModalTrigger={huntModalTrigger}
           />
         )}

@@ -24,6 +24,7 @@ export default function ChatPage({
   onRecordHunt,
   onUpdateHunt,
   onOpenReports,
+  onOpenHuntChat,
   huntModalTrigger,
 }) {
   const { user } = useAuth();
@@ -171,6 +172,20 @@ export default function ChatPage({
 
   async function handleStartHunt(target, scope, mode, confirmed) {
     if (!ensureHuntAuth()) return;
+    // Dedup: if a hunt already exists for this target, go to its chat instead.
+    try {
+      const { listHunts } = await import('../lib/api');
+      const hr = await listHunts();
+      const hunts = (hr && hr.data && hr.data.hunts) || [];
+      const norm = (t) => String(t || '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+      const existing = hunts.find((h) => norm(h.target) === norm(target) && ['running', 'paused', 'starting'].includes(h.state));
+      if (existing) {
+        toast(`Hunt already exists for ${target} — opening it.`, 'info');
+        // Find the chat for this hunt and navigate to it
+        if (typeof onOpenHuntChat === 'function') onOpenHuntChat(existing.huntId);
+        return;
+      }
+    } catch { /* best-effort, proceed to create */ }
     const chatId = chat ? chat.id : onNewChat();
     setLaunching(true);
     const res = await startHunt(target, scope, mode, confirmed);
