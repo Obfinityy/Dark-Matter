@@ -112,6 +112,27 @@ function finding(huntId, f) {
   appendHuntEvent(huntId, { type: 'finding', ...f });
 }
 
+/**
+ * FIX #21: Execute in container with auto-respawn.
+ * If the container is missing (destroyed on pause, crashed, etc.),
+ * respawn it automatically and retry the command once.
+ */
+async function execWithRespawn(huntId, target, mode, cmd, timeoutMs = 120000) {
+  let result = await execInHuntContainer(huntId, cmd, timeoutMs);
+  if (result.containerMissing) {
+    think(huntId, 'Hunt container missing — respawning automatically.');
+    try {
+      const { container } = await spawnHuntContainer(huntId, target, { mode });
+      appendHuntEvent(huntId, { type: 'status', state: 'container_respawned', container });
+      // Retry the command once after respawn
+      result = await execInHuntContainer(huntId, cmd, timeoutMs);
+    } catch (err) {
+      think(huntId, `Container respawn failed: ${err.message}`);
+    }
+  }
+  return result;
+}
+
 function isStopped(huntId) {
   try {
     const meta = readHuntMeta(huntId);
