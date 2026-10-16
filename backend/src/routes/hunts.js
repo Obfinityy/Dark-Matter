@@ -52,11 +52,15 @@ function requireHuntOwner(req, res) {
     return null;
   }
   if (!meta.userId) {
-    // Legacy hunts (created before user tracking): allow any authenticated
-    // user to access. These are shared/old hunts, not admin-only.
+    // FIX #128: Legacy hunts without userId — require admin, not any user.
+    // Previously allowed any authenticated user (IDOR risk).
+    if (req.user.role !== 'admin') {
+      res.status(403).json({ ok: false, error: 'forbidden' });
+      return null;
+    }
     return meta;
   }
-  if (meta.userId !== req.user.id) {
+  if (meta.userId !== req.user.id && req.user.role !== 'admin') {
     res.status(403).json({ ok: false, error: 'forbidden' });
     return null;
   }
