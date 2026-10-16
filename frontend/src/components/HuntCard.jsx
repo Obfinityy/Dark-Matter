@@ -94,7 +94,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
           .map((e) => ({
             kind: e.type === 'tool_call' ? 'tool' : 'thinking',
             text: e.text || e.message || e.detail || '',
-            at: e.at ? new Date(e.at).getTime() : Date.now(),
+            at: (e.at || e.cachedAt) ? new Date(e.at || e.cachedAt).getTime() : Date.now(),
           }))
           .filter((l) => l.text);
         if (mapped.length) setLogs(mapped.slice(-99));
