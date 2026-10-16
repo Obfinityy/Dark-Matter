@@ -292,19 +292,67 @@ router.get('/hunts/:id/memory', requireAdmin, async (req, res) => {
     const events = readHuntEvents(huntId);
     const intel = readTargetIntel(meta.target || '');
     const findings = events.filter((e) => e.type === 'finding');
+    // HUMAN-LIKE MEMORY: weave events into a chronological narrative of
+    // what the hunter thought, did, observed, and concluded — like a human
+    // recalling the hunt, not a machine log.
+    const narrative = [];
+    let current = null;
+    const pushCurrent = () => { if (current && (current.thought || current.action)) narrative.push(current); current = null; };
+    for (const e of events) {
+      const at = e.at || e.cachedAt || null;
+      if (e.type === 'thinking') {
+        const text = (e.text || '').trim();
+        if (!text) continue;
+        // A new thought starts a new episode, unless it's a direct follow-up
+        if (current && current.conclusion) pushCurrent();
+        if (!current) current = { at, thought: null, action: null, observation: null, conclusion: null };
+        if (/verifying|re-running/i.test(text)) {
+          current.conclusion = (current.conclusion ? current.conclusion + ' ' : '') + text.slice(0, 300);
+        } else if (/not confirmed|one-off anomaly|no vulnerability|no issue/i.test(text)) {
+          current.conclusion = (current.conclusion ? current.conclusion + ' ' : '') + text.slice(0, 300);
+        } else if (!current.thought) {
+          current.thought = text.slice(0, 500);
+        } else {
+          current.observation = (current.observation ? current.observation + ' ' : '') + text.slice(0, 300);
+        }
+      } else if (e.type === 'tool_call') {
+        if (!current) current = { at, thought: null, action: null, observation: null, conclusion: null };
+        const detail = e.detail || e.tool || '';
+        current.action = (current.action ? current.action + '; ' : '') + String(detail).slice(0, 300);
+      } else if (e.type === 'finding') {
+        pushCurrent();
+        narrative.push({
+          at, thought: `I believe I found something: ${e.title}`,
+          action: `Evidence: ${JSON.stringify(e.evidence || {}).slice(0, 300)}`,
+          observation: null,
+          conclusion: e.verified ? `CONFIRMED vulnerability (${e.severity}).` : 'Not yet verified — treating as a lead, not a vulnerability.',
+        });
+      } else if (e.type === 'steer') {
+        pushCurrent();
+        narrative.push({ at, thought: `The human told me: "${(e.message || '').slice(0, 300)}"`, action: null, observation: null, conclusion: 'I will follow this instruction.' });
+      } else if (e.type === 'status' && /paused|resumed|stopped|finished/i.test(e.state || '')) {
+        pushCurrent();
+        narrative.push({ at, thought: null, action: null, observation: null, conclusion: `Hunt ${e.state}${e.reason ? ` (${e.reason})` : ''}.` });
+      }
+    }
+    pushCurrent();
+
     const memory = {
       huntId,
       exportedAt: new Date().toISOString(),
-      meta: { ...meta, container: undefined },
+      target: meta.target,
+      summary: {
+        state: meta.state,
+        totalThoughts: narrative.length,
+        findings: findings.length,
+        verified: findings.filter((f) => f.verified).length,
+      },
       targetIntel: intel,
-      findingCount: findings.length,
+      // The hunter's memory, as a human would recall it
+      memory: narrative.slice(-200),
       findings: findings.map((f) => ({
         title: f.title, severity: f.severity, verified: !!f.verified,
         at: f.at || f.cachedAt || null,
-      })),
-      recentEvents: events.slice(-100).map((e) => ({
-        type: e.type, text: (e.text || '').slice(0, 300),
-        state: e.state || null, at: e.at || e.cachedAt || null,
       })),
     };
     res.setHeader('Content-Type', 'application/json');
