@@ -224,7 +224,13 @@ function AppInner() {
               if (m.role === 'hunt' && m.hunt && m.hunt.huntId) known.add(m.hunt.huntId);
             })
           );
-          const missing = res.data.hunts.filter((h) => h && h.huntId && !known.has(h.huntId));
+          // Respect user deletions: don't restore chats for hunts whose chat was deleted.
+          let deletedHuntIds = new Set();
+          try {
+            const raw = localStorage.getItem(`dm.deletedHunts.${user.id}`);
+            if (raw) deletedHuntIds = new Set(JSON.parse(raw));
+          } catch { /* none */ }
+          const missing = res.data.hunts.filter((h) => h && h.huntId && !known.has(h.huntId) && !deletedHuntIds.has(h.huntId));
           if (missing.length === 0) return prev;
           const restored = missing.map((h) => ({
             id: uid(),
@@ -454,6 +460,18 @@ function AppInner() {
         syncChatTitles([], [tombstone]).catch(() => {});
       });
       setChats((prev) => {
+        // If this was a hunt chat, record the hunt ID so auto-restore doesn't bring it back.
+        const doomed = prev.find((c) => c.id === chatId);
+        const huntMsg = doomed && doomed.messages && doomed.messages.find((m) => m.role === 'hunt' && m.hunt && m.hunt.huntId);
+        if (huntMsg) {
+          try {
+            const hk = `dm.deletedHunts.${user?.id || 'anon'}`;
+            const hraw = localStorage.getItem(hk);
+            const harr = hraw ? JSON.parse(hraw) : [];
+            harr.push(huntMsg.hunt.huntId);
+            localStorage.setItem(hk, JSON.stringify(harr.slice(-200)));
+          } catch { /* best-effort */ }
+        }
         const next = prev.filter((c) => c.id !== chatId);
         if (chatId === activeChatId) {
           setActiveChatId(next.length > 0 ? next[0].id : null);
