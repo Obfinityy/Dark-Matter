@@ -84,6 +84,7 @@ function getBedrockConfig() {
 export function aiAvailable() {
   if (PROVIDER === 'ollama') return true; // endpoint is probed on first real call
   if (PROVIDER === 'openrouter') return !!process.env.OPENROUTER_API_KEY;
+  if (PROVIDER === 'kaggle') return !!process.env.KAGGLE_GRADIO_URL;
   return getBedrockConfig() !== null;
 }
 
@@ -299,7 +300,62 @@ export async function chatWithAI(messages, system, ctx) {
   if (PROVIDER === 'ollama') return chatWithOllama(messages, system, ctx);
   if (PROVIDER === 'sagemaker') return chatWithSageMaker(messages, system, ctx);
   if (PROVIDER === 'openrouter') return chatWithOpenRouter(messages, system, ctx);
+  if (PROVIDER === 'kaggle') return chatWithKaggle(messages, system, ctx);
   return chatWithBedrock(messages, system, ctx);
+}
+
+/**
+ * Kaggle GPU — Gradio interface to uncensored Dolphin model on free Kaggle GPU.
+ * Set KAGGLE_GRADIO_URL to the public Gradio share URL (e.g. https://xxx.gradio.live).
+ * No rate limits, no censorship, $0.
+ */
+async function chatWithKaggle(messages, system, ctx) {
+  const baseUrl = (process.env.KAGGLE_GRADIO_URL || '').replace(/\/$/, '');
+  if (!baseUrl) {
+    console.error('[llm] Kaggle Gradio URL not configured (KAGGLE_GRADIO_URL)');
+    return null;
+  }
+  const clean = (t) => sanitizeForModel(String(t || ''));
+  const gradioMessages = (messages || []).map((m) => ({
+    role: m.role === 'assistant' ? 'assistant' : 'user',
+    content: clean(m.text).slice(0, 8000),
+  }));
+  try {
+    const res = await fetch(`${baseUrl}/gradio_api/call/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: [gradioMessages, clean(system || '').slice(0, 8000)] }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) {
+      console.error(`[llm] Kaggle submit HTTP ${res.status}`);
+      return null;
+    }
+    const { event_id } = await res.json();
+    // Poll the event stream for the result (Gradio 4/5 SSE format)
+    for (let i = 0; i < 90; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const r2 = await fetch(`${baseUrl}/gradio_api/call/chat/${event_id}`, {
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!r2.ok) continue;
+      const text = await r2.text();
+      // Look for: event: complete\ndata: ["..."]
+      const m = text.match(/data:\s*(\[.*\])/s);
+      if (m) {
+        try {
+          const arr = JSON.parse(m[1]);
+          if (arr && arr[0]) return String(arr[0]).slice(0, 8000).trim() || null;
+        } catch { /* keep polling */ }
+      }
+      if (/event:\s*complete/.test(text) && !m) return null;
+    }
+    console.error('[llm] Kaggle poll timed out');
+    return null;
+  } catch (err) {
+    console.error('[llm] Kaggle error:', err.message);
+    return null;
+  }
 }
 
 /**
