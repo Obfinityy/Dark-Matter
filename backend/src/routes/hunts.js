@@ -112,6 +112,27 @@ router.post('/', requireAuth, async (req, res) => {
         'to confirm you own or are permitted to test this target.',
     });
   }
+  // FIX #154: SSRF protection — block private/internal IPs.
+  try {
+    const { validateTargetSSRF } = await import('../scopeParser.js');
+    const ssrfCheck = validateTargetSSRF(target);
+    if (!ssrfCheck.valid) {
+      console.warn(`[hunts] REJECTED create: SSRF blocked for target "${target}": ${ssrfCheck.reason}`);
+      return res.status(403).json({
+        ok: false,
+        error: 'ssrf_blocked',
+        message: ssrfCheck.reason,
+      });
+    }
+  } catch (err) {
+    console.error('[hunts] SSRF check failed:', err.message);
+    // Fail closed on SSRF check error
+    return res.status(500).json({
+      ok: false,
+      error: 'validation_error',
+      message: 'Target validation failed. Please try again.',
+    });
+  }
   // Allowlist REMOVED (15 Oct 2026, owner order): all accounts are manually
   // created by the owner (invite-only, trusted users). The explicit
   // authorization checkbox (confirmedAuthorized) is sufficient — no

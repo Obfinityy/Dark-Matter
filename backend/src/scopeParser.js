@@ -117,3 +117,66 @@ export function isInScope(url, parsedScope) {
 export function getHuntUserAgent(parsedScope) {
   return parsedScope?.rules?.customUserAgent || 'DarkMatter-Hunt/1.0 (bug-bounty; authorized)';
 }
+
+/**
+ * FIX #154: Check if an IP address is private/internal (SSRF protection).
+ * Blocks: 10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x (cloud metadata), 0.0.0.0
+ */
+export function isPrivateIP(ip) {
+  if (!ip || typeof ip !== 'string') return false;
+  const parts = ip.split('.').map(Number);
+  if (parts.length !== 4 || parts.some(isNaN)) {
+    // IPv6 or invalid — check common private patterns
+    const lower = ip.toLowerCase();
+    if (lower === 'localhost' || lower.startsWith('::1') || lower.startsWith('fc') || lower.startsWith('fd')) return true;
+    return false;
+  }
+  const [a, b] = parts;
+  // 10.0.0.0/8
+  if (a === 10) return true;
+  // 172.16.0.0/12
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  // 192.168.0.0/16
+  if (a === 192 && b === 168) return true;
+  // 127.0.0.0/8 (loopback)
+  if (a === 127) return true;
+  // 169.254.0.0/16 (link-local, cloud metadata)
+  if (a === 169 && b === 254) return true;
+  // 0.0.0.0/8
+  if (a === 0) return true;
+  return false;
+}
+
+/**
+ * FIX #154: Validate target URL against SSRF.
+ * Returns { valid: true } or { valid: false, reason }.
+ * This is a synchronous check — for DNS resolution, use validateTargetAsync.
+ */
+export function validateTargetSSRF(target) {
+  try {
+    const urlStr = target.includes('://') ? target : `https://${target}`;
+    const u = new URL(urlStr);
+    const hostname = u.hostname.toLowerCase();
+
+    // Block localhost variants
+    if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
+      return { valid: false, reason: 'Target is localhost (SSRF blocked)' };
+    }
+
+    // If hostname is already an IP, check directly
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+      if (isPrivateIP(hostname)) {
+        return { valid: false, reason: `Target IP ${hostname} is private/internal (SSRF blocked)` };
+      }
+    }
+
+    // Block cloud metadata hostnames
+    if (hostname === '169.254.169.254' || hostname === 'metadata.google.internal') {
+      return { valid: false, reason: 'Cloud metadata endpoint blocked (SSRF)' };
+    }
+
+    return { valid: true };
+  } catch {
+    return { valid: false, reason: 'Invalid target URL' };
+  }
+}
