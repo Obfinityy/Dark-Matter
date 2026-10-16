@@ -109,6 +109,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
       if (cancelled || !r.ok) return;
       const found = (r.data.hunts || []).find((h) => h.huntId === hunt.huntId);
       if (found && found.createdAt) setResolvedCreatedAt(found.createdAt);
+      if (found && found.status && found.status !== status) setStatus(found.status);
     });
     return () => { cancelled = true; };
   }, [hunt.huntId]);
