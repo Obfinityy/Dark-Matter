@@ -251,12 +251,38 @@ async function reconPhase(huntId, target) {
       recon.toolChain = chain;
       think(huntId, `My attack plan has ${chain.length} targeted steps based on what I found.`);
       
-      appendHuntEvent(huntId, { 
-        type: 'recon_intel', 
-        techs: detection.techs, 
+      appendHuntEvent(huntId, {
+        type: 'recon_intel',
+        techs: detection.techs,
         database: detection.database,
         chainSteps: chain.length,
       });
+
+      // FIX #40: Web search for CVEs on detected technologies.
+      // Trigger only when we have concrete tech names to avoid noise.
+      if (detection.techs && detection.techs.length > 0) {
+        try {
+          const topTech = detection.techs.slice(0, 2);
+          think(huntId, `Searching for known vulnerabilities in: ${topTech.join(', ')}`);
+          const cveResults = [];
+          for (const tech of topTech) {
+            const results = await searchCVE(tech, '');
+            cveResults.push(...results.slice(0, 2));
+          }
+          if (cveResults.length > 0) {
+            recon.cveIntel = cveResults;
+            think(huntId, `Found ${cveResults.length} relevant CVE references.`);
+            appendHuntEvent(huntId, {
+              type: 'cve_intel',
+              techs: topTech,
+              results: cveResults.map(r => ({ title: r.title, url: r.url })),
+            });
+          }
+        } catch (err) {
+          // Web search is best-effort, never blocks the hunt
+          console.error('[hunt] CVE search failed:', err.message);
+        }
+      }
     } catch (err) {
       console.error('[hunt] tech detection failed:', err.message);
     }
