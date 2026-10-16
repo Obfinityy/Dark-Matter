@@ -325,7 +325,7 @@ async function chatWithKaggle(messages, system, ctx) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: [gradioMessages, clean(system || '').slice(0, 8000)] }),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(60000),
     });
     if (!res.ok) {
       console.error(`[llm] Kaggle submit HTTP ${res.status}`);
@@ -336,7 +336,7 @@ async function chatWithKaggle(messages, system, ctx) {
     for (let i = 0; i < 90; i++) {
       await new Promise((r) => setTimeout(r, 2000));
       const r2 = await fetch(`${baseUrl}/gradio_api/call/chat/${event_id}`, {
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(30000),
       });
       if (!r2.ok) continue;
       const text = await r2.text();
