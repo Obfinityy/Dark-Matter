@@ -250,6 +250,37 @@ async function chatWithOpenRouter(messages, system, ctx) {
       }),
       signal: AbortSignal.timeout(120000),
     });
+    if (res.status === 429) {
+      // Rate limited — wait and retry once
+      const retryAfter = parseInt(res.headers.get('retry-after') || '5', 10);
+      console.log(`[llm] OpenRouter rate limited, waiting ${retryAfter}s...`);
+      await new Promise((r) => setTimeout(r, retryAfter * 1000));
+      // Retry once
+      const retryRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://hack.thebhavesh.online',
+          'X-Title': 'Dark Matter Hunt AI',
+        },
+        body: JSON.stringify({
+          model,
+          messages: orMessages,
+          max_tokens: 600,
+          temperature: 0.7,
+        }),
+        signal: AbortSignal.timeout(120000),
+      });
+      if (!retryRes.ok) {
+        console.error(`[llm] OpenRouter retry HTTP ${retryRes.status}`);
+        return null;
+      }
+      const retryData = await retryRes.json();
+      const retryText = retryData.choices && retryData.choices[0] && retryData.choices[0].message
+        ? retryData.choices[0].message.content : null;
+      return (retryText || '').trim() || null;
+    }
     if (!res.ok) {
       console.error(`[llm] OpenRouter HTTP ${res.status}`);
       return null;
