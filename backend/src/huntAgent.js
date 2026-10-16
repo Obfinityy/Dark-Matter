@@ -33,6 +33,7 @@ import { chatWithAI, aiAvailable } from './llm.js';
 import { generateHypotheses, formatHypothesesForPrompt, scoreInterestingness } from './curiosity.js';
 import { recordReasoning, formatReasoningForPrompt } from './reasoningMemory.js';
 import { webSearch, searchCVE } from './webSearch.js';
+import { runBrowserTask, crawlScript } from './browserAgent.js';
 import { getHuntCost } from './costTracker.js';
 import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel } from './store.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
@@ -176,6 +177,28 @@ async function reconPhase(huntId, target) {
       recon.ports.push({ port: m[1], service: m[2] });
       appendHuntEvent(huntId, { type: 'tool_call', tool: 'nmap', detail: `open ${m[1]}/${m[2]}` });
     }
+  }
+
+  // BROWSER EXPLORATION: use the site like a human would.
+  // A human hunter doesn't just curl — they click, fill forms, observe.
+  try {
+    think(huntId, 'Exploring the site in a real browser like a human would.');
+    const browserResult = await runBrowserTask(huntId, crawlScript(target), 45000);
+    if (browserResult && browserResult.result) {
+      const { forms, links } = browserResult.result;
+      think(huntId, `Browser found ${forms.length} forms and ${links.length} links.`);
+      // Add discovered endpoints from browser
+      for (const link of links.slice(0, 20)) {
+        if (link.startsWith(target) && !recon.endpoints.includes(link)) {
+          recon.endpoints.push(link);
+        }
+      }
+      // Record forms for later testing
+      recon.forms = forms;
+      appendHuntEvent(huntId, { type: 'tool_call', tool: 'browser', detail: `explored: ${forms.length} forms, ${links.length} links` });
+    }
+  } catch (err) {
+    think(huntId, 'Browser exploration failed, continuing with standard recon.');
   }
 
   // Fetch homepage HTML for JS mining + profiling + TECH DETECTION
