@@ -2,7 +2,7 @@
 // Status line ("Hunting <target>…"), expandable event feed, findings stream,
 // and Pause/Resume/Stop pill buttons. All stream/control logic unchanged.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { pauseHunt, resumeHunt, stopHunt, getHuntCost, steerHunt } from '../lib/api';
+import { pauseHunt, resumeHunt, stopHunt, getHuntCost, steerHunt, listHunts } from '../lib/api';
 import { HuntStreamClient, createSimulatedStream, isDemoMode } from '../lib/huntStream';
 import { toast } from '../lib/toast';
 
@@ -80,6 +80,38 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
   const [busy, setBusy] = useState(false);
   const [streamError, setStreamError] = useState(false);
   const [showFeed, setShowFeed] = useState(true);
+  const [resolvedCreatedAt, setResolvedCreatedAt] = useState(hunt.createdAt || null);
+  // Load historical events for real timestamps on existing log lines
+  useEffect(() => {
+    let cancelled = false;
+    import('../lib/api').then(({ getHuntEvents }) =>
+      getHuntEvents(hunt.huntId, 200).then((r) => {
+        if (cancelled || !r.ok || !r.data) return;
+        const evts = r.data.events || r.data || [];
+        if (!Array.isArray(evts) || evts.length === 0) return;
+        const mapped = evts
+          .filter((e) => e.type === 'thinking' || e.type === 'tool_call')
+          .map((e) => ({
+            kind: e.type === 'tool_call' ? 'tool' : 'thinking',
+            text: e.text || e.message || e.detail || '',
+            at: e.at ? new Date(e.at).getTime() : Date.now(),
+          }))
+          .filter((l) => l.text);
+        if (mapped.length) setLogs(mapped.slice(-99));
+      }).catch(() => {})
+    );
+    return () => { cancelled = true; };
+  }, [hunt.huntId]);
+  useEffect(() => {
+    if (hunt.createdAt) { setResolvedCreatedAt(hunt.createdAt); return; }
+    let cancelled = false;
+    listHunts().then((r) => {
+      if (cancelled || !r.ok) return;
+      const found = (r.data.hunts || []).find((h) => h.huntId === hunt.huntId);
+      if (found && found.createdAt) setResolvedCreatedAt(found.createdAt);
+    });
+    return () => { cancelled = true; };
+  }, [hunt.huntId]);
   const [steerMsg, setSteerMsg] = useState('');
   const [steerSent, setSteerSent] = useState(false);
   const [steerBusy, setSteerBusy] = useState(false);
@@ -94,7 +126,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
     return () => clearInterval(t);
   }, [isTerminal]);
   // Elapsed HH:MM:SS since hunt start, for log timestamps.
-  const huntStartMs = new Date(hunt.createdAt || Date.now()).getTime();
+  const huntStartMs = new Date(resolvedCreatedAt || Date.now()).getTime();
   function elapsedStamp(at) {
     const ms = Math.max(0, (at || Date.now()) - huntStartMs);
     const s = Math.floor(ms / 1000);
