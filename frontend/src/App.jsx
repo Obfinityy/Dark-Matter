@@ -14,7 +14,7 @@ import ToastHost from './components/ToastHost';
 import { AuthProvider, useAuth } from './lib/auth';
 
 const CHATS_KEY = 'dm.chats';
-const CHAT_WIPE_VERSION = '2026-10-16-wipe1';
+const CHAT_WIPE_VERSION = '2026-10-16-wipe2';
 (function wipeStaleChatsOnce() {
   try {
     if (localStorage.getItem('dm.chatWipe') === CHAT_WIPE_VERSION) return;
@@ -24,6 +24,13 @@ const CHAT_WIPE_VERSION = '2026-10-16-wipe1';
       if (k && k.startsWith(CHATS_KEY)) keys.push(k);
     }
     keys.forEach((k) => localStorage.removeItem(k));
+    // Also clear per-user deleted-chat tracking so resurrected IDs can't return.
+    const delKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('dm.deleted.')) delKeys.push(k);
+    }
+    delKeys.forEach((k) => localStorage.removeItem(k));
     localStorage.setItem('dm.chatWipe', CHAT_WIPE_VERSION);
   } catch { /* never break app load */ }
 })();
@@ -257,20 +264,6 @@ function AppInner() {
         const { getChatTitles } = await import('./lib/api');
         const res = await getChatTitles();
         if (cancelled || !res.ok || !res.data || !Array.isArray(res.data.chats)) return;
-        // Authoritative wipe: if backend was wiped after local chats were created,
-        // drop all local chats — backend is the source of truth.
-        const wipedAt = res.data.wipedAt;
-        if (wipedAt) {
-          const lastWipeSeen = localStorage.getItem('dm.lastWipeSeen');
-          if (!lastWipeSeen || String(wipedAt) > String(lastWipeSeen)) {
-            setChats([]);
-            try {
-              localStorage.removeItem(chatsKeyFor(user));
-              localStorage.setItem('dm.lastWipeSeen', String(wipedAt));
-            } catch { /* never break */ }
-            return;
-          }
-        }
         const remote = new Map(res.data.chats.map((c) => [c.id, c]));
         // Only ADD new remote chats and UPDATE titles — never remove local chats here.
         // Apply backend tombstones: filter out any local chat the backend says is deleted.
