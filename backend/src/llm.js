@@ -12,6 +12,10 @@
 //                                    For larger models (32B+) that don't fit
 //                                    on the EC2 box. Pay-per-use, scales to
 //                                    zero. Set SAGEMAKER_ENDPOINT_NAME.
+//   LLM_PROVIDER=openrouter          — OpenRouter API (OpenAI-compatible).
+//                                    Fast GPU inference, $0 on free-tier
+//                                    models. Set OPENROUTER_API_KEY and
+//                                    optionally OPENROUTER_MODEL.
 //
 // When the configured provider is unavailable, chatWithAI returns null and
 // the caller falls back to deterministic steering (pause/resume/stop) plus
@@ -79,6 +83,7 @@ function getBedrockConfig() {
 /** True when the configured AI backend is available for chat. */
 export function aiAvailable() {
   if (PROVIDER === 'ollama') return true; // endpoint is probed on first real call
+  if (PROVIDER === 'openrouter') return !!process.env.OPENROUTER_API_KEY;
   return getBedrockConfig() !== null;
 }
 
@@ -206,9 +211,62 @@ async function chatWithOllama(messages, system, ctx) {
  * @param {{userId?: string, huntId?: string}} ctx — for cost tracking
  * @returns {Promise<string|null>} reply text, or null if no AI is configured.
  */
+/**
+ * OpenRouter — OpenAI-compatible API for fast GPU inference.
+ * Uses free-tier uncensored models by default ($0). Set OPENROUTER_MODEL
+ * to override. API key from OPENROUTER_API_KEY env.
+ */
+async function chatWithOpenRouter(messages, system, ctx) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    console.error('[llm] OpenRouter API key not configured (OPENROUTER_API_KEY)');
+    return null;
+  }
+  const model = process.env.OPENROUTER_MODEL || 'cognitivecomputations/dolphin-mistral-24b-venice-edition:free';
+  const clean = (t) => sanitizeForModel(String(t || ''));
+  const orMessages = [];
+  if (system) orMessages.push({ role: 'system', content: clean(system).slice(0, 8000) });
+  for (const m of messages || []) {
+    orMessages.push({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: clean(m.text).slice(0, 8000),
+    });
+  }
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://hack.thebhavesh.online',
+        'X-Title': 'Dark Matter Hunt AI',
+      },
+      body: JSON.stringify({
+        model,
+        messages: orMessages,
+        max_tokens: 600,
+        temperature: 0.7,
+      }),
+      signal: AbortSignal.timeout(120000),
+    });
+    if (!res.ok) {
+      console.error(`[llm] OpenRouter HTTP ${res.status}`);
+      return null;
+    }
+    const data = await res.json();
+    const text = data.choices && data.choices[0] && data.choices[0].message
+      ? data.choices[0].message.content : null;
+    return (text || '').trim() || null;
+  } catch (err) {
+    console.error('[llm] OpenRouter error:', err.message);
+    return null;
+  }
+}
+
 export async function chatWithAI(messages, system, ctx) {
   if (PROVIDER === 'ollama') return chatWithOllama(messages, system, ctx);
   if (PROVIDER === 'sagemaker') return chatWithSageMaker(messages, system, ctx);
+  if (PROVIDER === 'openrouter') return chatWithOpenRouter(messages, system, ctx);
   return chatWithBedrock(messages, system, ctx);
 }
 
