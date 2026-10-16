@@ -640,3 +640,187 @@ When the infrastructure works, the combination exceeds what any single human can
 *End of Human Blueprint section.*
 *Total document lines: ~700*
 *Next: implement Phase 1 (container lifecycle) and re-test.*
+
+---
+
+## N. 100+ Reasons Dark Matter Cannot Yet Replace an Elite Human Hunter
+
+*Honest assessment. Every reason is a specific gap, not a vague concern.*
+
+### N.1 Reasoning & Intelligence Gaps (1-20)
+
+1. **No genuine discovery demonstrated** — All tests provided the vulnerability in the prompt. Never found a bug blind.
+2. **Classification ≠ discovery** — Identifying IDOR from a description is not the same as finding it in a real app.
+3. **8B model is the minimum** — 1.5B and 3B models failed basic reasoning. No margin for harder problems.
+4. **No abstract reasoning** — Cannot reason about novel vulnerability classes not in training data.
+5. **Context window too small** — 2048 tokens cannot hold a full application map plus reasoning.
+6. **No multi-step planning** — Plans one test at a time, not full attack campaigns.
+7. **Brittle to prompt variations** — Small prompt changes cause large output variance.
+8. **Cannot explain its reasoning** — Outputs conclusions without showing the logical chain.
+9. **No counterfactual thinking** — Doesn't ask "what if this assumption is wrong?"
+10. **Hallucinates endpoints** — May invent URLs that don't exist instead of discovering real ones.
+11. **No probabilistic reasoning** — Treats all hypotheses as equally likely, no Bayesian updating.
+12. **Cannot handle ambiguity** — When evidence is unclear, it guesses instead of investigating further.
+13. **No meta-cognition** — Doesn't know when it doesn't know. No "I'm uncertain" signal.
+14. **Single perspective** — Cannot simultaneously consider attacker, defender, and user viewpoints.
+15. **No creative leaps** — Chain engine uses predefined equations, doesn't invent novel chains.
+16. **Pattern matching, not understanding** — Matches "MongoDB" → "$ne" from training, doesn't understand why.
+17. **Cannot learn from natural language** — Won't improve from reading a blog post about a new technique.
+18. **No intuition** — Humans get "gut feelings" from experience. AI has no equivalent.
+19. **Overfits to prompt** — If prompt mentions IDOR, it finds IDOR (confirmation bias).
+20. **Cannot question its own assumptions** — Never asks "am I testing the right thing?"
+
+### N.2 Technical Capability Gaps (21-40)
+
+21. **Docker container missing** — 20/27 findings failed: "No such container". Tools cannot execute.
+22. **No JavaScript rendering** — Cannot test SPAs that require JS execution for content.
+23. **No authenticated testing** — Cannot log in and test as different user roles automatically.
+24. **No session handling** — Doesn't maintain cookies/tokens across requests properly.
+25. **No CSRF token handling** — Cannot extract and reuse anti-CSRF tokens in test requests.
+26. **No file upload testing** — Cannot test malicious file uploads (polyglots, etc.).
+27. **No WebSocket testing** — Cannot test real-time communication vulnerabilities.
+28. **No API schema inference** — Cannot auto-discover GraphQL/REST API structure.
+29. **No mobile testing** — Cannot test mobile apps or APIs.
+30. **No binary analysis** — Cannot reverse-engineer compiled code.
+31. **Limited protocol support** — HTTP only. No FTP, SMTP, DNS, LDAP testing.
+32. **No network-layer testing** — Cannot test firewall rules, network segmentation.
+33. **No cloud testing** — Cannot test AWS/GCP/Azure misconfigurations.
+34. **No container testing** — Cannot test Docker/K8s vulnerabilities.
+35. **Playbooks are stubs** — XSS/SQLi/redirect playbooks return empty arrays.
+36. **No custom tool development** — Cannot write a new tool when existing ones fail.
+37. **No exploit development** — Cannot craft custom exploits for novel vulnerabilities.
+38. **Browser automation is basic** — Playwright via exec, not integrated with hunt loop.
+39. **No proxy integration** — mitmproxy installed but not connected to hunt flow.
+40. **Web search not triggered** — Imported but never called. Cannot look up CVEs.
+
+### N.3 Verification & Proof Gaps (41-60)
+
+41. **0/27 verified** — Zero confirmed vulnerabilities in live testing.
+42. **No PoC generation** — `generatePoC()` exists but rarely produces working exploits.
+43. **Cannot prove impact** — Finds reflection but cannot demonstrate data exfiltration.
+44. **No blind testing** — Cannot do time-based blind SQLi (requires precise timing).
+45. **No out-of-band testing** — Cannot use DNS/collaborator for blind SSRF/XSS.
+46. **False negatives unknown** — No measurement of vulnerabilities missed.
+47. **No differential testing** — Doesn't compare authenticated vs unauthenticated responses systematically.
+48. **Cannot handle WAFs** — No WAF detection or bypass techniques.
+49. **No encoding awareness** — Doesn't try URL encoding, double encoding, Unicode tricks.
+50. **Single payload per test** — Humans try 10 variants. Agent tries 1.
+51. **No manual verification** — Cannot do what a human does: "let me try this manually in Burp."
+52. **Evidence is shallow** — Captures HTTP status, not full response analysis.
+53. **No screenshot evidence** — Cannot prove XSS visually.
+54. **No video proof** — Cannot record exploit chain.
+55. **Timing attacks unreliable** — 1.8 t/s model cannot do precise timing measurements.
+56. **Race conditions untestable** — Cannot send parallel requests with microsecond precision.
+57. **No cryptographic testing** — Cannot test JWT weaknesses, crypto flaws.
+58. **Business logic is shallow** — 21 modules queued but not deeply tested.
+59. **No chaining verified** — Chain engine theorizes but never proved a chain works.
+60. **Verification is binary** — Pass/fail, no "partially verified" or "needs manual review".
+
+### N.4 Memory & Learning Gaps (61-75)
+
+61. **Memory UNVERIFIED** — `recordReasoning()` added but never tested live.
+62. **No retrieval proof** — Never demonstrated Hunt 2 using Hunt 1's knowledge.
+63. **No forgetting mechanism** — Cannot invalidate outdated knowledge.
+64. **No confidence scoring** — All memories treated as equally reliable.
+65. **Target isolation untested** — Might apply Target A's knowledge to Target B incorrectly.
+66. **No cross-hunt learning** — Each hunt starts from scratch.
+67. **Cannot learn from failure** — Failed tests don't improve future hypotheses.
+68. **No pattern recognition** — Doesn't notice "this is the third Node.js app with the same issue."
+69. **Memory is text only** — Cannot store structured data (e.g., "endpoint X takes param Y").
+70. **No semantic search** — Cannot find "similar vulnerabilities" by meaning.
+71. **Reasoning file may be empty** — `reasoning.jsonl` never verified to contain data.
+72. **No memory pruning** — File grows indefinitely, no cleanup.
+73. **Cannot distinguish** — Doesn't separate "confirmed" from "hypothesis" in memory.
+74. **No versioning** — If a finding is wrong, the correction doesn't propagate.
+75. **Learning is not measured** — No metric for "did memory help?"
+
+### N.5 Human Qualities Missing (76-90)
+
+76. **No genuine curiosity** — Keyword triggers, not real wonder. Doesn't ask "why is this interesting?"
+77. **No creativity** — Uses predefined chains, doesn't invent new attack ideas.
+78. **No intuition** — Cannot sense "something is off here" without explicit triggers.
+79. **No persistence** — Gives up after 3 failures (circuit breaker). Humans try 30 times.
+80. **No frustration** — Doesn't get annoyed and try harder when stuck (humans do).
+81. **No excitement** — Doesn't prioritise promising leads with extra energy.
+82. **No scepticism** — Accepts tool output at face value. Humans double-check.
+83. **No humour** — Cannot use creative thinking that comes from lateral thought.
+84. **No domain expertise** — Doesn't know "banking apps always have logic flaws in transfers."
+85. **No attacker mindset** — Thinks like a tester, not like a criminal.
+86. **Cannot social engineer** — No phishing, pretexting, human manipulation tests.
+87. **No business context** — Doesn't understand "this feature is critical for revenue, test it harder."
+88. **Cannot prioritise by bounty** — Doesn't know which bugs pay more.
+89. **No risk intuition** — Cannot sense "this looks like it was coded hastily."
+90. **Cannot read between lines** — Misses implications in error messages that humans catch.
+
+### N.6 Operational & Practical Gaps (91-110)
+
+91. **Model eviction** — 8B unloaded under memory pressure. Hunt pauses.
+92. **1.8 tokens/second** — 10-15 minutes per iteration. Humans think faster.
+93. **No parallel hunts** — Single hunt at a time. Humans multitask.
+94. **Hunt pauses on AI failure** — 3 strikes = paused. Humans keep trying.
+95. **No resume from exact state** — Checkpoint exists but not verified to work perfectly.
+96. **Backend restarts kill hunts** — Auto-resume exists but not battle-tested.
+97. **No hunt prioritisation** — Cannot decide "this target is more promising, focus here."
+98. **Costs not tracked** — No real cost accounting for long hunts.
+99. **No rate limiting awareness** — Might trigger WAF/IPS by testing too fast.
+100. **Scope enforcement unverified** — `confirmedAuthorized` exists but not penetration-tested.
+101. **No report customisation** — Generates generic reports, not tailored to triager.
+102. **Cannot write exploit code** — Finds vuln but cannot write Python/Ruby exploit.
+103. **No CVE assignment** — Cannot request CVEs for novel findings.
+104. **Cannot communicate with triagers** — No handling of "need more info" responses.
+105. **No duplicate detection** — Might report same bug twice via different vectors.
+106. **Time to first finding unknown** — Not measured. Humans often find something in first hour.
+107. **No continuous monitoring** — Hunt ends. Humans retest after patches.
+108. **Cannot handle CAPTCHAs** — Blocked by anti-bot measures.
+109. **No JavaScript deobfuscation** — Cannot analyse minified JS for endpoints.
+110. **Source maps not tested** — BL-10 queued but not verified to work.
+
+### N.7 Strategic & Ecosystem Gaps (111-120)
+
+111. **No platform integration** — Cannot submit to HackerOne/Bugcrowd automatically.
+112. **No reputation building** — Cannot build hunter profile over time.
+113. **Cannot choose targets** — Humans pick programs with good scope and payouts. Agent tests what's given.
+114. **No vulnerability research** — Cannot discover zero-days in open-source software.
+115. **No tool contributions** — Cannot release tools to community (reputation building).
+116. **Cannot write blog posts** — Humans share writeups, build reputation, get invites.
+117. **No private program access** — Cannot get invited to exclusive bounties.
+118. **Cannot negotiate bounties** — No handling of "this is worth more than $500."
+119. **No legal understanding** — Might test out-of-scope by mistake.
+120. **Cannot handle disclosure** — No coordinated disclosure process.
+
+---
+
+### Summary: The 120 Gaps by Category
+
+| Category | Count | Most Critical |
+|---|---|---|
+| Reasoning & Intelligence | 20 | #1: No genuine discovery demonstrated |
+| Technical Capability | 20 | #21: Docker container missing (20/27 failures) |
+| Verification & Proof | 20 | #41: 0/27 verified |
+| Memory & Learning | 15 | #61: Memory UNVERIFIED |
+| Human Qualities | 15 | #76: No genuine curiosity |
+| Operational | 20 | #91: Model eviction |
+| Strategic | 10 | #111: No platform integration |
+| **Total** | **120** | |
+
+### The Path Forward
+
+**P0 (blocks everything):**
+- #21: Fix Docker container lifecycle
+- #41: Achieve first verified finding in controlled lab
+- #91: Stabilise model (hardware upgrade or smaller reliable model)
+
+**P1 (major gaps):**
+- #61-75: Prove memory learning with controlled experiment
+- #1: Demonstrate blind discovery (not classification)
+- #76: Upgrade curiosity from keywords to semantic understanding
+
+**P2 (important):**
+- #35: Implement or remove playbook stubs
+- #40: Integrate web search with triggers
+- #111-120: Platform and ecosystem integration
+
+---
+
+*120 reasons documented. Each is a specific, actionable gap.*
+*This is not pessimism — it's the engineering roadmap.*
