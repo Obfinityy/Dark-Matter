@@ -215,7 +215,7 @@ function AppInner() {
               {
                 id: uid(),
                 role: 'hunt',
-                hunt: { huntId: h.huntId, target: h.target, scope: h.scope || '', status: h.status || 'unknown' },
+                hunt: { huntId: h.huntId, target: h.target, scope: h.scope || '', status: h.status || 'unknown', createdAt: h.createdAt },
               },
             ],
           }));
