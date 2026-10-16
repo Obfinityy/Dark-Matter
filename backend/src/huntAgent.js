@@ -30,6 +30,8 @@ export function getOrchestrator(huntId) {
   return orchestrators.get(huntId) || null;
 }
 import { chatWithAI, aiAvailable } from './llm.js';
+import { generateHypotheses, formatHypothesesForPrompt, scoreInterestingness } from './curiosity.js';
+import { recordReasoning, formatReasoningForPrompt } from './reasoningMemory.js';
 import { getHuntCost } from './costTracker.js';
 import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel } from './store.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
@@ -261,6 +263,21 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // Playbook: what worked on similar targets before?
   const lessons = (playbook || []).slice(0, 3).map((l) => `- ${l.technique}: ${l.why}`).join('\n');
 
+  // CURIOSITY ENGINE: generate hypotheses from recent observations.
+  // A human hacker follows interesting threads, not just a checklist.
+  let curiositySection = '';
+  try {
+    const recentEvents = readHuntEvents(huntId).slice(-20);
+    const observations = recentEvents
+      .filter((e) => e.type === 'tool_call' || e.type === 'thinking')
+      .map((e) => ({ output: e.output || e.text || '', duration: e.duration }));
+    const hypotheses = generateHypotheses(observations, recon);
+    curiositySection = formatHypothesesForPrompt(hypotheses);
+    if (curiositySection) {
+      think(huntId, `Curiosity: pursuing ${hypotheses.length} interesting threads`);
+    }
+  } catch { /* curiosity must never break the hunt */ }
+
   // CONTEXT BUDGETING: the model runs with num_ctx 8192 tokens. The prompt
   // must stay compact no matter how long the hunt runs — sections are capped
   // individually and the total is hard-capped, lowest-priority first.
@@ -300,6 +317,8 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     '',
     `Iteration ${iteration} — hunting unlimited.`,
     steering ? `\n--- USER INSTRUCTION (follow this round) ---\n${steering}` : '',
+    curiositySection,
+    formatReasoningForPrompt(huntId),
   ].join('\n');
 
   let plans = [];
