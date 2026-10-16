@@ -158,21 +158,20 @@ function AppInner() {
   const lastPushedRef = useRef({});
   useEffect(() => {
     if (!ready || !user) return;
-    const timers = [];
     for (const chat of chats) {
       if (!chat || !chat.id) continue;
       const sig = JSON.stringify(chat.messages || []);
       if (lastPushedRef.current[chat.id] === sig) continue;
-      const t = setTimeout(async () => {
+      // Save immediately (no debounce) — user reported losing messages on quick refresh.
+      (async () => {
         try {
           const { saveChatMessages } = await import('./lib/api');
           const r = await saveChatMessages(chat.id, chat.messages || []);
           if (r && r.ok) lastPushedRef.current[chat.id] = sig;
         } catch { /* offline — will retry on next change */ }
-      }, 2500);
-      timers.push(t);
+      })();
     }
-    return () => timers.forEach(clearTimeout);
+    return () => {};
   }, [chats, ready, user]);
 
   // Pull: when the active chat opens (or on login), fetch remote messages and
