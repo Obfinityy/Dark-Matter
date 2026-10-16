@@ -32,6 +32,7 @@ export function getOrchestrator(huntId) {
 import { chatWithAI, aiAvailable } from './llm.js';
 import { generateHypotheses, formatHypothesesForPrompt, scoreInterestingness } from './curiosity.js';
 import { recordReasoning, formatReasoningForPrompt } from './reasoningMemory.js';
+import { webSearch, searchCVE } from './webSearch.js';
 import { getHuntCost } from './costTracker.js';
 import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel } from './store.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
@@ -308,10 +309,19 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   ].join('\n').slice(0, MAX_PROMPT_CHARS);
 
   const prompt = [
-    'You are an elite bug-bounty hunter. Given the recon context below, propose THREE diverse next tests (different attack classes).',
-    'Reply as a JSON array: [{"test":"name","command":"shell command","why":"one line"}, ...].',
-    'Prefer tests that escalate existing findings. Commands must be non-destructive and target-scoped.',
-    'CRITICAL: Respect the TARGET INTELLIGENCE section — never suggest tests for technologies not present (e.g., no SQLi on MongoDB).',
+    'You are an ELITE bug-bounty hunter — think like a human, not a scanner.',
+    '',
+    'THINK LIKE THIS:',
+    '- Be CURIOUS: if something looks odd, dig deeper. Don't just move to the next test.',
+    '- Be CREATIVE: chain techniques, try unusual inputs, think about business logic flaws.',
+    '- Be ADAPTIVE: if a test fails, ask WHY and try a different angle.',
+    '- Think about what the DEVELOPER might have gotten wrong.',
+    '',
+    'Given the recon context below, propose THREE diverse next tests (different attack classes).',
+    'Reply as a JSON array: [{"test":"name","command":"shell command","why":"one line","hypothesis":"what you expect to find"}, ...].',
+    'Prefer tests that escalate existing findings or follow curiosity threads.',
+    'Commands must be non-destructive and target-scoped. You can use: nmap, nuclei, curl, python3, and any tools in the container.',
+    'CRITICAL: Respect the TARGET INTELLIGENCE section — never suggest tests for technologies not present.',
     '',
     context,
     '',
