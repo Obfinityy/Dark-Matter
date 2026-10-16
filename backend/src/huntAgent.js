@@ -248,6 +248,15 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // Playbook: what worked on similar targets before?
   const lessons = (playbook || []).slice(0, 3).map((l) => `- ${l.technique}: ${l.why}`).join('\n');
 
+  // CONTEXT BUDGETING: the model runs with num_ctx 8192 tokens. The prompt
+  // must stay compact no matter how long the hunt runs — sections are capped
+  // individually and the total is hard-capped, lowest-priority first.
+  // Priority: target intelligence > confirmed findings > lessons > endpoints.
+  const MAX_INTEL_CHARS = 2000;
+  const MAX_PROMPT_CHARS = 10000;
+  const intel = recon.intelligentPrompt
+    ? `\n--- TARGET INTELLIGENCE (follow strictly) ---\n${String(recon.intelligentPrompt).slice(0, MAX_INTEL_CHARS)}`
+    : '';
   const context = [
     `Target: ${target}`,
     `Profile: ${recon.profile}`,
@@ -258,8 +267,8 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     lessons ? `Past lessons for similar targets:\n${lessons}` : '',
     // INTELLIGENT CONTEXT: tech detection tells AI what NOT to try
     // (e.g., never suggest SQLi on a MongoDB target)
-    recon.intelligentPrompt ? `\n--- TARGET INTELLIGENCE (follow strictly) ---\n${recon.intelligentPrompt}` : '',
-  ].join('\n');
+    intel,
+  ].join('\n').slice(0, MAX_PROMPT_CHARS);
 
   const prompt = [
     'You are an elite bug-bounty hunter. Given the recon context below, propose THREE diverse next tests (different attack classes).',
