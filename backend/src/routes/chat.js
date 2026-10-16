@@ -220,10 +220,11 @@ router.post(
       const aiReply = await chatWithAI([{ role: 'user', text: message }], system, { huntId });
       if (aiReply) return res.json({ ok: true, reply: aiReply, ai: true });
     }
+    // AI unreachable: answer from real hunt data, not a generic fallback.
     return res.json({
       ok: true,
-      reply: `On it. ${ctx} You can ask "what did you find", or say "pause the hunt" / "stop the hunt". ` +
-        `(Connect AWS Bedrock in Plugins for full AI chat.)`,
+      reply: summaryReply({ ctx, live, liveError, cached, findings }) +
+        ` (AI brain is unreachable right now, so this is a live status snapshot, not AI analysis.)`,
     });
   } catch (err) {
     if (err instanceof EngineUnreachableError) {
