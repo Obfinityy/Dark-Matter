@@ -281,4 +281,38 @@ router.post('/users/:id/password', requireAdmin, (req, res) => {
   res.json({ ok: true, message: 'Password updated.' });
 });
 
+// GET /api/v1/admin/hunts/:id/memory — download the hunt's full memory
+// (meta, target intel, findings, recent events) as JSON.
+router.get('/hunts/:id/memory', requireAdmin, async (req, res) => {
+  try {
+    const { readHuntMeta, readHuntEvents, readTargetIntel } = await import('../store.js');
+    const huntId = req.params.id;
+    const meta = readHuntMeta(huntId);
+    if (!meta) return res.status(404).json({ ok: false, error: 'Hunt not found' });
+    const events = readHuntEvents(huntId);
+    const intel = readTargetIntel(meta.target || '');
+    const findings = events.filter((e) => e.type === 'finding');
+    const memory = {
+      huntId,
+      exportedAt: new Date().toISOString(),
+      meta: { ...meta, container: undefined },
+      targetIntel: intel,
+      findingCount: findings.length,
+      findings: findings.map((f) => ({
+        title: f.title, severity: f.severity, verified: !!f.verified,
+        at: f.at || f.cachedAt || null,
+      })),
+      recentEvents: events.slice(-100).map((e) => ({
+        type: e.type, text: (e.text || '').slice(0, 300),
+        state: e.state || null, at: e.at || e.cachedAt || null,
+      })),
+    };
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="hunt-${huntId}-memory.json"`);
+    res.json(memory);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 export default router;
