@@ -317,7 +317,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     '- Be ADAPTIVE: if a test fails, ask WHY and try a different angle.',
     '- Think about what the DEVELOPER might have gotten wrong.',
     '',
-    'Given the recon context below, propose THREE diverse next tests (different attack classes).',
+    'Given the recon context below, propose FIVE diverse next tests (different attack classes).',
     'Reply as a JSON array: [{"test":"name","command":"shell command","why":"one line","hypothesis":"what you expect to find"}, ...].',
     'Prefer tests that escalate existing findings or follow curiosity threads.',
     'Commands must be non-destructive and target-scoped. You can use: nmap, nuclei, curl, python3, and any tools in the container.',
@@ -354,11 +354,16 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
 
   // Execute up to 3 hypotheses (multi-hypothesis > single guess)
   let best = null;
-  for (const plan of plans.slice(0, 3)) {
-    if (!plan.command) continue;
+  // PARALLEL EXECUTION: run all tests concurrently like a human would.
+  // A human fires multiple probes at once, not one-by-one.
+  const testPromises = plans.slice(0, 5).filter((plan) => plan.command).map(async (plan) => {
     think(huntId, `Test: ${plan.test || 'unnamed'} — ${plan.why || ''}`);
     const result = await executeWithEvasion(huntId, target, String(plan.command).slice(0, 500));
     const rec = await assessResult(huntId, target, plan, result);
+    return rec;
+  });
+  const results = await Promise.all(testPromises);
+  for (const rec of results) {
     if (rec && rec.verified && !best) best = rec;
   }
   return { aiOk: true, best };
