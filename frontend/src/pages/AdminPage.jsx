@@ -30,11 +30,11 @@ export default function AdminPage() {
     setLoading(true);
     const [uRes, hRes] = await Promise.all([listAdminUsers(), listAdminHunts()]);
     setLoading(false);
-    if (uRes.ok) setUsers(uRes.users || []);
+    if (uRes.ok) setUsers((uRes.data && uRes.data.users) || []);
     else toast(uRes.error || 'Could not load users.', 'error');
     if (hRes.ok) {
-      setHunts(hRes.hunts || []);
-      setQueue(hRes.queue || []);
+      setHunts((hRes.data && hRes.data.hunts) || []);
+      setQueue((hRes.data && hRes.data.queue) || []);
     }
   }
 
