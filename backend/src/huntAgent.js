@@ -358,8 +358,9 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // Priority: target intelligence > confirmed findings > lessons > endpoints.
   const NUM_CTX = parseInt(process.env.OLLAMA_NUM_CTX || '2048', 10);
   const NUM_PREDICT = parseInt(process.env.OLLAMA_NUM_PREDICT || '600', 10);
-  // ~4 chars per token; reserve the output budget plus a 100-token margin.
-  const MAX_PROMPT_CHARS = Math.max(2000, (NUM_CTX - NUM_PREDICT - 100) * 4);
+  // ~3.5 chars per token (conservative for URLs/JSON/code); reserve the
+  // output budget plus a 200-token safety margin.
+  const MAX_PROMPT_CHARS = Math.max(2000, Math.floor((NUM_CTX - NUM_PREDICT - 200) * 3.5));
   const MAX_INTEL_CHARS = Math.max(500, Math.floor(MAX_PROMPT_CHARS / 5));
   const intel = recon.intelligentPrompt
     ? `\n--- TARGET INTELLIGENCE (follow strictly) ---\n${String(recon.intelligentPrompt).slice(0, MAX_INTEL_CHARS)}`
@@ -384,6 +385,10 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       : '',
   ].join('\n').slice(0, MAX_PROMPT_CHARS);
 
+  // HARD CAP on the final prompt: the instruction header plus context plus
+  // trailing sections (steering, curiosity, reasoning memory) must together
+  // fit in the model's context window. Anything beyond the budget is cut
+  // from the end, where the lowest-priority sections live.
   const prompt = [
     'You are an ELITE bug-bounty hunter — think like a human, not a scanner.',
     '',
@@ -405,7 +410,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     steering ? `\n--- USER INSTRUCTION (follow this round) ---\n${steering}` : '',
     curiositySection,
     formatReasoningForPrompt(huntId),
-  ].join('\n');
+  ].join('\n').slice(0, MAX_PROMPT_CHARS);
 
   let plans = [];
   try {
