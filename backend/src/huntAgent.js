@@ -234,6 +234,8 @@ async function reconPhase(huntId, target) {
     // JS BUNDLE MINING: SPAs (Angular/React/Vue) keep API endpoints in JS
     // bundles, not HTML. Download local <script src> bundles and mine them.
     // Without this, the agent is blind to modern web apps.
+    // NOTE: mining happens INSIDE the container via grep — the exec channel
+    // (tmux) truncates large outputs, so we only return the matched lines.
     try {
       const scriptSrcs = [...(bodyPart || html).matchAll(/<script[^>]+src=["']([^"']+)["']/gi)]
         .map((m) => m[1])
@@ -247,18 +249,12 @@ async function reconPhase(huntId, target) {
           try {
             const jsRes = await execInHuntContainer(
               huntId,
-              `curl -skL --max-time 15 -A "Mozilla/5.0" "${jsUrl}" 2>/dev/null | head -c 500000`,
+              `curl -skL --max-time 15 -A "Mozilla/5.0" "${jsUrl}" 2>/dev/null | grep -oE '"/(api|rest|v[0-9]+|admin|graphql|internal)[^"]*"' | head -30`,
             );
-            const jsText = jsRes.stdout || '';
-            if (jsText.length > 1000) {
-              const jsMined = mineJsEndpoints(jsText);
-              for (const ep of jsMined) {
-                if (!mined.includes(ep)) mined.push(ep);
-              }
-              // Check for source maps (unminified source = goldmine)
-              const { findSourceMaps } = await import('./hunt-intel/jsIntel.js');
-              const sm = findSourceMaps(jsText);
-              if (sm) think(huntId, `Source map found: ${sm} — unminified source available.`);
+            const lines = (jsRes.stdout || '').split('\n').filter(Boolean);
+            for (const line of lines) {
+              const ep = line.replace(/"/g, '').trim();
+              if (ep.length > 2 && ep.length < 200 && !mined.includes(ep)) mined.push(ep);
             }
           } catch { /* skip failed bundle */ }
         }
