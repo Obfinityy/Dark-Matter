@@ -140,7 +140,7 @@ export async function teardownHuntContainer(huntId) {
  * Execute a command inside the hunt container.
  * @returns {{stdout: string, stderr: string, code: number}}
  */
-export async function execInHuntContainer(huntId, cmd, timeoutMs = 120000) {
+export async function execInHuntContainer(huntId, cmd, timeoutMs = 120000, opts = {}) {
   const name = containerName(huntId);
 
   // FIX #21: Verify container exists before executing.
@@ -156,10 +156,14 @@ export async function execInHuntContainer(huntId, cmd, timeoutMs = 120000) {
     };
   }
 
-  // Try tmux-routed execution first (makes terminal PiP truthful).
-  // Falls back to direct exec if tmux isn't available (old image).
-  const tmuxResult = await execViaTmux(name, cmd, timeoutMs);
-  if (tmuxResult !== null) return tmuxResult;
+  // Bulk data fetches (HTML, bundles) can bypass tmux — it truncates to 50 lines.
+  // Pass { bypassTmux: true } for commands needing full output.
+  if (!opts.bypassTmux) {
+    // Try tmux-routed execution first (makes terminal PiP truthful).
+    // Falls back to direct exec if tmux isn't available (old image).
+    const tmuxResult = await execViaTmux(name, cmd, timeoutMs);
+    if (tmuxResult !== null) return tmuxResult;
+  }
   
   // Fallback: direct one-shot exec (original behavior)
   try {

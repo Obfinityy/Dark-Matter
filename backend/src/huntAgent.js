@@ -223,9 +223,12 @@ async function reconPhase(huntId, target) {
   }
 
   // Fetch homepage HTML for JS mining + profiling + TECH DETECTION
+  // bypassTmux: tmux truncates to 50 lines; we need the full HTML body.
   const curl = await execInHuntContainer(
     huntId,
-    `curl -skL --max-time 25 -A "Mozilla/5.0" -D /tmp/headers.txt "${target}" 2>/dev/null | head -c 200000; echo "---HEADERS---"; cat /tmp/headers.txt 2>/dev/null | head -30`
+    `curl -skL --max-time 25 -A "Mozilla/5.0" -D /tmp/headers.txt "${target}" 2>/dev/null | head -c 200000; echo "---HEADERS---"; cat /tmp/headers.txt 2>/dev/null | head -30`,
+    120000,
+    { bypassTmux: true }
   );
   const html = curl.stdout || '';
   if (html) {
