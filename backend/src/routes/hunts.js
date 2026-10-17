@@ -117,16 +117,25 @@ router.post('/', requireAuth, async (req, res) => {
     });
   }
   // FIX #154: SSRF protection — block private/internal IPs.
+  // LAB EXCEPTION: targets listed in LAB_TARGETS (env, comma-separated) are
+  // explicitly-authorized local lab targets (e.g. Juice Shop benchmark) and
+  // skip the SSRF block. This is opt-in per deployment, not a bypass.
   try {
     const { validateTargetSSRF } = await import('../scopeParser.js');
-    const ssrfCheck = validateTargetSSRF(target);
-    if (!ssrfCheck.valid) {
-      console.warn(`[hunts] REJECTED create: SSRF blocked for target "${target}": ${ssrfCheck.reason}`);
-      return res.status(403).json({
-        ok: false,
-        error: 'ssrf_blocked',
-        message: ssrfCheck.reason,
-      });
+    const labTargets = (process.env.LAB_TARGETS || '').split(',').map((s) => s.trim()).filter(Boolean);
+    const isLabTarget = labTargets.some((lab) => target.includes(lab));
+    if (!isLabTarget) {
+      const ssrfCheck = validateTargetSSRF(target);
+      if (!ssrfCheck.valid) {
+        console.warn(`[hunts] REJECTED create: SSRF blocked for target "${target}": ${ssrfCheck.reason}`);
+        return res.status(403).json({
+          ok: false,
+          error: 'ssrf_blocked',
+          message: ssrfCheck.reason,
+        });
+      }
+    } else {
+      console.log(`[hunts] Lab target authorized, SSRF check skipped: "${target}"`);
     }
   } catch (err) {
     console.error('[hunts] SSRF check failed:', err.message);
