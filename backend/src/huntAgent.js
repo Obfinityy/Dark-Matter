@@ -410,17 +410,21 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     );
     if (!reply) {
       think(huntId, 'Model gave no reply this iteration — skipping to next.');
-      return { aiOk: false, best: null };
+      return { aiOk: false, best: null, failKind: 'no_reply' };
     }
     // Show the model's raw thinking in the terminal (truncated) so the
     // operator can SEE the brain working, not just templated summaries.
     think(huntId, `model raw plan: ${String(reply).replace(/\s+/g, ' ').slice(0, 600)}`);
     const m = /\[[\s\S]*\]/.exec(reply);
     plans = m ? JSON.parse(m[0]) : [];
-  } catch {
-    return { aiOk: false, best: null };
+  } catch (err) {
+    think(huntId, `AI call threw: ${err && err.message ? String(err.message).slice(0, 200) : err}`);
+    return { aiOk: false, best: null, failKind: 'error' };
   }
-  if (!plans.length) return { aiOk: false, best: null };
+  if (!plans.length) {
+    think(huntId, 'Model replied but produced no usable plan — skipping to next.');
+    return { aiOk: false, best: null, failKind: 'bad_output' };
+  }
 
   // Execute up to 3 hypotheses (multi-hypothesis > single guess)
   let best = null;
@@ -763,7 +767,11 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
       think(huntId, 'No AI backend configured — hunt completed with recon results only.');
     }
     // Consecutive AI failures — circuit breaker trips at 3.
+    // We track WHAT failed (not just that it failed) so the pause reason is honest:
+    // 'no_reply' = brain gave nothing back, 'error' = the call threw,
+    // 'bad_output' = brain replied but produced no usable plan.
     let aiFailStreak = 0;
+    let aiFailKinds = [];
 
     for (let i = startIteration; ; i++) {
       // CHECKPOINT — persist progress every iteration so a killed backend
@@ -807,11 +815,28 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
       }
       if (iterResult === null || (iterResult && iterResult.aiOk === false)) {
         aiFailStreak++;
+        aiFailKinds.push((iterResult && iterResult.failKind) || 'unknown');
         if (aiFailStreak >= 3) {
-          think(huntId, `AI brain unreachable ${aiFailStreak}x in a row — pausing hunt. The model (Ollama) may be overloaded. Resume when it's responsive.`);
-          appendHuntEvent(huntId, { type: 'status', state: 'paused', reason: 'ai_unreachable', at: new Date().toISOString() });
+          // Honest pause reason: report WHAT failed, not a blanket "unreachable".
+          // 'ai_no_reply' = brain gave nothing back (timeout/wedge),
+          // 'ai_error' = the brain call threw, 'ai_bad_output' = brain replied
+          // but produced no usable plan (a model-quality issue, not downtime).
+          const kinds = aiFailKinds.slice(-3);
+          const topKind = kinds
+            .slice()
+            .sort((a, b) => kinds.filter((k) => k === b).length - kinds.filter((k) => k === a).length)[0] || 'unknown';
+          const pauseReason = `ai_${topKind}`;
+          const kindLabels = {
+            no_reply: 'AI brain gave no reply',
+            error: 'AI brain call threw an error',
+            bad_output: 'AI brain replied but produced no usable plan',
+            unknown: 'AI brain failed',
+          };
+          const label = kindLabels[topKind] || kindLabels.unknown;
+          think(huntId, `${label} ${aiFailStreak}x in a row — pausing hunt. Resume when it's responsive.`);
+          appendHuntEvent(huntId, { type: 'status', state: 'paused', reason: pauseReason, at: new Date().toISOString() });
           try {
-            writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, state: 'paused', pausedReason: 'ai_unreachable' });
+            writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, state: 'paused', pausedReason: pauseReason });
           } catch { /* best-effort */ }
           // Return early — do NOT fall through to "finished". This hunt is
           // paused, not done. Resume will pick up from the checkpoint.
@@ -823,6 +848,7 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
         }
       } else {
         aiFailStreak = 0;
+        aiFailKinds = [];
       }
 
       // Gentle pacing — don't hammer the target
