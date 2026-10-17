@@ -62,7 +62,15 @@ export async function spawnHuntContainer(huntId, target, opts = {}) {
   try { await docker(['rm', '-f', name]); } catch { /* didn't exist */ }
 
   // Live terminal streaming (PiP): ttyd port on loopback only.
-  const TTYD_PORT = process.env.HUNT_TTYD_PORT || '17681';
+  // FIX: derive a per-hunt port from the hunt ID hash — a fixed port causes
+  // "already allocated" failures when multiple hunts (or stale containers)
+  // exist. Range 17681-17780 (100 ports).
+  let TTYD_PORT = process.env.HUNT_TTYD_PORT;
+  if (!TTYD_PORT) {
+    let hash = 0;
+    for (let i = 0; i < huntId.length; i++) hash = (hash * 31 + huntId.charCodeAt(i)) >>> 0;
+    TTYD_PORT = String(17681 + (hash % 100));
+  }
 
   const env = [
     '-e', `DM_HUNT_ID=${huntId}`,
