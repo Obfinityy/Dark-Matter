@@ -1177,3 +1177,12 @@ Hunt `h_bench_8ec1850e` running with all fixes. Stable (no crashes), recon worki
 
 *End of Round 4 (in progress).*
 *Next: complete benchmark scoring, then address the next gap.*
+
+### R.8 Gap found: tmux truncation losing tech markers (17 Oct)
+`execViaTmux` returns only the last 50 lines of output. The 80KB recon HTML
+(~1000 lines) was truncated to just the headers — the body with `ng-`,
+`react`, etc. markers was lost. Result: `techs: []` on every hunt.
+**Fix:** `execInHuntContainer` now accepts `{ bypassTmux: true }` for bulk
+data fetches; recon HTML fetch uses it. Verified: Juice Shop now detects
+as `angular`.
+**Commit:** 77024ac
