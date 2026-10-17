@@ -1050,3 +1050,72 @@ When the infrastructure works, the combination exceeds what any single human can
 
 *End of Round 2 fixes.*
 *Next: Deploy to EC2 and verify fixes live.*
+
+---
+
+## Q. Round 3 — The "Unreachable" Brain: Root Cause Found and Fixed (17 Oct 2026)
+
+### Q.1 The user's challenge
+The user challenged the `ai_unreachable` label directly: the model runs on our own EC2 server — it is slow (RAM-only inference), but not "unreachable". He was right. Investigation proved the label was dishonest.
+
+### Q.2 Root cause (proven, not hypothesized)
+The hunt planning prompt was hard-capped at **10,000 chars (~2,500 tokens)**, designed for `num_ctx 8192`. But the EC2 model runs with **`OLLAMA_NUM_CTX=2048`** (lowered 16 Oct 2026 to stop OOM kills on the 7GB box).
+
+Every planning call → prompt exceeded 2048 tokens → **Ollama HTTP 500** (`unexpected EOF`, reproduced live with a 14,400-char probe) → `llm.js` returned null → "Model gave no reply" → 3 consecutive failures → circuit breaker paused the hunt with reason `ai_unreachable`.
+
+**The box was up. Ollama was up. The model was loaded. The prompt simply did not fit.** The "unreachable" label blamed the infrastructure for a configuration contradiction in our own code.
+
+Evidence:
+- `curl /api/ps` showed `dm-hunter` loaded with `context_length: 2048`
+- Ollama log: `n_ctx_seq (2048) < n_ctx_train (131072)`
+- Backend log: `[llm] Ollama HTTP 500 for model dm-hunter` at each failure
+- Trivial probe (short prompt) answered "ok" in 36s — proving the model worked
+
+### Q.3 FIX: Honest pause reasons (commit 43f7605)
+The circuit breaker used one blanket label for three different failures. Now each failure path reports its kind:
+- `ai_no_reply` — brain gave nothing back (timeout/wedge/HTTP 500)
+- `ai_error` — the brain call threw an exception (now logs the actual error)
+- `ai_bad_output` — brain replied but produced no usable plan (a model-quality issue, NOT downtime)
+
+The pause reason reflects the dominant failure kind. `ai_unreachable` is retired.
+
+### Q.4 FIX: Prompt budget derived from real num_ctx (commits 122d4a0, 38e8e26)
+- `MAX_PROMPT_CHARS` / `MAX_INTEL_CHARS` now computed from `OLLAMA_NUM_CTX` minus the output budget: `(2048 - 300 - 200) * 3.5 ≈ 5,400 chars` (conservative 3.5 chars/token for URLs/JSON/code)
+- The **final assembled prompt** (not just the context block) is hard-capped — the instruction header, steering, curiosity and reasoning-memory sections were previously appended *after* the cap, pushing the total over the window
+- `llm.js` now logs Ollama error response bodies on non-OK status (previously only the status code — diagnosis was blind)
+
+**Trade-off (honest):** the planning prompt is now ~5,400 chars instead of ~10,000. Less context per call, but a working brain beats a 500-erroring one. If/when the box gets more RAM, raising `OLLAMA_NUM_CTX` automatically raises the budget.
+
+### Q.5 Deployment and live verification (17 Oct 2026)
+- EC2 was behind at `9fa4d6d`; pulled to `38e8e26` (all Round-2 fixes + Q.3/Q.4), backend restarted, health `{"ok":true}` — **Round-2 fixes are now LIVE on EC2** (previously code-complete only)
+- Brain probe: trivial prompt → "ok" in 36s (includes ~35s cold model load)
+- Hunt `h_f3533e243fdc` (www.thebhavesh.online, infinity) resumed via API → container spawned, agent loop running
+- **First real planning call after fix produced a genuine hunter plan:** "NoSQL injection in search query" with a crafted `$ne` operator payload — contextually relevant to the target stack
+- Hunt state: running, iteration 3, 880+ events and growing
+- `h_5afc6ab7a766` (thebhavesh.online): state `stopped` (terminal) — API correctly refused resume with 409 `hunt_terminal`; left stopped per the terminal-state guard
+
+### Q.6 What "unreachable" actually meant — for the record
+| What the label said | What was actually happening |
+|---|---|
+| `ai_unreachable` (16 Oct) | llama-server wedge: process at 90% CPU, `/api/chat` hung while `/api/tags` answered 200. Watchdog killed it 3×. |
+| `ai_unreachable` (17 Oct) | Prompt exceeded 2048-token context → HTTP 500 on every planning call. Infrastructure fine; our config wrong. |
+
+**Lesson:** a status label should describe the failure, not the operator's guess. Fixed.
+
+### Summary of Round 3 Fixes
+
+| Issue | Severity | Fix | Verified |
+|---|---|---|---|
+| Prompt > num_ctx → HTTP 500 → false "unreachable" | P0 | Adaptive prompt budget from real OLLAMA_NUM_CTX | ✅ Yes — live hunt producing plans |
+| Blanket `ai_unreachable` label | P1 | Honest `ai_no_reply`/`ai_error`/`ai_bad_output` reasons | ✅ Yes — live in pause events |
+| Blind Ollama errors (status only) | P2 | Log error response bodies | ✅ Yes — surfaced the 500 body |
+| Round-2 fixes not deployed | P0 | Pulled + restarted EC2 backend | ✅ Yes — health ok, hunt running |
+
+**Total fixed overall:** 17 issues (7 Round 1 + 6 Round 2 + 4 Round 3)
+**Remaining:** 203 problems documented.
+**Readiness:** still NOT READY — the brain works, but elite replacement requires the controlled lab benchmark (see §N), which has not been run.
+
+---
+
+*End of Round 3.*
+*Next: controlled positive/negative lab — the benchmark that decides the elite question.*
