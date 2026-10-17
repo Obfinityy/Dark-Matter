@@ -349,12 +349,18 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     }
   } catch { /* curiosity must never break the hunt */ }
 
-  // CONTEXT BUDGETING: the model runs with num_ctx 8192 tokens. The prompt
-  // must stay compact no matter how long the hunt runs — sections are capped
-  // individually and the total is hard-capped, lowest-priority first.
+  // CONTEXT BUDGETING: the prompt must fit inside the model's real context
+  // window (OLLAMA_NUM_CTX — 2048 on the 7GB EC2 box, lowered 16 Oct 2026 to
+  // stop OOM kills). A prompt longer than num_ctx makes Ollama return
+  // HTTP 500, which the hunt reads as "model gave no reply" and eventually
+  // pauses with ai_no_reply. So the budget is derived from the actual
+  // num_ctx minus the output budget, not from a hardcoded assumption.
   // Priority: target intelligence > confirmed findings > lessons > endpoints.
-  const MAX_INTEL_CHARS = 2000;
-  const MAX_PROMPT_CHARS = 10000;
+  const NUM_CTX = parseInt(process.env.OLLAMA_NUM_CTX || '2048', 10);
+  const NUM_PREDICT = parseInt(process.env.OLLAMA_NUM_PREDICT || '600', 10);
+  // ~4 chars per token; reserve the output budget plus a 100-token margin.
+  const MAX_PROMPT_CHARS = Math.max(2000, (NUM_CTX - NUM_PREDICT - 100) * 4);
+  const MAX_INTEL_CHARS = Math.max(500, Math.floor(MAX_PROMPT_CHARS / 5));
   const intel = recon.intelligentPrompt
     ? `\n--- TARGET INTELLIGENCE (follow strictly) ---\n${String(recon.intelligentPrompt).slice(0, MAX_INTEL_CHARS)}`
     : '';

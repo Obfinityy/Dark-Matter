@@ -184,7 +184,9 @@ async function chatWithOllama(messages, system, ctx) {
     }
   }
   if (!res.ok) {
-    console.error(`[llm] Ollama HTTP ${res.status} for model ${OLLAMA_MODEL}`);
+    let body = '';
+    try { body = (await res.text()).slice(0, 300); } catch { /* ignore */ }
+    console.error(`[llm] Ollama HTTP ${res.status} for model ${OLLAMA_MODEL}: ${body}`);
     return null;
   }
   const data = await res.json();
