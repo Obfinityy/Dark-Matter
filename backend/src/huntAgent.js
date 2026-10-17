@@ -398,7 +398,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     '- Be ADAPTIVE: if a test fails, ask WHY and try a different angle.',
     '- Think about what the DEVELOPER might have gotten wrong.',
     '',
-    'Given the recon context below, propose FIVE diverse next tests (different attack classes).',
+    'Given the recon context below, propose THREE diverse next tests (different attack classes).',
     'Reply as a JSON array: [{"test":"name","command":"shell command","why":"one line","hypothesis":"what you expect to find"}, ...].',
     'Prefer tests that escalate existing findings or follow curiosity threads.',
     'Commands must be non-destructive and target-scoped. You can use: nmap, nuclei, curl, python3, and any tools in the container.',
@@ -426,8 +426,26 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // Show the model's raw thinking in the terminal (truncated) so the
     // operator can SEE the brain working, not just templated summaries.
     think(huntId, `model raw plan: ${String(reply).replace(/\s+/g, ' ').slice(0, 600)}`);
-    const m = /\[[\s\S]*\]/.exec(reply);
-    plans = m ? JSON.parse(m[0]) : [];
+    const m = /\[\s*\{[\s\S]*\]/.exec(reply);
+    if (m) {
+      try {
+        plans = JSON.parse(m[0]);
+      } catch {
+        // REPAIR: the model often gets cut off mid-JSON (token limit) or
+        // leaves a trailing comma. Salvage complete plan objects instead of
+        // discarding the whole reply.
+        plans = [];
+        const objRe = /\{[^{}]*"test"\s*:\s*"[^"]*"\s*,\s*"command"\s*:\s*"[^"]*"(?:\s*,\s*"why"\s*:\s*"[^"]*")?(?:\s*,\s*"hypothesis"\s*:\s*"[^"]*")?\s*\}/g;
+        let om;
+        while ((om = objRe.exec(m[0])) !== null) {
+          try {
+            const p = JSON.parse(om[0]);
+            if (p.test && p.command) plans.push(p);
+          } catch { /* skip that object */ }
+        }
+        if (plans.length) think(huntId, `Repaired ${plans.length} plan(s) from truncated JSON.`);
+      }
+    }
   } catch (err) {
     think(huntId, `AI call threw: ${err && err.message ? String(err.message).slice(0, 200) : err}`);
     return { aiOk: false, best: null, failKind: 'error' };
@@ -441,7 +459,9 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   let best = null;
   // PARALLEL EXECUTION: run all tests concurrently like a human would.
   // A human fires multiple probes at once, not one-by-one.
-  const testPromises = plans.slice(0, 5).filter((plan) => plan.command).map(async (plan) => {
+  // Execute up to 3 hypotheses (multi-hypothesis > single guess).
+  // The model is asked for THREE plans; take up to 3 with commands.
+  const testPromises = plans.slice(0, 3).filter((plan) => plan.command).map(async (plan) => {
     think(huntId, `Test: ${plan.test || 'unnamed'} — ${plan.why || ''}`);
     const result = await executeWithEvasion(huntId, target, String(plan.command).slice(0, 500));
     const rec = await assessResult(huntId, target, plan, result);
@@ -827,7 +847,10 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
       if (iterResult === null || (iterResult && iterResult.aiOk === false)) {
         aiFailStreak++;
         aiFailKinds.push((iterResult && iterResult.failKind) || 'unknown');
-        if (aiFailStreak >= 3) {
+        // Circuit breaker trips at 5 consecutive failures (was 3). The 8B model
+        // on 2vCPU is flaky — occasional malformed JSON or slow replies are
+        // normal, not a brain outage. 5 still stops a truly dead brain quickly.
+        if (aiFailStreak >= 5) {
           // Honest pause reason: report WHAT failed, not a blanket "unreachable".
           // 'ai_no_reply' = brain gave nothing back (timeout/wedge),
           // 'ai_error' = the brain call threw, 'ai_bad_output' = brain replied
