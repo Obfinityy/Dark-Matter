@@ -1102,6 +1102,22 @@ The pause reason reflects the dominant failure kind. `ai_unreachable` is retired
 
 **Lesson:** a status label should describe the failure, not the operator's guess. Fixed.
 
+
+### Q.7 FIX: Making the flaky 8B brain usable (commit 4fe89b1)
+After the prompt fix, the brain responded but the hunt still tripped the breaker. Live event analysis showed why:
+- The model was asked for FIVE plans but `OLLAMA_NUM_PREDICT=300` cut the 5th plan mid-JSON → parse fail → `bad_output`
+- 3 consecutive failures (normal flakiness for 1.8 tok/s) → pause
+
+Fixes:
+- Ask for **THREE** plans instead of five; execute up to 3
+- **JSON repair**: salvage complete plan objects from truncated replies via regex extraction instead of discarding everything
+- Circuit breaker **3 → 5** consecutive failures (still stops a dead brain, tolerates flakiness)
+- `OLLAMA_NUM_PREDICT` 300 → 500 on EC2 (room for 3 complete plans)
+
+**Files:** `backend/src/huntAgent.js`, `backend/.env` (EC2)
+**Commit:** 4fe89b1
+**Status:** Deployed to EC2, hunt resumed, monitoring
+
 ### Summary of Round 3 Fixes
 
 | Issue | Severity | Fix | Verified |
@@ -1110,9 +1126,10 @@ The pause reason reflects the dominant failure kind. `ai_unreachable` is retired
 | Blanket `ai_unreachable` label | P1 | Honest `ai_no_reply`/`ai_error`/`ai_bad_output` reasons | ✅ Yes — live in pause events |
 | Blind Ollama errors (status only) | P2 | Log error response bodies | ✅ Yes — surfaced the 500 body |
 | Round-2 fixes not deployed | P0 | Pulled + restarted EC2 backend | ✅ Yes — health ok, hunt running |
+| 5-plan prompt vs 300-token limit | P0 | 3 plans + JSON repair + breaker at 5 | ✅ Deployed, monitoring |
 
-**Total fixed overall:** 17 issues (7 Round 1 + 6 Round 2 + 4 Round 3)
-**Remaining:** 203 problems documented.
+**Total fixed overall:** 18 issues (7 Round 1 + 6 Round 2 + 5 Round 3)
+**Remaining:** 202 problems documented.
 **Readiness:** still NOT READY — the brain works, but elite replacement requires the controlled lab benchmark (see §N), which has not been run.
 
 ---
