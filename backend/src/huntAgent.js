@@ -231,6 +231,40 @@ async function reconPhase(huntId, target) {
   if (html) {
     const [bodyPart, headerPart] = html.split('---HEADERS---');
     const mined = mineJsEndpoints(bodyPart || html);
+    // JS BUNDLE MINING: SPAs (Angular/React/Vue) keep API endpoints in JS
+    // bundles, not HTML. Download local <script src> bundles and mine them.
+    // Without this, the agent is blind to modern web apps.
+    try {
+      const scriptSrcs = [...(bodyPart || html).matchAll(/<script[^>]+src=["']([^"']+)["']/gi)]
+        .map((m) => m[1])
+        .filter((src) => !src.startsWith('http') && !src.startsWith('//'))
+        .slice(0, 5);
+      if (scriptSrcs.length) {
+        think(huntId, `Mining ${scriptSrcs.length} JS bundles for hidden endpoints.`);
+        const base = target.replace(/\/$/, '');
+        for (const src of scriptSrcs) {
+          const jsUrl = src.startsWith('/') ? base + src : base + '/' + src;
+          try {
+            const jsRes = await execInHuntContainer(
+              huntId,
+              `curl -skL --max-time 15 -A "Mozilla/5.0" "${jsUrl}" 2>/dev/null | head -c 500000`,
+            );
+            const jsText = jsRes.stdout || '';
+            if (jsText.length > 1000) {
+              const jsMined = mineJsEndpoints(jsText);
+              for (const ep of jsMined) {
+                if (!mined.includes(ep)) mined.push(ep);
+              }
+              // Check for source maps (unminified source = goldmine)
+              const { findSourceMaps } = await import('./hunt-intel/jsIntel.js');
+              const sm = findSourceMaps(jsText);
+              if (sm) think(huntId, `Source map found: ${sm} — unminified source available.`);
+            }
+          } catch { /* skip failed bundle */ }
+        }
+        think(huntId, `Bundle mining found ${mined.length} total endpoints.`);
+      }
+    } catch { /* bundle mining is best-effort */ }
     recon.endpoints = rankEndpoints(mined).slice(0, 30);
     recon.profile = classifyTarget(recon.endpoints);
     recon.purpose = inferAppPurpose(recon.endpoints, bodyPart || html);

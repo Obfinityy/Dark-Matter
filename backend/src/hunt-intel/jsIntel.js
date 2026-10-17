@@ -8,8 +8,9 @@ export function mineJsEndpoints(jsText) {
   const patterns = [
     // fetch("/api/..."), axios.get('...'), $.ajax({url: ...})
     /(?:fetch|axios\.(?:get|post|put|delete)|url)\s*\(\s*["'`]([^"'`]+)["'`]/gi,
-    // "/api/v1/users" string literals that look like endpoints
-    /["'`](\/(?:api|v\d+|admin|graphql|internal)[^"'`\s]*)["'`]/gi,
+    // "/api/v1/users", "/rest/user/login" string literals that look like endpoints
+    // Covers: /api/*, /rest/* (common REST convention), /v1/*, /admin/*, /graphql/*, /internal/*
+    /["'`](\/(?:api|rest|v\d+|admin|graphql|internal)[^"'`\s]*)["'`]/gi,
   ];
   for (const re of patterns) {
     let m;
