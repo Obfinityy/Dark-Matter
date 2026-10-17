@@ -1186,3 +1186,14 @@ Hunt `h_bench_8ec1850e` running with all fixes. Stable (no crashes), recon worki
 data fetches; recon HTML fetch uses it. Verified: Juice Shop now detects
 as `angular`.
 **Commit:** 77024ac
+
+### R.9 Gap found: model ignores auth prioritization hint (17 Oct)
+The HIGH-VALUE TARGETS prompt hint was not working — the model generated
+plans for XSS in product names while ignoring `/rest/user/login`. The hint
+is advisory; the model treats it as optional.
+**Fix:** Mandatory auth tests. If recon finds login/auth endpoints and the
+model's plans don't mention auth, the agent PREPENDS deterministic SQLi and
+NoSQLi tests for the login endpoint. This is not a suggestion — it's a
+mandatory first step, like an elite hunter's instinct to always test the
+login form.
+**Commit:** b795d91
