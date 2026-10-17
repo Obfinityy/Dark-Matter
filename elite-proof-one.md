@@ -1136,3 +1136,44 @@ Fixes:
 
 *End of Round 3.*
 *Next: controlled positive/negative lab — the benchmark that decides the elite question.*
+
+---
+
+## R. Round 4 — Blind Benchmark on OWASP Juice Shop (17 Oct 2026)
+
+### R.1 Why a benchmark
+The user ordered: "don't stop until it can replace elite bug bounty expert." Claims mean nothing; only a blind test against known vulnerabilities counts. OWASP Juice Shop v17.3.0 (100+ known vulns) was deployed as a lab on the EC2 host (bridge-only, not public).
+
+### R.2 Gap found: blind to modern web apps
+First benchmark run: **0 endpoints mapped, 0 findings in 4 iterations** on a 100+ vuln target.
+Root causes:
+- `mineJsEndpoints` only matched `/api/*`, not `/rest/*` (Juice Shop convention)
+- Recon mined only homepage HTML; SPAs hide APIs in JS bundles
+- **Fix:** download `<script src>` bundles, grep for endpoints inside the container (tmux truncates large exec output), broadened patterns to `/rest/*`. Result: **27 endpoints mapped**, correctly classified as ecommerce.
+
+### R.3 Gap found: ignored authentication endpoints
+The agent saw `/rest/user/login` but never tested it for SQLi — the #1 thing an elite human tries.
+**Fix:** recon flags login/auth endpoints as HIGH-VALUE TARGETS in the prompt; planning instructions explicitly prioritize them.
+
+### R.4 Gap found: OOM kills under load
+`llama-server` kept getting SIGKILLed (OOM killer) during inference at 2048 context. **Fix:** `OLLAMA_NUM_CTX=1536` — zero OOM kills since. Prompt budget auto-adjusts (~2,900 chars). Trade-off: smaller context, but stable.
+
+### R.5 Gap found: fixed port conflicts
+Hardcoded ttyd port 17681 collided across hunts. **Fix:** per-hunt dynamic ports from ID hash (17681-17780).
+
+### R.6 Other fixes this round
+- `LAB_TARGETS` env: authorized lab targets skip SSRF block (opt-in, logged)
+- 3 plans instead of 5 (300-token limit was truncating the 5th), JSON repair, breaker 3→5
+
+### R.7 Benchmark status
+Hunt `h_bench_8ec1850e` running with all fixes. Stable (no crashes), recon working (27 endpoints), but **0 verified findings so far**. The 8B model at ~1.8 tok/s takes 10+ min/iteration. Scoring (precision/recall vs known Juice Shop vulns) pending completion.
+
+**Commits:** 7629aa3, 725722f, 71aed7b, 1f5fcb1
+**Total fixed overall:** 22 issues
+**Remaining:** 198 problems documented.
+**Readiness:** NOT READY — benchmark has not yet produced a verified finding.
+
+---
+
+*End of Round 4 (in progress).*
+*Next: complete benchmark scoring, then address the next gap.*
