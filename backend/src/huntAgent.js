@@ -395,11 +395,21 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   const intel = recon.intelligentPrompt
     ? `\n--- TARGET INTELLIGENCE (follow strictly) ---\n${String(recon.intelligentPrompt).slice(0, MAX_INTEL_CHARS)}`
     : '';
+  // HIGH-VALUE TARGETS: authentication endpoints are the #1 priority for
+  // elite hunters. If the recon found login/auth endpoints, flag them
+  // explicitly — the model often overlooks them among generic endpoints.
+  const authEndpoints = (recon.endpoints || []).filter((ep) =>
+    /login|auth|signin|session|token/i.test(ep)
+  );
+  const authHint = authEndpoints.length
+    ? `\nHIGH-VALUE TARGETS (test FIRST): ${authEndpoints.slice(0, 5).join(', ')} — these are authentication endpoints. Try SQL injection, NoSQL injection, and authentication bypass on them before anything else.`
+    : '';
   const context = [
     `Target: ${target}`,
     `Profile: ${recon.profile}`,
     `Open ports: ${recon.ports.map((p) => `${p.port}/${p.service}`).join(', ') || 'none found'}`,
     `Endpoints: ${recon.endpoints.slice(0, 15).join(', ') || 'none mined'}`,
+    authHint,
     `Confirmed findings so far: ${confirmed.length}`,
     ...confirmed.slice(-5).map((f) => `- ${f.title} (${f.severity})`),
     lessons ? `Past lessons for similar targets:\n${lessons}` : '',
@@ -433,6 +443,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     'Prefer tests that escalate existing findings or follow curiosity threads.',
     'Commands must be non-destructive and target-scoped. You can use: nmap, nuclei, curl, python3, and any tools in the container.',
     'CRITICAL: Respect the TARGET INTELLIGENCE section — never suggest tests for technologies not present.',
+    'PRIORITY: If HIGH-VALUE TARGETS are listed (login/auth endpoints), test them FIRST with injection and bypass techniques. Authentication flaws are the highest-impact findings.',
     '',
     context,
     '',
