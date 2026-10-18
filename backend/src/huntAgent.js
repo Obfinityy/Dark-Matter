@@ -612,6 +612,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     'Propose up to THREE probes — but they should feel like YOUR ideas, not a checklist.',
     'Reply as a JSON array: [{"test":"name","command":"shell command","why":"one line (your reasoning)","hypothesis":"what you expect to find"}, ...].',
     'Commands must be non-destructive and target-scoped. You can use: nmap, nuclei, curl, python3, and any tools in the container.',
+    'You are a PERSON with a machine, not a script. If you need a tool you don\'t have, download it (curl/wget) or install it (apt-get). If you don\'t know something, SEARCH the web: put "SEARCH: your question" as the command and you\'ll get web results back.',
     'CRITICAL: Respect the TARGET INTELLIGENCE section — never suggest tests for technologies not present.',
     '',
     appModelSection,
@@ -747,6 +748,22 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
  * encoders from the matrix before giving up.
  */
 async function executeWithEvasion(huntId, target, command) {
+  // Person capability: web search mid-hunt. If the model doesn't know
+  // something, it can ask via "SEARCH: <query>" instead of guessing.
+  const searchMatch = /^\s*SEARCH:\s*(.+)/i.exec(command);
+  if (searchMatch) {
+    const query = searchMatch[1].slice(0, 200);
+    think(huntId, `Searching the web: ${query}`);
+    try {
+      const results = await webSearch(query, 5);
+      const text = results.length === 0
+        ? 'No web results found.'
+        : results.map((r, i) => `${i + 1}. ${r.title}\n   ${r.url}`).join('\n');
+      return { stdout: text, stderr: '', exitCode: 0 };
+    } catch {
+      return { stdout: 'Web search failed.', stderr: '', exitCode: 1 };
+    }
+  }
   let result = await execInHuntContainer(huntId, command, 180000);
   const blocked = /403|406|406 Not Acceptable|blocked by|waf|forbidden/i.test(result.stdout + result.stderr)
     && result.stdout.length < 500;
