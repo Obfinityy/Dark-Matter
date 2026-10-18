@@ -30,7 +30,7 @@ export function getOrchestrator(huntId) {
   return orchestrators.get(huntId) || null;
 }
 import { chatWithAI, aiAvailable } from './llm.js';
-import { generateHypotheses, formatHypothesesForPrompt, scoreInterestingness } from './curiosity.js';
+import { generateHypotheses, formatHypothesesForPrompt, scoreInterestingness, buildAppModel, formatAppModelForPrompt } from './curiosity.js';
 import { recordReasoning, formatReasoningForPrompt } from './reasoningMemory.js';
 import { webSearch, searchCVE } from './webSearch.js';
 import { runBrowserTask, crawlScript } from './browserAgent.js';
@@ -428,25 +428,41 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       : '',
   ].join('\n').slice(0, MAX_PROMPT_CHARS);
 
+  // HUMAN MENTAL MODEL: what does this app DO? A human hunter spends the first
+  // 2 minutes understanding the app, not running scans. Build that model here.
+  let appModelSection = '';
+  try {
+    const appModel = buildAppModel(recon.endpoints || [], recon.detection?.techs || [], recon.profile || '');
+    appModelSection = formatAppModelForPrompt(appModel);
+    if (appModel.appType !== 'unknown') {
+      think(huntId, `App model: looks like ${appModel.appType} — value flows: ${appModel.valueFlows.slice(0, 2).join('; ').slice(0, 100)}`);
+    }
+  } catch { /* app model is best-effort */ }
+
   // HARD CAP on the final prompt: the instruction header plus context plus
   // trailing sections (steering, curiosity, reasoning memory) must together
   // fit in the model's context window. Anything beyond the budget is cut
   // from the end, where the lowest-priority sections live.
   const prompt = [
-    'You are an ELITE bug-bounty hunter — think like a human, not a scanner.',
+    'You are an ELITE bug-bounty hunter. You think like a HUMAN, not a scanner.',
     '',
-    'THINK LIKE THIS:',
-    '- Be CURIOUS: if something looks odd, dig deeper. Don\'t just move to the next test.',
-    '- Be CREATIVE: chain techniques, try unusual inputs, think about business logic flaws.',
-    '- Be ADAPTIVE: if a test fails, ask WHY and try a different angle.',
-    '- Think about what the DEVELOPER might have gotten wrong.',
+    'HOW YOU THINK:',
+    '- First UNDERSTAND the app: what does it do? Where does money/data/trust flow?',
+    '- Then OBSERVE: what looks odd, interesting, or out of place?',
+    '- Then WONDER: "what if I..." — follow your curiosity, not a checklist.',
+    '- A scanner runs test 1, then test 2, then test 3. YOU follow interesting threads.',
+    '- If a response shows a price, ask who controls it. If you see an ID, ask whose it is.',
+    '- Think about what the DEVELOPER assumed — then break that assumption.',
+    '- Business logic flaws (wrong price, wrong user, skipped steps) pay the best bounties.',
     '',
-    'Given the recon context below, propose THREE diverse next tests (different attack classes).',
-    'Reply as a JSON array: [{"test":"name","command":"shell command","why":"one line","hypothesis":"what you expect to find"}, ...].',
-    'Prefer tests that escalate existing findings or follow curiosity threads.',
+    'Look at the app model, your notebook, and the recon below.',
+    'What catches your EYE? What would you poke at next, and WHY?',
+    'Propose up to THREE probes — but they should feel like YOUR ideas, not a checklist.',
+    'Reply as a JSON array: [{"test":"name","command":"shell command","why":"one line (your reasoning)","hypothesis":"what you expect to find"}, ...].',
     'Commands must be non-destructive and target-scoped. You can use: nmap, nuclei, curl, python3, and any tools in the container.',
     'CRITICAL: Respect the TARGET INTELLIGENCE section — never suggest tests for technologies not present.',
-    'PRIORITY: If HIGH-VALUE TARGETS are listed (login/auth endpoints), test them FIRST with injection and bypass techniques. Authentication flaws are the highest-impact findings.',
+    '',
+    appModelSection,
     '',
     context,
     '',
@@ -856,12 +872,13 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
       }
     } catch { /* no history yet */ }
 
-    // Intel: logic tests for this profile → feed as planned tests
+    // Business-logic intel: a human hunter thinks "where's the money, where's the trust?"
+    // The app model (built in agentIteration) already captures this. Here we just
+    // note the business-logic surface for the record — no mechanical checklist.
     try {
       const logic = generateLogicTests(recon.endpoints);
-      think(huntId, `Business-logic plan: ${logic.blModules.length} modules for ${logic.appType}.`);
-      for (const mod of logic.blModules.slice(0, 5)) {
-        appendHuntEvent(huntId, { type: 'thinking', text: `BL module queued: ${mod.id} ${mod.title}` });
+      if (logic.blModules.length) {
+        think(huntId, `Business-logic surface: ${logic.blModules.length} areas worth thinking about (not a checklist — follow your instincts).`);
       }
     } catch { /* intel is best-effort */ }
 
