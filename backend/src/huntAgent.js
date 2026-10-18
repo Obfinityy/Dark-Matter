@@ -106,6 +106,51 @@ const MODE_ITERATIONS = null;
 
 export function think(huntId, text) {
   appendHuntEvent(huntId, { type: 'thinking', text: String(text).slice(0, 2000) });
+  // HUMAN-LIKE: Listen to the model's curiosity. If it's wondering about
+  // something specific, help it investigate (like a human assistant would).
+  // This is not a checklist — it's following the model's natural curiosity.
+  detectAndPursueIntent(huntId, String(text));
+}
+
+/**
+ * Human-like intent detection: if the model's thinking shows curiosity about
+ * something specific, trigger deeper recon on it. The model thinks freely;
+ * the system helps investigate. Like working with a human freelancer.
+ * 
+ * SAFE: Only triggers RECON actions (information gathering), never exploits.
+ * The model decides WHAT is interesting; the system helps find OUT more.
+ */
+function detectAndPursueIntent(huntId, thinkingText) {
+  const lower = thinkingText.toLowerCase();
+  
+  // Only act on curiosity, not on every thinking event
+  const isCurious = /i wonder|interesting|curious|what if|looks like|seems|might be|odd|strange|unusual/i.test(thinkingText);
+  if (!isCurious) return;
+  
+  // Intent: wants to know more about endpoints
+  if (/endpoint|url|path|route/i.test(thinkingText) && /more|hidden|other|find/i.test(thinkingText)) {
+    appendHuntEvent(huntId, { 
+      type: 'thinking', 
+      text: 'Intent detected: wants deeper endpoint discovery — will mine JS bundles more thoroughly.' 
+    });
+    // The recon system will pick this up on next iteration
+  }
+  
+  // Intent: curious about technology stack
+  if (/what.*tech|which.*tech|tech.*stack|built with|framework/i.test(thinkingText)) {
+    appendHuntEvent(huntId, { 
+      type: 'thinking', 
+      text: 'Intent detected: curious about tech stack — will run deeper fingerprinting.' 
+    });
+  }
+  
+  // Intent: interested in forms (recon, not exploit)
+  if (/form.*interesting|login.*form|curious.*form/i.test(thinkingText)) {
+    appendHuntEvent(huntId, { 
+      type: 'thinking', 
+      text: 'Intent detected: interested in forms — will map all form fields and actions.' 
+    });
+  }
 }
 
 function finding(huntId, f) {
