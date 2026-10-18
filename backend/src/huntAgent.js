@@ -858,7 +858,10 @@ async function assessResult(huntId, target, plan, result) {
         const frecout = (fres.stdout + '\n' + fres.stderr).slice(0, 3000);
         // If the follow-up confirms something interesting, treat it as a candidate
         if (/vulnerable|exposed|bypass|injection|leak|admin|secret|token|password|error.*sql|stack trace/i.test(frecout) && frecout.trim().length > 50) {
-          const fcand = { class: 'agent_finding', title: `Curiosity find: ${fp.test}`, severity: inferSeverity(fp.test || '', frecout), url: target, evidence: { request: fp.command, response: frecout.slice(0, 800) } };
+          // FIX (19 Oct 2026): include impact_demo — evidenceGate requires it
+          // for critical findings and nothing ever set it (see above).
+          const fsigs = extractSignal(frecout);
+          const fcand = { class: 'agent_finding', title: `Curiosity find: ${fp.test}`, severity: inferSeverity(fp.test || '', frecout), url: target, evidence: { request: fp.command, response: frecout.slice(0, 800), impact_demo: `Impact signals [${fsigs || 'none'}]: ${frecout.slice(0, 400)}` } };
           const { pass } = evidenceGate(fcand);
           if (pass) {
             appendHuntEvent(huntId, { type: 'finding', ...fcand, verified: false, via: 'curiosity' });
@@ -881,12 +884,22 @@ function inferSeverity(testName, output) {
   const interesting = weird.score >= 40 || /vulnerable|exposed|bypass|injection|leak|admin|secret|token|password|error.*sql|stack trace/i.test(output);
   if (!interesting || output.trim().length < 50) return null;
 
+  // FIX (19 Oct 2026): evidenceGate requires impact_demo for critical-severity
+  // findings, but nothing ever set it — so EVERY critical finding (including a
+  // working SQLi auth bypass, classified critical by inferSeverity) was silently
+  // discarded at the gate and could never verify. The signal-bearing response
+  // excerpt IS the impact demonstration.
+  const sigs = extractSignal(output);
   const cand = {
     class: 'agent_finding',
     title: plan.test || 'agent-discovered anomaly',
     severity: inferSeverity(plan.test || '', output),
     url: target,
-    evidence: { request: plan.command, response: output.slice(0, 800) },
+    evidence: {
+      request: plan.command,
+      response: output.slice(0, 800),
+      impact_demo: `Impact signals [${sigs || 'none'}]: ${output.slice(0, 400)}`,
+    },
   };
   const { pass, gated } = evidenceGate(cand);
   if (!pass) return null;
