@@ -626,8 +626,14 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   ].join('\n').slice(0, MAX_PROMPT_CHARS);
 
   let plans = [];
+  // NOTE: `reply` is hoisted out of the try block on purpose — the
+  // natural-language fallback below needs it when the model replied but
+  // produced no parseable JSON. Declaring it as `const` inside the try
+  // threw "ReferenceError: reply is not defined" and silently discarded
+  // the model's plan (seen live on h_bench_cb6e37b2 iteration 1).
+  let reply = '';
   try {
-    const reply = await chatWithAI(
+    reply = await chatWithAI(
       [{ role: 'user', text: prompt }],
       'You are an elite bug-bounty hunter. Output ONLY the requested JSON array, no prose.',
       { huntId }
