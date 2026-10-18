@@ -592,9 +592,15 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   } catch { /* app model is best-effort */ }
 
   // HARD CAP on the final prompt: the instruction header plus context plus
-  // trailing sections (steering, curiosity, reasoning memory) must together
-  // fit in the model's context window. Anything beyond the budget is cut
-  // from the end, where the lowest-priority sections live.
+  // trailing sections (steering, curiosity) must together fit in the model's
+  // context window. Anything beyond the budget is cut from the end, where
+  // the lowest-priority sections live.
+  // NOTE: the reasoning history sits right after the header on purpose.
+  // A controlled experiment (Oct 2026) proved the model changes its plans
+  // based on this history — it avoids re-testing attacks the history says
+  // failed. Placing it last meant it was the FIRST section truncated when
+  // the prompt exceeded budget, silently disabling the learning mechanism
+  // in exactly the fully-loaded hunts where it matters most.
   const prompt = [
     'You are an ELITE bug-bounty hunter. You think like a HUMAN, not a scanner.',
     '',
@@ -615,6 +621,8 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     'You are a PERSON with a machine, not a script. If you need a tool you don\'t have, download it (curl/wget) or install it (apt-get). If you don\'t know something, SEARCH the web: put "SEARCH: your question" as the command and you\'ll get web results back.',
     'CRITICAL: Respect the TARGET INTELLIGENCE section — never suggest tests for technologies not present.',
     '',
+    formatReasoningForPrompt(huntId),
+    '',
     appModelSection,
     '',
     context,
@@ -622,7 +630,6 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     `Iteration ${iteration} — hunting unlimited.`,
     steering ? `\n--- USER INSTRUCTION (follow this round) ---\n${steering}` : '',
     curiositySection,
-    formatReasoningForPrompt(huntId),
   ].join('\n').slice(0, MAX_PROMPT_CHARS);
 
   let plans = [];
