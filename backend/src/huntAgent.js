@@ -931,10 +931,17 @@ function inferSeverity(testName, output) {
     think(huntId, `Verification re-run failed: ${err.message || err}`);
   }
 
+  // FIX (19 Oct 2026, solver #3): impact_assessment rejected GENUINE findings.
+  // Proven by simulation with the real pipeline code: a working SQLi auth
+  // bypass (admin JWT in a clean 200 JSON) scores weird=8 and contains none
+  // of the literal words vulnerable/bypass/injection/leak — so a real
+  // vulnerability was verdict as "false_positive (impact_assessment)".
+  // extractSignal's impact signals (admin-exposure, auth-bypass, sql-error…)
+  // ARE the impact demonstration — honour them here.
   const v = verifyPipeline({
     reachability: output.length > 50,
     payload_validation: /vulnerable|exposed|bypass|injection|leak|admin|secret|token|password|error.*sql|stack trace/i.test(output),
-    impact_assessment: weird.score >= 40 || /vulnerable|bypass|injection|leak/i.test(output),
+    impact_assessment: weird.score >= 40 || sigs.length > 0 || /vulnerable|bypass|injection|leak/i.test(output),
     exploit_confirmation: confirmed,
   });
   const rec = { ...gated, verification: v.verdict, verified: v.verified };
@@ -1049,9 +1056,27 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
     orchestrators.set(huntId, head);
     think(huntId, `Head online: I am the lead hacker. Target: ${target}. Assembling my team.`);
 
-    // Phase 1: recon — head spawns a recon specialist worker
+    // Phase 1: recon — head spawns a recon specialist worker.
+    // FIX (19 Oct 2026, solver #3): recon was never persisted to meta.json —
+    // every backend restart/resume re-ran the full recon (nmap + browser +
+    // bundle mining, minutes wasted), and a failed resume-time recon left the
+    // hunt with zero endpoints so the model hallucinated targets. Persist
+    // recon to meta; on resume, reuse it instead of re-scanning.
     const reconWorker = head.spawnWorker('recon', `Map ${target}: open ports, services, tech stack, subdomains, endpoints.`);
-    const recon = await reconPhase(huntId, target);
+    let recon = null;
+    if (isResume) {
+      const savedRecon = (readHuntMeta(huntId) || {}).recon;
+      if (savedRecon && Array.isArray(savedRecon.endpoints) && savedRecon.endpoints.length > 0) {
+        recon = savedRecon;
+        think(huntId, `Reusing persisted recon: ${recon.endpoints.length} endpoints, tech [${(((recon.detection || {}).techs) || []).join(', ') || 'unknown'}] — no re-scan needed.`);
+      }
+    }
+    if (!recon) {
+      recon = await reconPhase(huntId, target);
+      try {
+        writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, recon });
+      } catch { /* recon persist is best-effort */ }
+    }
     head.review(reconWorker, { ok: true, output: JSON.stringify(recon).slice(0, 500) }, () => recon && recon.profile);
 
     // PER-TARGET MEMORY: read what past hunts learned about this target, and
