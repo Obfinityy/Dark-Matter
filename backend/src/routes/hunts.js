@@ -471,9 +471,12 @@ for (const [route, fn, verb] of [
           appendHuntEvent(huntId, { type: 'status', state: 'resumed', at: new Date().toISOString() });
           // Actually restart the agent loop — the paused loop tore down its
           // container, so flipping flags alone leaves a "running" hunt that
-          // does nothing. Resume from checkpoint.
-          const { runAutonomousHunt } = await import('../huntAgent.js');
-          runAutonomousHunt(huntId, m0.target, m0.mode || 'normal', req.user.id, { isResume: true }).catch((err) => {
+          // does nothing. Resume from checkpoint via resumeInterruptedHunt,
+          // which continues from meta.iteration + 1 and rebuilds findings
+          // from the event log. (Calling runAutonomousHunt with only
+          // {isResume:true} would silently reset the iteration counter to 1.)
+          const { resumeInterruptedHunt } = await import('../huntAgent.js');
+          resumeInterruptedHunt(huntId).catch((err) => {
             appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
           });
           return res.json({ ok: true, action: 'resume', huntId, hostSide: true });
