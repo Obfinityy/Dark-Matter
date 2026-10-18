@@ -1098,7 +1098,11 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
       try {
         iterResult = await agentIteration(huntId, target, recon, findings, i, playbook);
       } catch (err) {
-        think(huntId, `Iteration ${i} failed safely: ${err.message || err}`);
+        // DIAG (18 Oct 2026): log the stack's first frames so a recurring
+        // ReferenceError (e.g. "reply is not defined") reveals its exact
+        // file:line instead of failing silently 8+ iterations in a row.
+        const stackHint = err && err.stack ? String(err.stack).split('\n').slice(1, 4).join(' <- ').slice(0, 400) : 'no-stack';
+        think(huntId, `Iteration ${i} failed safely: ${err.message || err} :: ${stackHint}`);
       }
       if (iterResult === null || (iterResult && iterResult.aiOk === false)) {
         aiFailStreak++;
