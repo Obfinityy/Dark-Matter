@@ -124,8 +124,16 @@ function detectAndPursueIntent(huntId, thinkingText) {
   const lower = thinkingText.toLowerCase();
   
   // Only act on curiosity, not on every thinking event
-  const isCurious = /i wonder|interesting|curious|what if|looks like|seems|might be|odd|strange|unusual/i.test(thinkingText);
+  const isCurious = /i wonder|interesting|curious|what if|looks like|seems|might be|odd|strange|unusual|pursuing.*thread/i.test(thinkingText);
   if (!isCurious) return;
+  
+  // HUMAN-LIKE: The model is curious about something. Acknowledge and encourage
+  // deeper exploration. We don't need to know exactly what — the curiosity
+  // itself is the signal to dig deeper.
+  appendHuntEvent(huntId, { 
+    type: 'thinking', 
+    text: 'Following curiosity: model finds something interesting — will explore more deeply on next iteration.' 
+  });
   
   // Intent: wants to know more about endpoints
   if (/endpoint|url|path|route/i.test(thinkingText) && /more|hidden|other|find/i.test(thinkingText)) {
@@ -133,7 +141,6 @@ function detectAndPursueIntent(huntId, thinkingText) {
       type: 'thinking', 
       text: 'Intent detected: wants deeper endpoint discovery — will mine JS bundles more thoroughly.' 
     });
-    // The recon system will pick this up on next iteration
   }
   
   // Intent: curious about technology stack
