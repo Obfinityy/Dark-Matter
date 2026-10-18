@@ -720,6 +720,19 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     think(huntId, `Test: ${plan.test || 'unnamed'} — ${plan.why || ''}`);
     const result = await executeWithEvasion(huntId, target, String(plan.command).slice(0, 500));
     const rec = await assessResult(huntId, target, plan, result);
+    // Memory: record WHY this was tried and what was learned, so the agent
+    // learns from its own reasoning across iterations (read back via
+    // formatReasoningForPrompt in the planning prompt).
+    try {
+      recordReasoning(huntId, {
+        hypothesis: plan.hypothesis || '',
+        action: plan.test || 'unnamed',
+        why: plan.why || '',
+        result: rec ? (rec.verified ? 'VERIFIED: ' + (rec.title || rec.class || '') : 'not verified') : 'no assessment',
+        learned: rec && rec.verified ? 'This attack works here — explore variants.' : 'This probe did not confirm a vulnerability here.',
+        followUp: plan.hypothesis ? 'Consider variants of: ' + plan.hypothesis : '',
+      });
+    } catch { /* memory is best-effort, never break the hunt */ }
     return rec;
   });
   const results = await Promise.all(testPromises);
