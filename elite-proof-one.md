@@ -1197,3 +1197,20 @@ NoSQLi tests for the login endpoint. This is not a suggestion — it's a
 mandatory first step, like an elite hunter's instinct to always test the
 login form.
 **Commit:** b795d91
+
+### R.10 Human-like hunter rebuild (18 Oct)
+User feedback: "I don't need automation like first SQLi then XSS then... I need
+human thinking, business logic, human reasoning."
+The agent was a mechanical checklist. Rebuilt to think like a human:
+- **App mental model** (`buildAppModel`): from recon, infers what the app DOES
+  (shop → money flows through carts; login → sessions matter) and where value
+  and trust boundaries are. A human's 2-minute read.
+- **Business-logic curiosity** (`curiosity.js` v2): detects prices, IDs, roles,
+  quantities, state machines in responses — generates "what if..." hypotheses
+  like a human ("who controls this price?", "can I use someone else's ID?").
+- **Human prompt**: rewritten from "propose THREE diverse tests" to "what catches
+  your EYE? What would you poke at next?" — observations as a notebook, not a
+  checklist.
+- **Removed BL checklist**: no more "BL-01 queued, BL-02 queued..." mechanical
+  events.
+**Commit:** 1c9bf0f
