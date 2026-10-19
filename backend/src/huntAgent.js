@@ -909,6 +909,25 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
  * encoders from the matrix before giving up.
  */
 async function executeWithEvasion(huntId, target, command) {
+  // PLACEHOLDER SUBSTITUTION (19 Oct 2026, elite-gap): The 8B model sometimes
+  // echoes literal placeholders like [target] into commands instead of the
+  // concrete target URL (observed live: "nmap -sV [target] | grep -q 'price
+  // manipulation'" → "Error resolving [target]: Name or service not known",
+  // a fully wasted probe). Deterministically resolve the known placeholder
+  // tokens against the authorised hunt target BEFORE execution. This changes
+  // nothing about validation — output still goes through evidenceGate and
+  // the 4-step verification — it only ensures the command addresses the real
+  // target instead of a non-existent literal string.
+  {
+    const before = String(command);
+    command = before
+      .replace(/\[target\]/gi, target)
+      .replace(/<target>/gi, target)
+      .replace(/\{target\}/gi, target);
+    if (command !== before) {
+      think(huntId, 'Replaced a literal [target] placeholder with the real target URL before executing (model wrote a placeholder).');
+    }
+  }
   // Person capability: web search mid-hunt. If the model doesn't know
   // something, it can ask via "SEARCH: <query>" instead of guessing.
   const searchMatch = /^\s*SEARCH:\s*(.+)/i.exec(command);
