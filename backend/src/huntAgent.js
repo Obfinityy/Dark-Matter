@@ -1182,6 +1182,39 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     }
   }
 
+  // HYPOTHESIS LEDGER ENFORCEMENT (19 Oct 2026, solver #128 — XBOW playbook):
+  // the ledger's DEAD set was a HARD ban list that lived only in the planning
+  // prompt. Live evidence (h_bench_d69e5746, 14:23–14:35 UTC, first 14 min after
+  // the 8a061b4 deploy): the model re-planned ledger-retired premises 7x —
+  // "NoSQL injection on login" 4x (retired 14:15:03 after 19 failures, zero
+  // verifications) and "SQLi authentication bypass on login" 3x (verified,
+  // closed for same-instance re-test) — and the re-verifications kept minting
+  // (+5 verified:true in ~4 min). Prompt-level steering is advisory; the 8B
+  // demonstrably does not obey a ban list it helped retire. The chain-injector
+  // needed the same treatment (8a061b4) — extend the same execution-level gate
+  // to model-authored plans: drop any plan whose hypothesis the ledger
+  // retired, with a think() audit line. Machine-generated probes (detId:
+  // deterministic probes, variant sweep) are EXEMPT — they test premises the
+  // ledger never retired, by construction. Verified hypotheses are NOT
+  // filtered: same-instance re-tests stay prompt-banned, class variants stay
+  // legitimate, and the sweep covers them deterministically. Validators,
+  // gates, and assessResult untouched — this only stops dead premises from
+  // reaching executeWithEvasion.
+  try {
+    const deadKeys = new Set(getHypothesisLedger(huntId).dead.map((d) => normalizeHypothesis(d.text)));
+    if (deadKeys.size) {
+      const kept = plans.filter((p) => {
+        if (p.detId) return true; // machine-generated deterministic/sweep probe — exempt
+        if (deadKeys.has(normalizeHypothesis(p.hypothesis))) {
+          think(huntId, `Plan SKIPPED (ledger-retired premise): ${p.test || p.hypothesis || 'unnamed'}`);
+          return false;
+        }
+        return true;
+      });
+      plans = kept;
+    }
+  } catch { /* ledger enforcement is best-effort — never break the hunt */ }
+
   // Execute up to 3 hypotheses (multi-hypothesis > single guess)
   let best = null;
   // PARALLEL EXECUTION: run all tests concurrently like a human would.
