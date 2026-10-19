@@ -1169,13 +1169,30 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   try {
     const meta0 = readHuntMeta(huntId) || {};
     let vs = meta0.variantSweep;
+    const sweepEvents = readHuntEvents(huntId);
     if (!vs || vs.backfilled !== true) {
       // One-time backfill so findings verified before this shipped still
-      // get their sweep (no per-iteration event scan afterwards).
-      const classes = backfillVerifiedClasses(readHuntEvents(huntId));
+      // get their sweep.
+      const classes = backfillVerifiedClasses(sweepEvents);
       vs = { backfilled: true, classes };
       try { writeHuntMeta(huntId, { ...meta0, huntId, variantSweep: vs }); } catch { /* best-effort */ }
     }
+    // LATE-CLASS MERGE (19 Oct 2026, solver #131): a class can verify BEFORE
+    // its sweep class ships — XXE verified 15:23 UTC while classifyFinding
+    // returned null for it, so the one-time backfill above (and the
+    // per-verification queue) never queued 'xxe' on live hunts. Merge any
+    // newly classifiable verified classes idempotently: cheap regex scan
+    // over finding titles, meta write only when something actually changed.
+    // Validators and the sweep cadence are untouched.
+    try {
+      const fresh = backfillVerifiedClasses(sweepEvents);
+      const missing = fresh.filter((c) => !(vs.classes || []).includes(c));
+      if (missing.length) {
+        vs = { ...vs, classes: [...(vs.classes || []), ...missing] };
+        writeHuntMeta(huntId, { ...meta0, huntId, variantSweep: vs });
+        think(huntId, `Variant sweep: late-verified class queued — ${missing.join(', ')} (verified before its sweep class shipped).`);
+      }
+    } catch { /* sweep queue is best-effort */ }
     const detRun2 = new Set(((readHuntMeta(huntId) || {}).deterministicProbesRun) || []);
     const eps2 = ((recon || {}).endpoints || []).map((e) => String(e).trim());
     const baseUrl2 = target.replace(/\/$/, '');
