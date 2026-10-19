@@ -962,14 +962,18 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       });
     }
 
-    // 4. LFI / backup-file disclosure via /ftp — Juice Shop (the lab target)
-    // intentionally ships an /ftp directory listing plus backup files; the
-    // null-byte ".bak%00.md" trick bypasses the .md allowlist and returns
-    // package.json. Grounded 19 Oct 2026 (solver #124) with safe read-only
-    // GETs against the live lab container: /ftp/ listing 200, the .bak%00.md
-    // URL returns the real package.json. READ-ONLY probe; no exfil beyond the
-    // HTTP response, and the assessResult pipeline (validators untouched)
-    // decides whether it counts as a finding.
+    // 4. Sensitive-file exposure via /ftp — Juice Shop (the lab target)
+    // ships an UNAUTHENTICATED /ftp directory listing and the sensitive
+    // files in it are directly downloadable. VERIFIED LIVE 19 Oct 2026
+    // (solver #125) with safe read-only GETs: /ftp/ listing 200 (reveals
+    // filenames), /ftp/incident-support.kdbx 200 / 3246 bytes with KeePass
+    // KDBX magic (03d9a29a) — a password vault, no auth required. The
+    // null-byte ".bak%00.md" backup trick (#124) is DEAD on this lab
+    // version (v17.3.0, container up 46h, unchanged): %00 → 400 Bad Request
+    // (Express rejects null bytes in path), direct .bak → 403 "Only .md
+    // and .pdf files are allowed!". READ-ONLY probe (listing hrefs +
+    // status/size checks, no content exfil); the assessResult pipeline
+    // (validators untouched) decides whether it counts as a finding.
     // NOTE (19 Oct 2026, solver #124) — candidate classes deliberately NOT
     // added because their vectors are absent on this lab version (v17.3.0),
     // verified empirically: XXE (the B2B /file-upload path returns 410
@@ -979,13 +983,13 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // registered test account in scope), SSRF/Gravatar (needs an authed
     // session the driver does not hold), RCE (no grounded vector in this lab).
     // Revisit only if recon discovers new endpoints.
-    if (!plansMention(/\/ftp|lfi|path.?traversal|directory.?list|backup.?file/i) && !detRun.has('ftp-lfi-backup')) {
+    if (!plansMention(/\/ftp|lfi|path.?traversal|directory.?list|backup.?file|sensitive.?file|kdbx/i) && !detRun.has('ftp-lfi-backup')) {
       detFront.push({
         detId: 'ftp-lfi-backup',
-        test: 'FTP directory listing + backup file disclosure',
-        command: `{ echo '--- /ftp/ listing ---'; curl -sk "${baseUrl}/ftp/" | head -c 600; echo; echo '--- backup file via null-byte ---'; curl -sk "${baseUrl}/ftp/package.json.bak%00.md" | head -c 2000; }`,
-        why: 'Juice Shop ships an /ftp directory listing and backup files; the null-byte trick defeats the .md allowlist — both verified live against this lab container',
-        hypothesis: '/ftp may expose directory listing and backup files readable without authentication',
+        test: 'FTP directory listing + sensitive file exposure',
+        command: `{ echo '--- /ftp/ listing (files) ---'; curl -sk "${baseUrl}/ftp/" | grep -o 'href="[^"]*"'; echo '--- sensitive file retrievability (http status, bytes) ---'; for f in incident-support.kdbx eastere.gg encrypt.pyc package.json.bak coupons_2013.md.bak suspicious_errors.yml; do printf "%s: " "$f"; curl -sk -o /dev/null -w "%{http_code} %{size_download}b" "${baseUrl}/ftp/$f"; echo; done; }`,
+        why: 'Juice Shop exposes an unauthenticated /ftp directory listing; incident-support.kdbx (KeePass password vault, 3246 bytes, KDBX magic) downloads with HTTP 200 and no auth — verified live against this lab container',
+        hypothesis: '/ftp may expose sensitive files (password vaults, backups) readable without authentication',
       });
     }
 
