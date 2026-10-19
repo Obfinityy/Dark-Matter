@@ -199,6 +199,19 @@ import {
 // Money is the only limit. This constant is kept for reference only.
 const MODE_ITERATIONS = null;
 
+// FNV-1a 32-bit hash, hex-encoded. Used for lightweight prompt-audit records:
+// it fingerprints a prompt section's exact content without storing the prompt.
+// Dependency-free and deterministic.
+function fnv1aHex(str = '') {
+  let h = 0x811c9dc5;
+  const s = String(str);
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
 export function think(huntId, text) {
   appendHuntEvent(huntId, { type: 'thinking', text: String(text).slice(0, 2000) });
   // HUMAN-LIKE: Listen to the model's curiosity. If it's wondering about
@@ -714,9 +727,25 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // against this target's fingerprint. Additive to the per-hunt reasoning
   // history — capped hard so it never blows the context budget.
   let globalMemorySection = '';
+  let globalMemoryAudit = { count: 0, keys: [], sectionLen: 0, sectionHash: 'empty' };
   try {
-    globalMemorySection = formatGlobalMemoryForPrompt(getRelevantMemories(appFingerprint, 6)).slice(0, 500);
+    const relevantMemories = getRelevantMemories(appFingerprint, 6);
+    globalMemorySection = formatGlobalMemoryForPrompt(relevantMemories).slice(0, 500);
+    globalMemoryAudit = {
+      count: relevantMemories.length,
+      keys: relevantMemories.map((m) => `${m.technique}|${m.appType}`),
+      sectionLen: globalMemorySection.length,
+      sectionHash: fnv1aHex(globalMemorySection),
+    };
   } catch { /* global memory is best-effort */ }
+  // PROMPT AUDIT (19 Oct 2026): prompts are never stored (context budget),
+  // so influence claims were unverifiable. This lightweight record — which
+  // memories reached the model, how long the section was, a content hash —
+  // lets future audits answer "did iteration N see memory X?" with evidence.
+  // Direct appendHuntEvent (not think()): machine audit trail, not the model's voice.
+  try {
+    appendHuntEvent(huntId, { type: 'memory_audit', iteration, ...globalMemoryAudit });
+  } catch { /* best-effort */ }
   // Stash the fingerprint on the hunt meta for the write path.
   try {
     const m0 = readHuntMeta(huntId) || {};
