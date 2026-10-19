@@ -85,7 +85,7 @@ export function formatReasoningForPrompt(huntId) {
 // Prompt-level steering only — no validator, gate, or execution path changes.
 export const FAIL_DEATH_TOLL = 5;
 
-function normHypothesis(h) {
+export function normalizeHypothesis(h) {
   return String(h || '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
@@ -110,7 +110,7 @@ export function getHypothesisLedger(huntId) {
   const byHyp = new Map();
   for (const r of rows) {
     if (r.action === 'hypothesis-retirement') continue;
-    const key = normHypothesis(r.hypothesis);
+    const key = normalizeHypothesis(r.hypothesis);
     if (!key) continue;
     if (!byHyp.has(key)) {
       byHyp.set(key, { text: String(r.hypothesis).slice(0, 140), verified: 0, failed: 0, titles: [] });

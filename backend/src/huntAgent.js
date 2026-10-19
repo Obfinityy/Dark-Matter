@@ -125,7 +125,7 @@ export function getOrchestrator(huntId) {
 }
 import { chatWithAI, aiAvailable } from './llm.js';
 import { generateHypotheses, formatHypothesesForPrompt, scoreInterestingness, buildAppModel, formatAppModelForPrompt } from './curiosity.js';
-import { recordReasoning, formatReasoningForPrompt, formatLedgerForPrompt } from './reasoningMemory.js';
+import { recordReasoning, formatReasoningForPrompt, formatLedgerForPrompt, getHypothesisLedger, normalizeHypothesis } from './reasoningMemory.js';
 import { recordGlobalLearning, getRelevantMemories, formatGlobalMemoryForPrompt, inferTechnique } from './globalMemory.js';
 import { webSearch, searchCVE } from './webSearch.js';
 import { runBrowserTask, crawlScript } from './browserAgent.js';
@@ -1075,8 +1075,27 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       }
 
       if (chainTests.length) {
-        plans.unshift(...chainTests); // FRONT: chain pursuit is high-priority (verified finding artifacts) — must be in slice(0,3) execution window
-        think(huntId, `Chain pursuit tests injected: ${chainTests.map((t) => t.test).join(', ')} (pursuing ${chainCtx.chainPath.join(' → ')})`);
+        // HYPOTHESIS LEDGER (19 Oct 2026, solver #127): chain-pursuit tests
+        // are injected AFTER planning, so they bypass the prompt's ban list.
+        // Live evidence: in the first iteration after the ledger fired, the
+        // model obeyed the ban (proposed nothing dead) but these two chain
+        // tests re-injected the just-retired JWT/IDOR premises and failed
+        // again ("no assessment"). Skip chain tests whose premise the ledger
+        // retired — a retired premise re-executed is a burned iteration.
+        // Verified hypotheses are NOT filtered: chains legitimately build on
+        // verified findings; only dead premises are blocked.
+        const deadKeys = new Set(getHypothesisLedger(huntId).dead.map((d) => normalizeHypothesis(d.text)));
+        const liveChainTests = chainTests.filter((t) => {
+          if (deadKeys.has(normalizeHypothesis(t.hypothesis))) {
+            think(huntId, `Chain pursuit SKIPPED (ledger-retired premise): ${t.test}`);
+            return false;
+          }
+          return true;
+        });
+        if (liveChainTests.length) {
+          plans.unshift(...liveChainTests); // FRONT: chain pursuit is high-priority (verified finding artifacts) — must be in slice(0,3) execution window
+          think(huntId, `Chain pursuit tests injected: ${liveChainTests.map((t) => t.test).join(', ')} (pursuing ${chainCtx.chainPath.join(' → ')})`);
+        }
       }
     }
   } catch { /* chain pursuit is best-effort */ }
