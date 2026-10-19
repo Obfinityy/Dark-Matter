@@ -309,6 +309,12 @@ async function reconPhase(huntId, target) {
             const lines = (jsRes.stdout || '').split('\n').filter(Boolean);
             for (const line of lines) {
               const ep = line.replace(/"/g, '').trim();
+              // FIX (19 Oct 2026, solver #6): Validate endpoint format.
+              // Raw stdout includes Kali MOTD lines, shell prompts, and command
+              // echoes — these were added as "endpoints" (e.g., the MOTD line
+              // containing "hushlogin" matched the /login/ filter, corrupting
+              // the mandatory SQLi test URL). Only accept actual path-like endpoints.
+              if (!/^\/(api|rest|v\d+|admin|graphql|internal)(\/|$|[?#])/.test(ep)) continue;
               if (ep.length > 2 && ep.length < 200 && !mined.includes(ep)) mined.push(ep);
             }
           } catch { /* skip failed bundle */ }
@@ -705,7 +711,11 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   try {
     const authEndpoints = (recon.endpoints || []).filter((ep) =>
       /login|auth|signin|session|token/i.test(ep)
-    );
+    // FIX (19 Oct 2026, solver #6): Validate endpoint is a real path, not a
+    // terminal artifact. Recon from older hunts may contain MOTD lines (e.g.,
+    // '┗━(Run: "touch ~/.hushlogin"...)' matched /login/ via "hushlogin",
+    // corrupting the SQLi test URL). Only accept path-like endpoints.
+    ).filter((ep) => /^\/(api|rest|v\d+|admin|graphql|internal)/.test(ep.trim()));
     const plansMentionAuth = plans.some((p) =>
       /login|auth|signin/i.test(`${p.test || ''} ${p.command || ''}`)
     );
@@ -845,9 +855,53 @@ function sanitizeForAI(text) {
   return clean;
 }
 
+/**
+ * FIX (19 Oct 2026, solver #6): Strip terminal artifacts from tool output.
+ * Container exec output includes Kali MOTD banner, shell prompts, and ANSI
+ * codes (from tmux capture-pane or shell startup). These contaminate:
+ * 1. Recon endpoints — MOTD lines like '┗━(Run: "touch ~/.hushlogin"...)' were
+ *    added as "endpoints"; the /login/ filter matched "hushlogin" so mandatory
+ *    SQLi tests ran against garbage URLs.
+ * 2. Finding evidence — evidence.response contained MOTD+prompt instead of the
+ *    HTTP body, so payload_validation could never match the payload.
+ * This strips terminal chrome but preserves the actual command output.
+ */
+function stripTerminalArtifacts(text) {
+  if (!text) return '';
+  let clean = String(text);
+  // Remove ANSI escape codes (colors, cursor movement)
+  clean = clean.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+  clean = clean.replace(/\x1b\][^\x07]*\x07/g, ''); // OSC sequences
+  // Remove Kali MOTD banner lines and shell prompts, line by line
+  const lines = clean.split('\n');
+  const filtered = lines.filter((line) => {
+    const t = line.trim();
+    if (!t) return true; // keep empty lines (structure)
+    // Kali MOTD banner markers
+    if (/Message from Kali developers/i.test(t)) return false;
+    if (/minimal installation of Kali/i.test(t)) return false;
+    if (/touch ~\/\.hushlogin/i.test(t)) return false;
+    if (/troubleshooting\/common-minimum-setup/i.test(t)) return false;
+    // Pure box-drawing lines (MOTD borders)
+    if (/^[┏━┃┗┌└─│\s]+$/.test(t) && /[┏━┃┗┌└]/.test(t)) return false;
+    // MOTD content lines (start with ┃ box-drawing char)
+    if (/^[┃│]/.test(t)) return false;
+    // Shell prompt lines: ┌──(root㉿host)-[dir] and └─# command echo
+    if (/┌──\(.*\)-\[.*\]/.test(t)) return false;
+    if (/^└─#/.test(t)) return false;
+    // Classic prompt patterns (just in case)
+    if (/^root@[a-zA-Z0-9-]+:[^#]*#\s*$/.test(t)) return false;
+    return true;
+  });
+  return filtered.join('\n');
+}
+
 /** Assess a test result: weirdness check → evidence gate → verify. */
 async function assessResult(huntId, target, plan, result) {
-  const output = sanitizeForAI(result.stdout + '\n' + result.stderr).slice(0, 3000);
+  // FIX (19 Oct 2026, solver #6): Strip terminal artifacts (Kali MOTD, shell
+  // prompts, ANSI codes) from tool output BEFORE using it as evidence.
+  // Contaminated output caused payload_validation to fail on genuine findings.
+  const output = stripTerminalArtifacts(sanitizeForAI(result.stdout + '\n' + result.stderr)).slice(0, 3000);
 
   // Weirdness check: investigate even without signature match
   const weird = scoreWeirdness(
@@ -869,7 +923,8 @@ async function assessResult(huntId, target, plan, result) {
       if (fp && fp.command) {
         think(huntId, `Curiosity follow-up: ${fp.test || 'probing deeper'} — ${fp.why || ''}`);
         const fres = await executeWithEvasion(huntId, target, String(fp.command).slice(0, 500));
-        const frecout = (fres.stdout + '\n' + fres.stderr).slice(0, 3000);
+        // FIX (19 Oct 2026, solver #6): Strip terminal artifacts so evidence is clean.
+        const frecout = stripTerminalArtifacts(fres.stdout + '\n' + fres.stderr).slice(0, 3000);
         // If the follow-up confirms something interesting, treat it as a candidate
         if (/vulnerable|exposed|bypass|injection|leak|admin|secret|token|password|error.*sql|stack trace/i.test(frecout) && frecout.trim().length > 50) {
           // FIX (19 Oct 2026): include impact_demo — evidenceGate requires it
