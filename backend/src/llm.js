@@ -166,6 +166,12 @@ async function chatWithOllama(messages, system, ctx) {
       model: OLLAMA_MODEL,
       messages: ollamaMessages,
       stream: false,
+      // Keep the model resident for 24h after each inference. Without this,
+      // Ollama falls back to its 5-minute default (the OLLAMA_KEEP_ALIVE env
+      // var was not reaching the running ollama serve process), and the model
+      // unloads between hunt iterations (10-15 min apart), stalling hunts.
+      // Request-level keep_alive overrides the server default.
+      keep_alive: '24h',
       // Tuned for 2vCPU EC2: smaller context + fewer tokens = faster.
       // num_ctx caps KV cache to avoid OOM; num_predict keeps plans short.
       options: {
