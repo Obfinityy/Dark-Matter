@@ -125,7 +125,7 @@ export function getOrchestrator(huntId) {
 }
 import { chatWithAI, aiAvailable } from './llm.js';
 import { generateHypotheses, formatHypothesesForPrompt, scoreInterestingness, buildAppModel, formatAppModelForPrompt } from './curiosity.js';
-import { recordReasoning, formatReasoningForPrompt, formatLedgerForPrompt, getHypothesisLedger, normalizeHypothesis } from './reasoningMemory.js';
+import { recordReasoning, formatReasoningForPrompt, formatLedgerForPrompt, getHypothesisLedger, getVerifiedPairs, normalizeHypothesis } from './reasoningMemory.js';
 import { recordGlobalLearning, getRelevantMemories, formatGlobalMemoryForPrompt, inferTechnique } from './globalMemory.js';
 import { webSearch, searchCVE } from './webSearch.js';
 import { runBrowserTask, crawlScript } from './browserAgent.js';
@@ -1227,11 +1227,29 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // reaching executeWithEvasion.
   try {
     const deadKeys = new Set(getHypothesisLedger(huntId).dead.map((d) => normalizeHypothesis(d.text)));
-    if (deadKeys.size) {
+    // VERIFIED-INSTANCE ENFORCEMENT (19 Oct 2026, elite-gap cycle): the prompt
+    // ban does not bind the 8B — "SQLi authentication bypass on login"
+    // re-verified 3x in the 14 min AFTER the e5ef526 ledger deployed, and
+    // 64 of 71 verified:true were that same bug. Each re-proof burns 1 of 3
+    // execution slots per 10–15-min iteration — the exact budget class #3
+    // discovery needs. Drop model-authored plans that re-test an
+    // already-verified (hypothesis, test) pair, with a think() audit line.
+    // detId-exempt (sweep/deterministic probes keep testing class variants
+    // on sibling endpoints); chain-pursuit untouched (different test
+    // strings); first-time verifications untouched (no pair recorded yet).
+    // Validators, gates, and assessResult untouched — PoC re-verification
+    // (generatePoC) runs outside the plans pipeline and is unaffected.
+    const vPairs = getVerifiedPairs(huntId);
+    if (deadKeys.size || vPairs.size) {
       const kept = plans.filter((p) => {
         if (p.detId) return true; // machine-generated deterministic/sweep probe — exempt
         if (deadKeys.has(normalizeHypothesis(p.hypothesis))) {
           think(huntId, `Plan SKIPPED (ledger-retired premise): ${p.test || p.hypothesis || 'unnamed'}`);
+          return false;
+        }
+        const pair = normalizeHypothesis(p.hypothesis) + '||' + normalizeHypothesis(p.test || p.action || '');
+        if (vPairs.has(pair)) {
+          think(huntId, `Plan SKIPPED (ledger-verified same-instance re-test): ${p.test || p.hypothesis || 'unnamed'}`);
           return false;
         }
         return true;

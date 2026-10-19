@@ -138,6 +138,30 @@ export function getHypothesisLedger(huntId) {
 }
 
 /**
+ * Verified-instance pairs (19 Oct 2026, elite-gap cycle): the set of
+ * normalized (hypothesis || test) pairs this hunt has ALREADY verified.
+ * assessResult sets rec.title to plan.test (huntAgent.js:1558), and
+ * recordReasoning stores the plan's test string in r.action — so a
+ * model-authored re-test of the same instance produces a pair-match that
+ * is exact after normalization. Used by the execution-level filter in
+ * agentIteration to stop same-instance re-verification at the plans level
+ * (the prompt ban does not bind the 8B: the verified login bug re-proved
+ * itself 3x in the 14 min after the e5ef526 ledger deployed). detId-tagged
+ * probes are exempted at the call site; chain-pursuit plans carry different
+ * test strings, so neither is affected.
+ */
+export function getVerifiedPairs(huntId) {
+  const pairs = new Set();
+  for (const r of readAllReasoning(huntId)) {
+    if (r.action === 'hypothesis-retirement') continue;
+    if (!String(r.result || '').startsWith('VERIFIED')) continue;
+    const key = normalizeHypothesis(r.hypothesis) + '||' + normalizeHypothesis(r.action);
+    if (key !== '||') pairs.add(key);
+  }
+  return pairs;
+}
+
+/**
  * Format the ledger as a binding prompt section. Also logs a forced-pivot
  * row to reasoning.jsonl for each newly-retired hypothesis (once each —
  * the RETIRED marker in the result makes it idempotent).
