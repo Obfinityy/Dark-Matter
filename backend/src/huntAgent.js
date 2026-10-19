@@ -732,9 +732,14 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // '┗━(Run: "touch ~/.hushlogin"...)' matched /login/ via "hushlogin",
     // corrupting the SQLi test URL). Only accept path-like endpoints.
     ).filter((ep) => /^\/(api|rest|v\d+|admin|graphql|internal)/.test(ep.trim()));
-    const plansMentionAuth = plans.some((p) =>
-      /login|auth|signin/i.test(`${p.test || ''} ${p.command || ''}`)
-    );
+    const plansMentionAuth = plans.some((p) => {
+      const text = `${p.test || ''} ${p.command || ''}`;
+      // FIX (19 Oct 2026, solver #7): The old /login|auth|signin/ regex was too broad —
+      // "authorization bypass" contains "auth" as a substring, suppressing the mandatory
+      // login tests even though the model's plan doesn't actually test the login form.
+      // Only suppress if the model targets a real login endpoint.
+      return /\/rest\/user\/login|\/api\/[^"'\s]*login|signin/i.test(text);
+    });
     if (authEndpoints.length && !plansMentionAuth) {
       const loginEp = authEndpoints[0];
       const baseUrl = target.replace(/\/$/, '');
