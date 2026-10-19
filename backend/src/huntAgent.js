@@ -26,6 +26,13 @@ import { HuntOrchestrator } from './orchestrator.js';
 // Active orchestrators by huntId — so assessResult can report verified
 // findings to the head even though it doesn't receive it as a parameter.
 const orchestrators = new Map();
+
+// FIX (19 Oct 2026, solver #6): Loop-driver mutex. Prevents duplicate
+// runAutonomousHunt loops for the same hunt (e.g., backend auto-resume +
+// watchdog resume script both firing). Duplicate drivers clobber each other's
+// meta writes — this caused the pause-clobbering bug where state=paused was
+// overwritten with state=running+pausedReason.
+const activeLoops = new Set();
 export function getOrchestrator(huntId) {
   return orchestrators.get(huntId) || null;
 }
@@ -197,7 +204,16 @@ function isStopped(huntId) {
 function isPaused(huntId) {
   try {
     const meta = readHuntMeta(huntId);
-    return meta && (meta.paused === true || meta.state === 'paused');
+    if (!meta) return false;
+    // Standard pause indicators
+    if (meta.paused === true || meta.state === 'paused') return true;
+    // DEFENSIVE (19 Oct 2026, solver #6): A pausedReason with state='running'
+    // means a loop driver clobbered the pause (wrote state=running without
+    // clearing pausedReason). Treat as paused — a pause is a pause.
+    // This was observed live: hunt loop overwrote state=paused with
+    // state=running+pausedReason=ai_no_reply, reviving a paused hunt.
+    if (meta.pausedReason && meta.state !== 'finished' && meta.state !== 'stopped') return true;
+    return false;
   } catch {
     return false;
   }
@@ -1082,6 +1098,21 @@ async function generatePoC(huntId, target, findingRec) {
  * Never throws — all failures become hunt events.
  */
 export async function runAutonomousHunt(huntId, target, mode = 'normal', userId = null, opts = {}) {
+  // FIX (19 Oct 2026, solver #6): Loop-driver mutex — one hunt, one driver.
+  // If a loop is already running for this hunt, refuse to start a second.
+  if (activeLoops.has(huntId)) {
+    think(huntId, 'Loop driver already active for this hunt — refusing duplicate (mutex).');
+    return;
+  }
+  activeLoops.add(huntId);
+  try {
+    await runAutonomousHuntInner(huntId, target, mode, userId, opts);
+  } finally {
+    activeLoops.delete(huntId);
+  }
+}
+
+async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = null, opts = {}) {
   const startIteration = Math.max(1, opts.startIteration || 1);
   const isResume = Boolean(opts.isResume);
   // UNLIMITED HUNTING (owner directive): no iteration cap, no rate limit.
