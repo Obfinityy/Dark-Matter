@@ -31,6 +31,7 @@ export { verdictBAC, findCapabilityMarkers, BAC_CONFIDENCE } from './accessContr
 export { fingerprintWaf, recordEvasionResult, isKnownBlocked, encodePayload, ENCODERS } from './wafIntel.js';
 export { scoreSilentPatch, silentPatchToVariant, fingerprintConfidence } from './variantWatch.js';
 export { OAUTH_ATTACKS, oauthAttacksFor } from './oauthAttacks.js';
+export { classifyFinding, sweepSiblings, buildSweepProbe, backfillVerifiedClasses, VARIANT_SWEEP_VERSION, MAX_SWEEP_SIBLINGS } from './variantSweep.js';
 
 export function analyzeFindings(rawFindings, goal = 'rce') {
   const deduped = dedupeFindings(rawFindings || []);

@@ -192,6 +192,10 @@ import {
   encodePayload,
   ENCODERS,
   fingerprintWaf,
+  classifyFinding,
+  sweepSiblings,
+  buildSweepProbe,
+  backfillVerifiedClasses,
 } from './hunt-intel/index.js';
 
 // REMOVED (owner directive 15 Oct 2026): iteration budgets are gone.
@@ -1101,6 +1105,49 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     } catch { /* once-per-hunt record is best-effort */ }
   }
 
+  // VARIANT SWEEP (19 Oct 2026, elite-gap cycle — XBOW playbook item,
+  // user-ordered 18:32 IST): after a vuln class is verified on one vector,
+  // sweep SIBLING vectors for the same class — the elite move the agent was
+  // missing (50 of 52 verified:true were the same SQLi re-proven). One
+  // recon-grounded deterministic probe per iteration, front of the execution
+  // window, once per hunt per sibling. Same assessResult pipeline;
+  // validators untouched.
+  try {
+    const meta0 = readHuntMeta(huntId) || {};
+    let vs = meta0.variantSweep;
+    if (!vs || vs.backfilled !== true) {
+      // One-time backfill so findings verified before this shipped still
+      // get their sweep (no per-iteration event scan afterwards).
+      const classes = backfillVerifiedClasses(readHuntEvents(huntId));
+      vs = { backfilled: true, classes };
+      try { writeHuntMeta(huntId, { ...meta0, huntId, variantSweep: vs }); } catch { /* best-effort */ }
+    }
+    const detRun2 = new Set(((readHuntMeta(huntId) || {}).deterministicProbesRun) || []);
+    const eps2 = ((recon || {}).endpoints || []).map((e) => String(e).trim());
+    const baseUrl2 = target.replace(/\/$/, '');
+    const plansMentionSib = (sib) => plans.some((p) => String(p.command || '').includes(sib));
+    let sweepProbe = null;
+    for (const cls of vs.classes || []) {
+      for (const sib of sweepSiblings(cls, eps2)) {
+        if (plansMentionSib(sib)) continue; // model is already testing this vector — don't duplicate
+        const p = buildSweepProbe(cls, sib, baseUrl2, detRun2);
+        if (p) { sweepProbe = p; break; }
+      }
+      if (sweepProbe) break;
+    }
+    if (sweepProbe) {
+      plans.unshift(sweepProbe); // FRONT: the active discovery frontier outranks everything this iteration
+      think(huntId, `Variant sweep (elite move — verified class, NEW vector): ${sweepProbe.test} — front of execution window, once per hunt`);
+      try {
+        writeHuntMeta(huntId, {
+          ...(readHuntMeta(huntId) || {}),
+          huntId,
+          deterministicProbesRun: [...detRun2, sweepProbe.detId],
+        });
+      } catch { /* once-per-hunt record is best-effort */ }
+    }
+  } catch { /* variant sweep is best-effort */ }
+
   if (!plans.length) {
     // HUMAN-LIKE FALLBACK: The model thinks like a human ("Test: ...", "What if...",
     // "I wonder...") but doesn't always produce JSON. Extract test INTENTIONS from
@@ -1481,6 +1528,19 @@ function inferSeverity(testName, output) {
 
   // Head records verified findings for the final report
   if (v.verified) {
+    // VARIANT SWEEP (19 Oct 2026): a newly verified class gets its sibling
+    // sweep queued — the sweep block in the planning loop picks it up.
+    try {
+      const vcls = classifyFinding(rec.title);
+      if (vcls) {
+        const m = readHuntMeta(huntId) || {};
+        const vsw = m.variantSweep || { backfilled: false, classes: [] };
+        if (!vsw.classes.includes(vcls)) {
+          writeHuntMeta(huntId, { ...m, huntId, variantSweep: { ...vsw, classes: [...vsw.classes, vcls] } });
+          think(huntId, `New verified class "${vcls}" — variant sweep queued for its sibling vectors.`);
+        }
+      }
+    } catch { /* sweep queue is best-effort */ }
     const head = getOrchestrator(huntId);
     if (head) {
       const verifier = head.spawnWorker('verifier', `Independently confirm: ${rec.title}`);
