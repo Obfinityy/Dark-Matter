@@ -741,7 +741,13 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       return /\/rest\/user\/login|\/api\/[^"'\s]*login|signin/i.test(text);
     });
     if (authEndpoints.length && !plansMentionAuth) {
-      const loginEp = authEndpoints[0];
+      // FIX (19 Oct 2026, solver #7): Prefer the actual login endpoint, not just
+      // the first auth-matching endpoint. /rest/user/authentication-details/
+      // matches /auth/ but it's not the login form — the SQLi payload needs
+      // the real login endpoint to work.
+      const loginEp = authEndpoints.find((ep) => /\/login\/?$/i.test(ep.trim())) ||
+                      authEndpoints.find((ep) => /signin/i.test(ep)) ||
+                      authEndpoints[0];
       const baseUrl = target.replace(/\/$/, '');
       const authTests = [
         {
