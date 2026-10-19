@@ -1402,8 +1402,17 @@ async function executeWithEvasion(huntId, target, command) {
     } catch { /* target isn't a parseable URL — fall back to the raw string */ }
     const before = String(command);
     command = before
-      .replace(/(https?:\/\/)[[<{"'$]?(?:target|app)[\]>\"'}]?((?::\d+)?)(?=[/?#:;\s]|$)/gi,
-        (m, scheme, port) => scheme + (port ? targetHostname : targetHost) + port)
+      // 19 Oct 2026 (solver #165): capture + conditionally re-emit the bracket
+      // groups. The old callback dropped a consumed closing quote, so a
+      // well-grounded quoted probe like url = 'http://TARGET' became
+      // url = 'http://172.17.0.1:3000 (unterminated → SyntaxError, quarantined
+      // as a false positive — finding #116). Now: a trailing quote is kept
+      // only when the placeholder had NO opening bracket of its own (the
+      // model's own shell quoting). Symmetric placeholder brackets
+      // (http://[target]/x, 'http://<target>/y') are still dropped, keeping
+      // the documented http://[target]/x → http://<real-host>/x behaviour.
+      .replace(/(https?:\/\/)([[<{"'$]?)(?:target|app)([\]>\"'}]?)((?::\d+)?)(?=[/?#:;\s]|$)/gi,
+        (m, scheme, open, close, port) => scheme + (port ? targetHostname : targetHost) + port + (open ? '' : close))
       .replace(/(https?:\/\/)app\.com((?::\d+)?)(?=[/?#:;\s]|$)/gi,
         (m, scheme, port) => scheme + (port ? targetHostname : targetHost) + port)
       .replace(/(https?:\/\/)target-url\.com((?::\d+)?)(?=[/?#:;\s]|$)/gi,
