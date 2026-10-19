@@ -733,7 +733,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     globalMemorySection = formatGlobalMemoryForPrompt(relevantMemories).slice(0, 500);
     globalMemoryAudit = {
       count: relevantMemories.length,
-      keys: relevantMemories.map((m) => `${m.technique}|${m.appType}`),
+      keys: relevantMemories.map((m) => `${m.type}|${m.technique}|${m.appType}`),
       sectionLen: globalMemorySection.length,
       sectionHash: fnv1aHex(globalMemorySection),
     };
