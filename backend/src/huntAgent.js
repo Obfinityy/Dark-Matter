@@ -705,25 +705,16 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     think(huntId, `AI call threw: ${err && err.message ? String(err.message).slice(0, 200) : err}`);
     return { aiOk: false, best: null, failKind: 'error' };
   }
-  if (!plans.length) {
-    // HUMAN-LIKE FALLBACK: The model thinks like a human ("Test: ...", "What if...",
-    // "I wonder...") but doesn't always produce JSON. Extract test INTENTIONS from
-    // the natural language thinking and construct executable commands.
-    // A human assistant would do this: hear the idea, figure out how to test it.
-    const extracted = extractTestsFromThinking(reply, recon, target);
-    if (extracted.length) {
-      think(huntId, `Extracted ${extracted.length} test(s) from natural thinking — executing.`);
-      plans = extracted;
-    } else {
-      think(huntId, 'Model replied but produced no usable plan — skipping to next.');
-      return { aiOk: false, best: null, failKind: 'bad_output' };
-    }
-  }
-
   // MANDATORY AUTH TESTS: If recon found login/auth endpoints and the model's
   // plans don't include them, prepend deterministic injection tests. The model
   // often overlooks auth; an elite hunter NEVER skips the login form.
   // This is not a suggestion — it's a mandatory first step.
+  // FIX (19 Oct 2026, solver #9): This block MUST run BEFORE the !plans.length
+  // early-return below. Previously, when the model produced no usable plans
+  // (no reply / bad JSON), the function returned 'bad_output' and the mandatory
+  // SQLi test never fired — the deterministic safety net only worked when the
+  // model cooperated. An elite hunter tests the login form even when inspiration
+  // fails; the mandatory tests are independent of model output.
   try {
     const authEndpoints = (recon.endpoints || []).filter((ep) =>
       /login|auth|signin|session|token/i.test(ep)
@@ -767,6 +758,21 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       think(huntId, `Mandatory auth tests injected for ${loginEp} (model overlooked auth)`);
     }
   } catch { /* mandatory tests are best-effort */ }
+
+  if (!plans.length) {
+    // HUMAN-LIKE FALLBACK: The model thinks like a human ("Test: ...", "What if...",
+    // "I wonder...") but doesn't always produce JSON. Extract test INTENTIONS from
+    // the natural language thinking and construct executable commands.
+    // A human assistant would do this: hear the idea, figure out how to test it.
+    const extracted = extractTestsFromThinking(reply, recon, target);
+    if (extracted.length) {
+      think(huntId, `Extracted ${extracted.length} test(s) from natural thinking — executing.`);
+      plans = extracted;
+    } else {
+      think(huntId, 'Model replied but produced no usable plan — skipping to next.');
+      return { aiOk: false, best: null, failKind: 'bad_output' };
+    }
+  }
 
   // Execute up to 3 hypotheses (multi-hypothesis > single guess)
   let best = null;
