@@ -15,6 +15,8 @@
 // Every step is defensive: a failed tool/LLM call degrades to the next test,
 // never kills the hunt. Cost guard stops runaway Bedrock spend.
 
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   spawnHuntContainer,
   teardownHuntContainer,
@@ -33,6 +35,91 @@ const orchestrators = new Map();
 // meta writes — this caused the pause-clobbering bug where state=paused was
 // overwritten with state=running+pausedReason.
 const activeLoops = new Set();
+
+// FIX (19 Oct 2026, elite-gap): CROSS-PROCESS driver lock. activeLoops is a
+// per-process Set, but the benchmark-watchdog spawns bench_resume.mjs as a
+// SEPARATE node process that imports this module fresh — its own empty
+// activeLoops lets it start a second driver for the same hunt. Two drivers
+// then interleave: one's injected plans (e.g. chain-pursuit tests unshifted to
+// the front) get stranded while the other executes its own stale plans.
+// Observed live on h_bench_d69e5746: "Chain pursuit tests injected" fired,
+// but the execution phase ran [SQLi, NoSQLi, price-medium] with zero
+// chain-test execution events — impossible in a single driver invocation
+// (unshift puts chain tests at plans[0..1], slice(0,3) must include them),
+// and events.jsonl appends are synchronous so the order is trustworthy.
+// The lock file <huntDir>/driver.lock { pid, startedAt, heartbeatAt } is the
+// cross-process mutex every spawner goes through (backend reconciler,
+// watchdog scripts, routes all funnel into runAutonomousHunt).
+const DRIVER_LOCK_STALE_MS = 90 * 60 * 1000; // steal only if heartbeat older
+const DRIVER_LOCK_BEAT_MS = 5 * 60 * 1000; // heartbeat tick while driving
+function driverLockPath(huntId) {
+  return path.join(huntDir(huntId), 'driver.lock');
+}
+function lockPidAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+// Returns { ok:true } when we hold the lock, { ok:false, reason } otherwise.
+function tryAcquireDriverLock(huntId) {
+  const lp = driverLockPath(huntId);
+  const now = Date.now();
+  const claim = { pid: process.pid, startedAt: new Date(now).toISOString(), heartbeatAt: now };
+  const writeExclusive = () => {
+    try {
+      fs.writeFileSync(lp, JSON.stringify(claim), { flag: 'wx' });
+      return true;
+    } catch {
+      return false; // someone else won the race
+    }
+  };
+  let existing = null;
+  try {
+    existing = JSON.parse(fs.readFileSync(lp, 'utf8'));
+  } catch {
+    /* no lock file or corrupt — treat as free */
+  }
+  if (!existing || typeof existing !== 'object') {
+    return writeExclusive() ? { ok: true } : { ok: false, reason: 'lost race for fresh lock' };
+  }
+  const alive = Number.isInteger(existing.pid) && lockPidAlive(existing.pid);
+  const fresh = Number.isFinite(existing.heartbeatAt) && now - existing.heartbeatAt < DRIVER_LOCK_STALE_MS;
+  if (alive && fresh) {
+    return { ok: false, reason: `driver pid ${existing.pid} alive, heartbeat fresh` };
+  }
+  // Dead pid (crashed backend) or ancient heartbeat (wedged driver) — steal
+  // it. Unlink + exclusive create closes the steal race: only one contender's
+  // 'wx' write succeeds.
+  try {
+    fs.unlinkSync(lp);
+  } catch {
+    /* already gone */
+  }
+  return writeExclusive() ? { ok: true, stole: true } : { ok: false, reason: 'lost race stealing stale lock' };
+}
+function releaseDriverLock(huntId) {
+  const lp = driverLockPath(huntId);
+  try {
+    const existing = JSON.parse(fs.readFileSync(lp, 'utf8'));
+    if (existing && existing.pid === process.pid) fs.unlinkSync(lp);
+  } catch {
+    /* best-effort */
+  }
+}
+function touchDriverLock(huntId) {
+  const lp = driverLockPath(huntId);
+  try {
+    const existing = JSON.parse(fs.readFileSync(lp, 'utf8'));
+    if (existing && existing.pid === process.pid) {
+      fs.writeFileSync(lp, JSON.stringify({ ...existing, heartbeatAt: Date.now() }));
+    }
+  } catch {
+    /* best-effort */
+  }
+}
 export function getOrchestrator(huntId) {
   return orchestrators.get(huntId) || null;
 }
@@ -42,7 +129,7 @@ import { recordReasoning, formatReasoningForPrompt } from './reasoningMemory.js'
 import { webSearch, searchCVE } from './webSearch.js';
 import { runBrowserTask, crawlScript } from './browserAgent.js';
 import { getHuntCost } from './costTracker.js';
-import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel } from './store.js';
+import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel, huntDir } from './store.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
 
 // Credit price per hunt iteration (USD), by hunt mode. The hunt auto-pauses
@@ -1283,11 +1370,21 @@ export async function runAutonomousHunt(huntId, target, mode = 'normal', userId 
     think(huntId, 'Loop driver already active for this hunt — refusing duplicate (mutex).');
     return;
   }
+  // FIX (19 Oct 2026, elite-gap): cross-process lock — activeLoops is
+  // per-process and the watchdog spawns separate node processes.
+  const lock = tryAcquireDriverLock(huntId);
+  if (!lock.ok) {
+    think(huntId, `Loop driver already active for this hunt — refusing duplicate (cross-process lock: ${lock.reason}).`);
+    return;
+  }
   activeLoops.add(huntId);
+  const lockBeat = setInterval(() => touchDriverLock(huntId), DRIVER_LOCK_BEAT_MS);
   try {
     await runAutonomousHuntInner(huntId, target, mode, userId, opts);
   } finally {
+    clearInterval(lockBeat);
     activeLoops.delete(huntId);
+    releaseDriverLock(huntId);
   }
 }
 
