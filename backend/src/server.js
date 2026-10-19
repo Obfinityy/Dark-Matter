@@ -287,7 +287,14 @@ server.listen(config.port, () => {
   // (state 'running' in their memory folder) pick up from their last
   // checkpoint instead of being lost. Explicitly paused/stopped/finished
   // hunts are left alone.
-  setTimeout(async () => {
+  //
+  // Periodic reconciliation (not just boot-time): external tools such as the
+  // benchmark-watchdog mark hunts 'running' in meta.json while the backend is
+  // already up. Without a periodic scan the backend never notices, leaving a
+  // "zombie running" state (meta says running, no loop driver active).
+  // Safe to re-scan: resumeInterruptedHunt -> runAutonomousHunt is idempotent
+  // via the activeLoops mutex (huntAgent.js), so re-scanning won't double-start loops.
+  async function scanAndResumeRunningHunts(tag) {
     try {
       const { listHuntMetas } = await import('./store.js');
       const { resumeInterruptedHunt } = await import('./huntAgent.js');
@@ -295,18 +302,20 @@ server.listen(config.port, () => {
       for (const meta of listHuntMetas()) {
         if (meta && meta.state === 'running' && meta.huntId) {
           const ok = await resumeInterruptedHunt(meta.huntId).catch((err) => {
-            console.error(`[resume] ${meta.huntId} failed:`, err.message || err);
+            console.error(`[resume:${tag}] ${meta.huntId} failed:`, err.message || err);
             return false;
           });
           if (ok) {
             resumed++;
-            console.log(`[resume] ${meta.huntId} resumed from checkpoint`);
+            console.log(`[resume:${tag}] ${meta.huntId} resumed from checkpoint`);
           }
         }
       }
-      if (resumed) console.log(`[resume] ${resumed} interrupted hunt(s) resumed`);
+      if (resumed) console.log(`[resume:${tag}] ${resumed} interrupted hunt(s) resumed`);
     } catch (err) {
-      console.error('[resume] boot scan failed:', err.message || err);
+      console.error(`[resume:${tag}] scan failed:`, err.message || err);
     }
-  }, 8000);
+  }
+  setTimeout(() => scanAndResumeRunningHunts('boot'), 8000);
+  setInterval(() => scanAndResumeRunningHunts('periodic'), 60000);
 });
