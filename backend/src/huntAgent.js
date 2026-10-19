@@ -814,6 +814,49 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     }
   } catch { /* diversity tests are best-effort */ }
 
+  // CHAIN PURSUIT TESTS (19 Oct 2026, solver #105): If we have chain context
+  // (artifacts from a verified finding), generate tests that USE those
+  // artifacts to pursue the chain. This is how XBOW chains vulnerabilities —
+  // we don't just think about the chain, we ACT on it.
+  try {
+    const meta = readHuntMeta(huntId) || {};
+    const chainCtx = meta.chainContext;
+    if (chainCtx?.artifacts?.jwt && chainCtx.chainPath?.length > 1) {
+      const jwt = chainCtx.artifacts.jwt;
+      const baseUrl = target.replace(/\/$/, '');
+      const eps = (recon.endpoints || []).map((e) => String(e).trim());
+      const plansMention = (re) => plans.some((p) => re.test(`${p.test || ''} ${p.command || ''}`));
+      const chainTests = [];
+
+      // Pursue priv_esc: use the JWT to access admin-only endpoints.
+      // If the JWT is admin, we can try to list users, access admin panels.
+      if (!plansMention(/chain.*jwt|admin.*jwt|jwt.*admin/i)) {
+        chainTests.push({
+          test: 'Chain pursuit: admin JWT privilege check',
+          command: `curl -sk "${baseUrl}/rest/user/whoami" -H "Authorization: Bearer ${jwt}" | head -c 2000`,
+          why: `Chain ${chainCtx.chainPath.join(' → ')}: we have a JWT from "${chainCtx.fromFinding}", testing what privileges it grants`,
+          hypothesis: 'JWT from SQLi may grant admin privileges — testing access level',
+        });
+      }
+
+      // Pursue IDOR with the JWT: can we access other users' data?
+      const usersEp = eps.find((e) => /\/users?\/?$/i.test(e) && /^\/(api|rest)/.test(e));
+      if (usersEp && !plansMention(/chain.*idor|jwt.*idor/i)) {
+        chainTests.push({
+          test: 'Chain pursuit: IDOR with JWT',
+          command: `curl -sk "${baseUrl}${usersEp}" -H "Authorization: Bearer ${jwt}" | head -c 2000`,
+          why: `Chain ${chainCtx.chainPath.join(' → ')}: using JWT to probe for insecure direct object references`,
+          hypothesis: 'Authenticated endpoints may lack object-level authorization',
+        });
+      }
+
+      if (chainTests.length) {
+        plans.push(...chainTests);
+        think(huntId, `Chain pursuit tests injected: ${chainTests.map((t) => t.test).join(', ')} (pursuing ${chainCtx.chainPath.join(' → ')})`);
+      }
+    }
+  } catch { /* chain pursuit is best-effort */ }
+
   if (!plans.length) {
     // HUMAN-LIKE FALLBACK: The model thinks like a human ("Test: ...", "What if...",
     // "I wonder...") but doesn't always produce JSON. Extract test INTENTIONS from
@@ -1115,6 +1158,27 @@ function inferSeverity(testName, output) {
     if (chains.length) {
       think(huntId, `Chain opportunity: ${chains[0].path.join(' → ')} (score ${chains[0].score.toFixed(2)})`);
     }
+    // CHAIN PURSUIT (19 Oct 2026, solver #105): XBOW's key differentiator is
+    // chaining vulnerabilities into working attacks. We detect the chain but
+    // must ACT on it, not just think about it. Extract usable artifacts
+    // (JWTs, tokens) from the verified finding and store them as chain
+    // context so the next planning phase can pursue the chain.
+    try {
+      const respText = String(rec.evidence?.response || '') + ' ' + String(rec.evidence?.request || '');
+      const jwtMatch = respText.match(/eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/);
+      if (jwtMatch && chains.length) {
+        const meta = readHuntMeta(huntId) || {};
+        const chainCtx = {
+          artifacts: { jwt: jwtMatch[0] },
+          chainPath: chains[0].path,
+          chainScore: chains[0].score,
+          fromFinding: rec.title,
+          createdAt: new Date().toISOString(),
+        };
+        writeHuntMeta(huntId, { ...meta, huntId, chainContext: chainCtx });
+        think(huntId, `Chain context stored: have JWT from "${rec.title}", pursuing ${chains[0].path.join(' → ')}`);
+      }
+    } catch { /* chain context is best-effort */ }
     // PoC generator: turn verified finding into working proof
     await generatePoC(huntId, target, rec);
   }
