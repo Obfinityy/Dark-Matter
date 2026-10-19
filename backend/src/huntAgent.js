@@ -821,7 +821,7 @@ async function executeWithEvasion(huntId, target, command) {
       return { stdout: 'Web search failed.', stderr: '', exitCode: 1 };
     }
   }
-  let result = await execInHuntContainer(huntId, command, 180000);
+  let result = await execInHuntContainer(huntId, command, 180000, { bypassTmux: true });
   const blocked = /403|406|406 Not Acceptable|blocked by|waf|forbidden/i.test(result.stdout + result.stderr)
     && result.stdout.length < 500;
 
@@ -831,7 +831,7 @@ async function executeWithEvasion(huntId, target, command) {
     for (const enc of ['url', 'double_url', 'js_unicode']) {
       const encoded = encodePayload(command, enc);
       if (encoded === command) continue;
-      const retry = await execInHuntContainer(huntId, encoded.slice(0, 500), 60000);
+      const retry = await execInHuntContainer(huntId, encoded.slice(0, 500), 60000, { bypassTmux: true });
       if (retry.stdout.length > result.stdout.length * 1.5) {
         think(huntId, `Evasion worked with ${enc} encoding.`);
         return retry;
@@ -1005,7 +1005,7 @@ function inferSeverity(testName, output) {
   let confirmed = false;
   try {
     think(huntId, `Verifying: re-running the test to confirm reproducibility…`);
-    const retry = await execInHuntContainer(huntId, String(plan.command).slice(0, 500), 120000);
+    const retry = await execInHuntContainer(huntId, String(plan.command).slice(0, 500), 120000, { bypassTmux: true });
     const confirmOutput = (retry.stdout + '\n' + retry.stderr).slice(0, 3000);
     // Confirmation: second run shows the same interesting signals
     const sig1 = extractSignal(output);
