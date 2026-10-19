@@ -125,7 +125,7 @@ export function getOrchestrator(huntId) {
 }
 import { chatWithAI, aiAvailable } from './llm.js';
 import { generateHypotheses, formatHypothesesForPrompt, scoreInterestingness, buildAppModel, formatAppModelForPrompt } from './curiosity.js';
-import { recordReasoning, formatReasoningForPrompt } from './reasoningMemory.js';
+import { recordReasoning, formatReasoningForPrompt, formatLedgerForPrompt } from './reasoningMemory.js';
 import { recordGlobalLearning, getRelevantMemories, formatGlobalMemoryForPrompt, inferTechnique } from './globalMemory.js';
 import { webSearch, searchCVE } from './webSearch.js';
 import { runBrowserTask, crawlScript } from './browserAgent.js';
@@ -786,6 +786,12 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     'CRITICAL: Respect the TARGET INTELLIGENCE section — never suggest tests for technologies not present.',
     '',
     formatReasoningForPrompt(huntId),
+    // HYPOTHESIS LEDGER (19 Oct 2026, solver #127): hard ban list of closed
+    // leads — verified hypotheses (no same-instance re-testing; variant sweeps
+    // only) and dead hypotheses (failed 5+ times — forced pivot, logged to
+    // reasoning.jsonl). Sits in the protected post-header zone with the
+    // reasoning history so truncation never cuts it first.
+    formatLedgerForPrompt(huntId),
     globalMemorySection,
     '',
     appModelSection,
