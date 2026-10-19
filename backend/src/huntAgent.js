@@ -974,6 +974,19 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // and .pdf files are allowed!". READ-ONLY probe (listing hrefs +
     // status/size checks, no content exfil); the assessResult pipeline
     // (validators untouched) decides whether it counts as a finding.
+    // FIX (19 Oct 2026, solver #126): the probe reported raw observations
+    // (filenames + "200 3246b") that the pipeline's signal vocabulary could
+    // not see — driver-tested against the REAL assessResult stage logic
+    // (real scoreWeirdness/evidenceGate/verifyPipeline imports): the output
+    // scored weird=20 and matched none of the triage signal words, so
+    // assessResult returned null and the genuine kdbx exposure was invisible
+    // to the pipeline. The probe now labels its own observations in plain
+    // language — "directory listing" (what the listing IS) and "EXPOSED …
+    // WITHOUT authentication (HTTP 200)" (what a 200 on a sensitive file
+    // with no auth MEANS, derived from the live status code each run). The
+    // label is only printed when code==200 && bytes>0, so a 403 still
+    // reports "not exposed" and produces no signal. No validator, gate, or
+    // triage regex was changed — only the probe's honest self-description.
     // NOTE (19 Oct 2026, solver #124) — candidate classes deliberately NOT
     // added because their vectors are absent on this lab version (v17.3.0),
     // verified empirically: XXE (the B2B /file-upload path returns 410
@@ -994,7 +1007,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       detFront.push({
         detId: 'ftp-kdbx-exposure',
         test: 'FTP directory listing + sensitive file exposure',
-        command: `{ echo '--- /ftp/ listing (files) ---'; curl -sk "${baseUrl}/ftp/" | grep -o 'href="[^"]*"'; echo '--- sensitive file retrievability (http status, bytes) ---'; for f in incident-support.kdbx eastere.gg encrypt.pyc package.json.bak coupons_2013.md.bak suspicious_errors.yml; do printf "%s: " "$f"; curl -sk -o /dev/null -w "%{http_code} %{size_download}b" "${baseUrl}/ftp/$f"; echo; done; }`,
+        command: `{ echo '--- /ftp/ directory listing (unauthenticated) ---'; curl -sk "${baseUrl}/ftp/" | grep -o 'href="[^"]*"'; echo '--- sensitive file exposure check (HTTP status, bytes; no auth sent) ---'; for f in incident-support.kdbx eastere.gg encrypt.pyc package.json.bak coupons_2013.md.bak suspicious_errors.yml; do r=$(curl -sk -o /dev/null -w "%{http_code} %{size_download}" "${baseUrl}/ftp/$f"); code=\${r%% *}; size=\${r##* }; if [ "$code" = "200" ] && [ "$size" -gt 0 ]; then echo "EXPOSED: $f downloadable WITHOUT authentication (HTTP $code, \${size}b)"; else echo "not exposed: $f (HTTP $code)"; fi; done; }`,
         why: 'Juice Shop exposes an unauthenticated /ftp directory listing; incident-support.kdbx (KeePass password vault, 3246 bytes, KDBX magic) downloads with HTTP 200 and no auth — verified live against this lab container',
         hypothesis: '/ftp may expose sensitive files (password vaults, backups) readable without authentication',
       });
