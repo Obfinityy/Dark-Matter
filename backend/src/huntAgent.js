@@ -909,23 +909,39 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
  * encoders from the matrix before giving up.
  */
 async function executeWithEvasion(huntId, target, command) {
-  // PLACEHOLDER SUBSTITUTION (19 Oct 2026, elite-gap): The 8B model sometimes
-  // echoes literal placeholders like [target] into commands instead of the
-  // concrete target URL (observed live: "nmap -sV [target] | grep -q 'price
-  // manipulation'" → "Error resolving [target]: Name or service not known",
-  // a fully wasted probe). Deterministically resolve the known placeholder
-  // tokens against the authorised hunt target BEFORE execution. This changes
-  // nothing about validation — output still goes through evidenceGate and
-  // the 4-step verification — it only ensures the command addresses the real
-  // target instead of a non-existent literal string.
+  // PLACEHOLDER SUBSTITUTION (19 Oct 2026, elite-gap; extended same-cycle):
+  // The 8B model sometimes echoes literal placeholders into commands instead
+  // of the concrete target URL. First observed: "nmap -sV [target] | grep -q
+  // 'price manipulation'" → "Error resolving [target]: Name or service not
+  // known" (fixed 2d95530 for [target]/<target>/{target}). Then observed live:
+  // "curl -s 'http://target/basket' | grep -E 'price:...'" → bare word
+  // "target" used as a URL hostname, which the bracket-only fix did not catch
+  // (probe failed on DNS). Deterministically resolve ALL known placeholder
+  // spellings against the authorised hunt target BEFORE execution. Scheme-aware
+  // hostname substitution runs FIRST so "http://[target]/x" becomes
+  // "http://<real-host>/x" (not "http://http://..."). A model-supplied port is
+  // kept and applied to the bare hostname (avoids doubling the port).
+  // This changes nothing about validation — output still goes through
+  // evidenceGate and the 4-step verification — it only ensures the command
+  // addresses the real target instead of a non-existent literal string.
   {
+    let targetHost = String(target), targetHostname = String(target);
+    try {
+      const u = new URL(String(target));
+      targetHost = u.host;         // e.g. 172.17.0.1:3000 (hostname + port)
+      targetHostname = u.hostname;  // e.g. 172.17.0.1 (no port)
+    } catch { /* target isn't a parseable URL — fall back to the raw string */ }
     const before = String(command);
     command = before
+      .replace(/(https?:\/\/)[[<{"'$]?target[\]>"'}]?((?::\d+)?)(?=[/?#:;\s]|$)/gi,
+        (m, scheme, port) => scheme + (port ? targetHostname : targetHost) + port)
       .replace(/\[target\]/gi, target)
       .replace(/<target>/gi, target)
-      .replace(/\{target\}/gi, target);
+      .replace(/\$\{target\}/gi, target)
+      .replace(/\{target\}/gi, target)
+      .replace(/\$target\b/gi, target);
     if (command !== before) {
-      think(huntId, 'Replaced a literal [target] placeholder with the real target URL before executing (model wrote a placeholder).');
+      think(huntId, 'Replaced a literal target placeholder with the real target before executing (model wrote a placeholder).');
     }
   }
   // Person capability: web search mid-hunt. If the model doesn't know
