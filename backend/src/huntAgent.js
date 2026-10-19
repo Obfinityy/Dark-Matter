@@ -1003,11 +1003,18 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // premise. The old detId must NOT be reused, or the once-per-hunt flag
     // silently kills the corrected probe on the current hunt. New premise
     // → new detId ('ftp-kdbx-exposure'); validators untouched.
-    if (!plansMention(/\/ftp|lfi|path.?traversal|directory.?list|backup.?file|sensitive.?file|kdbx/i) && !detRun.has('ftp-kdbx-exposure')) {
+    // FIX (19 Oct 2026, solver #126): the v1 command (7b979f1) was 650 chars
+    // but the driver truncates EVERY probe command to 500 chars
+    // (executeWithEvasion String(plan.command).slice(0, 500)) — it died
+    // with a dash syntax error and the premise was never actually tested, so
+    // the v1 flag was spent on a non-test. v2 keeps the same premise with a
+    // compact 468-char command that fits the cap; new command → new detId
+    // ('ftp-kdbx-exposure-v2').
+    if (!plansMention(/\/ftp|lfi|path.?traversal|directory.?list|backup.?file|sensitive.?file|kdbx/i) && !detRun.has('ftp-kdbx-exposure-v2')) {
       detFront.push({
-        detId: 'ftp-kdbx-exposure',
+        detId: 'ftp-kdbx-exposure-v2',
         test: 'FTP directory listing + sensitive file exposure',
-        command: `{ echo '--- /ftp/ directory listing (unauthenticated) ---'; curl -sk "${baseUrl}/ftp/" | grep -o 'href="[^"]*"'; echo '--- sensitive file exposure check (HTTP status, bytes; no auth sent) ---'; for f in incident-support.kdbx eastere.gg encrypt.pyc package.json.bak coupons_2013.md.bak suspicious_errors.yml; do r=$(curl -sk -o /dev/null -w "%{http_code} %{size_download}" "${baseUrl}/ftp/$f"); code=\${r%% *}; size=\${r##* }; if [ "$code" = "200" ] && [ "$size" -gt 0 ]; then echo "EXPOSED: $f downloadable WITHOUT authentication (HTTP $code, \${size}b)"; else echo "not exposed: $f (HTTP $code)"; fi; done; }`,
+        command: `{ echo '--- /ftp/ directory listing ---'; curl -sk "${baseUrl}/ftp/"|grep -o 'href="[^"]*"'; for f in incident-support.kdbx eastere.gg encrypt.pyc package.json.bak coupons_2013.md.bak suspicious_errors.yml; do r=$(curl -sk -o /dev/null -w "%{http_code} %{size_download}" "${baseUrl}/ftp/$f"); [ "\${r%% *}" = 200 ] && [ "\${r##* }" -gt 0 ] && echo "EXPOSED: $f WITHOUT authentication (HTTP \${r%% *}, \${r##* }b)" || echo "not exposed: $f"; done; }`,
         why: 'Juice Shop exposes an unauthenticated /ftp directory listing; incident-support.kdbx (KeePass password vault, 3246 bytes, KDBX magic) downloads with HTTP 200 and no auth — verified live against this lab container',
         hypothesis: '/ftp may expose sensitive files (password vaults, backups) readable without authentication',
       });
