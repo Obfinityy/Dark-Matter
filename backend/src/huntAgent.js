@@ -126,6 +126,7 @@ export function getOrchestrator(huntId) {
 import { chatWithAI, aiAvailable } from './llm.js';
 import { generateHypotheses, formatHypothesesForPrompt, scoreInterestingness, buildAppModel, formatAppModelForPrompt } from './curiosity.js';
 import { recordReasoning, formatReasoningForPrompt } from './reasoningMemory.js';
+import { recordGlobalLearning, getRelevantMemories, formatGlobalMemoryForPrompt, inferTechnique } from './globalMemory.js';
 import { webSearch, searchCVE } from './webSearch.js';
 import { runBrowserTask, crawlScript } from './browserAgent.js';
 import { getHuntCost } from './costTracker.js';
@@ -692,13 +693,37 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // HUMAN MENTAL MODEL: what does this app DO? A human hunter spends the first
   // 2 minutes understanding the app, not running scans. Build that model here.
   let appModelSection = '';
+  // GLOBAL MEMORY (19 Oct 2026): the target's fingerprint (app type + tech
+  // stack) is captured here so (a) the read path can fetch relevant
+  // cross-hunt lessons for the prompt, and (b) the write path in
+  // assessResult (which has no recon) can attribute findings via hunt meta.
+  let appFingerprint = { appType: 'unknown', techStack: [] };
   try {
     const appModel = buildAppModel(recon.endpoints || [], recon.detection?.techs || [], recon.profile || '');
     appModelSection = formatAppModelForPrompt(appModel);
+    appFingerprint = {
+      appType: appModel.appType || 'unknown',
+      techStack: (recon.detection?.techs || []).slice(0, 8),
+    };
     if (appModel.appType !== 'unknown') {
       think(huntId, `App model: looks like ${appModel.appType} — value flows: ${appModel.valueFlows.slice(0, 2).join('; ').slice(0, 100)}`);
     }
   } catch { /* app model is best-effort */ }
+
+  // GLOBAL MEMORY read: lessons from ALL past hunts, relevance-scored
+  // against this target's fingerprint. Additive to the per-hunt reasoning
+  // history — capped hard so it never blows the context budget.
+  let globalMemorySection = '';
+  try {
+    globalMemorySection = formatGlobalMemoryForPrompt(getRelevantMemories(appFingerprint, 6)).slice(0, 500);
+  } catch { /* global memory is best-effort */ }
+  // Stash the fingerprint on the hunt meta for the write path.
+  try {
+    const m0 = readHuntMeta(huntId) || {};
+    if (JSON.stringify(m0.appFingerprint || null) !== JSON.stringify(appFingerprint)) {
+      writeHuntMeta(huntId, { ...m0, huntId, appFingerprint });
+    }
+  } catch { /* best-effort */ }
 
   // HARD CAP on the final prompt: the instruction header plus context plus
   // trailing sections (steering, curiosity) must together fit in the model's
@@ -732,6 +757,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     'CRITICAL: Respect the TARGET INTELLIGENCE section — never suggest tests for technologies not present.',
     '',
     formatReasoningForPrompt(huntId),
+    globalMemorySection,
     '',
     appModelSection,
     '',
@@ -982,6 +1008,31 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
         followUp: plan.hypothesis ? 'Consider variants of: ' + plan.hypothesis : '',
       });
     } catch { /* memory is best-effort, never break the hunt */ }
+    // GLOBAL MEMORY (19 Oct 2026): record genuine technique failures so
+    // future hunts deprioritise what consistently fails. Only clean
+    // executions count — a malformed command (DNS failure, syntax error)
+    // or an empty response teaches nothing about the technique itself,
+    // and unidentifiable probes ('other') would pollute the counters.
+    try {
+      const rawOut = String((result && result.stdout) || '') + '\n' + String((result && result.stderr) || '');
+      const malformed = /name or service not known|command not found|syntax error|no such file|invalid option|could not resolve/i.test(rawOut);
+      const tech = inferTechnique(`${plan.test || ''} ${plan.hypothesis || ''}`);
+      if (!malformed && rawOut.length > 50 && tech !== 'other' && rec && !rec.verified) {
+        const gm0 = readHuntMeta(huntId) || {};
+        const fp0 = gm0.appFingerprint || { appType: 'unknown', techStack: [] };
+        recordGlobalLearning({
+          type: 'technique',
+          technique: tech,
+          target: String(target).slice(0, 120),
+          appType: fp0.appType || 'unknown',
+          techStack: fp0.techStack || [],
+          success: false,
+          payload: String(plan.command || '').slice(0, 200),
+          context: plan.test || 'unnamed probe',
+          note: 'Technique executed cleanly but did not verify.',
+        });
+      }
+    } catch { /* global memory is best-effort, never break the hunt */ }
     return rec;
   });
   const results = await Promise.all(testPromises);
@@ -1319,6 +1370,23 @@ function inferSeverity(testName, output) {
         };
         writeHuntMeta(huntId, { ...meta, huntId, chainContext: chainCtx });
         think(huntId, `Chain context stored: have JWT from "${rec.title}", pursuing ${chainPath.join(' → ')}`);
+        // GLOBAL MEMORY (19 Oct 2026): chain patterns compound across hunts.
+        // A verified finding that yields a usable artifact is a proven link.
+        try {
+          const gm1 = readHuntMeta(huntId) || {};
+          const fp1 = gm1.appFingerprint || { appType: 'unknown', techStack: [] };
+          recordGlobalLearning({
+            type: 'chain',
+            technique: 'chain',
+            target: String(target).slice(0, 120),
+            appType: fp1.appType || 'unknown',
+            techStack: fp1.techStack || [],
+            success: true,
+            payload: '',
+            context: `${rec.title} → artifact extraction → ${chainPath.join(' → ')}`,
+            note: 'Chain pattern: a verified finding yielded a usable artifact and pursuit tests were armed with it.',
+          });
+        } catch { /* global memory is best-effort */ }
       }
     } catch { /* chain context is best-effort */ }
     // PoC generator: turn verified finding into working proof
@@ -1331,6 +1399,26 @@ function inferSeverity(testName, output) {
       _wti(target, { findings: [{ title: rec.title, severity: rec.severity, at: new Date().toISOString() }] });
     }
   } catch { /* memory write must never break the hunt */ }
+  // GLOBAL MEMORY (19 Oct 2026): every verified finding teaches ALL future
+  // hunts — no model training needed, the intelligence compounds here.
+  // Validators are untouched: only genuine verified findings reach this path.
+  try {
+    if (rec && rec.verified) {
+      const gm2 = readHuntMeta(huntId) || {};
+      const fp2 = gm2.appFingerprint || { appType: 'unknown', techStack: [] };
+      recordGlobalLearning({
+        type: 'technique',
+        technique: inferTechnique(`${rec.title || ''} ${rec.class || ''} ${plan.test || ''}`),
+        target: String(target).slice(0, 120),
+        appType: fp2.appType || 'unknown',
+        techStack: fp2.techStack || [],
+        success: true,
+        payload: String(plan.command || (rec.evidence && rec.evidence.request) || '').slice(0, 300),
+        context: `${rec.title} (${rec.severity})`,
+        note: `Verified ${rec.severity}: ${rec.title}`,
+      });
+    }
+  } catch { /* global memory is best-effort, never break the hunt */ }
   return rec;
 }
 
