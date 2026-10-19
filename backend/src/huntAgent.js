@@ -1003,11 +1003,19 @@ async function executeWithEvasion(huntId, target, command) {
   // known" (fixed 2d95530 for [target]/<target>/{target}). Then observed live:
   // "curl -s 'http://target/basket' | grep -E 'price:...'" → bare word
   // "target" used as a URL hostname, which the bracket-only fix did not catch
-  // (probe failed on DNS). Deterministically resolve ALL known placeholder
-  // spellings against the authorised hunt target BEFORE execution. Scheme-aware
-  // hostname substitution runs FIRST so "http://[target]/x" becomes
-  // "http://<real-host>/x" (not "http://http://..."). A model-supplied port is
-  // kept and applied to the bare hostname (avoids doubling the port).
+  // (probe failed on DNS). Later the model used NEW placeholder words for the
+  // same purpose: bare "app" as hostname ("curl -X POST 'http://app/endpoint'")
+  // and hallucinated fake domains ("https://app.com/product/low-priced",
+  // "https://target-url.com/api/v1/products") — all DNS failures, all meant
+  // the hunt target (solver #115, 19 Oct 2026). Deterministically resolve ALL
+  // known placeholder spellings against the authorised hunt target BEFORE
+  // execution. Scheme-aware hostname substitution runs FIRST so
+  // "http://[target]/x" becomes "http://<real-host>/x" (not "http://http://...").
+  // A model-supplied port is kept and applied to the bare hostname (avoids
+  // doubling the port). The hostname pattern only matches the placeholder as
+  // the FULL URL hostname (never inside paths or longer words like
+  // "myapp.local"), and fake-domain replacement covers only the two domains
+  // the model has actually hallucinated — real external domains are untouched.
   // This changes nothing about validation — output still goes through
   // evidenceGate and the 4-step verification — it only ensures the command
   // addresses the real target instead of a non-existent literal string.
@@ -1020,7 +1028,11 @@ async function executeWithEvasion(huntId, target, command) {
     } catch { /* target isn't a parseable URL — fall back to the raw string */ }
     const before = String(command);
     command = before
-      .replace(/(https?:\/\/)[[<{"'$]?target[\]>"'}]?((?::\d+)?)(?=[/?#:;\s]|$)/gi,
+      .replace(/(https?:\/\/)[[<{"'$]?(?:target|app)[\]>\"'}]?((?::\d+)?)(?=[/?#:;\s]|$)/gi,
+        (m, scheme, port) => scheme + (port ? targetHostname : targetHost) + port)
+      .replace(/(https?:\/\/)app\.com((?::\d+)?)(?=[/?#:;\s]|$)/gi,
+        (m, scheme, port) => scheme + (port ? targetHostname : targetHost) + port)
+      .replace(/(https?:\/\/)target-url\.com((?::\d+)?)(?=[/?#:;\s]|$)/gi,
         (m, scheme, port) => scheme + (port ? targetHostname : targetHost) + port)
       .replace(/\[target\]/gi, target)
       .replace(/<target>/gi, target)
