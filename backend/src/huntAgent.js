@@ -652,7 +652,14 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // Show the model's raw thinking in the terminal (truncated) so the
     // operator can SEE the brain working, not just templated summaries.
     think(huntId, `model raw plan: ${String(reply).replace(/\s+/g, ' ').slice(0, 600)}`);
-    const m = /\[\s*\{[\s\S]*\]/.exec(reply);
+    // TRUNCATION-TOLERANT: The 8B model is often cut off by the 300-token
+    // output limit, losing the closing `]`. Try the complete array first;
+    // if the bracket is missing, match the open array so the repair below
+    // can salvage complete plan objects instead of discarding the reply.
+    // (Root cause of the ai_bad_output death loop: the repair was unreachable
+    // when truncation removed the `]` — 38 raw plans with 0 repairs on
+    // h_bench_ada457c3.)
+    const m = /\[\s*\{[\s\S]*\]/.exec(reply) || /\[\s*\{[\s\S]*/.exec(reply);
     if (m) {
       try {
         plans = JSON.parse(m[0]);
