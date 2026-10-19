@@ -584,7 +584,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   const context = [
     `Target: ${target}`,
     `Profile: ${recon.profile}`,
-    `Open ports: ${recon.ports.map((p) => `${p.port}/${p.service}`).join(', ') || 'none found'}`,
+    `Open ports: ${(recon.ports || []).map((p) => `${p.port}/${p.service}`).join(', ') || 'none found'}`,
     `Endpoints: ${recon.endpoints.slice(0, 15).join(', ') || 'none mined'}`,
     authHint,
     `Confirmed findings so far: ${confirmed.length}`,
