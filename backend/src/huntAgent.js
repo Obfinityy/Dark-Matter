@@ -851,7 +851,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       }
 
       if (chainTests.length) {
-        plans.push(...chainTests);
+        plans.unshift(...chainTests); // FRONT: chain pursuit is high-priority (verified finding artifacts) — must be in slice(0,3) execution window
         think(huntId, `Chain pursuit tests injected: ${chainTests.map((t) => t.test).join(', ')} (pursuing ${chainCtx.chainPath.join(' → ')})`);
       }
     }
