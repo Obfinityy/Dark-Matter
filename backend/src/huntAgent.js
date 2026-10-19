@@ -1408,6 +1408,12 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
 export async function resumeInterruptedHunt(huntId) {
   const meta = readHuntMeta(huntId);
   if (!meta || meta.state !== 'running') return false;
+  // Clear stale pause indicators — a resume is an explicit un-pause.
+  // If pausedReason is left set, isPaused() returns true (defensive fix)
+  // and the loop gets stuck in waitWhilePaused() instead of hunting.
+  if (meta.pausedReason || meta.paused) {
+    writeHuntMeta(huntId, { ...meta, paused: false, pausedReason: null });
+  }
   const { target, mode, userId } = meta;
   if (!target) return false;
 
