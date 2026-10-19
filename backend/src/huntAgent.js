@@ -1061,6 +1061,29 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
           note: 'Technique executed cleanly but did not verify.',
         });
       }
+      // PROBE QUALITY (19 Oct 2026, solver #121): malformed executions are a
+      // SEPARATE failure signal from technique failures. A DNS failure teaches
+      // nothing about whether the technique works against the app — but "your
+      // last N probes never reached the target" is a lesson the model must see
+      // compound. Kept apart (type 'probe-quality', own dedup key) so genuine
+      // technique success rates stay clean. This is the dominant failure mode
+      // for business-logic probes (fake domains, bare hostnames); the static
+      // seed note was ignored, a compounding counter is harder to ignore.
+      if (malformed && tech !== 'other') {
+        const gm0q = readHuntMeta(huntId) || {};
+        const fp0q = gm0q.appFingerprint || { appType: 'unknown', techStack: [] };
+        recordGlobalLearning({
+          type: 'probe-quality',
+          technique: tech,
+          target: String(target).slice(0, 120),
+          appType: fp0q.appType || 'unknown',
+          techStack: fp0q.techStack || [],
+          success: false,
+          payload: String(plan.command || '').slice(0, 200),
+          context: plan.test || 'unnamed probe',
+          note: 'Malformed probe — DNS failure, syntax error, or fake domain. The command never reached the target; this says nothing about the technique, only about command construction. Ground every URL to recon-discovered endpoints.',
+        });
+      }
     } catch { /* global memory is best-effort, never break the hunt */ }
     return rec;
   });

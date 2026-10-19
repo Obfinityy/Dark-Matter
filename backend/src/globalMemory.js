@@ -155,6 +155,10 @@ export function getRelevantMemories(fingerprint = {}, limit = 8) {
       if ((e.successes || 0) > 0) score += 2; // proven to work — lead with it
       // A technique that failed repeatedly is still relevant: it warns.
       if ((e.attempts || 0) >= 3 && (e.successes || 0) === 0) score += 1;
+      // Probe-quality warnings are actionable NOW: malformed commands are the
+      // dominant failure mode, so the hygiene warning must survive the
+      // 500-char prompt cap — boost it near the top.
+      if (e.type === 'probe-quality' && (e.attempts || 0) >= 2) score += 2;
       return { e, score };
     });
     scored.sort((a, b) => b.score - a.score);
@@ -177,6 +181,14 @@ export function formatGlobalMemoryForPrompt(memories) {
     }
     if (m.type === 'fingerprint') {
       return `\u2022 Lesson: ${m.note}`;
+    }
+    // PROBE QUALITY (19 Oct 2026, solver #121): malformed probes are a
+    // command-construction signal, not a technique verdict. Rendered as a
+    // distinct, compounding hygiene warning — the dominant failure mode for
+    // business-logic probes, and a static note was not enough.
+    if (m.type === 'probe-quality') {
+      const n = m.attempts || 0;
+      return `\u2022 COMMAND HYGIENE [${m.appType}]: ${n} recent ${m.technique.toUpperCase()} probe(s) were malformed and never reached the target. Fix command construction FIRST — ground every URL to recon-discovered endpoints before attacking.`;
     }
     const verdict = (m.successes || 0) > 0
       ? 'try early'
