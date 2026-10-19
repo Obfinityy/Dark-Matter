@@ -641,6 +641,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     'Reply as a JSON array: [{"test":"name","command":"shell command","why":"one line (your reasoning)","hypothesis":"what you expect to find"}, ...].',
     'Commands must be non-destructive and target-scoped. You can use: nmap, nuclei, curl, python3, and any tools in the container.',
     'You are a PERSON with a machine, not a script. If you need a tool you don\'t have, download it (curl/wget) or install it (apt-get). If you don\'t know something, SEARCH the web: put "SEARCH: your question" as the command and you\'ll get web results back.',
+    'BUILD WHAT YOU NEED: If no existing tool does what you want, WRITE IT. You have python3 and bash — an elite hunter writes a custom script mid-hunt instead of giving up. Put your script in the command field (python3 -c "..." or a heredoc). Think "I need this, so I create this."',
     'CRITICAL: Respect the TARGET INTELLIGENCE section — never suggest tests for technologies not present.',
     '',
     formatReasoningForPrompt(huntId),
@@ -758,6 +759,60 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       think(huntId, `Mandatory auth tests injected for ${loginEp} (model overlooked auth)`);
     }
   } catch { /* mandatory tests are best-effort */ }
+
+  // MANDATORY DIVERSITY TESTS (19 Oct 2026, solver #102): An elite hunter never
+  // tests just one vuln class. The agent found SQLi via the mandatory auth net
+  // but kept re-verifying it instead of diversifying. This block injects probes
+  // for OTHER vuln classes grounded in recon-discovered endpoints — XSS on
+  // search, business-logic on basket, IDOR on basket. All go through the same
+  // assessResult pipeline; validators are NOT loosened.
+  try {
+    const eps = (recon.endpoints || []).map((e) => String(e).trim());
+    const baseUrl = target.replace(/\/$/, '');
+    const plansMention = (re) => plans.some((p) => re.test(`${p.test || ''} ${p.command || ''}`));
+    const diversityTests = [];
+
+    // 1. XSS on search endpoints — search is the classic reflected-XSS sink.
+    const searchEp = eps.find((e) => /search/i.test(e) && /^\/(api|rest)/.test(e));
+    if (searchEp && !plansMention(/xss|cross.?site|<script/i)) {
+      diversityTests.push({
+        test: 'Reflected XSS on search',
+        command: `curl -sk "${baseUrl}${searchEp}?q=%3Cscript%3Ealert(1)%3C%2Fscript%3E" | head -c 2000`,
+        why: 'Search endpoints often reflect input unsanitised — classic reflected XSS',
+        hypothesis: 'Search query parameter may reflect without encoding',
+      });
+    }
+
+    // 2. Business logic: price manipulation in basket. An elite hunter asks
+    // "can I change the price?" — this is a READ-ONLY probe (fetch basket,
+    // look for price fields client can influence). No purchase is attempted.
+    const basketEp = eps.find((e) => /\/basket\/?$/i.test(e));
+    if (basketEp && !plansMention(/price|basket.*manipulat|business.?logic/i)) {
+      diversityTests.push({
+        test: 'Basket price field exposure',
+        command: `curl -sk "${baseUrl}${basketEp}" -H "Content-Type: application/json" | head -c 2000`,
+        why: 'Basket responses often expose price/total fields — if client-controllable, price manipulation is possible',
+        hypothesis: 'Basket API may expose price fields that influence checkout total',
+      });
+    }
+
+    // 3. IDOR on basket — can we see another basket by guessing an ID?
+    // SAFE: uses a non-existent ID (99999); a 200 with data = IDOR signal,
+    // 404/401/empty = not vulnerable. No real user data is targeted.
+    if (basketEp && !plansMention(/idor|insecure direct|other.*basket/i)) {
+      diversityTests.push({
+        test: 'IDOR probe on basket',
+        command: `curl -sk "${baseUrl}${basketEp}/99999" | head -c 2000`,
+        why: 'Basket IDs are often sequential — testing if another basket is accessible',
+        hypothesis: 'Basket endpoint may lack object-level authorisation',
+      });
+    }
+
+    if (diversityTests.length) {
+      plans.push(...diversityTests);
+      think(huntId, `Mandatory diversity tests injected: ${diversityTests.map((t) => t.test).join(', ')} (model stuck on one vuln class)`);
+    }
+  } catch { /* diversity tests are best-effort */ }
 
   if (!plans.length) {
     // HUMAN-LIKE FALLBACK: The model thinks like a human ("Test: ...", "What if...",
