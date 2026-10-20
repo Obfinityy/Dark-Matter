@@ -21,7 +21,7 @@ import pluginsRouter from './routes/plugins.js';
 import modelsRouter from './routes/models.js';
 import voiceRouter from './routes/voice.js';
 import billingRouter from './routes/billing.js';
-import { backfillAllHunts, episodeLedgerEnabled } from './episodeStore.js';
+import { backfillAllHunts, episodeLedgerEnabled, runEmbeddingBackfill } from './episodeStore.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -341,4 +341,21 @@ server.listen(config.port, () => {
   }
   setTimeout(() => flushEpisodeLedgers('boot'), 5000);
   setInterval(() => flushEpisodeLedgers('periodic'), 60000);
+
+  // EPISODE EMBEDDINGS (Job 6 stage 2) — background backfill of the vector
+  // index used by hybrid retrieval. Bounded to 64 episodes/min so it never
+  // competes with the hunt brain; logs only when the index completes.
+  async function backfillEpisodeEmbeddings(tag) {
+    try {
+      if (!episodeLedgerEnabled()) return;
+      const r = await runEmbeddingBackfill({ maxEpisodes: 64 });
+      if (r.embedded > 0 && r.remaining === 0) {
+        console.log(`[episodes:${tag}] embedding index complete`);
+      }
+    } catch (err) {
+      console.error(`[episodes:${tag}] embedding backfill failed:`, err.message || err);
+    }
+  }
+  setTimeout(() => backfillEpisodeEmbeddings('boot'), 20000);
+  setInterval(() => backfillEpisodeEmbeddings('periodic'), 60000);
 });

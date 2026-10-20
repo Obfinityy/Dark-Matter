@@ -75,6 +75,12 @@ function getDb() {
         next_idx INTEGER NOT NULL DEFAULT 0,
         updated_at TEXT
       );
+      CREATE TABLE IF NOT EXISTS episode_embeddings (
+        episode_id INTEGER PRIMARY KEY,
+        model TEXT NOT NULL,
+        dims INTEGER NOT NULL,
+        vec BLOB NOT NULL
+      );
     `);
     try {
       db.exec(`
@@ -432,6 +438,278 @@ export function assembleEpisodeContext(huntId, { budgetChars = 6000, topN = 8, r
     if (seen.has(e.id)) continue;
     lines.push(line(e));
     if (lines.length > topN + recentN + 2) break;
+  }
+  let out = '';
+  for (const l of lines) {
+    if (out.length + l.length + 1 > budgetChars) break;
+    out += (out ? '\n' : '') + l;
+  }
+  return out;
+}
+
+// ---- Stage 2: hybrid retrieval, scored entirely by code ---------------------
+//
+// Research report §5 item 2 (Generative Agents retrieval formula + Mem0
+// multi-signal retrieval + EM-LLM temporal neighbours + MemoryBank access
+// reinforcement), re-implemented:
+//   score = 1.0 * relevance          (FTS5 position + embedding cosine)
+//         + 0.6 * importance/10      (rule-based, stage 1)
+//         + 0.4 * recency            (exp decay, 48h half-life, access-aware)
+//         + entity boost             (paths / IPs / hosts / keywords in text)
+// Cross-hunt hits are discounted x0.85. Selected hits attach their temporal
+// neighbours (source_idx +/- 1) and get an access-count reinforcement.
+// ZERO LLM calls anywhere in scoring — the only model call is the tiny
+// nomic-embed-text embedding of the query and of new episodes, via Ollama.
+
+export const EMBED_MODEL = process.env.EPISODE_EMBED_MODEL || 'nomic-embed-text';
+export const RETRIEVAL_WEIGHTS = {
+  relevance: 1.0,
+  importance: 0.6,
+  recency: 0.4,
+  entityPerHit: 0.15,
+  entityCap: 0.45,
+  crossHuntFactor: 0.85,
+  halfLifeHours: 48,
+  accessBoostMax: 0.1,
+};
+
+let embedTransport = null;
+/** Tests inject a fake transport: async (texts) => number[][]. */
+export function setEmbeddingTransport(fn) {
+  embedTransport = fn;
+}
+
+async function defaultEmbedTransport(texts) {
+  const base = String(process.env.OLLAMA_URL || 'http://localhost:11434').replace(/\/+$/, '');
+  const res = await fetch(`${base}/api/embed`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: EMBED_MODEL, input: texts }),
+    signal: AbortSignal.timeout(60000),
+  });
+  if (!res.ok) throw new Error(`embed HTTP ${res.status}`);
+  const j = await res.json();
+  return j.embeddings;
+}
+
+export async function embedTexts(texts) {
+  return (embedTransport || defaultEmbedTransport)(texts);
+}
+
+function episodeEmbedText(row) {
+  return `${row.title || ''} — ${clip(row.body || '', 500)}`;
+}
+
+/**
+ * Embed episodes that lack a vector for the current model, most important
+ * first. Bounded per call so it never competes with the hunt brain; safe to
+ * run on a timer. Never throws — Ollama being busy just defers to next tick.
+ */
+export async function runEmbeddingBackfill({ maxEpisodes = 64, batchSize = 32 } = {}) {
+  const d = getDb();
+  if (!d) return { embedded: 0, remaining: 0 };
+  const missingSql = `
+    SELECT COUNT(*) AS n FROM episodes e
+    LEFT JOIN episode_embeddings em ON em.episode_id = e.id AND em.model = ?
+    WHERE em.episode_id IS NULL`;
+  const rows = d
+    .prepare(
+      `SELECT e.id, e.title, e.body FROM episodes e
+       LEFT JOIN episode_embeddings em ON em.episode_id = e.id AND em.model = ?
+       WHERE em.episode_id IS NULL
+       ORDER BY e.importance DESC, e.id ASC LIMIT ?`
+    )
+    .all(EMBED_MODEL, maxEpisodes);
+  const ins = d.prepare(
+    'INSERT OR REPLACE INTO episode_embeddings (episode_id, model, dims, vec) VALUES (?, ?, ?, ?)'
+  );
+  let embedded = 0;
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const batch = rows.slice(i, i + batchSize);
+    let vecs;
+    try {
+      vecs = await embedTexts(batch.map(episodeEmbedText));
+    } catch {
+      break; // Ollama busy/down — retry next tick
+    }
+    if (!Array.isArray(vecs) || vecs.length !== batch.length) break;
+    for (let j = 0; j < batch.length; j++) {
+      const v = vecs[j];
+      if (!Array.isArray(v) || !v.length) continue;
+      ins.run(batch[j].id, EMBED_MODEL, v.length, Buffer.from(new Float32Array(v).buffer));
+      embedded++;
+    }
+  }
+  const remaining = d.prepare(missingSql).get(EMBED_MODEL).n;
+  return { embedded, remaining };
+}
+
+export function getEmbeddingStats() {
+  const d = getDb();
+  if (!d) return { embedded: 0, total: 0, model: EMBED_MODEL };
+  const total = d.prepare('SELECT COUNT(*) AS n FROM episodes').get().n;
+  const embedded = d
+    .prepare('SELECT COUNT(*) AS n FROM episode_embeddings WHERE model = ?')
+    .get(EMBED_MODEL).n;
+  return { embedded, total, model: EMBED_MODEL };
+}
+
+function cosine(a, b) {
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  if (!na || !nb) return 0;
+  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+/** Entities worth boosting: URL paths, IPv4s, hostnames, long keywords. */
+export function extractEntities(query) {
+  const q = String(query || '');
+  const out = new Set();
+  for (const m of q.match(/\/[a-z0-9._~/-]+/gi) || []) if (m.length > 2) out.add(m.toLowerCase());
+  for (const m of q.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g) || []) out.add(m);
+  for (const m of q.match(/\b[a-z0-9-]+(?:\.[a-z0-9-]+)+\b/gi) || []) out.add(m.toLowerCase());
+  for (const m of q.toLowerCase().match(/[a-z][a-z0-9_-]{3,}/g) || []) out.add(m);
+  return [...out];
+}
+
+function ftsCandidates(query, huntId, crossHunt, limit) {
+  const d = getDb();
+  if (!d || !ftsAvailable) return [];
+  const tokens = String(query || '').toLowerCase().match(/[a-z0-9_./:-]+/g) || [];
+  if (!tokens.length) return [];
+  const match = tokens.map((t) => `"${t.replace(/"/g, '')}"`).join(' OR ');
+  try {
+    if (huntId && !crossHunt) {
+      return d
+        .prepare(
+          `SELECT e.* FROM episodes_fts f JOIN episodes e ON e.id = f.rowid
+           WHERE episodes_fts MATCH ? AND e.hunt_id = ? ORDER BY f.rank LIMIT ?`
+        )
+        .all(match, String(huntId), limit);
+    }
+    return d
+      .prepare(
+        `SELECT e.* FROM episodes_fts f JOIN episodes e ON e.id = f.rowid
+         WHERE episodes_fts MATCH ? ORDER BY f.rank LIMIT ?`
+      )
+      .all(match, limit);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Hybrid retrieval over the episode ledger. All scoring is arithmetic —
+ * no LLM calls. Returns { query, results: [{...episode, score, parts,
+ * neighbours}], signals } sorted by score desc.
+ */
+export async function retrieveEpisodes(query, { huntId = null, crossHunt = false, limit = 8, now = Date.now() } = {}) {
+  const d = getDb();
+  if (!d) return { query, results: [], signals: { fts: 0, vec: 0 } };
+  const W = RETRIEVAL_WEIGHTS;
+  const candidates = new Map(); // id -> { row, ftsPos, cos }
+
+  const fts = ftsCandidates(query, huntId, crossHunt, 60);
+  fts.forEach((row, pos) => candidates.set(row.id, { row, ftsPos: pos, cos: null }));
+
+  // Vector signal (best-effort — a busy Ollama must never break retrieval).
+  let vecCount = 0;
+  try {
+    const [qv] = await embedTexts([String(query || '').slice(0, 1000)]);
+    if (Array.isArray(qv) && qv.length) {
+      const scopeSql = huntId && !crossHunt
+        ? `SELECT e.*, em.vec FROM episode_embeddings em JOIN episodes e ON e.id = em.episode_id
+             WHERE em.model = ? AND e.hunt_id = ?`
+        : `SELECT e.*, em.vec FROM episode_embeddings em JOIN episodes e ON e.id = em.episode_id
+             WHERE em.model = ?`;
+      const rows = huntId && !crossHunt ? d.prepare(scopeSql).all(EMBED_MODEL, String(huntId)) : d.prepare(scopeSql).all(EMBED_MODEL);
+      const scored = [];
+      for (const r of rows) {
+        const vec = new Float32Array(r.vec.buffer, r.vec.byteOffset, r.vec.byteLength / 4);
+        scored.push({ row: r, cos: cosine(vec, qv) });
+      }
+      scored.sort((a, b) => b.cos - a.cos);
+      for (const s of scored.slice(0, 60)) {
+        vecCount++;
+        const existing = candidates.get(s.row.id);
+        if (existing) existing.cos = s.cos;
+        else candidates.set(s.row.id, { row: s.row, ftsPos: null, cos: s.cos });
+      }
+    }
+  } catch { /* vector signal unavailable this call */ }
+
+  // Recency/importance pool guarantees a non-empty, sane result set even
+  // when both relevance signals miss.
+  const poolSql = huntId && !crossHunt
+    ? 'SELECT * FROM episodes WHERE hunt_id = ? ORDER BY importance DESC, id DESC LIMIT 20'
+    : 'SELECT * FROM episodes ORDER BY importance DESC, id DESC LIMIT 20';
+  const pool = huntId && !crossHunt ? d.prepare(poolSql).all(String(huntId)) : d.prepare(poolSql).all();
+  for (const row of pool) {
+    if (!candidates.has(row.id)) candidates.set(row.id, { row, ftsPos: null, cos: null });
+  }
+
+  const entities = extractEntities(query);
+  const results = [];
+  for (const { row, ftsPos, cos } of candidates.values()) {
+    const ftsScore = ftsPos == null ? null : 1 / (1 + ftsPos);
+    const vecScore = cos == null ? null : Math.max(0, Math.min(1, (cos + 1) / 2));
+    const relevance = ftsScore != null && vecScore != null
+      ? 0.5 * ftsScore + 0.5 * vecScore
+      : (ftsScore ?? vecScore ?? 0);
+    // Recency is a property of the EPISODE, not of its retrieval history —
+    // folding last_accessed_at in here made retrieval non-idempotent (the
+    // act of retrieving reshuffled the next retrieval). MemoryBank-style
+    // reinforcement enters separately as a small saturating access boost.
+    const tsMs = Date.parse(row.ts || '');
+    const ageHours = Number.isFinite(tsMs) ? Math.max(0, (now - tsMs) / 3600000) : 9999;
+    const recency = Math.pow(0.5, ageHours / W.halfLifeHours);
+    const ac = row.access_count || 0;
+    const accessBoost = W.accessBoostMax * (ac / (ac + 3));
+    const importanceScore = (row.importance || 0) / 10;
+    const text = `${row.title || ''}\n${row.body || ''}`.toLowerCase();
+    let entityHits = 0;
+    for (const e of entities) if (text.includes(e)) entityHits++;
+    const entityBoost = Math.min(W.entityCap, entityHits * W.entityPerHit);
+    let score = W.relevance * relevance + W.importance * importanceScore + W.recency * recency + entityBoost + accessBoost;
+    if (crossHunt && huntId && row.hunt_id !== String(huntId)) score *= W.crossHuntFactor;
+    results.push({ ...row, score, parts: { relevance, ftsScore, vecScore, importanceScore, recency, entityBoost, accessBoost }, neighbours: [] });
+  }
+  results.sort((a, b) => b.score - a.score || b.id - a.id);
+  const selected = results.slice(0, limit);
+
+  // Temporal neighbours (EM-LLM): what happened immediately around a hit
+  // is usually part of the same episode.
+  const nStmt = d.prepare('SELECT * FROM episodes WHERE hunt_id = ? AND source_idx IN (?, ?)');
+  for (const hit of selected) {
+    try {
+      hit.neighbours = nStmt.all(hit.hunt_id, hit.source_idx - 1, hit.source_idx + 1);
+    } catch { hit.neighbours = []; }
+  }
+  if (selected.length) recordEpisodeAccess(selected.map((r) => r.id));
+  return { query, results: selected, signals: { fts: fts.length, vec: vecCount } };
+}
+
+/** Format retrieval results for the planning prompt (placed at its END). */
+export function formatRetrievalForPrompt(results, { budgetChars = 4200, query = '' } = {}) {
+  if (!results || !results.length) return '';
+  const squash = (s, n) => clip(String(s || '').replace(/\s+/g, ' '), n);
+  const lines = [
+    `--- RETRIEVED MEMORY (code-scored recall of your past episodes${query ? ` for: "${squash(query, 100)}"` : ''} — most relevant first) ---`,
+  ];
+  for (const r of results) {
+    lines.push(
+      `[${r.score.toFixed(2)} · ${r.kind}${r.outcome ? ` · ${r.outcome}` : ''} · ${r.ts} · ${r.hunt_id}] ${squash(r.title, 140)} — ${squash(r.body, 200)}`
+    );
+    for (const n of r.neighbours || []) {
+      lines.push(`  ↳ ${n.source_idx < r.source_idx ? 'before' : 'after'}: [${n.kind}] ${squash(n.title, 120)}`);
+    }
   }
   let out = '';
   for (const l of lines) {

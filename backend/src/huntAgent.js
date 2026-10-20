@@ -131,6 +131,7 @@ import { webSearch, searchCVE } from './webSearch.js';
 import { runBrowserTask, crawlScript } from './browserAgent.js';
 import { getHuntCost } from './costTracker.js';
 import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel, huntDir } from './store.js';
+import { episodeLedgerEnabled, retrieveEpisodes, formatRetrievalForPrompt } from './episodeStore.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
 
 // Credit price per hunt iteration (USD), by hunt mode. The hunt auto-pauses
@@ -761,6 +762,34 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     }
   } catch { /* best-effort */ }
 
+  // RETRIEVED MEMORY (Job 6 stage 2): hybrid retrieval over the episode
+  // ledger, scored entirely by code (FTS + embedding cosine + rule
+  // importance + recency + entity boost — zero LLM calls in scoring). The
+  // query is this hunt's live context: target, app fingerprint, and the
+  // most recent reasoning step. The slice rides at the very END of the
+  // prompt (the recency position — research: context rot hits the middle
+  // hardest), and its size is subtracted from the full-history budget so
+  // the total prompt stays within the hard cap.
+  let retrievedSection = '';
+  let retrievalStats = { hits: 0, top: 0 };
+  try {
+    if (episodeLedgerEnabled()) {
+      const lastReasoning = getAllReasoning(huntId).slice(-1)[0] || {};
+      const retrievalQuery = [
+        target,
+        appFingerprint.appType || '',
+        ...(appFingerprint.techStack || []),
+        lastReasoning.hypothesis || '',
+        lastReasoning.action || '',
+      ].join(' ').slice(0, 300);
+      const ret = await retrieveEpisodes(retrievalQuery, { huntId, crossHunt: true, limit: 6 });
+      if (ret.results.length) {
+        retrievedSection = formatRetrievalForPrompt(ret.results, { budgetChars: 4200, query: retrievalQuery });
+        retrievalStats = { hits: ret.results.length, top: Number(ret.results[0].score.toFixed(2)) };
+      }
+    }
+  } catch { /* retrieval is best-effort */ }
+
   // FULL HISTORY (20 Oct 2026, solver #443 — owner order: "he knows
   // everything he did before"): the COMPLETE ledger of this hunt joins the
   // protected post-header zone — every finding (never dropped), captured
@@ -775,7 +804,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       reasoningRows: getAllReasoning(huntId),
       findings: readHuntEvents(huntId).filter((e) => e.type === 'finding'),
       chainContext: metaNow.chainContext || null,
-      budgetChars: Math.max(3000, MAX_PROMPT_CHARS - 12000),
+      budgetChars: Math.max(3000, MAX_PROMPT_CHARS - 12000 - retrievedSection.length),
     });
     fullHistorySection = built.text;
     fullHistoryStats = built.stats;
@@ -841,13 +870,15 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     `Iteration ${iteration} — hunting unlimited.`,
     steering ? `\n--- USER INSTRUCTION (follow this round) ---\n${steering}` : '',
     curiositySection,
+    // Retrieved memory goes LAST (recency position) — see stage-2 note above.
+    retrievedSection,
   ].join('\n').slice(0, MAX_PROMPT_CHARS);
 
   // BRIEFING AUDIT (solver #443): prompts are not stored, so prove the
   // full-history briefing actually reached the model — sizes and coverage
   // counts, every iteration, in the hunt's own event stream.
   try {
-    think(huntId, `Briefing: prompt ${prompt.length} chars — full history: ${fullHistoryStats.actions} actions (${fullHistoryStats.summarised} oldest summarised), ${fullHistoryStats.findings} findings (${fullHistoryStats.verified} verified), ${fullHistoryStats.deadEnds} dead ends; global memory: ${globalMemoryAudit.count} lessons.`);
+    think(huntId, `Briefing: prompt ${prompt.length} chars — full history: ${fullHistoryStats.actions} actions (${fullHistoryStats.summarised} oldest summarised), ${fullHistoryStats.findings} findings (${fullHistoryStats.verified} verified), ${fullHistoryStats.deadEnds} dead ends; global memory: ${globalMemoryAudit.count} lessons; retrieved memory: ${retrievalStats.hits} episodes (top score ${retrievalStats.top}).`);
   } catch { /* best-effort */ }
 
   let plans = [];
@@ -1502,12 +1533,28 @@ async function executeWithEvasion(huntId, target, command) {
         query,
         limit: 8,
       });
-      appendHuntEvent(huntId, { type: 'recall', query, hits: rec.hits });
+      // Job 6 stage 2: RECALL routes through the SAME hybrid retrieval as
+      // the automatic prompt slice (episode ledger, code-scored). Its hits
+      // lead the reply; the reasoning/global-memory matches follow. If the
+      // ledger is unavailable the original recall text stands alone.
+      let ledgerText = '';
+      let ledgerHits = 0;
+      try {
+        if (episodeLedgerEnabled()) {
+          const ret = await retrieveEpisodes(query, { huntId, crossHunt: true, limit: 6 });
+          ledgerHits = ret.results.length;
+          if (ledgerHits) {
+            ledgerText = formatRetrievalForPrompt(ret.results, { budgetChars: 2500, query });
+          }
+        }
+      } catch { /* ledger recall is best-effort */ }
+      const text = ledgerText ? `${ledgerText}\n\n${rec.text}` : rec.text;
+      appendHuntEvent(huntId, { type: 'recall', query, hits: rec.hits, ledgerHits });
       try {
         const m = readHuntMeta(huntId) || {};
-        writeHuntMeta(huntId, { ...m, huntId, recallSection: { query, text: rec.text.slice(0, 3000), at: new Date().toISOString() } });
+        writeHuntMeta(huntId, { ...m, huntId, recallSection: { query, text: text.slice(0, 3000), at: new Date().toISOString() } });
       } catch { /* stash is best-effort */ }
-      return { stdout: rec.text, stderr: '', exitCode: 0 };
+      return { stdout: text, stderr: '', exitCode: 0 };
     } catch {
       return { stdout: 'Recall failed.', stderr: '', exitCode: 1 };
     }
