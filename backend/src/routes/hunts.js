@@ -283,12 +283,18 @@ router.post('/', requireAuth, async (req, res) => {
       console.warn('[hunts] dedupe check failed:', err.message);
     }
   }
-  // ONE HUNT AT A TIME with QUEUE: if a hunt is already running/paused,
+  // ONE HUNT RUNNING AT A TIME with QUEUE: if a hunt is already running,
   // add this request to the queue instead of rejecting. User gets their
   // queue position. Admin can prioritize from the admin portal.
+  // PAUSED hunts do NOT block creation (20 Oct 2026): a paused hunt is
+  // dormant by the owner's explicit order and stays paused until the
+  // owner resumes it — counting it as "active" here made every new
+  // target queue forever behind hunts nobody intended to run (the
+  // paused thebhavesh.online and benchmark hunts blocked the owner's
+  // first real-target hunt, Ezviz, from ever starting).
   try {
     const { listHuntMetas, enqueueHunt } = await import('../store.js');
-    const active = listHuntMetas().find((h) => ['running', 'paused'].includes(h.state));
+    const active = listHuntMetas().find((h) => h.state === 'running');
     if (active) {
       const { queueId, position, total } = enqueueHunt({
         userId: req.user.id,
