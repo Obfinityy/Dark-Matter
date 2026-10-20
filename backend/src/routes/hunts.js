@@ -78,6 +78,64 @@ function hostOf(target) {
   }
 }
 
+/**
+ * Canonical identity of a hunt target, for duplicate detection. Two targets
+ * are "the same hunt" when they differ only in scheme, a leading "www.",
+ * a default port, letter case, or trailing slashes — e.g.
+ * "https://thebhavesh.online", "http://www.thebhavesh.online/" and
+ * "thebhavesh.online" all map to "thebhavesh.online".
+ */
+export function normalizeTargetKey(target) {
+  const raw = String(target || '').trim();
+  if (!raw) return '';
+  try {
+    const u = new URL(raw.includes('://') ? raw : `https://${raw}`);
+    const host = u.hostname.toLowerCase().replace(/^www\./, '');
+    const port = u.port && !['80', '443'].includes(u.port) ? `:${u.port}` : '';
+    const pathPart = u.pathname.replace(/\/+$/, '');
+    return `${host}${port}${pathPart}`;
+  } catch {
+    return raw
+      .toLowerCase()
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .replace(/\/+$/, '');
+  }
+}
+
+// When several hunts exist for one target (legacy duplicates), the one worth
+// reopening is the live one; otherwise the paused one that can resume; a
+// terminal hunt still wins over creating yet another duplicate. Ties break
+// toward the most progress (iteration), then the most recently created.
+const HUNT_STATE_RANK = {
+  running: 0,
+  starting: 1,
+  created: 1,
+  paused: 2,
+  out_of_credits: 2,
+  stopped: 3,
+  finished: 4,
+  failed: 5,
+};
+
+export function pickExistingHunt(metas, userId, target) {
+  const key = normalizeTargetKey(target);
+  if (!key || !userId) return null;
+  const matches = (metas || []).filter(
+    (h) => h && h.userId && h.userId === userId && normalizeTargetKey(h.target) === key
+  );
+  if (!matches.length) return null;
+  const rank = (h) =>
+    HUNT_STATE_RANK[String(h.state || h.status || '').toLowerCase()] ?? 6;
+  matches.sort(
+    (a, b) =>
+      rank(a) - rank(b) ||
+      (Number(b.iteration) || 0) - (Number(a.iteration) || 0) ||
+      String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+  );
+  return matches[0];
+}
+
 export function isTargetAllowed(target) {
   const list = config.allowedTargets;
   if (!list.length) return false;
@@ -97,7 +155,7 @@ export function isTargetAllowed(target) {
 // target checks below. Everything else (chat, plugins, reports, health,
 // browsing) stays public.
 router.post('/', requireAuth, async (req, res) => {
-  const { target, scope, confirmedAuthorized, mode } = req.body || {};
+  const { target, scope, confirmedAuthorized, mode, forceNew } = req.body || {};
   console.log(`[hunts] CREATE attempt by ${req.user.username} (${req.user.id}): target=${target}, mode=${mode}, confirmed=${confirmedAuthorized}`);
   if (typeof target !== 'string' || !target.trim()) {
     return res.status(400).json({
@@ -177,28 +235,54 @@ router.post('/', requireAuth, async (req, res) => {
     }
   }
   console.log(`[hunts] Credits OK, checking dedupe...`);
-  // DEDUPE: if this user already has a hunt for the same target (any state),
-  // return the existing one instead of creating a duplicate.
-  try {
-    const { listHuntMetas } = await import('../store.js');
-    const normalizedTarget = target.trim().toLowerCase().replace(/\/$/, '');
-    const existing = listHuntMetas().find((h) => {
-      if (!h.userId || h.userId !== req.user.id) return false;
-      const hTarget = String(h.target || '').toLowerCase().replace(/\/$/, '');
-      return hTarget === normalizedTarget;
-    });
-    if (existing) {
-      console.log(`[hunts] REUSE existing hunt ${existing.huntId} for target "${target}" (user ${req.user.username})`);
-      return res.json({
-        ok: true,
-        reused: true,
-        huntId: existing.huntId,
-        target: existing.target,
-        state: existing.state,
-        message: 'Resuming your existing hunt for this target.',
-      });
+  // DEDUPE (owner rule): if this user already hunted this target, redirect to
+  // that hunt instead of creating a duplicate — and if it is paused, resume
+  // it from its checkpoint. Matching is canonical (normalizeTargetKey), so
+  // scheme / "www." / trailing-slash variants of a target cannot slip past.
+  // { forceNew: true } (the UI's explicit Re-run action) is the only bypass.
+  if (forceNew !== true) {
+    try {
+      const existing = pickExistingHunt(listHuntMetas(), req.user.id, target);
+      if (existing) {
+        const existingId = existing.huntId || existing.id;
+        let state = String(existing.state || existing.status || 'unknown').toLowerCase();
+        let resumed = false;
+        if (state === 'paused') {
+          // Actually resume it — the old code only SAID "Resuming…" while
+          // returning a still-paused hunt. Host-side resume mirrors
+          // POST /:id/resume: flip the meta flags, then continue the loop
+          // from the checkpoint (meta.iteration + 1, findings rebuilt).
+          try {
+            const m0 = readHuntMeta(existingId) || existing;
+            writeHuntMeta(existingId, { ...m0, huntId: existingId, paused: false, stopped: false, state: 'running' });
+            appendHuntEvent(existingId, { type: 'status', state: 'resumed', reason: 'dedup_redirect', at: new Date().toISOString() });
+            const { resumeInterruptedHunt } = await import('../huntAgent.js');
+            resumeInterruptedHunt(existingId).catch((err) => {
+              appendHuntEvent(existingId, { type: 'status', state: 'failed', error: err.message || String(err) });
+            });
+            state = 'running';
+            resumed = true;
+          } catch (err) {
+            console.warn(`[hunts] dedupe resume failed for ${existingId}: ${err.message}`);
+          }
+        }
+        console.log(`[hunts] REUSE existing hunt ${existingId} for target "${target}" (user ${req.user.username}, state=${state}, resumed=${resumed})`);
+        return res.json({
+          ok: true,
+          reused: true,
+          resumed,
+          huntId: existingId,
+          target: existing.target,
+          state,
+          message: resumed
+            ? 'Resumed your existing hunt for this target from its checkpoint.'
+            : 'You already have a hunt for this target — opening it instead of creating a duplicate.',
+        });
+      }
+    } catch (err) {
+      console.warn('[hunts] dedupe check failed:', err.message);
     }
-  } catch { /* best-effort dedupe */ }
+  }
   // ONE HUNT AT A TIME with QUEUE: if a hunt is already running/paused,
   // add this request to the queue instead of rejecting. User gets their
   // queue position. Admin can prioritize from the admin portal.

@@ -170,25 +170,33 @@ export default function ChatPage({
     setVoiceHuntIdOverride(null);
   }
 
-  async function handleStartHunt(target, scope, mode, confirmed) {
+  async function handleStartHunt(target, scope, mode, confirmed, forceNew = false) {
     if (!ensureHuntAuth()) return;
-    // Dedup: if a hunt already exists for this target, go to its chat instead.
-    try {
-      const { listHunts } = await import('../lib/api');
-      const hr = await listHunts();
-      const hunts = (hr && hr.data && hr.data.hunts) || [];
-      const norm = (t) => String(t || '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-      const existing = hunts.find((h) => norm(h.target) === norm(target) && ['running', 'paused', 'starting'].includes(h.state));
-      if (existing) {
-        toast(`Hunt already exists for ${target} — opening it.`, 'info');
-        // Find the chat for this hunt and navigate to it
-        if (typeof onOpenHuntChat === 'function') onOpenHuntChat(existing.huntId);
-        return;
-      }
-    } catch { /* best-effort, proceed to create */ }
-    const chatId = chat ? chat.id : onNewChat();
+    // Dedup: if a hunt already exists for this target, go to its chat instead
+    // of creating a duplicate. (The backend enforces the same rule on
+    // POST /api/v1/hunts and is the authority; this pre-check just avoids a
+    // needless round-trip. NOTE: the hunts API returns `status`, not
+    // `state` — checking h.state here silently never matched.)
+    if (!forceNew) {
+      try {
+        const { listHunts } = await import('../lib/api');
+        const hr = await listHunts();
+        const hunts = (hr && hr.data && hr.data.hunts) || [];
+        const norm = (t) => String(t || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
+        const stateOf = (h) => String(h.status || h.state || '').toLowerCase();
+        const matches = hunts.filter((h) => norm(h.target) === norm(target));
+        const existing =
+          matches.find((h) => ['running', 'paused', 'starting'].includes(stateOf(h))) || matches[0];
+        if (existing) {
+          toast(`You already have a hunt for ${target} — opening it.`, 'info');
+          // Find the chat for this hunt and navigate to it
+          if (typeof onOpenHuntChat === 'function') onOpenHuntChat(existing.huntId);
+          return;
+        }
+      } catch { /* best-effort, proceed to create */ }
+    }
     setLaunching(true);
-    const res = await startHunt(target, scope, mode, confirmed);
+    const res = await startHunt(target, scope, mode, confirmed, forceNew);
     setLaunching(false);
     if (!res.ok || !res.data.huntId) {
       if (res.status === 401 || res.error === 'auth_required') {
@@ -196,9 +204,24 @@ export default function ChatPage({
         toast('Log in to start a hunt.', 'info');
         return;
       }
+      if (res.data && res.data.queued) {
+        toast(res.data.message || 'Hunt queued — it will start automatically when the current hunt finishes.', 'info');
+        setHuntModalOpen(false);
+        return;
+      }
       toast(res.error || 'Could not start the hunt.', 'error');
       return;
     }
+    if (res.data.reused) {
+      // The backend redirected us to the hunt that already exists for this
+      // target (resuming it first if it was paused). Open THAT hunt's chat —
+      // never append a second card for the same hunt here.
+      toast(res.data.message || 'Opening your existing hunt for this target.', 'info');
+      if (typeof onOpenHuntChat === 'function') onOpenHuntChat(res.data.huntId);
+      setHuntModalOpen(false);
+      return;
+    }
+    const chatId = chat ? chat.id : onNewChat();
     const hunt = {
       huntId: res.data.huntId,
       target,
@@ -224,7 +247,8 @@ export default function ChatPage({
   async function handleRerunHunt(hunt) {
     if (!ensureHuntAuth()) return;
     // The target was already authorized when the original hunt was started.
-    await handleStartHunt(hunt.target, hunt.scope || '', hunt.mode || 'normal', true);
+    // forceNew is the explicit fresh-run bypass of the dedupe redirect.
+    await handleStartHunt(hunt.target, hunt.scope || '', hunt.mode || 'normal', true, true);
   }
 
   const [editText, setEditText] = useState(null);

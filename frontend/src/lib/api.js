@@ -158,10 +158,25 @@ export async function getTotalCosts() {
   return get('/api/v1/hunts/costs');
 }
 
-export async function startHunt(target, scope, mode, confirmedAuthorized) {
-  const res = await post('/api/v1/hunts', { target, scope, mode, confirmedAuthorized: !!confirmedAuthorized });
+export async function startHunt(target, scope, mode, confirmedAuthorized, forceNew = false) {
+  const res = await post('/api/v1/hunts', { target, scope, mode, confirmedAuthorized: !!confirmedAuthorized, ...(forceNew ? { forceNew: true } : {}) });
   if (!res.ok) return res;
-  return { ok: true, data: { huntId: res.data && (res.data.huntId || res.data.id) } };
+  const d = res.data || {};
+  // Pass the dedupe/queue outcome through: when the target was already
+  // hunted the backend returns the EXISTING hunt (reused) instead of a new
+  // one, and the caller must open that hunt rather than append a fresh card.
+  return {
+    ok: true,
+    data: {
+      huntId: d.huntId || d.id,
+      reused: !!d.reused,
+      resumed: !!d.resumed,
+      queued: !!d.queued,
+      position: d.position,
+      state: d.state,
+      message: d.message,
+    },
+  };
 }
 
 export async function pauseHunt(id) {
