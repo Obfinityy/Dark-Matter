@@ -2,7 +2,7 @@
 #
 # How it works: any push to main that touches backend/ (or this file) SSHes
 # into the EC2 box, pulls the latest main, installs backend deps, and
-# restarts the dark-matter-backend systemd service. The frontend already
+# restarts the darkmatter-backend systemd service. The frontend already
 # auto-deploys via Cloudflare Pages, so after this both halves deploy
 # themselves on `git push`.
 #
@@ -15,7 +15,7 @@
 #
 # The deploy user needs passwordless sudo for systemctl, or run the service
 # restart via a sudoers rule, e.g. on EC2:
-#   echo "ubuntu ALL=(ALL) NOPASSWD: /bin/systemctl restart dark-matter-backend, /bin/systemctl is-active dark-matter-backend" | sudo tee /etc/sudoers.d/dark-matter-deploy
+#   echo "ubuntu ALL=(ALL) NOPASSWD: /bin/systemctl restart darkmatter-backend, /bin/systemctl is-active darkmatter-backend" | sudo tee /etc/sudoers.d/dark-matter-deploy
 
 name: Deploy backend to EC2
 
@@ -60,9 +60,9 @@ jobs:
               exit 0
             fi
             echo "--- restarting backend (no active hunts) ---"
-            sudo systemctl restart dark-matter-backend
+            sudo systemctl restart darkmatter-backend
             sleep 10
-            sudo systemctl is-active dark-matter-backend
+            sudo systemctl is-active darkmatter-backend
             echo "--- health check ---"
             curl -sf http://localhost:4000/api/v1/health
             echo
