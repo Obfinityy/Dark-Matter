@@ -133,6 +133,7 @@ import { getHuntCost } from './costTracker.js';
 import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel, huntDir } from './store.js';
 import { episodeLedgerEnabled, retrieveEpisodes, formatRetrievalForPrompt, recordRuledOut, getRuledOutCounts, formatLessonsForPrompt, RETRY_BUDGET } from './episodeStore.js';
 import { proposePlaybook, formatPlaybookForPrompt } from './playbook.js';
+import { ensurePlanTree, renderPlanTree, recordPlanOutcome } from './planTree.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
 
 // Credit price per hunt iteration (USD), by hunt mode. The hunt auto-pauses
@@ -847,6 +848,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // failed. Placing it last meant it was the FIRST section truncated when
   // the prompt exceeded budget, silently disabling the learning mechanism
   // in exactly the fully-loaded hunts where it matters most.
+  try { ensurePlanTree(huntId, { target }); } catch { /* plan tree is best-effort */ }
   const prompt = [
     'You are an ELITE bug-bounty hunter. You think like a HUMAN, not a scanner.',
     '',
@@ -883,6 +885,9 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // PLAYBOOK + SKILLS (Job 6 stage 5): rules earned by verified
     // successes, plus at most 5 fingerprint-matched skill guides.
     formatPlaybookForPrompt({ appType: appFingerprint.appType, techStack: appFingerprint.techStack, query: target }),
+    // PLAN TREE (Job 6 stage 6): code-owned goal→phase→leaf checklist
+    // with counter-based re-plan triggers (seeded just above the prompt).
+    renderPlanTree(huntId),
     fullHistorySection,
     globalMemorySection,
     recalledSection,
@@ -1402,6 +1407,12 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     think(huntId, `Test: ${plan.test || 'unnamed'} — ${plan.why || ''}`);
     const result = await executeWithEvasion(huntId, target, String(plan.command).slice(0, 500));
     const rec = await assessResult(huntId, target, plan, result);
+    // PLAN TREE (Job 6 stage 6): code records the validator outcome on
+    // the leaf — verified closes it, failures count toward the park
+    // threshold and the phase's re-plan trigger.
+    try {
+      recordPlanOutcome(huntId, plan.test || plan.hypothesis || '', rec ? (rec.verified ? 'verified' : 'rejected') : 'no-assessment');
+    } catch { /* plan tree is best-effort */ }
     // Memory: record WHY this was tried and what was learned, so the agent
     // learns from its own reasoning across iterations (read back via
     // formatReasoningForPrompt in the planning prompt).
