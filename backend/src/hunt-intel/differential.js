@@ -226,3 +226,148 @@ export function executionFailed(result, outputText = '') {
   const out = String(outputText || '');
   return /Command failed:|DM_CONTAINER_MISSING/.test(out);
 }
+
+// ---- Content-relevance judgement (solver #454, Job 7 item C) ----------------
+// The execution gate above answers "did the probe run?" — it cannot answer
+// "does this output actually prove THIS claim about THIS target?" The
+// residual false-accept family (flagged in #442, audited shapes #233,
+// #256/#257, #259–#262, #73–#81 on h_bench_d69e5746) is successful commands
+// whose output is signal-bearing but irrelevant:
+//   - the target's own generic content (SPA index / theme CSS) contains
+//     signal words ('admin', 'token') — the words are ambient, not evidence;
+//   - a probe of a DIFFERENT host (target.com) returned a 301 whose echoed
+//     Location header contains '/admin' — real content, wrong target;
+//   - a sweep probe's own output NEGATES the claim ("not exposed: …/.env"
+//     ×3) while extractSignal still fires on the '.env' filename.
+// This judgement binds evidence to claim with three deterministic limbs,
+// all tightening-only (it can only turn a would-be verified into a
+// rejection; it never promotes anything):
+//   1. HOST BINDING — every host referenced by the probe command must be
+//      the hunt target (or a TARGET/TARGET_IP/TARGET_URL placeholder the
+//      runner substitutes with it). Evidence from another host is not
+//      evidence about this target.
+//   2. SUPPORTING SIGNAL — at least one output line must carry a signal
+//      (extractSignal's vocabulary, kept in sync below, or the pipeline's
+//      payload keyword set) that is NOT negated earlier in the same line
+//      ("not exposed: …" does not support an exposure claim).
+//   3. NOVELTY vs BASELINE — that supporting signal's surrounding text
+//      must not appear in the target's generic baseline bodies (root page
+//      + a canary path that returns the SPA fallback / generic error).
+//      Ambient site content cannot prove a vulnerability.
+// If no baseline could be fetched, limb 3 abstains (logged by the caller):
+// the check tightens wherever it can judge, and never silently loosens.
+
+// Signal vocabulary — mirror of huntAgent.js extractSignal() (kept in sync
+// by hand, same precedent as capabilitiesOfFinding vs chainEngine above),
+// plus the verify pipeline's payload keyword set as id 'keyword'.
+const RELEVANCE_SIGNAL_PATTERNS = [
+  { id: 'sql-error', re: /sql syntax|mysql|postgres|sqlite|ora-\d+|sql error/i },
+  { id: 'stack-trace', re: /stack trace|traceback|exception in|at .*\(.*\.js:/i },
+  { id: 'cmd-exec', re: /root:|uid=0|uid=\d+\(/i },
+  { id: 'xss-reflect', re: /<script>alert|onerror=|onload=/i },
+  { id: 'admin-exposure', re: /admin|administrator|dashboard/i },
+  { id: 'secret-exposure', re: /\.env|secret|private key|api[_-]?key/i },
+  { id: 'dir-listing', re: /directory listing|index of\//i },
+  { id: 'auth-bypass', re: /bypass|403.*200|unauthorized.*authorized/i },
+  { id: 'keyword', re: /vulnerable|exposed|injection|leak|token|password/i },
+];
+const NEGATION_CUE = /\b(not|no|never|none|without|failed|failure|unable|cannot|can't|couldn't|didn't|doesn't|isn't|aren't|wasn't|weren't|denied|blocked|absent|missing|refused)\b/i;
+
+function normalizeText(s) {
+  return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Lines of `text` that support a claim: a signal match whose position is
+ * not preceded by a negation cue in the same line. Returns
+ * [{signal, line, index}] — index is the match offset within the line.
+ */
+export function supportingSignalLines(text) {
+  const out = [];
+  for (const rawLine of String(text || '').split('\n')) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const neg = NEGATION_CUE.exec(line);
+    const negIdx = neg ? neg.index : -1;
+    for (const { id, re } of RELEVANCE_SIGNAL_PATTERNS) {
+      const m = re.exec(line);
+      if (m && (negIdx === -1 || m.index < negIdx)) {
+        out.push({ signal: id, line, index: m.index, match: m[0] });
+        break; // one supporting record per line is enough
+      }
+    }
+  }
+  return out;
+}
+
+/** Hosts a shell command references: URLs and bare IPv4, host[:port]. */
+export function commandHostRefs(command) {
+  const refs = new Set();
+  const cmd = String(command || '');
+  for (const m of cmd.matchAll(/https?:\/\/([a-z0-9.-]+)(?::(\d+))?/gi)) {
+    refs.add(m[2] ? `${m[1].toLowerCase()}:${m[2]}` : m[1].toLowerCase());
+  }
+  for (const m of cmd.matchAll(/\b(\d{1,3}(?:\.\d{1,3}){3})(?::(\d+))?\b/g)) {
+    refs.add(m[2] ? `${m[1]}:${m[2]}` : m[1]);
+  }
+  return [...refs];
+}
+
+/** The hunt target as host[:port] (port only when non-default/explicit). */
+export function targetHostRef(target) {
+  try {
+    const u = new URL(String(target || ''));
+    const port = u.port || (u.protocol === 'https:' ? '443' : '80');
+    return `${u.hostname.toLowerCase()}:${port}`;
+  } catch {
+    return null;
+  }
+}
+
+function hostRefMatchesTarget(ref, tRef) {
+  if (!tRef) return true; // cannot parse the target — abstain on this limb
+  const bare = ref.toLowerCase();
+  if (bare === 'target' || bare === 'target_ip' || bare === 'target_url') return true;
+  const [tHost, tPort] = tRef.split(':');
+  if (!bare.includes(':')) return bare === tHost; // host-only ref: host must match
+  const [rHost, rPort] = bare.split(':');
+  if (rHost !== tHost) return false;
+  // The target URL's port is authoritative; a ref naming a different
+  // explicit port probed a different service.
+  return rPort === tPort;
+}
+
+/**
+ * Judge whether executed-probe output is bound to the claim.
+ * @param {{command: string, target: string, output: string, baselines?: string[]}} args
+ *   baselines: the target's generic bodies (root + canary). Empty/absent
+ *   → the novelty limb abstains.
+ * @returns {{relevant: boolean, reason: string}}
+ */
+export function assessContentRelevance({ command, target, output, baselines } = {}) {
+  // Limb 1 — host binding.
+  const refs = commandHostRefs(command);
+  const tRef = targetHostRef(target);
+  if (refs.length > 0 && tRef && !refs.some((r) => hostRefMatchesTarget(r, tRef))) {
+    return { relevant: false, reason: `off-target host (probe referenced ${refs.join(', ')}; hunt target is ${tRef})` };
+  }
+  // Limb 2 — a non-negated supporting signal must exist.
+  const support = supportingSignalLines(output);
+  if (support.length === 0) {
+    return { relevant: false, reason: 'no non-negated signal line in evidence (signal absent or negated by the evidence text itself)' };
+  }
+  // Limb 3 — novelty against the target's generic baseline content.
+  const baseTexts = (baselines || []).filter((b) => String(b || '').trim().length > 0);
+  if (baseTexts.length > 0) {
+    const corpus = baseTexts.map(normalizeText).join('\n');
+    const novel = support.some(({ line, index, match }) => {
+      const start = Math.max(0, index - 48);
+      const window = normalizeText(line.slice(start, index + match.length + 48));
+      return window.length > 0 && !corpus.includes(window);
+    });
+    if (!novel) {
+      return { relevant: false, reason: 'signal content is ambient (present verbatim in the target baseline response)' };
+    }
+  }
+  return { relevant: true, reason: 'bound: non-negated signal, novel vs target baseline, on-target host' };
+}

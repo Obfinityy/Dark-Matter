@@ -184,6 +184,7 @@ import {
   evidenceGate,
   verifyPipeline,
   executionFailed,
+  assessContentRelevance,
   beamSearchChains,
   analyzeFindings,
   mineJsEndpoints,
@@ -1760,6 +1761,40 @@ function recordValidation(huntId, plan, verdict, detail = '') {
   } catch { /* audit is best-effort */ }
 }
 
+/**
+ * CONTENT-RELEVANCE BASELINES (solver #454, Job 7 item C): the target's
+ * generic response bodies — its root page and a canary path that returns
+ * the SPA fallback / generic error — fetched through the hunt container
+ * with the same exec path the probes use, normalised exactly like
+ * assessResult output, cached per hunt for 10 minutes. The relevance
+ * judgement (hunt-intel/differential.js) compares a candidate's
+ * signal-bearing text against these bodies: signal words that are part
+ * of the site's ambient content cannot prove a vulnerability.
+ * Returns null when no baseline could be fetched (the judgement then
+ * abstains on the novelty limb rather than blocking blind).
+ */
+const baselineCache = new Map(); // huntId -> { at, texts }
+async function getTargetBaselines(huntId, target) {
+  const hit = baselineCache.get(huntId);
+  if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.texts;
+  try {
+    const base = String(target || '').replace(/\/+$/, '');
+    if (!base) return null;
+    const cmd = `curl -sk -m 15 ${JSON.stringify(base + '/')}; printf '\n==DM-CANARY==\n'; curl -sk -m 15 ${JSON.stringify(base + '/dm-baseline-canary-7f3a')}`;
+    const res = await execInHuntContainer(huntId, cmd, 60000, { bypassTmux: true });
+    const raw = String((res && res.stdout) || '');
+    if (executionFailed(res, raw + '\n' + String((res && res.stderr) || '')) || !raw.trim()) return null;
+    const texts = raw.split('==DM-CANARY==')
+      .map((p) => stripTerminalArtifacts(sanitizeForAI(p)).slice(0, 20000))
+      .filter((t) => t.trim().length > 0);
+    if (!texts.length) return null;
+    baselineCache.set(huntId, { at: Date.now(), texts });
+    return texts;
+  } catch {
+    return null;
+  }
+}
+
 async function assessResult(huntId, target, plan, result) {
   // FIX (19 Oct 2026, solver #6): Strip terminal artifacts (Kali MOTD, shell
   // prompts, ANSI codes) from tool output BEFORE using it as evidence.
@@ -1904,12 +1939,34 @@ function inferSeverity(testName, output) {
     impact_assessment: weird.score >= 40 || sigs.length > 0 || /vulnerable|bypass|injection|leak/i.test(output),
     exploit_confirmation: confirmed,
   });
-  const rec = { ...gated, verification: v.verdict, verified: v.verified };
+  // CONTENT-RELEVANCE JUDGEMENT (20 Oct 2026, solver #454 — the residual
+  // left by the #442 execution gate): a SUCCESSFUL command can still
+  // return irrelevant-but-signal-bearing content — the target's own SPA
+  // fallback (signal words are ambient site content), a different host's
+  // response, or output that negates the claim ("not exposed: …/.env").
+  // A would-be verified finding must also be BOUND to its claim:
+  // on-target host, a non-negated supporting signal, and signal text
+  // novel against the target's baseline bodies. Tightening only — this
+  // can reject, never promote; on rejection the finding is recorded
+  // unverified with the relevance verdict, so the dead-end registry
+  // learns the family like any other validator rejection.
+  let rec = { ...gated, verification: v.verdict, verified: v.verified };
+  if (v.verified) {
+    const baselines = await getTargetBaselines(huntId, target);
+    const rel = assessContentRelevance({ command: plan.command, target, output, baselines: baselines || [] });
+    if (!baselines) {
+      think(huntId, 'Content-relevance: no target baseline obtainable — novelty limb abstained (host + negation limbs still applied).');
+    }
+    if (!rel.relevant) {
+      think(huntId, `Content-relevance FAILED (${rel.reason}) — reproducible but not evidence of this claim; recording as false positive.`);
+      rec = { ...gated, verification: `false_positive (content_relevance: ${rel.reason} — FAILED)`, verified: false };
+    }
+  }
   finding(huntId, rec);
-  recordValidation(huntId, plan, v.verified ? 'verified' : 'rejected', v.verdict);
+  recordValidation(huntId, plan, rec.verified ? 'verified' : 'rejected', rec.verification);
 
   // Head records verified findings for the final report
-  if (v.verified) {
+  if (rec.verified) {
     // VARIANT SWEEP (19 Oct 2026): a newly verified class gets its sibling
     // sweep queued — the sweep block in the planning loop picks it up.
     try {
@@ -1934,7 +1991,7 @@ function inferSeverity(testName, output) {
   }
 
   // Chain escalation
-  if (v.verified) {
+  if (rec.verified) {
     const chains = beamSearchChains(['data_read']);
     if (chains.length) {
       think(huntId, `Chain opportunity: ${chains[0].path.join(' → ')} (score ${chains[0].score.toFixed(2)})`);
@@ -2048,15 +2105,31 @@ async function generatePoC(huntId, target, findingRec) {
     // PoC command to have SUCCEEDED and its output to carry a real impact
     // signal (same vocabulary the finding pipeline uses).
     if (!executionFailed(result, out) && out.trim().length > 20 && extractSignal(out).length > 0) {
-      appendHuntEvent(huntId, {
-        type: 'finding',
-        class: 'poc_verified',
-        title: `PoC confirmed: ${findingRec.title}`,
-        severity: findingRec.severity,
-        evidence: { poc_command: cmd, poc_output: out.slice(0, 500) },
-        verified: true,
-      });
-      think(huntId, 'PoC executed — finding confirmed with working proof.');
+      // CONTENT-RELEVANCE (solver #454): the PoC stamp is a verified:true
+      // write, so the same binding applies — the PoC must have run against
+      // the hunt target, its output's signal must be novel (not the
+      // target's ambient page content: the #233/#256/#257 homepage-CSS
+      // stamps), non-negated, AND share a signal family with the parent
+      // finding it claims to prove (a stack-trace page does not prove a
+      // login bypass). Tightening only.
+      const baselines = await getTargetBaselines(huntId, target);
+      const rel = assessContentRelevance({ command: cmd, target, output: out, baselines: baselines || [] });
+      const parentSigs = extractSignal(`${String(findingRec.evidence?.response || '')} ${String(findingRec.evidence?.impact_demo || '')}`).split(',').filter(Boolean);
+      const pocSigs = extractSignal(out).split(',').filter(Boolean);
+      const sameFamily = pocSigs.some((s) => parentSigs.includes(s));
+      if (rel.relevant && sameFamily) {
+        appendHuntEvent(huntId, {
+          type: 'finding',
+          class: 'poc_verified',
+          title: `PoC confirmed: ${findingRec.title}`,
+          severity: findingRec.severity,
+          evidence: { poc_command: cmd, poc_output: out.slice(0, 500) },
+          verified: true,
+        });
+        think(huntId, 'PoC executed — finding confirmed with working proof.');
+      } else {
+        think(huntId, `PoC output failed content-relevance (${rel.relevant ? `signal family ${pocSigs.join(',') || 'none'} does not match parent finding ${parentSigs.join(',') || 'none'}` : rel.reason}) — not stamping PoC confirmation.`);
+      }
     }
   } catch {
     /* PoC is best-effort */
