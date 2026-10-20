@@ -92,6 +92,19 @@ function getDb() {
         episode_id INTEGER
       );
       CREATE INDEX IF NOT EXISTS idx_ruled_out_hunt_key ON ruled_out(hunt_id, key);
+      CREATE TABLE IF NOT EXISTS facts (
+        id INTEGER PRIMARY KEY,
+        hunt_id TEXT,
+        subject TEXT NOT NULL,
+        predicate TEXT NOT NULL,
+        object TEXT NOT NULL,
+        valid_from TEXT NOT NULL,
+        valid_to TEXT,
+        superseded_by INTEGER,
+        episode_id INTEGER,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_facts_key ON facts(hunt_id, subject, predicate, valid_to);
     `);
     try {
       db.exec(`
@@ -903,6 +916,46 @@ export function backfillRuledOutFromEpisodes() {
 }
 
 /** Compact lessons block for the planning prompt (grouped, worst first). */
+/**
+ * BI-TEMPORAL FACTS (Job 6 stage 8, Graphiti's one good idea kept as a
+ * plain table — report §5 item 8): facts(subject, predicate, object)
+ * with a validity window. When code learns a NEW value for an open
+ * (subject, predicate), the old fact is closed (valid_to set,
+ * superseded_by pointing at its replacement) — never edited, never
+ * deleted — so "what did we believe, and when did it change?" is
+ * answerable. Facts are written ONLY by code from structured results
+ * (captured-state presence, validator-confirmed classes), and secret
+ * VALUES are never stored: presence only, exactly like the dossier.
+ */
+export function recordFact({ huntId = null, subject, predicate, object, episodeId = null } = {}) {
+  const d = getDb();
+  if (!d || !subject || !predicate || object == null) return null;
+  const hid = huntId ? String(huntId) : null;
+  const open = d
+    .prepare('SELECT * FROM facts WHERE hunt_id IS ? AND subject = ? AND predicate = ? AND valid_to IS NULL ORDER BY id DESC')
+    .get(hid, String(subject), String(predicate));
+  if (open && open.object === String(object)) return open.id; // unchanged value: idempotent
+  const ts = new Date().toISOString();
+  const ins = d
+    .prepare('INSERT INTO facts (hunt_id, subject, predicate, object, valid_from, episode_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(hid, String(subject), String(predicate), String(object), ts, episodeId ?? null, ts);
+  const id = Number(ins.lastInsertRowid);
+  if (open) {
+    d.prepare('UPDATE facts SET valid_to = ?, superseded_by = ? WHERE id = ?').run(ts, id, open.id);
+  }
+  return id;
+}
+
+export function listFacts(huntId = null, { currentOnly = true, limit = 100 } = {}) {
+  const d = getDb();
+  if (!d) return [];
+  const hid = huntId ? String(huntId) : null;
+  const where = currentOnly ? 'hunt_id IS ? AND valid_to IS NULL' : 'hunt_id IS ?';
+  return d
+    .prepare(`SELECT * FROM facts WHERE ${where} ORDER BY id DESC LIMIT ?`)
+    .all(hid, limit);
+}
+
 export function formatLessonsForPrompt(huntId, { limit = 8, budgetChars = 1500 } = {}) {
   const d = getDb();
   if (!d) return '';

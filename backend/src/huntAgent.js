@@ -131,7 +131,7 @@ import { webSearch, searchCVE } from './webSearch.js';
 import { runBrowserTask, crawlScript } from './browserAgent.js';
 import { getHuntCost } from './costTracker.js';
 import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel, huntDir } from './store.js';
-import { episodeLedgerEnabled, retrieveEpisodes, formatRetrievalForPrompt, recordRuledOut, getRuledOutCounts, formatLessonsForPrompt, RETRY_BUDGET } from './episodeStore.js';
+import { episodeLedgerEnabled, retrieveEpisodes, formatRetrievalForPrompt, recordRuledOut, getRuledOutCounts, formatLessonsForPrompt, RETRY_BUDGET, recordFact } from './episodeStore.js';
 import { proposePlaybook, formatPlaybookForPrompt } from './playbook.js';
 import { ensurePlanTree, renderPlanTree, recordPlanOutcome } from './planTree.js';
 import { summarizeToolOutput } from './toolOutput.js';
@@ -279,6 +279,14 @@ function detectAndPursueIntent(huntId, thinkingText) {
 
 function finding(huntId, f) {
   appendHuntEvent(huntId, { type: 'finding', ...f });
+  // BI-TEMPORAL FACTS (Job 6 stage 8): a validator-confirmed class is a
+  // durable fact about the target — recorded by code, presence-level
+  // only, superseding cleanly if the same class is ever reclassified.
+  try {
+    if (f && f.verified === true) {
+      recordFact({ huntId, subject: 'vuln', predicate: f.type || f.class || 'unknown', object: 'verified' });
+    }
+  } catch { /* facts are best-effort */ }
   // DEAD-END REGISTRY (Job 6 stage 4): a validator rejection becomes a
   // code-composed lesson in the ruled_out registry, checked by code in
   // the plan filter. Only deterministic verdicts write lessons — never
@@ -1957,6 +1965,9 @@ function inferSeverity(testName, output) {
           createdAt: new Date().toISOString(),
         };
         writeHuntMeta(huntId, { ...meta, huntId, chainContext: chainCtx });
+        // FACTS (stage 8): auth state changed — record PRESENCE only.
+        // The token value itself is never written to the facts table.
+        try { recordFact({ huntId, subject: 'auth', predicate: 'jwt', object: 'present (captured from verified finding)' }); } catch { /* best-effort */ }
         think(huntId, `Chain context stored: have JWT from "${rec.title}", pursuing ${chainPath.join(' → ')}`);
         // GLOBAL MEMORY (19 Oct 2026): chain patterns compound across hunts.
         // A verified finding that yields a usable artifact is a proven link.
