@@ -21,6 +21,7 @@ import pluginsRouter from './routes/plugins.js';
 import modelsRouter from './routes/models.js';
 import voiceRouter from './routes/voice.js';
 import billingRouter from './routes/billing.js';
+import { backfillAllHunts, episodeLedgerEnabled } from './episodeStore.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -318,4 +319,26 @@ server.listen(config.port, () => {
   }
   setTimeout(() => scanAndResumeRunningHunts('boot'), 8000);
   setInterval(() => scanAndResumeRunningHunts('periodic'), 60000);
+
+  // EPISODE LEDGER (Job 6 stage 1) — boot backfill mirrors every hunt's
+  // events.jsonl into the SQLite episode ledger; a periodic flush keeps it
+  // current alongside the append-time hook in store.js. Fully additive and
+  // isolated: the JSONL logs remain the source of truth, and any ledger
+  // failure is logged, never fatal.
+  function flushEpisodeLedgers(tag) {
+    try {
+      if (!episodeLedgerEnabled()) {
+        console.log('[episodes] ledger disabled (node:sqlite unavailable on this runtime)');
+        return;
+      }
+      const r = backfillAllHunts();
+      if (r.inserted) {
+        console.log(`[episodes:${tag}] mirrored ${r.inserted} new episode(s); ${r.total} total across ${r.hunts} hunt(s)`);
+      }
+    } catch (err) {
+      console.error(`[episodes:${tag}] flush failed:`, err.message || err);
+    }
+  }
+  setTimeout(() => flushEpisodeLedgers('boot'), 5000);
+  setInterval(() => flushEpisodeLedgers('periodic'), 60000);
 });

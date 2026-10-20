@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { config } from './config.js';
+import { scheduleEpisodeFlush } from './episodeStore.js';
 
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
@@ -77,6 +78,13 @@ export function appendHuntEvent(huntId, event) {
     );
   } catch {
     // cache is best-effort; never break the request path
+  }
+  // Job 6 stage 1: mirror the event into the SQLite episode ledger.
+  // Coalesced + deferred + fully isolated — can never break the write path.
+  try {
+    scheduleEpisodeFlush(huntId);
+  } catch {
+    // ledger is best-effort; events.jsonl remains the source of truth
   }
 }
 
