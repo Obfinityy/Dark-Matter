@@ -132,6 +132,7 @@ import { runBrowserTask, crawlScript } from './browserAgent.js';
 import { getHuntCost } from './costTracker.js';
 import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel, huntDir } from './store.js';
 import { episodeLedgerEnabled, retrieveEpisodes, formatRetrievalForPrompt, recordRuledOut, getRuledOutCounts, formatLessonsForPrompt, RETRY_BUDGET } from './episodeStore.js';
+import { proposePlaybook, formatPlaybookForPrompt } from './playbook.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
 
 // Credit price per hunt iteration (USD), by hunt mode. The hunt auto-pauses
@@ -865,6 +866,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     'Commands must be non-destructive and target-scoped. You can use: nmap, nuclei, curl, python3, and any tools in the container.',
     'You are a PERSON with a machine, not a script. If you need a tool you don\'t have, download it (curl/wget) or install it (apt-get). If you don\'t know something, SEARCH the web: put "SEARCH: your question" as the command and you\'ll get web results back.',
     'REMEMBER LIKE A HUMAN: your FULL HISTORY below is everything you have done this hunt. If you need the DETAIL of any past action, finding, or cross-hunt lesson, RECALL it: put "RECALL: keywords" (a technique, endpoint, or error) as the command and the matching records from this hunt and all past hunts come back to you.',
+    'GROW YOUR PLAYBOOK: when a technique proves itself, propose it as a command: "PROPOSE_PLAYBOOK: the rule, in one line". Proposals become permanent playbook rules only after a validator-confirmed success — unproven ideas stay proposals.',
     'BUILD WHAT YOU NEED: If no existing tool does what you want, WRITE IT. You have python3 and bash — an elite hunter writes a custom script mid-hunt instead of giving up. Put your script in the command field (python3 -c "..." or a heredoc). Think "I need this, so I create this."',
     'CRITICAL: Respect the TARGET INTELLIGENCE section — never suggest tests for technologies not present.',
     '',
@@ -878,6 +880,9 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // LESSONS FROM FAILURES (Job 6 stage 4): validator-written lessons +
     // ruled-out instances, in the protected zone beside the ledger.
     formatLessonsForPrompt(huntId),
+    // PLAYBOOK + SKILLS (Job 6 stage 5): rules earned by verified
+    // successes, plus at most 5 fingerprint-matched skill guides.
+    formatPlaybookForPrompt({ appType: appFingerprint.appType, techStack: appFingerprint.techStack, query: target }),
     fullHistorySection,
     globalMemorySection,
     recalledSection,
@@ -1585,6 +1590,28 @@ async function executeWithEvasion(huntId, target, command) {
       return { stdout: text, stderr: '', exitCode: 0 };
     } catch {
       return { stdout: 'Recall failed.', stderr: '', exitCode: 1 };
+    }
+  }
+  // Person capability (Job 6 stage 5): PROPOSE_PLAYBOOK — the agent
+  // proposes a playbook rule. Proposals are inert data; the promotion
+  // gate in playbook.js makes a rule live ONLY after a validator-
+  // confirmed success matches it. No success, no promotion — ever.
+  const proposeMatch = /^\s*PROPOSE_PLAYBOOK:\s*(.+)/i.exec(command);
+  if (proposeMatch) {
+    const rule = proposeMatch[1].slice(0, 240);
+    try {
+      const id = proposePlaybook({ huntId, rule });
+      appendHuntEvent(huntId, { type: 'playbook_proposal', proposalId: id, rule });
+      think(huntId, `Playbook proposal recorded (${id || 'rejected'}): ${rule.slice(0, 100)}`);
+      return {
+        stdout: id
+          ? 'Proposal recorded. It becomes a permanent playbook rule only after a validator-confirmed success matches it.'
+          : 'Proposal rejected (empty rule).',
+        stderr: '',
+        exitCode: 0,
+      };
+    } catch {
+      return { stdout: 'Proposal failed to record.', stderr: '', exitCode: 1 };
     }
   }
   let result = await execInHuntContainer(huntId, command, 180000, { bypassTmux: true });

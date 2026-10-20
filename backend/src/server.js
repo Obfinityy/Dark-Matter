@@ -23,6 +23,7 @@ import voiceRouter from './routes/voice.js';
 import billingRouter from './routes/billing.js';
 import { backfillAllHunts, episodeLedgerEnabled, runEmbeddingBackfill, backfillRuledOutFromEpisodes } from './episodeStore.js';
 import { maybeConsolidateAll } from './consolidation.js';
+import { evaluatePromotions } from './playbook.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -375,6 +376,12 @@ server.listen(config.port, () => {
       const r = maybeConsolidateAll();
       if (r.done) {
         console.log(`[consolidation:${tag}] ${r.huntId}: episodes ${r.covered[0]}–${r.covered[1]} -> DOSSIER.md`);
+      }
+      // Job 6 stage 5: the playbook promotion gate — a proposal becomes
+      // a live rule only on validator-confirmed evidence.
+      const pr = evaluatePromotions();
+      if (pr.promoted) {
+        console.log(`[playbook:${tag}] promoted ${pr.promoted} proposal(s) on validator-confirmed evidence`);
       }
     } catch (err) {
       console.error(`[consolidation:${tag}] failed:`, err.message || err);

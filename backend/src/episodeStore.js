@@ -381,6 +381,17 @@ export function queryEpisodes(huntId, { kind = null, outcome = null, limit = 50 
   return d.prepare(sql).all(...args);
 }
 
+/** Verified finding episodes across ALL hunts after a timestamp (promotion gate evidence). */
+export function getVerifiedFindingsSince(tsIso, limit = 200) {
+  const d = getDb();
+  if (!d) return [];
+  return d
+    .prepare(
+      "SELECT * FROM episodes WHERE kind = 'finding' AND outcome = 'verified' AND ts > ? ORDER BY id ASC LIMIT ?"
+    )
+    .all(String(tsIso), limit);
+}
+
 /** Highest mirrored source_idx for a hunt (-1 when the ledger is empty). */
 export function maxSourceIdx(huntId) {
   const d = getDb();
