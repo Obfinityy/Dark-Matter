@@ -156,10 +156,17 @@ function AppInner() {
   // Push: whenever a chat's messages change, debounced-push to the backend.
   // Only chats whose content actually changed are pushed (signature check).
   const lastPushedRef = useRef({});
+  const chatsRef = useRef([]);
+  useEffect(() => { chatsRef.current = chats; }, [chats]);
   useEffect(() => {
     if (!ready || !user) return;
     for (const chat of chats) {
       if (!chat || !chat.id) continue;
+      // NEVER push an empty message list: chats pulled by title from the
+      // backend arrive with no local messages, and pushing [] for them
+      // overwrites (wipes) the server-side history that simply hasn't been
+      // opened on this device yet. An empty local list has nothing to save.
+      if (!chat.messages || chat.messages.length === 0) continue;
       const sig = JSON.stringify(chat.messages || []);
       if (lastPushedRef.current[chat.id] === sig) continue;
       // Save immediately (no debounce) — user reported losing messages on quick refresh.
@@ -213,26 +220,88 @@ function AppInner() {
       if (now - lastSync < 15000) return; // don't hammer the backend on rapid focus flips
       lastSync = now;
       try {
-        const { listHunts } = await import('./lib/api');
+        const { listHunts, getChatMessages, getChatTitles } = await import('./lib/api');
         const res = await listHunts();
         if (cancelled || !res.ok || !res.data || !Array.isArray(res.data.hunts)) return;
+        // Respect user deletions: don't restore chats for hunts whose chat was deleted.
+        let deletedHuntIds = new Set();
+        try {
+          const raw = localStorage.getItem(`dm.deletedHunts.${user.id}`);
+          if (raw) deletedHuntIds = new Set(JSON.parse(raw));
+        } catch { /* none */ }
+        // Which hunts already have a chat? A hunt counts as covered when a
+        // local chat carries its hunt card, or when the deterministic
+        // restored-chat id for it exists (the title pull brings restored
+        // chats back without their messages, so the card alone can't be
+        // the only signal — that false "missing" minted a fresh duplicate
+        // chat on every new browser/device).
+        const current = chatsRef.current || [];
         const known = new Set();
+        current.forEach((c) => {
+          (c.messages || []).forEach((m) => {
+            if (m.role === 'hunt' && m.hunt && m.hunt.huntId) known.add(m.hunt.huntId);
+          });
+          if (c.id && c.id.startsWith('hunt-')) known.add(c.id.slice('hunt-'.length));
+        });
+        const missing = res.data.hunts.filter(
+          (h) => h && h.huntId && !known.has(h.huntId) && !deletedHuntIds.has(h.huntId)
+        );
+        if (missing.length === 0) return;
+        // A hunt may already have a chat created on ANOTHER device: locally
+        // (and in the server title list) it appears as a bare title with no
+        // messages loaded. Check the server-side messages of title-matching
+        // chats before minting a duplicate.
+        let serverTitles = [];
+        try {
+          const tr = await getChatTitles();
+          if (tr && tr.ok && tr.data && Array.isArray(tr.data.chats)) serverTitles = tr.data.chats;
+        } catch { /* best-effort */ }
+        const candidateIdsByTitle = new Map();
+        const addCandidate = (title, id) => {
+          if (!title || !id) return;
+          if (!candidateIdsByTitle.has(title)) candidateIdsByTitle.set(title, new Set());
+          candidateIdsByTitle.get(title).add(id);
+        };
+        current.forEach((c) => addCandidate(c.title, c.id));
+        serverTitles.forEach((c) => addCandidate(c.title, c.id));
+        const stillMissing = [];
+        for (const h of missing) {
+          const title = `Hunt: ${h.target || h.huntId}`;
+          const candidates = candidateIdsByTitle.get(title) || new Set();
+          let covered = false;
+          for (const chatId of candidates) {
+            try {
+              const mr = await getChatMessages(chatId);
+              const msgs = mr && mr.data && Array.isArray(mr.data.messages) ? mr.data.messages : [];
+              if (msgs.some((m) => m && m.role === 'hunt' && m.hunt && m.hunt.huntId === h.huntId)) {
+                covered = true;
+                // Hydrate the local copy so the chat opens with its card.
+                if (msgs.length > 0) {
+                  setChats((prev) => prev.map((x) =>
+                    x.id === chatId && !(x.messages && x.messages.length) ? { ...x, messages: msgs } : x
+                  ));
+                }
+                break;
+              }
+            } catch { /* best-effort — fall through to restore */ }
+          }
+          if (!covered) stillMissing.push(h);
+        }
+        if (cancelled || stillMissing.length === 0) return;
         setChats((prev) => {
-          prev.forEach((c) =>
+          // Re-check against fresh state: another pass may have restored
+          // these hunts (or their chats arrived via title pull) meanwhile.
+          const have = new Set();
+          prev.forEach((c) => {
             (c.messages || []).forEach((m) => {
-              if (m.role === 'hunt' && m.hunt && m.hunt.huntId) known.add(m.hunt.huntId);
-            })
-          );
-          // Respect user deletions: don't restore chats for hunts whose chat was deleted.
-          let deletedHuntIds = new Set();
-          try {
-            const raw = localStorage.getItem(`dm.deletedHunts.${user.id}`);
-            if (raw) deletedHuntIds = new Set(JSON.parse(raw));
-          } catch { /* none */ }
-          const missing = res.data.hunts.filter((h) => h && h.huntId && !known.has(h.huntId) && !deletedHuntIds.has(h.huntId));
-          if (missing.length === 0) return prev;
-          const restored = missing.map((h) => ({
-            id: uid(),
+              if (m.role === 'hunt' && m.hunt && m.hunt.huntId) have.add(m.hunt.huntId);
+            });
+            if (c.id && c.id.startsWith('hunt-')) have.add(c.id.slice('hunt-'.length));
+          });
+          const fresh = stillMissing.filter((h) => !have.has(h.huntId));
+          if (fresh.length === 0) return prev;
+          const restored = fresh.map((h) => ({
+            id: `hunt-${h.huntId}`,
             title: `Hunt: ${h.target || h.huntId}`,
             createdAt: h.createdAt || new Date().toISOString(),
             restored: true,
