@@ -81,6 +81,17 @@ function getDb() {
         dims INTEGER NOT NULL,
         vec BLOB NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS ruled_out (
+        id INTEGER PRIMARY KEY,
+        ts TEXT NOT NULL,
+        hunt_id TEXT NOT NULL,
+        key TEXT NOT NULL,
+        technique TEXT,
+        lesson TEXT NOT NULL,
+        reason TEXT,
+        episode_id INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_ruled_out_hunt_key ON ruled_out(hunt_id, key);
     `);
     try {
       db.exec(`
@@ -742,6 +753,162 @@ export function formatRetrievalForPrompt(results, { budgetChars = 4200, query = 
     for (const n of r.neighbours || []) {
       lines.push(`  ↳ ${n.source_idx < r.source_idx ? 'before' : 'after'}: [${n.kind}] ${squash(n.title, 120)}`);
     }
+  }
+  let out = '';
+  for (const l of lines) {
+    if (out.length + l.length + 1 > budgetChars) break;
+    out += (out ? '\n' : '') + l;
+  }
+  return out;
+}
+
+// ---- Stage 4: validator-gated Reflexion + dead-end registry -----------------
+//
+// Research report §5 item 4 (Reflexion + PentAGI's reflector/limits),
+// re-implemented for an 8B brain: a lesson is written ONLY when a
+// deterministic validator speaks — a finding rejection with a verdict
+// string, or the execution-failure gate discarding a probe. Never
+// self-graded. The lesson is composed BY CODE from the validator's own
+// structured output ("Tried X → got Y → do W", hard-capped at 240 chars
+// ≈ 40 tokens), stored in `ruled_out`, and checked BY CODE in the plan
+// filter: after RETRY_BUDGET rejections of the same normalised test, the
+// plan is skipped and a forced pivot is logged. Historical rejected
+// findings already sitting in the episode ledger can seed the registry
+// (backfillRuledOutFromEpisodes) — the verdicts were validator-written
+// at the time, so the lessons stay validator-gated, just recognised late.
+
+export const RETRY_BUDGET = 3;
+
+/** Mirrors reasoningMemory.normalizeHypothesis (kept local to avoid an import cycle). */
+export function normalizeKey(s) {
+  return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/** Compose a ≤40-token lesson from a validator outcome. Pure. */
+export function composeLesson({ title, family, detail }) {
+  const X = clip(String(title || 'unnamed probe').replace(/\s+/g, ' '), 70);
+  let Y;
+  let W;
+  switch (family) {
+    case 'execution-failed':
+      Y = `the command failed to execute (${clip(String(detail || 'no exit detail'), 40)})`;
+      W = 'fix the command form before retrying this probe';
+      break;
+    case 'payload_validation':
+      Y = 'the payload did not validate at the sink';
+      W = 'vary the payload or endpoint — this instance is ruled out';
+      break;
+    case 'exploit_confirmation':
+      Y = 'the effect could not be confirmed on re-run';
+      W = 'get a reproducible signal or pivot technique';
+      break;
+    case 'impact_assessment':
+      Y = 'no demonstrable impact';
+      W = 'pivot to a surface with real impact';
+      break;
+    case 'reachability':
+      Y = 'the target did not answer meaningfully';
+      W = 're-check reachability before spending probes here';
+      break;
+    default:
+      Y = clip(String(detail || 'the validator rejected it').replace(/\s+/g, ' '), 70);
+      W = 'pivot — this instance is ruled out';
+  }
+  return clip(`Tried ${X} → got ${Y} → do: ${W}`, 240);
+}
+
+/**
+ * Record one validator-gated lesson. `linkEpisode` ties the lesson to the
+ * newest finding episode (used when the lesson comes from a finding
+ * verdict — the episode was just mirrored); execution-gate discards have
+ * no finding episode and pass false.
+ */
+export function recordRuledOut({ huntId, title, family, detail, technique = null, linkEpisode = false, ts = null, episodeId = null }) {
+  const d = getDb();
+  if (!d) return null;
+  let epId = episodeId;
+  if (epId == null && linkEpisode) {
+    try {
+      flushHuntEpisodes(huntId);
+      const row = d
+        .prepare("SELECT id FROM episodes WHERE hunt_id = ? AND kind = 'finding' ORDER BY id DESC LIMIT 1")
+        .get(String(huntId));
+      epId = row ? row.id : null;
+    } catch { epId = null; }
+  }
+  const lesson = composeLesson({ title, family, detail });
+  const info = d
+    .prepare('INSERT INTO ruled_out (ts, hunt_id, key, technique, lesson, reason, episode_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(ts || new Date().toISOString(), String(huntId), normalizeKey(title), technique, lesson, family || null, epId);
+  return { id: Number(info.lastInsertRowid), lesson };
+}
+
+/** Map of normalised key -> rejection count for one hunt. */
+export function getRuledOutCounts(huntId) {
+  const d = getDb();
+  const out = new Map();
+  if (!d) return out;
+  for (const row of d.prepare('SELECT key, COUNT(*) AS c FROM ruled_out WHERE hunt_id = ? GROUP BY key').all(String(huntId))) {
+    out.set(row.key, row.c);
+  }
+  return out;
+}
+
+export function getRuledOut(huntId, limit = 50) {
+  const d = getDb();
+  if (!d) return [];
+  return d.prepare('SELECT * FROM ruled_out WHERE hunt_id = ? ORDER BY id DESC LIMIT ?').all(String(huntId), limit);
+}
+
+/**
+ * Seed the registry from historical REJECTED finding episodes (their
+ * verdict strings were written by the validators when the findings were
+ * assessed). Idempotent: an episode that already has a lesson is skipped.
+ */
+export function backfillRuledOutFromEpisodes() {
+  const d = getDb();
+  if (!d) return { recorded: 0 };
+  const have = new Set(d.prepare('SELECT episode_id FROM ruled_out WHERE episode_id IS NOT NULL').all().map((r) => r.episode_id));
+  const rows = d
+    .prepare("SELECT id, hunt_id, title, body, ts FROM episodes WHERE kind = 'finding' AND outcome = 'rejected' ORDER BY id ASC")
+    .all();
+  let recorded = 0;
+  for (const r of rows) {
+    if (have.has(r.id)) continue;
+    const vm = /"verification"\s*:\s*"([^"]*)"/.exec(String(r.body || ''));
+    const verdict = vm ? vm[1] : '';
+    const fm = /\((\w+)[::]/.exec(verdict);
+    recordRuledOut({
+      huntId: r.hunt_id,
+      title: r.title || 'finding',
+      family: fm ? fm[1] : 'validator',
+      detail: verdict,
+      ts: r.ts,
+      episodeId: r.id,
+    });
+    recorded++;
+  }
+  return { recorded };
+}
+
+/** Compact lessons block for the planning prompt (grouped, worst first). */
+export function formatLessonsForPrompt(huntId, { limit = 8, budgetChars = 1500 } = {}) {
+  const d = getDb();
+  if (!d) return '';
+  const rows = d
+    .prepare(
+      `SELECT key, COUNT(*) AS c, MAX(id) AS newest FROM ruled_out
+       WHERE hunt_id = ? GROUP BY key ORDER BY c DESC, newest DESC LIMIT ?`
+    )
+    .all(String(huntId), limit);
+  if (!rows.length) return '';
+  const latest = d.prepare('SELECT lesson FROM ruled_out WHERE hunt_id = ? AND key = ? ORDER BY id DESC LIMIT 1');
+  const lines = [
+    `\n--- LESSONS FROM FAILURES (validator-written; a test is RULED OUT after ${RETRY_BUDGET} rejections and will be skipped — pivot instead) ---`,
+  ];
+  for (const r of rows) {
+    const row = latest.get(String(huntId), r.key);
+    if (row) lines.push(`- ${row.lesson} (×${r.c})`);
   }
   let out = '';
   for (const l of lines) {

@@ -21,7 +21,7 @@ import pluginsRouter from './routes/plugins.js';
 import modelsRouter from './routes/models.js';
 import voiceRouter from './routes/voice.js';
 import billingRouter from './routes/billing.js';
-import { backfillAllHunts, episodeLedgerEnabled, runEmbeddingBackfill } from './episodeStore.js';
+import { backfillAllHunts, episodeLedgerEnabled, runEmbeddingBackfill, backfillRuledOutFromEpisodes } from './episodeStore.js';
 import { maybeConsolidateAll } from './consolidation.js';
 
 const app = express();
@@ -335,6 +335,12 @@ server.listen(config.port, () => {
       const r = backfillAllHunts();
       if (r.inserted) {
         console.log(`[episodes:${tag}] mirrored ${r.inserted} new episode(s); ${r.total} total across ${r.hunts} hunt(s)`);
+      }
+      // Job 6 stage 4: seed the dead-end registry from historical
+      // validator-rejected findings (boot only; idempotent).
+      if (tag === 'boot') {
+        const ro = backfillRuledOutFromEpisodes();
+        if (ro.recorded) console.log(`[episodes:boot] dead-end registry seeded with ${ro.recorded} historical validator lesson(s)`);
       }
     } catch (err) {
       console.error(`[episodes:${tag}] flush failed:`, err.message || err);

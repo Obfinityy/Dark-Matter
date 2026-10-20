@@ -131,7 +131,7 @@ import { webSearch, searchCVE } from './webSearch.js';
 import { runBrowserTask, crawlScript } from './browserAgent.js';
 import { getHuntCost } from './costTracker.js';
 import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel, huntDir } from './store.js';
-import { episodeLedgerEnabled, retrieveEpisodes, formatRetrievalForPrompt } from './episodeStore.js';
+import { episodeLedgerEnabled, retrieveEpisodes, formatRetrievalForPrompt, recordRuledOut, getRuledOutCounts, formatLessonsForPrompt, RETRY_BUDGET } from './episodeStore.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
 
 // Credit price per hunt iteration (USD), by hunt mode. The hunt auto-pauses
@@ -276,6 +276,22 @@ function detectAndPursueIntent(huntId, thinkingText) {
 
 function finding(huntId, f) {
   appendHuntEvent(huntId, { type: 'finding', ...f });
+  // DEAD-END REGISTRY (Job 6 stage 4): a validator rejection becomes a
+  // code-composed lesson in the ruled_out registry, checked by code in
+  // the plan filter. Only deterministic verdicts write lessons — never
+  // the model's opinion, never a verification-free false.
+  try {
+    if (f && f.verified === false && f.verification) {
+      const m = /\((\w+)[::]/.exec(String(f.verification));
+      recordRuledOut({
+        huntId,
+        title: f.title || f.class || 'finding',
+        family: m ? m[1] : 'validator',
+        detail: f.verification,
+        linkEpisode: true,
+      });
+    }
+  } catch { /* registry is best-effort */ }
 }
 
 /**
@@ -859,6 +875,9 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // reasoning.jsonl). Sits in the protected post-header zone with the
     // reasoning history so truncation never cuts it first.
     formatLedgerForPrompt(huntId),
+    // LESSONS FROM FAILURES (Job 6 stage 4): validator-written lessons +
+    // ruled-out instances, in the protected zone beside the ledger.
+    formatLessonsForPrompt(huntId),
     fullHistorySection,
     globalMemorySection,
     recalledSection,
@@ -1341,11 +1360,20 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // Validators, gates, and assessResult untouched — PoC re-verification
     // (generatePoC) runs outside the plans pipeline and is unaffected.
     const vPairs = getVerifiedPairs(huntId);
-    if (deadKeys.size || vPairs.size) {
+    // DEAD-END REGISTRY (Job 6 stage 4): validator rejections of the same
+    // test, counted by code. At RETRY_BUDGET the instance is ruled out —
+    // the forced pivot is logged, not suggested.
+    const ruledCounts = getRuledOutCounts(huntId);
+    if (deadKeys.size || vPairs.size || ruledCounts.size) {
       const kept = plans.filter((p) => {
         if (p.detId) return true; // machine-generated deterministic/sweep probe — exempt
         if (deadKeys.has(normalizeHypothesis(p.hypothesis))) {
           think(huntId, `Plan SKIPPED (ledger-retired premise): ${p.test || p.hypothesis || 'unnamed'}`);
+          return false;
+        }
+        const ruled = ruledCounts.get(normalizeHypothesis(p.test || p.action || '')) || 0;
+        if (ruled >= RETRY_BUDGET) {
+          think(huntId, `Plan SKIPPED (dead-end registry: ${ruled} validator rejections — forced pivot): ${p.test || p.hypothesis || 'unnamed'}`);
           return false;
         }
         const pair = normalizeHypothesis(p.hypothesis) + '||' + normalizeHypothesis(p.test || p.action || '');
@@ -1725,6 +1753,19 @@ function inferSeverity(testName, output) {
   // execution is not evidence: discard before any finding is built.
   if (executionFailed(result, output)) {
     think(huntId, `Execution failed (exit ${result && result.code}) — error output is not evidence; discarding this result.`);
+    // DEAD-END REGISTRY (Job 6 stage 4): repeated execution failures of
+    // the same probe are a deterministic signal too — after the retry
+    // budget the plan filter rules the probe out instead of letting the
+    // model burn iterations re-issuing a broken command form.
+    try {
+      recordRuledOut({
+        huntId,
+        title: plan.test || 'unnamed probe',
+        family: 'execution-failed',
+        detail: `exit ${result && result.code}`,
+        linkEpisode: false,
+      });
+    } catch { /* registry is best-effort */ }
     return null;
   }
 
