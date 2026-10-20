@@ -68,7 +68,7 @@ let hit5 = 0;
 let hit8 = 0;
 const byCat = {};
 for (const item of QUESTIONS) {
-  const results = await es.retrieveEpisodes(item.q, { huntId, limit: 8 });
+  const { results } = await es.retrieveEpisodes(item.q, { huntId, limit: 8 });
   const idx = results.findIndex((r) => item.match(r.episode));
   const h5 = idx >= 0 && idx < 5;
   const h8 = idx >= 0;
