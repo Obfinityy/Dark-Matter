@@ -485,7 +485,7 @@ async function defaultEmbedTransport(texts) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: EMBED_MODEL, input: texts }),
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(120000),
   });
   if (!res.ok) throw new Error(`embed HTTP ${res.status}`);
   const j = await res.json();
@@ -505,7 +505,7 @@ function episodeEmbedText(row) {
  * first. Bounded per call so it never competes with the hunt brain; safe to
  * run on a timer. Never throws — Ollama being busy just defers to next tick.
  */
-export async function runEmbeddingBackfill({ maxEpisodes = 64, batchSize = 32 } = {}) {
+export async function runEmbeddingBackfill({ maxEpisodes = 64, batchSize = 8 } = {}) {
   const d = getDb();
   if (!d) return { embedded: 0, remaining: 0 };
   const missingSql = `
