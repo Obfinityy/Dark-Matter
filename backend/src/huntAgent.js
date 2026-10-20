@@ -185,6 +185,7 @@ import {
   verifyPipeline,
   executionFailed,
   assessContentRelevance,
+  extractLinkedAssetUrls,
   beamSearchChains,
   analyzeFindings,
   mineJsEndpoints,
@@ -1788,6 +1789,28 @@ async function getTargetBaselines(huntId, target) {
       .map((p) => stripTerminalArtifacts(sanitizeForAI(p)).slice(0, 20000))
       .filter((t) => t.trim().length > 0);
     if (!texts.length) return null;
+    // Corpus extension (solver #456, Job 8 item 3): the root HTML shell is
+    // not the whole ambient surface — its linked CSS/JS assets are generic
+    // target content too, and asset-shaped stamps (#233/#256 family) must
+    // be judged against the real asset bodies. Same-origin only (the
+    // extractor enforces it), bounded count + per-asset bytes. Any failure
+    // here falls back to the shell-only corpus — never worse than before.
+    try {
+      const assetUrls = extractLinkedAssetUrls(texts[0], base + '/');
+      if (assetUrls.length) {
+        const acmd = assetUrls
+          .map((u) => `curl -sk -m 10 ${JSON.stringify(u)} | head -c 262144`)
+          .join("; printf '\\n==DM-ASSET==\\n'; ");
+        const ares = await execInHuntContainer(huntId, acmd, 90000, { bypassTmux: true });
+        const araw = String((ares && ares.stdout) || '');
+        if (araw.trim() && !executionFailed(ares, araw + '\n' + String((ares && ares.stderr) || ''))) {
+          for (const part of araw.split('==DM-ASSET==')) {
+            const t = stripTerminalArtifacts(sanitizeForAI(part)).slice(0, 20000);
+            if (t.trim().length > 0) texts.push(t);
+          }
+        }
+      }
+    } catch { /* asset corpus is best-effort; shell corpus still applies */ }
     baselineCache.set(huntId, { at: Date.now(), texts });
     return texts;
   } catch {

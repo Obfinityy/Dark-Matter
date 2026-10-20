@@ -14,7 +14,7 @@
 // baseline bodies. Fixtures below are the REAL evidence shapes extracted
 // from the production events.jsonl (finding numbers = finding-event
 // ordinals in that stream).
-import { assessContentRelevance, supportingSignalLines } from '../src/hunt-intel/differential.js';
+import { assessContentRelevance, supportingSignalLines, extractLinkedAssetUrls } from '../src/hunt-intel/differential.js';
 
 let failures = 0;
 function check(name, cond) {
@@ -129,6 +129,47 @@ const abstain = assessContentRelevance({
   baselines: [],
 });
 check('empty baselines: novelty abstains, host+signal limbs still pass', abstain.relevant === true);
+
+// --- Asset corpus extension (solver #456, Job 8 item 3) --------------------
+// The #233/#256 stamps were judged against root + canary only; the corpus
+// now includes the root page's linked CSS/JS asset bodies. The extractor
+// is same-origin-only and bounded; asset bodies join limb 3's corpus.
+const SHELL = '<html><head><link rel="stylesheet" href="styles.abc123.css"><link rel="stylesheet" href="/assets/theme.css"><script src="main.def456.js"></script><script src="https://cdn.example.net/lib.js"></script><link rel="stylesheet" href="styles.abc123.css"></head><body>shop</body></html>';
+const assets = extractLinkedAssetUrls(SHELL, TARGET + '/');
+check('asset extractor: same-origin CSS/JS only, deduped, resolved',
+  assets.length === 3
+  && assets.includes('http://172.17.0.1:3000/styles.abc123.css')
+  && assets.includes('http://172.17.0.1:3000/assets/theme.css')
+  && assets.includes('http://172.17.0.1:3000/main.def456.js'));
+check('asset extractor: unparseable base yields []', extractLinkedAssetUrls(SHELL, '').length === 0);
+check('asset extractor: cap honoured', extractLinkedAssetUrls(SHELL, TARGET + '/', 2).length === 2);
+
+// Asset-shaped stamp: the "evidence" is a line lifted verbatim from the
+// target's own stylesheet (signal word included). With the asset body in
+// the corpus the novelty limb must reject it; without it, it would pass.
+const CSS_ASSET = 'body{margin:0}.admin-token-badge{color:#fff;background:url(assets/admin/token.png)}';
+const assetStamp = assessContentRelevance({
+  command: `curl -s http://172.17.0.1:3000/styles.abc123.css`,
+  target: TARGET,
+  output: CSS_ASSET,
+  baselines: [AMBIENT, CSS_ASSET],
+});
+check('asset-shaped stamp rejected when asset body is in the corpus', assetStamp.relevant === false);
+const assetStampNoCorpus = assessContentRelevance({
+  command: `curl -s http://172.17.0.1:3000/styles.abc123.css`,
+  target: TARGET,
+  output: CSS_ASSET,
+  baselines: BASELINES,
+});
+check('same stamp without the asset corpus would pass (extension is what binds it)', assetStampNoCorpus.relevant === true);
+// Genuine evidence stays relevant with an asset corpus present.
+const sqliWithAssets = assessContentRelevance({
+  command: `curl -sk -X POST "http://172.17.0.1:3000/rest/user/login" -H "Content-Type: application/json" -d '{"email":"admin@juice-sh.op' OR 1=1--","password":"x"}'`,
+  target: TARGET,
+  output: '{"authentication":{"token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdGF0dXMiOiJzdWNjZXNzIiwiZGF0YSI6eyJpZCI6MSwidXNlcm5hbWUiOiIiLCJlbWFpbCI6ImFkbWluQGp1aWNlLXNoLm9wIiwicGFzc3dvcmQiOiIwMTkyMDIzYTdiYmQ',
+  baselines: [AMBIENT, CSS_ASSET],
+});
+check('genuine SQLi stays relevant with asset corpus present', sqliWithAssets.relevant === true);
 
 // --- supportingSignalLines unit behaviour ----------------------------------
 check('negated line yields no support', supportingSignalLines('not exposed: /x/.env').length === 0);

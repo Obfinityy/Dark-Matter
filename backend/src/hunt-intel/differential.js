@@ -252,8 +252,11 @@ export function executionFailed(result, outputText = '') {
 //      ("not exposed: …" does not support an exposure claim).
 //   3. NOVELTY vs BASELINE — that supporting signal's surrounding text
 //      must not appear in the target's generic baseline bodies (root page
-//      + a canary path that returns the SPA fallback / generic error).
-//      Ambient site content cannot prove a vulnerability.
+//      + a canary path that returns the SPA fallback / generic error +
+//      the root page's linked CSS/JS assets, added solver #456 — an
+//      asset-shaped stamp must be judged against the real asset bodies
+//      too, not just the HTML shell). Ambient site content cannot prove
+//      a vulnerability.
 // If no baseline could be fetched, limb 3 abstains (logged by the caller):
 // the check tightens wherever it can judge, and never silently loosens.
 
@@ -338,10 +341,55 @@ function hostRefMatchesTarget(ref, tRef) {
 }
 
 /**
+ * Linked CSS/JS asset URLs referenced by an HTML body (solver #456).
+ * Pure parser used by the baseline fetcher to extend the novelty corpus
+ * beyond the HTML shell: <link rel="stylesheet" href="…"> and
+ * <script src="…"> references, resolved against the page URL. Only
+ * same-origin http(s) assets are returned (a third-party CDN body is not
+ * the target's ambient content, and fetching it would leave scope);
+ * duplicates are dropped and the list is capped. Returns [] on any
+ * unparseable input — the caller treats that as "no asset corpus",
+ * never as an error.
+ */
+export function extractLinkedAssetUrls(html, baseUrl, maxAssets = 8) {
+  let base;
+  try {
+    base = new URL(String(baseUrl || ''));
+  } catch {
+    return [];
+  }
+  const out = [];
+  const seen = new Set();
+  const push = (raw) => {
+    if (out.length >= maxAssets) return;
+    const ref = String(raw || '').trim();
+    if (!ref || ref.startsWith('data:') || ref.startsWith('blob:')) return;
+    let u;
+    try {
+      u = new URL(ref, base);
+    } catch {
+      return;
+    }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return;
+    if (u.origin !== base.origin) return; // same-origin only — scope + relevance
+    const key = u.href;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(key);
+  };
+  const text = String(html || '');
+  // <link … href="…"> (stylesheet/icon preloads all carry ambient CSS/JS refs)
+  for (const m of text.matchAll(/<link\b[^>]*\bhref\s*=\s*["']([^"']+)["']/gi)) push(m[1]);
+  // <script … src="…">
+  for (const m of text.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi)) push(m[1]);
+  return out;
+}
+
+/**
  * Judge whether executed-probe output is bound to the claim.
  * @param {{command: string, target: string, output: string, baselines?: string[]}} args
- *   baselines: the target's generic bodies (root + canary). Empty/absent
- *   → the novelty limb abstains.
+ *   baselines: the target's generic bodies (root + canary + linked
+ *   CSS/JS assets). Empty/absent → the novelty limb abstains.
  * @returns {{relevant: boolean, reason: string}}
  */
 export function assessContentRelevance({ command, target, output, baselines } = {}) {
