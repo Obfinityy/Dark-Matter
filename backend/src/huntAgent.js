@@ -1193,12 +1193,33 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // the v1 flag was spent on a non-test. v2 keeps the same premise with a
     // compact 468-char command that fits the cap; new command → new detId
     // ('ftp-kdbx-exposure-v2').
-    if (!plansMention(/\/ftp|lfi|path.?traversal|directory.?list|backup.?file|sensitive.?file|kdbx/i) && !detRun.has('ftp-kdbx-exposure-v2')) {
+    // FIX (20 Oct 2026, parent audit on the first REAL target): the v2
+    // probe claimed EXPOSED from status+size alone (200 && bytes>0). On
+    // open.ys7.com (Ezviz) EVERY /ftp/* path returns HTTP 200 with the
+    // same 43-byte "please log in" JSON — a catch-all — so v2 printed
+    // "EXPOSED … (HTTP 200, 43b)" for all six files and the pipeline
+    // verified a FALSE finding on a real target (parent-verified false:
+    // the body is a login-required message, no listing, no KDBX). A
+    // status code is not content. v3 is canary-controlled: it first
+    // fetches a file that does not exist (zz-canary-9x7) from the same
+    // directory, and prints EXPOSED only when the status is 200 AND
+    // the actual body is non-empty AND differs from that not-found
+    // control body (status alone manufactured the false positive;
+    // body alone is too weak — error pages echo the requested
+    // filename, so they differ from the canary trivially; BOTH
+    // conditions together are the honest test). On the lab the
+    // genuine files (3,246-byte KDBX at 200) pass both, so the
+    // genuine class still fires; on a catch-all target every body
+    // equals the control → honest "not exposed". New premise → new
+    // detId ('ftp-kdbx-exposure-v3') per the premise-version rule;
+    // validators untouched. Driver-tested 20 Oct against BOTH targets:
+    // Ezviz → all six "not exposed"; lab → KDBX EXPOSED.
+    if (!plansMention(/\/ftp|lfi|path.?traversal|directory.?list|backup.?file|sensitive.?file|kdbx/i) && !detRun.has('ftp-kdbx-exposure-v3')) {
       detFront.push({
-        detId: 'ftp-kdbx-exposure-v2',
+        detId: 'ftp-kdbx-exposure-v3',
         test: 'FTP directory listing + sensitive file exposure',
-        command: `{ echo '--- /ftp/ directory listing ---'; curl -sk "${baseUrl}/ftp/"|grep -o 'href="[^"]*"'; for f in incident-support.kdbx eastere.gg encrypt.pyc package.json.bak coupons_2013.md.bak suspicious_errors.yml; do r=$(curl -sk -o /dev/null -w "%{http_code} %{size_download}" "${baseUrl}/ftp/$f"); [ "\${r%% *}" = 200 ] && [ "\${r##* }" -gt 0 ] && echo "EXPOSED: $f WITHOUT authentication (HTTP \${r%% *}, \${r##* }b)" || echo "not exposed: $f"; done; }`,
-        why: 'Juice Shop exposes an unauthenticated /ftp directory listing; incident-support.kdbx (KeePass password vault, 3246 bytes, KDBX magic) downloads with HTTP 200 and no auth — verified live against this lab container',
+        command: `{ echo '--- /ftp/ directory listing ---'; curl -sk "${baseUrl}/ftp/"|grep -o 'href="[^"]*"'; C=$(curl -sk "${baseUrl}/ftp/zz-canary-9x7"); for f in incident-support.kdbx eastere.gg encrypt.pyc package.json.bak coupons_2013.md.bak suspicious_errors.yml; do S=$(curl -sk -o /tmp/dmfb -w "%{http_code}" "${baseUrl}/ftp/$f"); B=$(cat /tmp/dmfb); if [ "$S" = 200 ] && [ -n "$B" ] && [ "$B" != "$C" ]; then echo "EXPOSED: $f WITHOUT authentication (real content, differs from not-found control)"; else echo "not exposed: $f"; fi; done; }`,
+        why: 'Some apps expose an unauthenticated /ftp directory listing with sensitive files (password vaults, backups) directly downloadable; canary-controlled: a file counts as exposed only if its body differs from the same directory\u2019s not-found response',
         hypothesis: '/ftp may expose sensitive files (password vaults, backups) readable without authentication',
       });
     }
@@ -1986,7 +2007,13 @@ function inferSeverity(testName, output) {
   let confirmed = false;
   try {
     think(huntId, `Verifying: re-running the test to confirm reproducibility…`);
-    const retry = await execInHuntContainer(huntId, String(plan.command).slice(0, 500), 120000, { bypassTmux: true });
+    // FIX (20 Oct 2026, parent audit): this re-run sliced the command to
+    // 500 chars while the execution path allows 4,000 (solver #459) — a
+    // truncated re-run is NOT "the exact test": it can syntax-error
+    // (false non-confirmation) or, worse, run a different shorter
+    // command than the one that produced the evidence. Use the same cap
+    // as execution so the re-run is byte-identical to the original.
+    const retry = await execInHuntContainer(huntId, String(plan.command).slice(0, 4000), 120000, { bypassTmux: true });
     const confirmOutput = (retry.stdout + '\n' + retry.stderr).slice(0, 3000);
     // Confirmation: second run shows the same interesting signals.
     // FIX (solver #442): the re-run must also have EXECUTED — a reproduced
