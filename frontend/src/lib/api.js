@@ -195,6 +195,31 @@ export function reportPdfUrl(id) {
   return apiUrl(`/api/v1/hunts/${encodeURIComponent(id)}/report?format=pdf`);
 }
 
+/**
+ * Live Machine: fetch the latest frame of the hunt machine's GUI desktop.
+ * The route requires the JWT, so this uses fetch + blob (an <img> src
+ * cannot send the Authorization header). Returns { ok, blob } — a 404
+ * means the desktop is not available yet (hunt image without the desktop
+ * stack, or desktop not started); callers show a placeholder.
+ */
+export async function fetchHuntDesktopFrame(huntId) {
+  try {
+    const headers = {};
+    const token = getAuthToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(apiUrl(`/api/v1/hunts/${encodeURIComponent(huntId)}/desktop.jpg`), {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+    if (!res.ok) return { ok: false, status: res.status };
+    const blob = await res.blob();
+    return { ok: true, blob };
+  } catch {
+    return { ok: false, error: 'Backend unreachable.' };
+  }
+}
+
 export async function fetchReportMarkdown(id) {
   const res = await get(`/api/v1/hunts/${encodeURIComponent(id)}/report?format=md`);
   if (!res.ok) return res;

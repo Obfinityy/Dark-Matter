@@ -1815,3 +1815,87 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   border-top: 1px solid #2a2a2a;
   color: #666; font-size: 12px; text-align: center;
 }
+
+/* ---- Live Machine (GUI desktop picture-in-picture, read-only) ---- */
+.live-machine {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: 320px;
+  background: #0a0a0a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  z-index: 9000;
+  overflow: hidden;
+  user-select: none;
+}
+.live-machine-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
+  font-size: 12px;
+}
+.live-machine-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #555; flex: none;
+}
+.live-machine-dot.on { background: #ff4444; }
+.live-machine-live { font-weight: 600; font-size: 11px; color: #ccc; }
+.live-machine-target { flex: 1; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-machine-expand {
+  background: none; border: none; color: #888; cursor: pointer;
+  font-size: 14px; padding: 2px 6px; border-radius: 4px; flex: none;
+}
+.live-machine-expand:hover { background: #2a2a2a; color: #fff; }
+.live-machine-screen {
+  width: 320px;
+  height: 180px;
+  background: #000;
+}
+.live-machine-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  /* Read-only surface: the owner watches, never drives. */
+  pointer-events: none;
+}
+.live-machine-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 24px;
+  color: #777;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.live-machine-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  flex-direction: column;
+}
+.live-machine-overlay-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
+  font-size: 13px;
+}
+.live-machine-note { color: #666; font-size: 12px; }
+.live-machine-screen-full {
+  flex: 1;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+}

@@ -46,6 +46,30 @@ RUN curl -sL https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
 RUN apt-get update && apt-get install -y --no-install-recommends tmux \
     && rm -rf /var/lib/apt/lists/* || true
 
+# --- Live GUI desktop ("Live Machine") ---
+# A real desktop the agent can drive and the owner can watch:
+#   xvfb      virtual display :99 (no physical screen on the host)
+#   fluxbox   window manager — chosen over XFCE: a single small binary
+#             (~5 MB) instead of 100 MB+ of panel/desktop/settings
+#             daemons; hunt containers are capped at 4 GB / 1.5 CPU.
+#   x11vnc    VNC server, always started -viewonly + loopback-only by
+#             docker/hunt-desktop.sh (viewing never grants control).
+#   websockify + novnc   browser VNC client plumbing for the v2 streaming
+#             viewer (v1 viewing is the backend screenshot route).
+#   xdotool   the agent's GUI hands (mouse/keyboard) inside its sandbox.
+#   scrot     screenshot capture for GET /api/v1/hunts/:id/desktop.jpg.
+#   dbus-x11 + x11-xserver-utils: Chromium-under-Xvfb plumbing.
+# The stack is started ON DEMAND by huntRunner.startHuntDesktop (docker
+# exec of hunt-desktop.sh) — nothing here runs at container boot, so
+# ordinary hunts are not slowed. Estimated image growth: ~+80 MB on a
+# multi-GB Kali image.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    xvfb fluxbox x11vnc websockify novnc \
+    xdotool scrot dbus-x11 x11-xserver-utils \
+    && rm -rf /var/lib/apt/lists/*
+COPY docker/hunt-desktop.sh /usr/local/bin/hunt-desktop.sh
+RUN chmod +x /usr/local/bin/hunt-desktop.sh
+
 WORKDIR /opt/hunt
 COPY docker/hunt-runner/ ./
 

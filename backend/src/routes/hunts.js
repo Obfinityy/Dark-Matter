@@ -5,6 +5,7 @@
 //   POST /api/v1/hunts/:id/pause | /resume | /stop
 //   GET  /api/v1/hunts/:id               -> engine status (502 if engine down)
 //   GET  /api/v1/hunts/:id/report?format=md|pdf  (works any time, even mid-hunt)
+//   GET  /api/v1/hunts/:id/desktop.jpg   -> latest frame of the hunt machine's GUI (Live Machine)
 //   GET  /api/v1/hunts/:id/analysis?goal=rce    -> infinity analysis (chains, confirmation)
 //
 // Authorization policy: a hunt is created ONLY when BOTH hold:
@@ -41,7 +42,7 @@ import { getHuntCost, getUserCosts } from '../costTracker.js';
 import { understandTarget } from '../targetIntel.js';
 import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
 import { getBalanceUsd } from '../billing/credits.js';
-import { teardownHuntContainer } from '../huntRunner.js';
+import { teardownHuntContainer, huntDesktopScreenshot } from '../huntRunner.js';
 
 /** Reject unless the hunt belongs to the authenticated user.
  *  Hunts without a userId are orphaned (pre-isolation) — admin only. */
@@ -672,6 +673,34 @@ router.get('/:id/report', requireAuth, async (req, res) => {
     }
   }
   res.type('text/markdown').send(md);
+});
+
+// ---- Live Machine: latest frame of the hunt machine's GUI desktop --------
+// The owner watches the agent's desktop as a picture that refreshes every
+// few seconds (the frontend polls this route ~every 3s). Strictly a
+// VIEW: nothing on this route can drive the machine — the desktop's VNC
+// server is view-only inside the container, and hunt control stays on
+// the pause/resume/stop routes. The first poll starts the desktop stack
+// inside the container on demand; until the image/stack provides one,
+// this returns 404 desktop_not_available and the frontend shows its
+// "machine view starts when the hunter uses its desktop" placeholder.
+// Auth: JWT (requireAuth) + hunt ownership (requireHuntOwner — the hunt's
+// user, or admin). Frames are never cached (no-store).
+router.get('/:id/desktop.jpg', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  try {
+    const shot = await huntDesktopScreenshot(req.params.id);
+    if (!shot.ok) {
+      return res.status(404).json({ ok: false, error: shot.error || 'desktop_not_available' });
+    }
+    res.setHeader('Content-Type', shot.contentType);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    return res.send(shot.buffer);
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: 'desktop_capture_failed' });
+  }
 });
 
 // ---- Agent activity log: whatever the agent did, when --------------------------------

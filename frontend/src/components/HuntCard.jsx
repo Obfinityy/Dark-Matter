@@ -60,6 +60,7 @@ function statusText(status, target) {
 
 import HuntPiP from './HuntPiP';
 import HuntTerminalModal from './HuntTerminalModal';
+import LiveMachine from './LiveMachine';
 
 export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, onGetReport }) {
   const [status, setStatus] = useState(hunt.status || 'idle');
@@ -477,6 +478,12 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
           onExpand={() => setShowTerminalModal(true)}
           onClose={() => setShowPiP(false)}
         />
+      )}
+      {/* Live Machine: read-only picture-in-picture of the hunt machine's
+          GUI desktop while this hunt is active. View-only by design — the
+          pause/stop controls above remain the only way to control it. */}
+      {isActive && (
+        <LiveMachine huntId={hunt.huntId} target={hunt.target} />
       )}
       {showTerminalModal && (
         <HuntTerminalModal

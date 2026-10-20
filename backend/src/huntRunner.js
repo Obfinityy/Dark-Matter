@@ -16,6 +16,9 @@
 
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const execFileAsync = promisify(execFile);
 
@@ -152,6 +155,128 @@ export async function copyFileToHuntContainer(huntId, hostPath, destPath) {
     return { ok: true };
   } catch (err) {
     return { ok: false, error: String((err && err.message) || err) };
+  }
+}
+
+/**
+ * Copy a file OUT of the hunt container to a host path (inverse of
+ * copyFileToHuntContainer — e.g. desktop screenshots). Returns { ok } or
+ * { ok:false, error } — never throws.
+ */
+export async function copyFileFromHuntContainer(huntId, containerPath, hostPath) {
+  const name = containerName(huntId);
+  const running = await huntContainerRunning(huntId);
+  if (!running) return { ok: false, error: 'DM_CONTAINER_MISSING: hunt container not running' };
+  try {
+    await docker(['cp', `${name}:${containerPath}`, hostPath]);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Live Machine desktop (GUI the agent drives; the owner watches).
+//
+// The desktop stack (Xvfb + fluxbox + Chromium + view-only x11vnc +
+// websockify/noVNC) lives in the hunt image and is started ON DEMAND via
+// docker/hunt-desktop.sh — never at container boot. v1 transport to the
+// frontend is screenshot polling (the owner's original LiveScreenViewer
+// design: a fresh frame every ~3s, read-only). The noVNC/websockify
+// plumbing inside the container is the documented v2 upgrade path to
+// true streaming; its ports are container-loopback only and are NOT
+// published by spawnHuntContainer.
+// ---------------------------------------------------------------------------
+
+const DESKTOP_READY_FILE = '/tmp/dm-desktop.ready';
+const DESKTOP_SHOT_PATH = '/tmp/dm-desktop.jpg';
+// Negative cache: if the desktop stack is absent (pre-desktop hunt image)
+// or the container is gone, don't re-attempt a start on every 3s poll.
+const desktopStartFailures = new Map(); // huntId -> timestamp ms
+const DESKTOP_RETRY_MS = 30000;
+
+/**
+ * Start the hunt machine's GUI desktop inside its container (idempotent).
+ * @returns {{ok: true, alreadyRunning?: boolean} | {ok: false, error: string}}
+ */
+export async function startHuntDesktop(huntId) {
+  const lastFail = desktopStartFailures.get(huntId) || 0;
+  if (Date.now() - lastFail < DESKTOP_RETRY_MS) {
+    return { ok: false, error: 'desktop_unavailable' };
+  }
+  const fail = (error) => {
+    desktopStartFailures.set(huntId, Date.now());
+    return { ok: false, error };
+  };
+
+  const ready = await execInHuntContainer(
+    huntId, `test -f ${DESKTOP_READY_FILE} && echo ready`, 10000, { bypassTmux: true },
+  );
+  if (ready.containerMissing) return fail('container_not_running');
+  if (String(ready.stdout || '').includes('ready')) return { ok: true, alreadyRunning: true };
+
+  const started = await execInHuntContainer(
+    huntId,
+    'nohup /usr/local/bin/hunt-desktop.sh >/tmp/dm-desktop-start.log 2>&1 & echo launched',
+    15000,
+    { bypassTmux: true },
+  );
+  if (started.containerMissing) return fail('container_not_running');
+  if (started.code === 127 || /no such file/i.test(String(started.stderr || ''))) {
+    return fail('desktop_not_installed');
+  }
+
+  // Wait for the start script to signal readiness (it brings up Xvfb,
+  // fluxbox, Chromium, x11vnc, websockify — a few seconds on first run).
+  for (let i = 0; i < 20; i++) {
+    await new Promise((r) => setTimeout(r, 750));
+    const probe = await execInHuntContainer(
+      huntId, `test -f ${DESKTOP_READY_FILE} && echo ready`, 10000, { bypassTmux: true },
+    );
+    if (String(probe.stdout || '').includes('ready')) {
+      desktopStartFailures.delete(huntId);
+      return { ok: true };
+    }
+  }
+  return fail('desktop_start_timeout');
+}
+
+/**
+ * Capture the hunt desktop's current frame.
+ * @returns {{ok: true, buffer: Buffer, contentType: string} | {ok: false, error: string}}
+ */
+export async function huntDesktopScreenshot(huntId) {
+  const start = await startHuntDesktop(huntId);
+  if (!start.ok) return { ok: false, error: start.error };
+
+  const shot = await execInHuntContainer(
+    huntId,
+    `DISPLAY=:99 scrot -o ${DESKTOP_SHOT_PATH} 2>/dev/null && echo captured`,
+    15000,
+    { bypassTmux: true },
+  );
+  if (shot.containerMissing) return { ok: false, error: 'container_not_running' };
+  if (!String(shot.stdout || '').includes('captured')) {
+    return { ok: false, error: 'screenshot_failed' };
+  }
+
+  let dir = null;
+  try {
+    dir = await mkdtemp(join(tmpdir(), 'dm-desktop-'));
+    const hostPath = join(dir, 'desktop.jpg');
+    const copied = await copyFileFromHuntContainer(huntId, DESKTOP_SHOT_PATH, hostPath);
+    if (!copied.ok) return { ok: false, error: copied.error };
+    const buffer = await readFile(hostPath);
+    if (!buffer.length) return { ok: false, error: 'screenshot_empty' };
+    // scrot writes JPEG for a .jpg target on Kali's imlib2 build; if a
+    // build ever emits PNG instead, honour the real bytes — browsers key
+    // off Content-Type, not the route name.
+    const contentType = buffer[0] === 0x89 && buffer[1] === 0x50 ? 'image/png' : 'image/jpeg';
+    return { ok: true, buffer, contentType };
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  } finally {
+    if (dir) await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
