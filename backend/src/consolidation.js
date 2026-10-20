@@ -60,17 +60,36 @@ export function buildDossierText(huntId) {
   lines.push('');
   lines.push('## Confirmed facts (validator-stamped only)');
   if (!verified.length) lines.push('- (none yet)');
+  // The same finding is often stamped repeatedly across iterations;
+  // a human's notebook lists the fact once, with its stamp count.
+  const byTitle = new Map();
   for (const f of verified) {
+    const key = squash(f.title, 140);
+    if (!byTitle.has(key)) byTitle.set(key, { f, count: 0, ids: [] });
+    const g = byTitle.get(key);
+    g.count++;
+    if (g.ids.length < 3) g.ids.push(f.id);
+  }
+  for (const { f, count, ids } of byTitle.values()) {
     const sev = bodyField(f.body, 'severity') || 'unrated';
     const url = bodyField(f.body, 'url');
-    lines.push(`- [verified · ${sev}] ${squash(f.title, 140)}${url ? ` — ${url}` : ''} (episode #${f.id})`);
+    lines.push(
+      `- [verified · ${sev}] ${squash(f.title, 140)}${url ? ` — ${url}` : ''}` +
+      `${count > 1 ? ` (×${count} stamps;` : ' (episode'} #${ids.join(', #')}${count > 1 ? ')' : ')'}`
+    );
   }
   lines.push('');
   lines.push('## Tried and ruled out');
   if (!rejected.length && !ledger.dead.length) lines.push('- (nothing ruled out yet)');
+  const rejByTitle = new Map();
   for (const f of rejected) {
+    const key = squash(f.title, 120);
+    if (!rejByTitle.has(key)) rejByTitle.set(key, { f, count: 0 });
+    rejByTitle.get(key).count++;
+  }
+  for (const { f, count } of rejByTitle.values()) {
     const why = bodyField(f.body, 'verification');
-    lines.push(`- ${squash(f.title, 120)} — rejected${why ? `: ${squash(why, 120)}` : ''} (episode #${f.id})`);
+    lines.push(`- ${squash(f.title, 120)} — rejected${why ? `: ${squash(why, 120)}` : ''} (episode #${f.id})${count > 1 ? ` ×${count}` : ''}`);
   }
   for (const d of ledger.dead) {
     lines.push(`- DEAD hypothesis (failed ${d.failed}×): ${squash(d.text, 140)}`);

@@ -39,6 +39,7 @@ writeHuntMeta(H, {
 fs.writeFileSync(path.join(dir, 'events.jsonl'), [
   { type: 'thinking', text: 'starting work on the lab target', cachedAt: '2026-10-20T00:00:00.000Z' },
   { type: 'finding', class: 'agent_finding', title: 'SQLi authentication bypass on login', severity: 'critical', url: 'http://172.17.0.1:3000/rest/user/login', verified: true, verification: 'confirmed (all 4 steps passed)', evidence: { request: 'POST /rest/user/login', response: 'admin token issued' }, cachedAt: '2026-10-20T00:01:00.000Z' },
+  { type: 'finding', class: 'agent_finding', title: 'SQLi authentication bypass on login', severity: 'critical', url: 'http://172.17.0.1:3000/rest/user/login', verified: true, verification: 'confirmed (all 4 steps passed)', evidence: { request: 'POST /rest/user/login', response: 'admin token issued again' }, cachedAt: '2026-10-20T00:01:30.000Z' },
   { type: 'finding', class: 'agent_finding', title: 'basket-price', severity: 'medium', url: 'http://172.17.0.1:3000/api/BasketItems', verified: false, verification: 'false_positive (payload_validation: FAILED)', evidence: { request: 'curl', response: 'jq parse error' }, cachedAt: '2026-10-20T00:02:00.000Z' },
   { type: 'finding', class: 'agent_finding', title: 'possible IDOR on orders', severity: 'medium', verified: undefined, evidence: {}, cachedAt: '2026-10-20T00:03:00.000Z' },
 ].map((e) => JSON.stringify(e)).join('\n') + '\n');
@@ -60,6 +61,7 @@ check('DOSSIER.md written into the hunt dir', fs.existsSync(dossierPath));
 const text = fs.readFileSync(dossierPath, 'utf8');
 check('dossier names the target', /172\.17\.0\.1:3000/.test(text));
 check('confirmed facts carry the verified finding + url', /SQLi authentication bypass on login/.test(text) && /rest\/user\/login/.test(text));
+check('duplicate stamps of one fact are grouped (×2 stamps, one line)', /×2 stamps/.test(text) && (text.match(/SQLi authentication bypass on login/g) || []).length === 1);
 check('ruled-out section carries the rejected finding + reason', /basket-price/.test(text) && /false_positive/.test(text));
 check('dead hypothesis from the ledger is listed', /DEAD hypothesis \(failed 5×\): Blind SQLi via timing/.test(text));
 check('open lead is listed', /possible IDOR on orders/.test(text));
