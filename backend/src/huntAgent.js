@@ -154,6 +154,7 @@ import { proposePlaybook, formatPlaybookForPrompt } from './playbook.js';
 import { ensurePlanTree, renderPlanTree, recordPlanOutcome } from './planTree.js';
 import { summarizeToolOutput } from './toolOutput.js';
 import { handleArtifactCommand, spillOutput } from './artifacts.js';
+import { humanIteration } from './humanLoop.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
 
 // Credit price per hunt iteration (USD), by hunt mode. The hunt auto-pauses
@@ -1548,7 +1549,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
  * Execute a test with adaptive evasion: if blocked (403/WAF), retry with
  * encoders from the matrix before giving up.
  */
-async function executeWithEvasion(huntId, target, command) {
+export async function executeWithEvasion(huntId, target, command) {
   // PLACEHOLDER SUBSTITUTION (19 Oct 2026, elite-gap; extended same-cycle):
   // The 8B model sometimes echoes literal placeholders into commands instead
   // of the concrete target URL. First observed: "nmap -sV [target] | grep -q
@@ -1893,7 +1894,7 @@ async function getTargetBaselines(huntId, target) {
   }
 }
 
-async function assessResult(huntId, target, plan, result) {
+export async function assessResult(huntId, target, plan, result) {
   // FIX (19 Oct 2026, solver #6): Strip terminal artifacts (Kali MOTD, shell
   // prompts, ANSI codes) from tool output BEFORE using it as evidence.
   // Contaminated output caused payload_validation to fail on genuine findings.
@@ -2427,7 +2428,23 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
       // instead of spinning forever doing nothing.
       let iterResult = null;
       try {
-        iterResult = await agentIteration(huntId, target, recon, findings, i, playbook);
+        // HUMAN MODE (20 Oct 2026, owner order): a hunt flagged human
+        // mode runs ONE free perceive->think->act->observe loop
+        // (humanLoop.js) instead of the staged pipeline — the hunter
+        // sees its machine, thinks for itself, and picks each action.
+        // No deterministic probes or diversity injections run there.
+        // The pipeline below remains untouched for every other hunt.
+        const metaBranch = readHuntMeta(huntId) || {};
+        if (metaBranch.humanMode === true || mode === 'human' || metaBranch.mode === 'human') {
+          iterResult = await humanIteration(huntId, target, {
+            turns: 6,
+            findings,
+            iteration: i,
+            deps: { assess: assessResult, exec: executeWithEvasion },
+          });
+        } else {
+          iterResult = await agentIteration(huntId, target, recon, findings, i, playbook);
+        }
       } catch (err) {
         // DIAG (18 Oct 2026): log the stack's first frames so a recurring
         // ReferenceError (e.g. "reply is not defined") reveals its exact
