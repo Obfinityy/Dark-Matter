@@ -241,7 +241,7 @@ export default function Sidebar({
       : chats;
     const map = new Map();
     for (const c of list) {
-      const g = q ? 'Results' : groupLabel(c.createdAt);
+      const g = q ? 'Results' : groupLabel(c.updatedAt || c.createdAt);
       if (!map.has(g)) map.set(g, []);
       map.get(g).push(c);
     }

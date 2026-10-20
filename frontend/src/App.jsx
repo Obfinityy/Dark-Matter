@@ -690,11 +690,22 @@ function AppInner() {
             onUpdateHunt={updateHunt}
             onOpenReports={openReports}
             onOpenHuntChat={(huntId) => {
-              // Find the chat containing this hunt and navigate to it
+              // Find the chat containing this hunt and navigate to it — and
+              // bring it to the TOP of the history. One hunt = one chat, for
+              // life: re-hunting a target re-opens its existing chat (never
+              // a duplicate), and that chat rises to first place.
               const found = chats.find((c) =>
                 (c.messages || []).some((m) => m.role === 'hunt' && m.hunt && m.hunt.huntId === huntId)
               );
-              if (found) setActiveChatId(found.id);
+              if (found) {
+                setActiveChatId(found.id);
+                setChats((prev) => {
+                  const target = prev.find((c) => c.id === found.id);
+                  if (!target) return prev;
+                  const bumped = { ...target, updatedAt: new Date().toISOString() };
+                  return [bumped, ...prev.filter((c) => c.id !== found.id)];
+                });
+              }
             }}
             huntModalTrigger={huntModalTrigger}
           />
