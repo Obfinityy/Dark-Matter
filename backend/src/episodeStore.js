@@ -24,7 +24,8 @@ import { createRequire } from 'node:module';
 import { config } from './config.js';
 
 const TITLE_CAP = 200;
-const BODY_CAP = 4000;
+// BODY_CAP removed (solver #459): episode bodies are full-fidelity now —
+// see bodyFor. Titles remain capped (TITLE_CAP) as labels.
 
 let DatabaseSync = null;
 let loadError = null;
@@ -172,28 +173,32 @@ function titleFor(event, kind) {
 }
 
 function bodyFor(event, kind) {
+  // FULL-FIDELITY MIRROR (solver #459, owner order: "total permanent
+  // memory"): episode bodies store the COMPLETE event content — the old
+  // BODY_CAP (4000) and per-field clips (response 1200, request 600, …)
+  // destroyed the record in the ledger even when events.jsonl kept it.
+  // Storage is cheap; every consumer (retrieval formatting, embedding —
+  // episodeEmbedText clips to 500, prompt assembly) already budgets at
+  // READ time. Titles stay clipped: a title is a label, not the record.
   if (kind === 'finding') {
     const ev = event.evidence || {};
-    return clip(
-      JSON.stringify({
-        class: event.class || null,
-        severity: event.severity || null,
-        url: event.url || null,
-        verified: event.verified ?? null,
-        verification: clip(event.verification || '', 300),
-        evidenceStatus: event.evidenceStatus || null,
-        request: clip(ev.request || event.poc_command || '', 600),
-        response: clip(ev.response || '', 1200),
-        poc_output: clip(event.poc_output || ev.poc_output || '', 600),
-        impact_demo: clip(ev.impact_demo || event.impact_demo || '', 400),
-      }),
-      BODY_CAP
-    );
+    return JSON.stringify({
+      class: event.class || null,
+      severity: event.severity || null,
+      url: event.url || null,
+      verified: event.verified ?? null,
+      verification: event.verification || '',
+      evidenceStatus: event.evidenceStatus || null,
+      request: ev.request || event.poc_command || '',
+      response: ev.response || '',
+      poc_output: event.poc_output || ev.poc_output || '',
+      impact_demo: ev.impact_demo || event.impact_demo || '',
+    });
   }
-  if (kind === 'thinking' || kind === 'briefing') return clip(event.text || '', BODY_CAP);
+  if (kind === 'thinking' || kind === 'briefing') return String(event.text || '');
   const rest = { ...event };
   delete rest.cachedAt;
-  return clip(JSON.stringify(rest), BODY_CAP);
+  return JSON.stringify(rest);
 }
 
 function outcomeFor(event, kind) {

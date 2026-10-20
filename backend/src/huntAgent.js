@@ -153,6 +153,7 @@ import { episodeLedgerEnabled, retrieveEpisodes, formatRetrievalForPrompt, recor
 import { proposePlaybook, formatPlaybookForPrompt } from './playbook.js';
 import { ensurePlanTree, renderPlanTree, recordPlanOutcome } from './planTree.js';
 import { summarizeToolOutput } from './toolOutput.js';
+import { handleArtifactCommand, spillOutput } from './artifacts.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
 
 // Credit price per hunt iteration (USD), by hunt mode. The hunt auto-pauses
@@ -242,7 +243,11 @@ function fnv1aHex(str = '') {
 }
 
 export function think(huntId, text) {
-  appendHuntEvent(huntId, { type: 'thinking', text: String(text).slice(0, 2000) });
+  // FULL-FIDELITY RECORD (solver #459, owner order: "total permanent
+  // memory"): the event log stores the COMPLETE thought text. The old
+  // slice(0, 2000) destroyed the record itself; any shortening for a
+  // prompt or a screen happens at READ time, never at write time.
+  appendHuntEvent(huntId, { type: 'thinking', text: String(text) });
   // HUMAN-LIKE: Listen to the model's curiosity. If it's wondering about
   // something specific, help it investigate (like a human assistant would).
   // This is not a checklist — it's following the model's natural curiosity.
@@ -898,6 +903,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     'You are a PERSON with a machine, not a script. If you need a tool you don\'t have, download it (curl/wget) or install it (apt-get). If you don\'t know something, SEARCH the web: put "SEARCH: your question" as the command and you\'ll get web results back.',
     'REMEMBER LIKE A HUMAN: your FULL HISTORY below is everything you have done this hunt. If you need the DETAIL of any past action, finding, or cross-hunt lesson, RECALL it: put "RECALL: keywords" (a technique, endpoint, or error) as the command and the matching records from this hunt and all past hunts come back to you.',
     'GROW YOUR PLAYBOOK: when a technique proves itself, propose it as a command: "PROPOSE_PLAYBOOK: the rule, in one line". Proposals become permanent playbook rules only after a validator-confirmed success — unproven ideas stay proposals.',
+    'YOUR WORKSPACE IS UNLIMITED — your context is not: for anything long (a script, a payload list, notes), write it to a FILE in your hunt workspace instead of pasting it into a command. Command "WRITE_ARTIFACT: name.sh" on the first line, then the file content, creates it; "APPEND_ARTIFACT: name.sh" plus a chunk adds more (build big files over several replies); "RUN_ARTIFACT: name.sh" executes it by path; "READ_ARTIFACT: name.sh" (optionally "READ_ARTIFACT: name.sh 4000:8000") reads any part back. Artifacts are permanent and full-length. Large tool outputs are likewise saved whole as artifacts — the note in your history gives the name, READ_ARTIFACT brings back any slice. Keep single shell commands short; put length in files.',
     'BUILD WHAT YOU NEED: If no existing tool does what you want, WRITE IT. You have python3 and bash — an elite hunter writes a custom script mid-hunt instead of giving up. Put your script in the command field (python3 -c "..." or a heredoc). Think "I need this, so I create this."',
     'CRITICAL: Respect the TARGET INTELLIGENCE section — never suggest tests for technologies not present.',
     '',
@@ -956,9 +962,9 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       think(huntId, 'Model gave no reply this iteration — skipping to next.');
       return { aiOk: false, best: null, failKind: 'no_reply' };
     }
-    // Show the model's raw thinking in the terminal (truncated) so the
-    // operator can SEE the brain working, not just templated summaries.
-    think(huntId, `model raw plan: ${String(reply).replace(/\s+/g, ' ').slice(0, 600)}`);
+    // Record the model's raw reply IN FULL (solver #459 — full-fidelity
+    // record; the terminal/UI may truncate at render, the log never does).
+    think(huntId, `model raw plan: ${String(reply)}`);
     // TRUNCATION-TOLERANT: The 8B model is often cut off by the 300-token
     // output limit, losing the closing `]`. Try the complete array first;
     // if the bracket is missing, match the open array so the repair below
@@ -1434,7 +1440,12 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // The model is asked for THREE plans; take up to 3 with commands.
   const testPromises = plans.slice(0, 3).filter((plan) => plan.command).map(async (plan) => {
     think(huntId, `Test: ${plan.test || 'unnamed'} — ${plan.why || ''}`);
-    const result = await executeWithEvasion(huntId, target, String(plan.command).slice(0, 500));
+    // TRANSPORT CAP (solver #459): was slice(0, 500), which cut legitimate
+    // commands mid-string (a 650-char probe died on a dash syntax error,
+    // #126). 4000 chars is a sanity bound for a single shell line, NOT a
+    // validator; anything longer belongs in a file artifact executed by
+    // path (WRITE_ARTIFACT / RUN_ARTIFACT), which is unbounded.
+    const result = await executeWithEvasion(huntId, target, String(plan.command).slice(0, 4000));
     const rec = await assessResult(huntId, target, plan, result);
     // PLAN TREE (Job 6 stage 6): code records the validator outcome on
     // the leaf — verified closes it, failures count toward the park
@@ -1657,6 +1668,31 @@ async function executeWithEvasion(huntId, target, command) {
       return { stdout: 'Proposal failed to record.', stderr: '', exitCode: 1 };
     }
   }
+  // Person capability (solver #459): FILE ARTIFACTS — WRITE_ARTIFACT /
+  // APPEND_ARTIFACT / READ_ARTIFACT / RUN_ARTIFACT. Long scripts and notes
+  // live as files in the hunt workspace (unbounded, permanent); the prompt
+  // only ever carries the handle. See artifacts.js for the grammar.
+  try {
+    const artifactResult = await handleArtifactCommand(huntId, command);
+    if (artifactResult) return artifactResult;
+  } catch { /* artifact layer must never break normal execution */ }
+
+  // OUTPUT SPILL (solver #459): a large tool output is preserved IN FULL
+  // as an artifact and the handle is noted in the hunt stream, so the
+  // agent can READ_ARTIFACT any slice later. The result object itself is
+  // returned untouched — the verifier keeps consuming the raw output
+  // exactly as before.
+  const maybeSpill = (r) => {
+    try {
+      const combined = `${r.stdout || ''}\n${r.stderr || ''}`;
+      if (combined.length > 4000) {
+        const name = spillOutput(huntId, combined);
+        think(huntId, `Large tool output (${combined.length} chars) saved in full as artifact ${name} — READ_ARTIFACT: ${name} <start>:<end> reads any slice of it.`);
+      }
+    } catch { /* spill is best-effort */ }
+    return r;
+  };
+
   let result = await execInHuntContainer(huntId, command, 180000, { bypassTmux: true });
   const blocked = /403|406|406 Not Acceptable|blocked by|waf|forbidden/i.test(result.stdout + result.stderr)
     && result.stdout.length < 500;
@@ -1670,11 +1706,11 @@ async function executeWithEvasion(huntId, target, command) {
       const retry = await execInHuntContainer(huntId, encoded.slice(0, 500), 60000, { bypassTmux: true });
       if (retry.stdout.length > result.stdout.length * 1.5) {
         think(huntId, `Evasion worked with ${enc} encoding.`);
-        return retry;
+        return maybeSpill(retry);
       }
     }
   }
-  return result;
+  return maybeSpill(result);
 }
 
 /** Extract the key "interesting signal" from output for reproducibility comparison. */
@@ -1861,7 +1897,7 @@ async function assessResult(huntId, target, plan, result) {
       const fp = fm ? JSON.parse(fm[0]) : null;
       if (fp && fp.command) {
         think(huntId, `Curiosity follow-up: ${fp.test || 'probing deeper'} — ${fp.why || ''}`);
-        const fres = await executeWithEvasion(huntId, target, String(fp.command).slice(0, 500));
+        const fres = await executeWithEvasion(huntId, target, String(fp.command).slice(0, 4000));
         // FIX (19 Oct 2026, solver #6): Strip terminal artifacts so evidence is clean.
         const frecout = stripTerminalArtifacts(fres.stdout + '\n' + fres.stderr).slice(0, 3000);
         // If the follow-up confirms something interesting, treat it as a candidate

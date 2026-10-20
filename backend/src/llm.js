@@ -126,15 +126,32 @@ async function chatWithBedrock(messages, system, ctx) {
   return blocks.map((b) => b.text || '').join('').trim() || null;
 }
 
+/**
+ * Char budget for one message on the LOCAL Ollama path (solver #459).
+ * The old flat slice(0, 8000) silently cut every message at 8k chars —
+ * including the hunt's full-history planning prompt, which Job 5 budgets
+ * at (num_ctx − reserve) × 3.5 chars (~55.6k at num_ctx 16384): the model
+ * only ever received the first 8,000 chars of it. The real limit is the
+ * context window itself, so the cap is derived from OLLAMA_NUM_CTX with
+ * the same 3.5 chars/token heuristic huntAgent budgets with (floor 8000
+ * so small-window configs behave exactly as before). Other providers
+ * keep their own caps — they are cost guards on unused paths.
+ */
+export function ollamaMessageCharCap() {
+  const numCtx = parseInt(process.env.OLLAMA_NUM_CTX || '8192', 10) || 8192;
+  return Math.max(8000, Math.floor(numCtx * 3.5));
+}
+
 async function chatWithOllama(messages, system, ctx) {
   // Privacy gateway: strip secrets/PII before the model — same as Bedrock.
   const clean = (t) => sanitizeForModel(String(t || ''));
+  const msgCap = ollamaMessageCharCap();
   const ollamaMessages = [];
-  if (system) ollamaMessages.push({ role: 'system', content: clean(system).slice(0, 8000) });
+  if (system) ollamaMessages.push({ role: 'system', content: clean(system).slice(0, msgCap) });
   for (const m of messages || []) {
     ollamaMessages.push({
       role: m.role === 'assistant' ? 'assistant' : 'user',
-      content: clean(m.text).slice(0, 8000),
+      content: clean(m.text).slice(0, msgCap),
     });
   }
   let res;

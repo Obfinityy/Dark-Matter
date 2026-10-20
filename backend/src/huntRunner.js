@@ -137,6 +137,25 @@ export async function teardownHuntContainer(huntId) {
 }
 
 /**
+ * Copy a host file into the hunt container (solver #459, artifact runs).
+ * Creates the destination directory first. Returns { ok } or
+ * { ok:false, error } — never throws.
+ */
+export async function copyFileToHuntContainer(huntId, hostPath, destPath) {
+  const name = containerName(huntId);
+  const running = await huntContainerRunning(huntId);
+  if (!running) return { ok: false, error: 'DM_CONTAINER_MISSING: hunt container not running' };
+  try {
+    const destDir = destPath.includes('/') ? destPath.slice(0, destPath.lastIndexOf('/')) : '.';
+    await execFileAsync('docker', ['exec', name, 'mkdir', '-p', destDir], { timeout: 15000 });
+    await docker(['cp', hostPath, `${name}:${destPath}`]);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  }
+}
+
+/**
  * Execute a command inside the hunt container.
  * @returns {{stdout: string, stderr: string, code: number}}
  */
