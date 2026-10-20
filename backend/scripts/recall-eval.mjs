@@ -49,10 +49,12 @@ const QUESTIONS = [
   { cat: 'chain', q: 'whoami with the captured admin token', match: (ep) => has(ep, /whoami/) },
 ];
 
-// Auto-sampled: real test episodes from the ledger itself — can
-// retrieval find a known episode from its own salient terms?
-const pool = es.queryEpisodes(huntId, { kind: 'test', limit: 400 })
-  .filter((e) => e.title && e.title.length > 30);
+// Auto-sampled: real executed-test episodes from the ledger itself —
+// can retrieval find a known episode from its own salient terms?
+// (In this build, executed tests narrate as kind 'thinking' episodes
+// titled "Test: ..." — there is no separate 'test' kind in the stream.)
+const pool = es.queryEpisodes(huntId, { kind: 'thinking', limit: 400 })
+  .filter((e) => e.title && /^Test:/.test(e.title) && e.title.length > 30);
 const seen = new Set();
 for (const ep of pool) {
   if (QUESTIONS.length >= 40) break;
@@ -87,4 +89,4 @@ for (const [cat, s] of Object.entries(byCat)) {
   console.log(`  ${cat}: ${s.h5}/${s.n} hit@5`);
 }
 const emb = es.getEmbeddingStats();
-console.log(`embedding coverage at eval time: ${emb.embedded}/${emb.episodes} episodes`);
+console.log(`embedding coverage at eval time: ${emb.embedded}/${emb.total} episodes`);
