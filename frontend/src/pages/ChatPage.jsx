@@ -185,10 +185,17 @@ export default function ChatPage({
         const norm = (t) => String(t || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
         const stateOf = (h) => String(h.status || h.state || '').toLowerCase();
         const matches = hunts.filter((h) => norm(h.target) === norm(target));
+        // Priority matters more than list order: a RUNNING hunt for this
+        // target must win over a newer-but-paused duplicate (the list is
+        // newest-first, so a plain find() can open a stale paused copy).
         const existing =
-          matches.find((h) => ['running', 'paused', 'starting'].includes(stateOf(h))) || matches[0];
+          matches.find((h) => stateOf(h) === 'running') ||
+          matches.find((h) => stateOf(h) === 'starting') ||
+          matches.find((h) => stateOf(h) === 'paused') ||
+          matches[0];
         if (existing) {
           toast(`You already have a hunt for ${target} — opening it.`, 'info');
+          setHuntModalOpen(false);
           // Find the chat for this hunt and navigate to it
           if (typeof onOpenHuntChat === 'function') onOpenHuntChat(existing.huntId);
           return;
