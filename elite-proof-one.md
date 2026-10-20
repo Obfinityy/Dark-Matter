@@ -4,24 +4,24 @@
 
 | Field | Value |
 |---|---|
-| Audit date | 2026-10-16 |
+| Audit date | 2026-10-16 (original audit); updated 2026-10-20 (Round 5, §S) |
 | Repository | https://github.com/Obfinityy/Dark-Matter |
 | Branch | main |
-| Commit audited | ad9bf39 |
-| Overall readiness | NOT READY |
-| Issues identified | 9 |
-| Issues fixed | 3 |
-| Fixes verified | 2 |
-| Tests passed | 3 |
-| Tests failed | 3 |
-| Tests blocked | 3 |
-| Remaining critical risks | 3 (tool execution infrastructure, model reliability, verification pipeline) |
+| Commit audited | 0b3e305 (original audit: ad9bf39) |
+| Overall readiness | NOT READY (see rationale — the verdict is unchanged, the reasons have moved) |
+| Issues identified | 220 documented (9 in the original register, §C; 211 more in §N–§O) |
+| Issues fixed | 28 (22 through Round 4, §P–§R; 6 in Round 5, §S) |
+| Fixes verified | Round 5 fixes are each verified live on EC2 (deployed + production state checked), §S |
+| Tests passed | 165 checks across 12 automated backend suites — all passing locally and on EC2 (2026-10-20) |
+| Tests failed | 0 currently |
+| Tests blocked | 3 (recall-eval re-run — awaits ≥80% embedding coverage; first organic firing of the Job 6 stage 6–8 mechanisms — awaits an executable, non-retired plan; real-target validation — awaits the owner naming targets with scope) |
+| Remaining critical risks | 3 (no real-target proof — all verified results are on a self-hosted lab benchmark; paraphrase recall is weak at current embedding coverage; the verifier still trusts probe-echo self-labelling where a deterministic probe gates its own label) |
 
-**Readiness rationale:** Preliminary reasoning tests passed (vulnerability classification, not independent discovery). The 27 findings failed primarily due to tool execution infrastructure failures (20/27: Docker container missing), not reasoning failures. Memory learning is UNVERIFIED. Cross-device sync is not implemented. Model reliability on 7GB RAM is insufficient for sustained hunts. The system is not yet a reliable autonomous agent.
+**Readiness rationale (updated 2026-10-20):** The 16 Oct blockers are closed. Tool execution works (per-hunt containers auto-spawn and respawn); the agent has independently discovered and verified **79 genuine findings across 3 distinct vulnerability classes** (SQL injection authentication bypass, unauthenticated sensitive-file exposure, XXE file disclosure) on a blind OWASP Juice Shop benchmark — every one audited by hand after the verifier was found to over-stamp (124 raw `verified:true` lines, 45 settled as false-accepts; the verifier has since been hardened twice, §S.2–§S.3, and the raw count has been frozen at 124 since). Memory is no longer unverified: it was rebuilt as a deterministic, code-scored system (Job 6, §S.5) and **measured** — hit@5 59%, hit@8 62% on a fixed 29-question recall eval at only 6.6% embedding coverage, with a re-run owed at ≥80%. What has **not** changed: all proof is on a synthetic lab target the operator controls. Elite parity cannot be claimed from a benchmark; it requires the same performance on real, owner-named targets, which have not been provided yet. The system is a proven lab-benchmark hunter with an honest, hardened verification pipeline — not yet a proven replacement for an elite human.
 
 **Test count reconciliation:**
-- Baseline: 3 passed (IDOR classification, NoSQLi planning, OOM fix), 3 failed (1.5B reasoning, 3B reasoning, model keep-alive partial), 3 blocked (memory retrieval, cross-device sync, controlled lab test)
-- Post-fix: OOM fix verified (1). Model keep-alive remains partial. No new passes claimed without evidence.
+- Original baseline (16 Oct): 3 passed (IDOR classification, NoSQLi planning, OOM fix), 3 failed (1.5B reasoning, 3B reasoning, model keep-alive partial), 3 blocked (memory retrieval, cross-device sync, controlled lab test)
+- Current (20 Oct): the controlled lab test has run (§R, §S.1); memory retrieval is implemented and measured (§S.5–§S.6); cross-device sync exists via the backend chat/hunt store (per-user, server-side source of truth). The 12-suite automated battery (165 checks) passes locally and on EC2.
 
 ---
 
@@ -1214,3 +1214,112 @@ The agent was a mechanical checklist. Rebuilt to think like a human:
 - **Removed BL checklist**: no more "BL-01 queued, BL-02 queued..." mechanical
   events.
 **Commit:** 1c9bf0f
+
+---
+
+## S. Round 5 — Verified Discovery, a Hardened Verifier, and a Measured Memory (19–20 Oct 2026)
+
+### S.1 The benchmark produced verified findings — three distinct classes
+
+The Round 4 benchmark hunt (`h_bench_d69e5746`, OWASP Juice Shop on a bridge-only lab address) went from zero verified findings to three independently discovered, reproducibly verified vulnerability classes:
+
+| Class | Severity | First verified |
+|---|---|---|
+| SQL injection authentication bypass (login) | Critical | 19 Oct 2026 |
+| Unauthenticated sensitive-file exposure (FTP listing, KeePass `.kdbx`) | High | 19 Oct 2026 |
+| XXE external-entity file disclosure (file upload) | High | 19 Oct 2026 |
+
+**Genuine verified total: 79 findings across the 3 classes.** "Genuine" is an audited number, not the raw counter — see §S.2. Vulnerability chaining, the variant sweep (a newly verified class queues probes of its sibling vectors), and proof-based reporting are all live on this hunt.
+
+### S.2 Verifier false-accepts found by audit — execution gate (commit ad53349)
+
+The raw event stream reached **124 `verified:true` records**. A full audit of every record settled **45 as false-accepts**: findings stamped "all verification steps passed" where the executed tool had in fact done nothing (for example, an `nmap` run that scanned 0 hosts). Root cause: verification paths existed that did not require the underlying execution to have succeeded.
+
+**Fix (ad53349):** an execution gate now discards failed executions *before* a finding is built. The raw `verified:true` count has been **frozen at 124** since the fix shipped — no new stamps of the old kind. Audited position: **124 raw − 45 false-accepts = 79 genuine**.
+
+### S.3 Content-relevance judgement (commit 1040627) + baseline corpus extension (commit 0b3e305)
+
+The execution gate answers "did the probe run?" It cannot answer "does this output prove *this* claim about *this* target?" A residual family remained: successful commands whose output is signal-bearing but irrelevant — the target's own homepage CSS, a different host's redirect echoing `/admin`, sweep output that literally reads "not exposed: …/.env".
+
+**Fix (1040627):** `assessContentRelevance` in `backend/src/hunt-intel/differential.js` judges every would-be verified stamp with three deterministic, tightening-only limbs: (1) **host binding** — probe-command hosts must be the hunt target (or a substituted target placeholder); (2) **supporting signal** — a signal line not negated earlier in its own line; (3) **novelty** — the signal's surrounding text must not appear verbatim in the target's baseline bodies. A failed judgement is recorded as a false positive through the same choke point as any rejection, so no downstream side-effects (facts, global memory, variant sweep) fire. Tests: 15/15 against fixtures built from the real false-accept shapes; all three genuine classes still judge relevant. Live-verified on EC2.
+
+**Follow-up (0b3e305, this round):** the novelty corpus covered the root page and an SPA-fallback canary only. It now also includes the root page's **linked CSS/JS asset bodies** (same-origin only, bounded count and bytes, fetched through the hunt container; `extractLinkedAssetUrls` in differential.js), so asset-shaped stamps are judged against the real asset bodies. Test suite extended to 21/21, including a fixture proving the asset corpus is what binds an asset-shaped stamp. All 12 backend suites pass locally and on EC2; deployed and live-verified (backend restarted, main hunt resumed and advancing, raw `verified:true` unchanged at 124).
+
+**Honest residuals:** (i) probe-echo self-labelling is still trusted where a deterministic probe gates its own label on a real content grep — relevance binds host/signal/novelty, it cannot distinguish probe echo from target bytes inside one composite output; (ii) a claim whose genuine evidence *is* the root body itself (a homepage-content disclosure class) would fail the novelty limb — the differential control-probe instrument, not page diffing, is the correct verifier for that class.
+
+### S.4 Global Memory (19 Oct 2026)
+
+One shared knowledge base across all hunts is live: verified findings, repeated failures, and successful chains are recorded with technique, target type, and payload, and every new hunt starts with the distilled experience of prior hunts in its planning prompt. Per-hunt memory keeps hunt-local context. No model training is involved.
+
+### S.5 Job 5 — full-history thinking (commit 830b545)
+
+Every planning prompt now carries a full-history briefing: a one-line-per-action ledger of everything the hunt has done (a live Briefing event measured **55,050 prompt chars vs the previous ~2,576-char cap**), a `RECALL:<query>` retrieval command beside `SEARCH:`, and a brain context window raised up the ladder to **16,384 tokens, held across full planning cycles with no OOM** (swap headroom is thin and is watched).
+
+### S.6 Job 6 — real-human memory rebuild (commits 09d8115…9914bd7)
+
+Research verdict first: no off-the-shelf memory framework (Letta/Mem0/Graphiti) fits an 8B model on this host, so the proven patterns were re-implemented in Node on SQLite with **deterministic code doing the remembering** (zero LLM calls in scoring). All eight stages shipped and live-verified:
+
+1. Append-only **episode ledger** (SQLite + FTS5) mirroring the event stream 1:1 — 15,058 episodes at ship time.
+2. **Hybrid retrieval** scored by code (FTS5 + `nomic-embed-text` cosine + rule importance + recency + entity boost); `RECALL:` routes through it.
+3. **Consolidation** jobs + a per-target `DOSSIER.md` assembled only from validator-stamped records; secrets structurally excluded.
+4. Validator-gated **dead-end registry** (Reflexion pattern): lessons written only on deterministic validator outcomes; a test name is skipped after 3 rejections with a forced pivot. Seeded with 211 historical lessons.
+5. Git-versioned **PLAYBOOK.md** + skill library; promotion only on validator-confirmed success.
+6. **Code-owned plan tree** (goal → phase → leaf) persisted in SQLite; the model fills only the next leaf.
+7. **ACI tool-output envelope** (bounded head/tail with explicit empty markers) + validation audit episodes on every verdict path.
+8. **Bi-temporal facts table** with code-only writers; credential *presence* only, values never stored. (Historical verified classes were deliberately **not** backfilled — a naive backfill would have imported the 45 settled false-accepts as facts.)
+
+The runtime moved to Node 24 (`node:sqlite`) as part of this job; the systemd unit keeps a Node 20 rollback copy.
+
+### S.7 Memory, measured — recall eval (Job 6 close-out; Job 7 re-check)
+
+A fixed set of **29 questions built from the agent's own hunt history**, scored by an unmodified scorer:
+
+| Metric | Result | Conditions |
+|---|---|---|
+| hit@5 | **59%** (17/29) | Embedding coverage 6.6% (1,008 / 15,315 episodes) |
+| hit@8 | **62%** (18/29) | Same run |
+
+Exact-identifier recall is strong (5/6); paraphrase and chain recall are weak — mechanically explained by the low embedding coverage, since the semantic half of the score is mostly absent. **No "memory works" claim is made beyond these numbers.** A re-run at ≥80% coverage is owed: coverage was 30.5% at 11:15Z on 20 Oct (backfill running at its ~64 embeddings/minute tick cap) and 31.7% at 11:18Z, projecting ≥80% later the same day.
+
+### S.8 Job 7 — organic-firing check (quiet hour, 20 Oct 2026)
+
+After a full uninterrupted hour, the Job 6 stage 6–8 mechanisms had produced **zero organic firings**: 0 validation events, 0 plan-tree leaves, 0 fact rows. Root cause, measured rather than guessed: across 14 planning cycles (iterations 435→449) the hunt wrote 337 events with **zero `tool_call` and zero finding events** — every plan the model proposed was consumed before execution by the pre-execution filters doing their Job 6 job (ledger-verified re-test skips, retired premises, dead-end registry, chain-pursuit premise skips) on a benchmark whose surface is already exhausted. The mechanisms are test-proven on the production runtime; their first organic firing is gated on the model proposing an executable, non-retired plan. No filter or validator was loosened to manufacture one.
+
+### S.9 One hunt per target — dedupe fix (commits 2d2283c, 6a76c5a)
+
+The standing rule "one hunt per target; re-submitting a hunted target reopens and resumes that hunt" existed but was broken in four places: the frontend pre-check read a `state` field the API returns as `status`; the backend matched near-raw URL strings (`https://thebhavesh.online` ≠ `https://www.thebhavesh.online/`); it returned the *first* (newest, often a stale paused duplicate) match while claiming to resume it without resuming anything; and bench scripts had minted duplicates by bypassing the route entirely (20 hunt records for one lab target).
+
+**Fix:** a canonical target key (scheme ignored, leading `www.` stripped, default ports dropped, path kept), an existing-hunt picker ranked running → paused → stopped → finished (ties by iteration, then recency), a paused match **actually resumed from its checkpoint**, and the frontend redirecting into the existing hunt's chat with no new card (re-run is the only explicit fresh-run bypass). Tests: 18/18. Live-verified through the real UI (toast names the existing hunt, the setup dialog closes, the running hunt opens, the sidebar count does not change) and through the API (both URL spellings return `reused: true` with the same hunt id; zero new hunt records created).
+
+### S.10 Deployment pipeline fix (commits f339942, 5a63c69)
+
+The "Deploy backend to EC2" GitHub Actions workflow had failed on **every** push since its creation, for three stacked reasons: the repository had **no Actions secrets configured** (every run died in under a second with "missing server host"); the workflow restarted a systemd unit under the wrong name (`dark-matter-backend` instead of `darkmatter-backend`); and `package.json` / `package-lock.json` had drifted out of sync, so `npm ci` refused to run. All three are fixed; the first fully green run was **39410327650** (commit 5a63c69). Pushes touching `backend/**` now self-deploy; the workflow deliberately skips the service restart while a hunt is active.
+
+**Process lesson (recorded in the repo's AGENTS.md):** regenerate the lockfile in the same commit whenever `package.json` dependencies change.
+
+### S.11 Updated readiness assessment (supersedes §L)
+
+**Status: NOT READY** — for the elite-parity claim specifically. The lab-benchmark case is proven; the real-world case has not been tested.
+
+**Criteria met since §L:**
+- ✅ Reliable tool execution (container lifecycle fixed and exercised over hundreds of iterations)
+- ✅ Blind discovery in a controlled lab: 79 genuine verified findings, 3 distinct classes (§S.1)
+- ✅ Verification integrity: false-accept root cause fixed (execution gate), content relevance judged, every raw count in this report audited (§S.2–§S.3)
+- ✅ Memory persistence and retrieval: implemented, live, and measured (§S.6–§S.7)
+- ✅ Model reliability: the 16,384-token window holds on the 8 GB host under watchdog supervision; the hunt advances continuously and resumes from checkpoint across restarts and deploys
+- ✅ Chaining, variant sweep, global memory, proof-based reporting: live
+
+**Criteria NOT met:**
+- ❌ **Real-target validation** — all results are on a self-hosted lab benchmark (OWASP Juice Shop). No real programme target has been named by the owner with scope and stop conditions; until one is, elite parity is unprovable either way. This is the single blocking item.
+- ❌ Recall quality at maturity — the ≥80%-coverage eval re-run is still owed (§S.7); paraphrase recall may or may not close the gap.
+- ❌ First organic firings of the plan-tree / validation-episode / facts mechanisms (§S.8) — test-proven, not yet observed in the wild.
+- ❌ Human baseline comparison on identical targets (none available).
+- ❌ Platform submission — by design, reports are never auto-submitted; a human reviews first.
+
+**What "NOT READY" means now:** on 16 Oct it meant "cannot yet hunt". On 20 Oct it means "hunts, verifies honestly, and remembers — on a lab". The distance left is not more lab features; it is one real target, hunted under a real scope, with results a human expert can inspect.
+
+---
+
+*Round 5 update: 2026-10-20*
+*Commits: ad53349, 1040627, 0b3e305, 830b545, 09d8115…9914bd7, 2d2283c, 6a76c5a, f339942, 5a63c69*
+*Total fixed overall: 28 issues. Remaining documented problems (§N–§O) stay on the register until each is individually closed with evidence.*
