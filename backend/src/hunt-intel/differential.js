@@ -204,3 +204,25 @@ export function verifyPipeline(steps) {
   }
   return { verified: true, failedAt: null, verdict: 'confirmed (all 4 steps passed)' };
 }
+
+// ---- Execution-failure gate (solver #442, 20 Oct 2026) ----------------------
+// Root cause of the verifier false-accept family (45 settled cases audited on
+// benchmark hunt h_bench_d69e5746): when a probe command FAILED inside the
+// container (curl DNS failure on a placeholder host, connection refused,
+// grep no-match), the exec layer reported the failure as error text —
+// "Command failed: docker exec … sh -c <cmd>" — and that text was
+// concatenated into the evidence output. The echoed command line contains
+// the probe URL (e.g. /admin), so downstream signal extraction derived a
+// real-looking impact signal ('admin-exposure') from the FAILURE ECHO
+// itself. A deterministic re-run reproduced the identical failure → the
+// identical signal → "confirmed (all 4 steps passed)". The verifier never
+// checked whether the command had actually run.
+// Rule: a failed execution produces NO evidence — regardless of any marker
+// text found in the output. Tightening only: a successful run (exit code 0,
+// no failure marker) is completely unaffected, so no genuine finding path
+// changes behaviour.
+export function executionFailed(result, outputText = '') {
+  if (result && typeof result.code === 'number' && result.code !== 0) return true;
+  const out = String(outputText || '');
+  return /Command failed:|DM_CONTAINER_MISSING/.test(out);
+}

@@ -179,6 +179,7 @@ import {
   generateLogicTests,
   evidenceGate,
   verifyPipeline,
+  executionFailed,
   beamSearchChains,
   analyzeFindings,
   mineJsEndpoints,
@@ -1598,6 +1599,19 @@ function inferSeverity(testName, output) {
   return 'medium';
 }
 
+  // FIX (20 Oct 2026, solver #442): EXECUTION-FAILURE GATE — the root cause
+  // of the verifier false-accept family (45 settled cases). When the probe
+  // command failed in the container, `output` here is the exec layer's error
+  // echo ("Command failed: docker exec … sh -c <cmd>"), which CONTAINS the
+  // probe URL — so the 'admin'/'secret' interesting-test and extractSignal
+  // matched the failure echo itself, and the verification re-run reproduced
+  // the same deterministic failure and called it confirmation. A failed
+  // execution is not evidence: discard before any finding is built.
+  if (executionFailed(result, output)) {
+    think(huntId, `Execution failed (exit ${result && result.code}) — error output is not evidence; discarding this result.`);
+    return null;
+  }
+
   const interesting = weird.score >= 40 || /vulnerable|exposed|bypass|injection|leak|admin|secret|token|password|error.*sql|stack trace/i.test(output);
   if (!interesting || output.trim().length < 50) return null;
 
@@ -1628,10 +1642,12 @@ function inferSeverity(testName, output) {
     think(huntId, `Verifying: re-running the test to confirm reproducibility…`);
     const retry = await execInHuntContainer(huntId, String(plan.command).slice(0, 500), 120000, { bypassTmux: true });
     const confirmOutput = (retry.stdout + '\n' + retry.stderr).slice(0, 3000);
-    // Confirmation: second run shows the same interesting signals
+    // Confirmation: second run shows the same interesting signals.
+    // FIX (solver #442): the re-run must also have EXECUTED — a reproduced
+    // failure yields the same echo-derived signal and is not confirmation.
     const sig1 = extractSignal(output);
     const sig2 = extractSignal(confirmOutput);
-    confirmed = sig1.length > 0 && sig1 === sig2;
+    confirmed = !executionFailed(retry, confirmOutput) && sig1.length > 0 && sig1 === sig2;
     if (confirmed) {
       think(huntId, `Verified: reproducible finding (${sig1}).`);
     } else {
@@ -1788,7 +1804,12 @@ async function generatePoC(huntId, target, findingRec) {
     think(huntId, 'Executing PoC...');
     const result = await execInHuntContainer(huntId, cmd, 60000);
     const out = (result.stdout || '').slice(0, 1000);
-    if (out.trim().length > 20) {
+    // FIX (20 Oct 2026, solver #442): this stamped verified:true for ANY PoC
+    // output longer than 20 chars — homepage CSS, curl timing printouts and
+    // SPA fallback headers all became "PoC confirmed" findings. Require the
+    // PoC command to have SUCCEEDED and its output to carry a real impact
+    // signal (same vocabulary the finding pipeline uses).
+    if (!executionFailed(result, out) && out.trim().length > 20 && extractSignal(out).length > 0) {
       appendHuntEvent(huntId, {
         type: 'finding',
         class: 'poc_verified',
