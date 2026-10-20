@@ -135,6 +135,11 @@ export function recordGlobalLearning(entry) {
  * Score entries by relevance to the current target's fingerprint.
  * fingerprint = { appType, techStack: [] }
  */
+/** All stored global memories (RECALL search reads the whole store). */
+export function readAllGlobalMemories() {
+  return readAll();
+}
+
 export function getRelevantMemories(fingerprint = {}, limit = 8) {
   try {
     const all = readAll();

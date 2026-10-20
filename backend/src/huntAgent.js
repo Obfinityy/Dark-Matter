@@ -125,8 +125,8 @@ export function getOrchestrator(huntId) {
 }
 import { chatWithAI, aiAvailable } from './llm.js';
 import { generateHypotheses, formatHypothesesForPrompt, scoreInterestingness, buildAppModel, formatAppModelForPrompt } from './curiosity.js';
-import { recordReasoning, formatReasoningForPrompt, formatLedgerForPrompt, getHypothesisLedger, getVerifiedPairs, normalizeHypothesis } from './reasoningMemory.js';
-import { recordGlobalLearning, getRelevantMemories, formatGlobalMemoryForPrompt, inferTechnique } from './globalMemory.js';
+import { recordReasoning, formatReasoningForPrompt, formatLedgerForPrompt, getHypothesisLedger, getVerifiedPairs, normalizeHypothesis, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
+import { recordGlobalLearning, getRelevantMemories, formatGlobalMemoryForPrompt, inferTechnique, readAllGlobalMemories } from './globalMemory.js';
 import { webSearch, searchCVE } from './webSearch.js';
 import { runBrowserTask, crawlScript } from './browserAgent.js';
 import { getHuntCost } from './costTracker.js';
@@ -734,8 +734,10 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   let globalMemorySection = '';
   let globalMemoryAudit = { count: 0, keys: [], sectionLen: 0, sectionHash: 'empty' };
   try {
-    const relevantMemories = getRelevantMemories(appFingerprint, 6);
-    globalMemorySection = formatGlobalMemoryForPrompt(relevantMemories).slice(0, 500);
+    const relevantMemories = getRelevantMemories(appFingerprint, 12);
+    // Cap raised 500 → 2000 (solver #443): with the widened context window
+    // the cross-hunt lessons no longer need to be squeezed to a stub.
+    globalMemorySection = formatGlobalMemoryForPrompt(relevantMemories).slice(0, 2000);
     globalMemoryAudit = {
       count: relevantMemories.length,
       keys: relevantMemories.map((m) => `${m.type}|${m.technique}|${m.appType}`),
@@ -758,6 +760,36 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       writeHuntMeta(huntId, { ...m0, huntId, appFingerprint });
     }
   } catch { /* best-effort */ }
+
+  // FULL HISTORY (20 Oct 2026, solver #443 — owner order: "he knows
+  // everything he did before"): the COMPLETE ledger of this hunt joins the
+  // protected post-header zone — every finding (never dropped), captured
+  // artifacts, dead ends, and one line per executed action from
+  // reasoning.jsonl. Only the oldest action lines are ever compressed, and
+  // only into counts-by-outcome (see buildFullHistoryLedger).
+  let fullHistorySection = '';
+  let fullHistoryStats = { actions: 0, shown: 0, summarised: 0, findings: 0, verified: 0, deadEnds: 0 };
+  try {
+    const metaNow = readHuntMeta(huntId) || {};
+    const built = buildFullHistoryLedger({
+      reasoningRows: getAllReasoning(huntId),
+      findings: readHuntEvents(huntId).filter((e) => e.type === 'finding'),
+      chainContext: metaNow.chainContext || null,
+      budgetChars: Math.max(3000, MAX_PROMPT_CHARS - 12000),
+    });
+    fullHistorySection = built.text;
+    fullHistoryStats = built.stats;
+  } catch { /* full history is best-effort */ }
+  // RECALLED MEMORY: the model's most recent RECALL:<query> result, stashed
+  // on the hunt meta by the RECALL handler in executeWithEvasion, rides the
+  // next planning prompts until a newer recall replaces it.
+  let recalledSection = '';
+  try {
+    const mR = readHuntMeta(huntId) || {};
+    if (mR.recallSection && mR.recallSection.text) {
+      recalledSection = `\n--- RECALLED MEMORY (you asked to recall: "${String(mR.recallSection.query).slice(0, 120)}") ---\n${String(mR.recallSection.text).slice(0, 3000)}`;
+    }
+  } catch { /* recall is best-effort */ }
 
   // HARD CAP on the final prompt: the instruction header plus context plus
   // trailing sections (steering, curiosity) must together fit in the model's
@@ -787,6 +819,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     'Reply as a JSON array: [{"test":"name","command":"shell command","why":"one line (your reasoning)","hypothesis":"what you expect to find"}, ...].',
     'Commands must be non-destructive and target-scoped. You can use: nmap, nuclei, curl, python3, and any tools in the container.',
     'You are a PERSON with a machine, not a script. If you need a tool you don\'t have, download it (curl/wget) or install it (apt-get). If you don\'t know something, SEARCH the web: put "SEARCH: your question" as the command and you\'ll get web results back.',
+    'REMEMBER LIKE A HUMAN: your FULL HISTORY below is everything you have done this hunt. If you need the DETAIL of any past action, finding, or cross-hunt lesson, RECALL it: put "RECALL: keywords" (a technique, endpoint, or error) as the command and the matching records from this hunt and all past hunts come back to you.',
     'BUILD WHAT YOU NEED: If no existing tool does what you want, WRITE IT. You have python3 and bash — an elite hunter writes a custom script mid-hunt instead of giving up. Put your script in the command field (python3 -c "..." or a heredoc). Think "I need this, so I create this."',
     'CRITICAL: Respect the TARGET INTELLIGENCE section — never suggest tests for technologies not present.',
     '',
@@ -797,7 +830,9 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // reasoning.jsonl). Sits in the protected post-header zone with the
     // reasoning history so truncation never cuts it first.
     formatLedgerForPrompt(huntId),
+    fullHistorySection,
     globalMemorySection,
+    recalledSection,
     '',
     appModelSection,
     '',
@@ -807,6 +842,13 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     steering ? `\n--- USER INSTRUCTION (follow this round) ---\n${steering}` : '',
     curiositySection,
   ].join('\n').slice(0, MAX_PROMPT_CHARS);
+
+  // BRIEFING AUDIT (solver #443): prompts are not stored, so prove the
+  // full-history briefing actually reached the model — sizes and coverage
+  // counts, every iteration, in the hunt's own event stream.
+  try {
+    think(huntId, `Briefing: prompt ${prompt.length} chars — full history: ${fullHistoryStats.actions} actions (${fullHistoryStats.summarised} oldest summarised), ${fullHistoryStats.findings} findings (${fullHistoryStats.verified} verified), ${fullHistoryStats.deadEnds} dead ends; global memory: ${globalMemoryAudit.count} lessons.`);
+  } catch { /* best-effort */ }
 
   let plans = [];
   // NOTE: `reply` is hoisted out of the try block on purpose — the
@@ -1441,6 +1483,33 @@ async function executeWithEvasion(huntId, target, command) {
       return { stdout: text, stderr: '', exitCode: 0 };
     } catch {
       return { stdout: 'Web search failed.', stderr: '', exitCode: 1 };
+    }
+  }
+  // Person capability (20 Oct 2026, solver #443): RECALL — on-demand
+  // retrieval from his own notebook. SEARCH asks the web; RECALL asks his
+  // past: this hunt's events + reasoning and the global-memory store.
+  // Matches return as the command result AND are stashed on the hunt meta
+  // so the next planning prompt carries them in a RECALLED MEMORY section.
+  const recallMatch = /^\s*RECALL:\s*(.+)/i.exec(command);
+  if (recallMatch) {
+    const query = recallMatch[1].slice(0, 200);
+    think(huntId, `Recalling: ${query}`);
+    try {
+      const rec = searchRecall({
+        events: readHuntEvents(huntId),
+        reasoningRows: getAllReasoning(huntId),
+        globalMemories: readAllGlobalMemories(),
+        query,
+        limit: 8,
+      });
+      appendHuntEvent(huntId, { type: 'recall', query, hits: rec.hits });
+      try {
+        const m = readHuntMeta(huntId) || {};
+        writeHuntMeta(huntId, { ...m, huntId, recallSection: { query, text: rec.text.slice(0, 3000), at: new Date().toISOString() } });
+      } catch { /* stash is best-effort */ }
+      return { stdout: rec.text, stderr: '', exitCode: 0 };
+    } catch {
+      return { stdout: 'Recall failed.', stderr: '', exitCode: 1 };
     }
   }
   let result = await execInHuntContainer(huntId, command, 180000, { bypassTmux: true });

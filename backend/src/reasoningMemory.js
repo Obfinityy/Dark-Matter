@@ -207,3 +207,181 @@ export function formatLedgerForPrompt(huntId) {
   }
   return s;
 }
+
+// ---------------------------------------------------------------------------
+// FULL-HISTORY LEDGER + RECALL (20 Oct 2026, solver #443 — owner order:
+// "make him like a human — he knows everything he did before").
+//
+// Until now the planning prompt carried only the last 5 reasoning rows in
+// full prose plus the hypothesis ledger's ban list. The complete record sat
+// on disk but never reached his thinking. These builders fix that:
+//   - buildFullHistoryLedger: the COMPLETE ledger of the hunt — every
+//     finding (never dropped), captured artifacts, dead ends, and ONE line
+//     per executed action. Compression is per-line brevity; only when the
+//     action lines outgrow the budget are the OLDEST summarised into
+//     counts-by-outcome (findings and verified results are never summarised
+//     away).
+//   - searchRecall: the human part — he does not hold every raw line in
+//     working memory, he RETRIEVES detail on demand. RECALL:<query> searches
+//     this hunt's events + reasoning and the global-memory store.
+// Both are pure functions over plain arrays so they can be driver-tested
+// without a live hunt (backend/scripts/test-full-history.mjs).
+
+/** All reasoning rows for a hunt (unbounded — the full notebook). */
+export function getAllReasoning(huntId) {
+  return readAllReasoning(huntId);
+}
+
+function reasoningOutcome(r) {
+  const res = String((r && r.result) || '');
+  if (res.startsWith('VERIFIED')) return 'VERIFIED';
+  if (/^RETIRED/.test(res)) return 'PIVOT';
+  if (/no assessment|not verified/i.test(res)) return 'FAILED';
+  return 'DONE';
+}
+
+const clip = (s, n) => {
+  const t = String(s || '').replace(/\s+/g, ' ').trim();
+  return t.length > n ? t.slice(0, n - 1) + '…' : t;
+};
+
+/**
+ * Build the full-history prompt section.
+ * @param {{reasoningRows: object[], findings: object[], chainContext: ?object, budgetChars: number}} input
+ *   findings: finding events ({title, severity, verified, verification}).
+ *   budgetChars governs the ACTIONS list only — findings, artifacts and
+ *   dead ends always render in full (the caller's hard prompt cap remains
+ *   the outer bound).
+ * @returns {{text: string, stats: {actions:number, shown:number, summarised:number, findings:number, verified:number, deadEnds:number}}}
+ */
+export function buildFullHistoryLedger({ reasoningRows = [], findings = [], chainContext = null, budgetChars = 12000 } = {}) {
+  const rows = (reasoningRows || []).filter((r) => r && r.action !== 'hypothesis-retirement');
+  const verifiedFindings = (findings || []).filter((f) => f && f.verified);
+  const otherFindings = (findings || []).filter((f) => f && !f.verified);
+
+  // Dead ends: same rule as the hypothesis ledger (failed >= toll, never verified).
+  const byHyp = new Map();
+  for (const r of rows) {
+    const key = normalizeHypothesis(r.hypothesis);
+    if (!key) continue;
+    if (!byHyp.has(key)) byHyp.set(key, { text: clip(r.hypothesis, 100), verified: 0, failed: 0 });
+    const e = byHyp.get(key);
+    const o = reasoningOutcome(r);
+    if (o === 'VERIFIED') e.verified++;
+    else if (o === 'FAILED') e.failed++;
+  }
+  const dead = [...byHyp.values()].filter((e) => e.verified === 0 && e.failed >= FAIL_DEATH_TOLL);
+  dead.sort((a, b) => b.failed - a.failed);
+
+  const fixed = [];
+  fixed.push('\n--- FULL HISTORY — EVERYTHING YOU HAVE DONE THIS HUNT (your complete notebook) ---');
+  fixed.push(`FINDINGS SO FAR (${findings.length} recorded, ${verifiedFindings.length} verified):`);
+  if (!findings.length) fixed.push('  (none yet)');
+  // Exact-duplicate finding records (the same instance re-proven many
+  // times) collapse into ONE line with a ×N count — lossless: no distinct
+  // finding is ever dropped, and the full instance list stays on disk and
+  // reachable via RECALL. Without this, 100+ identical re-proof lines
+  // crowd out the rest of the notebook.
+  const dedupeFindings = (list) => {
+    const seen = new Map();
+    for (const f of list) {
+      const key = `${clip(f.title, 90)}|${f.severity || 'medium'}`;
+      seen.set(key, (seen.get(key) || 0) + 1);
+    }
+    return [...seen.entries()].map(([key, n]) => {
+      const [title, sev] = key.split('|');
+      return { title, sev, n };
+    });
+  };
+  for (const d of dedupeFindings(verifiedFindings)) fixed.push(`  - [VERIFIED] ${d.title} (${d.sev})${d.n > 1 ? ` ×${d.n}` : ''}`);
+  for (const d of dedupeFindings(otherFindings)) fixed.push(`  - [unverified] ${d.title} (${d.sev})${d.n > 1 ? ` ×${d.n}` : ''}`);
+  if (chainContext && chainContext.artifacts && Object.keys(chainContext.artifacts).length) {
+    const arts = Object.entries(chainContext.artifacts).map(([k, v]) => `${k}=${clip(v, 48)}`).join('; ');
+    fixed.push(`CAPTURED ARTIFACTS: ${arts}${chainContext.chainPath ? ` | chain in progress: ${chainContext.chainPath.join(' → ')}` : ''} (from: ${clip(chainContext.fromFinding, 60)})`);
+  }
+  if (dead.length) {
+    fixed.push(`DEAD ENDS (premises exhausted — do not retry): ${dead.map((d) => `"${d.text}" ×${d.failed}`).join('; ')}`);
+  }
+
+  // Action lines: one per executed action, chronological. Fill the budget
+  // with the NEWEST lines; summarise the oldest overflow by outcome.
+  const actionLines = rows.map((r, i) => {
+    const o = reasoningOutcome(r);
+    return { i, line: `  ${i + 1}. [${o}] ${clip(r.action, 70)} — ${clip(r.result, 85)}` };
+  });
+  const fixedLen = fixed.join('\n').length;
+  let avail = Math.max(0, budgetChars - fixedLen);
+  const shown = [];
+  for (let k = actionLines.length - 1; k >= 0; k--) {
+    const cost = actionLines[k].line.length + 1;
+    if (cost > avail && shown.length > 0) break;
+    if (cost > avail && shown.length === 0) { shown.unshift(actionLines[k]); avail = 0; break; }
+    shown.unshift(actionLines[k]);
+    avail -= cost;
+  }
+  const summarised = actionLines.length - shown.length;
+  const parts = [...fixed];
+  parts.push(`ACTIONS YOU HAVE TAKEN (${rows.length} total${summarised ? `, oldest ${summarised} summarised below` : ''}):`);
+  if (summarised > 0) {
+    const counts = { VERIFIED: 0, FAILED: 0, DONE: 0, PIVOT: 0 };
+    for (const a of actionLines.slice(0, summarised)) counts[reasoningOutcome(rows[a.i])]++;
+    parts.push(`  … ${summarised} earliest actions summarised: ${counts.VERIFIED} verified, ${counts.FAILED} failed, ${counts.DONE} done, ${counts.PIVOT} pivots. (Full detail on disk — RECALL it if you need it.)`);
+  }
+  for (const s of shown) parts.push(s.line);
+
+  return {
+    text: parts.join('\n'),
+    stats: {
+      actions: rows.length,
+      shown: shown.length,
+      summarised,
+      findings: findings.length,
+      verified: verifiedFindings.length,
+      deadEnds: dead.length,
+    },
+  };
+}
+
+/**
+ * RECALL search: keyword/technique/endpoint match over the hunt's own
+ * records and the global-memory store.
+ * @returns {{text: string, hits: number, shown: number}}
+ */
+export function searchRecall({ events = [], reasoningRows = [], globalMemories = [], query = '', limit = 8 } = {}) {
+  const terms = [...new Set(String(query || '').toLowerCase().split(/[^a-z0-9_./-]+/).filter((t) => t.length >= 3))];
+  if (!terms.length) return { text: `No searchable terms in recall query "${clip(query, 80)}".`, hits: 0, shown: 0 };
+  const score = (hay) => {
+    const h = String(hay || '').toLowerCase();
+    let s = 0;
+    for (const t of terms) if (h.includes(t)) s++;
+    return s;
+  };
+  const hits = [];
+  for (const e of events || []) {
+    if (!e) continue;
+    const ev = e.evidence || {};
+    const hay = [e.type, e.title, e.class, e.verification, ev.request, ev.response, ev.poc_command, ev.poc_output, ev.impact_demo].join(' ');
+    const s = score(hay);
+    if (s > 0) hits.push({ s, line: `[hunt event · ${e.type}] ${clip(e.title || e.text || '', 90)}${e.verified ? ' [VERIFIED]' : ''} — ${clip(ev.response || ev.poc_output || e.verification || '', 200)}` });
+  }
+  for (const r of reasoningRows || []) {
+    if (!r) continue;
+    const hay = [r.hypothesis, r.action, r.why, r.result, r.learned].join(' ');
+    const s = score(hay);
+    if (s > 0) hits.push({ s, line: `[reasoning] ${clip(r.action, 80)} — result: ${clip(r.result, 130)}${r.learned ? ` — learned: ${clip(r.learned, 90)}` : ''}` });
+  }
+  for (const m of globalMemories || []) {
+    if (!m) continue;
+    const hay = [m.type, m.technique, m.appType, m.context, m.note, m.payload].join(' ');
+    const s = score(hay);
+    if (s > 0) hits.push({ s, line: `[global memory · ${m.type}/${m.technique}] ${clip(m.context || m.note, 150)} (${m.successes || 0}/${m.attempts || 0} succeeded)` });
+  }
+  hits.sort((a, b) => b.s - a.s);
+  const top = hits.slice(0, limit);
+  if (!top.length) return { text: `No past records match "${clip(query, 80)}".`, hits: 0, shown: 0 };
+  return {
+    text: `Recalled ${top.length} of ${hits.length} matching record(s) for "${clip(query, 80)}":\n` + top.map((h) => `- ${h.line}`).join('\n'),
+    hits: hits.length,
+    shown: top.length,
+  };
+}
