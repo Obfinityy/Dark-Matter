@@ -69,7 +69,7 @@ let hit8 = 0;
 const byCat = {};
 for (const item of QUESTIONS) {
   const { results } = await es.retrieveEpisodes(item.q, { huntId, limit: 8 });
-  const idx = results.findIndex((r) => item.match(r.episode));
+  const idx = results.findIndex((r) => item.match(r));
   const h5 = idx >= 0 && idx < 5;
   const h8 = idx >= 0;
   if (h5) hit5++;
@@ -77,7 +77,7 @@ for (const item of QUESTIONS) {
   byCat[item.cat] = byCat[item.cat] || { n: 0, h5: 0 };
   byCat[item.cat].n++;
   if (h5) byCat[item.cat].h5++;
-  console.log(`${h5 ? 'HIT ' : h8 ? 'hit8' : 'MISS'}  [${item.cat}] ${item.q}${h5 || h8 ? ` (rank ${idx + 1})` : ` — top: "${(results[0]?.episode?.title || 'none').slice(0, 70)}"`}`);
+  console.log(`${h5 ? 'HIT ' : h8 ? 'hit8' : 'MISS'}  [${item.cat}] ${item.q}${h5 || h8 ? ` (rank ${idx + 1})` : ` — top: "${(results[0]?.title || 'none').slice(0, 70)}"`}`);
 }
 
 const n = QUESTIONS.length;
