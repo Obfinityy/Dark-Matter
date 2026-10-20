@@ -26,6 +26,8 @@
 
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import fs from 'node:fs';
+import http from 'node:http';
+import https from 'node:https';
 // NOTE: SageMaker SDK is imported LAZILY (dynamic import) only when
 // LLM_PROVIDER=sagemaker, because the installed SDK version may not export
 // the async APIs as named ESM exports. A static import here crashes the
@@ -154,7 +156,92 @@ async function chatWithOllama(messages, system, ctx) {
       content: clean(m.text).slice(0, msgCap),
     });
   }
-  let res;
+  // TRANSPORT (solver #461): node:http + streaming, NOT fetch. Two stacked
+  // reasons, root-caused live 20 Oct 2026: (1) undici fetch defaults carry a
+  // ~300 s headers/body-inactivity timeout that no per-request option in
+  // the fetch API overrides — with stream:false NO byte arrives until the
+  // whole generation finishes, so every call whose prefill+generation
+  // exceeded ~300 s died with 'fetch failed' while llama-server kept
+  // processing the orphaned prompt. Once #459 let the full 55k-char
+  // planning prompt through (prefill alone ~10.8k tokens at 5-9 tok/s on
+  // this box), EVERY planning call crossed 300 s: three consecutive
+  // no-reply iterations paused the main hunt (12:09:50Z). (2) Even with
+  // stream:true, prefill emits no body bytes for many minutes, so the
+  // inactivity problem survives streaming under fetch. node:http with
+  // timeout:0 has no inactivity kill; the ONLY deadline is our own
+  // overall one (OLLAMA_TIMEOUT_MS), and streamed NDJSON chunks are
+  // accumulated into the same reply shape the old res.json() produced.
+  const ollamaChatOnce = (deadlineMs) => new Promise((resolve, reject) => {
+    const u = new URL(`${OLLAMA_URL}/api/chat`);
+    const payload = JSON.stringify({
+      model: OLLAMA_MODEL,
+      messages: ollamaMessages,
+      stream: true,
+      // Keep the model resident for 24h after each inference. Without this,
+      // Ollama falls back to its 5-minute default (the OLLAMA_KEEP_ALIVE env
+      // var was not reaching the running ollama serve process), and the model
+      // unloads between hunt iterations (10-15 min apart), stalling hunts.
+      // Request-level keep_alive overrides the server default.
+      keep_alive: '24h',
+      // Tuned for 2vCPU EC2: smaller context + fewer tokens = faster.
+      // num_ctx caps KV cache to avoid OOM; num_predict keeps plans short.
+      options: {
+        num_predict: parseInt(process.env.OLLAMA_NUM_PREDICT || '600', 10),
+        num_ctx: parseInt(process.env.OLLAMA_NUM_CTX || '8192', 10),
+        temperature: 0.7,
+      },
+    });
+    const lib = u.protocol === 'https:' ? https : http;
+    const req = lib.request({
+      hostname: u.hostname,
+      port: u.port || (u.protocol === 'https:' ? 443 : 80),
+      path: u.pathname,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+      timeout: 0,
+    }, (res) => {
+      res.setEncoding('utf8');
+      if (res.statusCode !== 200) {
+        let buf = '';
+        res.on('data', (c) => { buf += c; });
+        res.on('end', () => resolve({ ok: false, status: res.statusCode, body: buf.slice(0, 300) }));
+        res.on('error', reject);
+        return;
+      }
+      let buf = '';
+      let text = '';
+      let finalChunk = null;
+      res.on('data', (chunk) => {
+        buf += chunk;
+        let idx;
+        while ((idx = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, idx).trim();
+          buf = buf.slice(idx + 1);
+          if (!line) continue;
+          try {
+            const j = JSON.parse(line);
+            if (j.message && j.message.content) text += j.message.content;
+            if (j.done) finalChunk = j;
+          } catch { /* a split JSON line is re-parsed when its tail lands */ }
+        }
+      });
+      res.on('end', () => resolve({
+        ok: true,
+        text,
+        promptEvalCount: (finalChunk && finalChunk.prompt_eval_count) || 0,
+        evalCount: (finalChunk && finalChunk.eval_count) || 0,
+      }));
+      res.on('error', reject);
+    });
+    const timer = setTimeout(() => {
+      req.destroy(new Error(`ollama chat deadline ${deadlineMs}ms exceeded`));
+    }, deadlineMs);
+    req.on('close', () => clearTimeout(timer));
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+  let result;
   // INFERENCE HEARTBEAT (19 Oct 2026): the ollama-watchdog kills llama-server
   // when its 120s inference probe times out — but a real hunt inference takes
   // 10-15 min on 2vCPU, so the watchdog was murdering HEALTHY busy servers
@@ -176,70 +263,43 @@ async function chatWithOllama(messages, system, ctx) {
     } catch { /* heartbeat is best-effort */ }
   };
   const clearHeartbeat = () => { try { fs.unlinkSync(hbPath); } catch { /* ignore */ } };
-  const doOllamaChat = () => fetch(`${OLLAMA_URL}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      messages: ollamaMessages,
-      stream: false,
-      // Keep the model resident for 24h after each inference. Without this,
-      // Ollama falls back to its 5-minute default (the OLLAMA_KEEP_ALIVE env
-      // var was not reaching the running ollama serve process), and the model
-      // unloads between hunt iterations (10-15 min apart), stalling hunts.
-      // Request-level keep_alive overrides the server default.
-      keep_alive: '24h',
-      // Tuned for 2vCPU EC2: smaller context + fewer tokens = faster.
-      // num_ctx caps KV cache to avoid OOM; num_predict keeps plans short.
-      options: {
-        num_predict: parseInt(process.env.OLLAMA_NUM_PREDICT || '600', 10),
-        num_ctx: parseInt(process.env.OLLAMA_NUM_CTX || '8192', 10),
-        temperature: 0.7,
-      },
-    }),
-    // 2vCPU is slow: 150s per attempt, with one retry below.
-    signal: AbortSignal.timeout(hbTimeoutMs),
-  });
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   writeHeartbeat();
   try {
     // Defensive: never hang forever if the model stalls — fail cleanly so
     // callers fall back to deterministic replies instead of hanging the
-    // request (and the reverse proxy in front of us).
+    // request (and the reverse proxy in front of us). The bound is the
+    // overall deadline inside ollamaChatOnce (OLLAMA_TIMEOUT_MS).
     try {
-      res = await doOllamaChat();
+      result = await ollamaChatOnce(hbTimeoutMs);
     } catch (err) {
       console.error(`[llm] Ollama attempt 1 failed at ${OLLAMA_URL}: ${err.message}`);
       // One retry — transient stalls are common on 2vCPU.
       try {
-        res = await doOllamaChat();
+        result = await ollamaChatOnce(hbTimeoutMs);
       } catch (err2) {
         console.error(`[llm] Ollama unreachable at ${OLLAMA_URL} after retry: ${err2.message}`);
         return null;
       }
     }
-    if (!res.ok) {
-      let body = '';
-      try { body = (await res.text()).slice(0, 300); } catch { /* ignore */ }
-      console.error(`[llm] Ollama HTTP ${res.status} for model ${OLLAMA_MODEL}: ${body}`);
+    if (!result.ok) {
+      console.error(`[llm] Ollama HTTP ${result.status} for model ${OLLAMA_MODEL}: ${result.body || ''}`);
       // RETRY ON 5xx (19 Oct 2026): HTTP 500 "unexpected EOF" is transient —
       // it fires while the model is (re)loading after a watchdog kill or an
       // OOM crash. model-watchdog reloads in ~15-30s; one delayed retry turns
       // a burned iteration into a served one instead of "Model gave no reply".
-      if (res.status >= 500) {
+      if (result.status >= 500) {
         console.error('[llm] Ollama 5xx — waiting 15s for model reload, then one retry');
         await sleep(15000);
         writeHeartbeat(); // extend the deadline across the wait
         try {
-          res = await doOllamaChat();
+          result = await ollamaChatOnce(hbTimeoutMs);
         } catch (err3) {
           console.error(`[llm] Ollama retry after 5xx failed: ${err3.message}`);
           return null;
         }
-        if (!res.ok) {
-          let body2 = '';
-          try { body2 = (await res.text()).slice(0, 300); } catch { /* ignore */ }
-          console.error(`[llm] Ollama still HTTP ${res.status} after 5xx retry: ${body2}`);
+        if (!result.ok) {
+          console.error(`[llm] Ollama still HTTP ${result.status} after 5xx retry: ${result.body || ''}`);
           return null;
         }
       } else {
@@ -249,8 +309,7 @@ async function chatWithOllama(messages, system, ctx) {
   } finally {
     clearHeartbeat();
   }
-  const data = await res.json();
-  const text = (data.message && data.message.content ? String(data.message.content) : '').trim();
+  const text = String(result.text || '').trim();
   // Self-hosted = $0 marginal cost; still ledger the burn event for the UI.
   try {
     recordCost({
@@ -258,8 +317,8 @@ async function chatWithOllama(messages, system, ctx) {
       huntId: ctx && ctx.huntId,
       kind: 'ollama',
       model: OLLAMA_MODEL,
-      inputTokens: data.prompt_eval_count || 0,
-      outputTokens: data.eval_count || 0,
+      inputTokens: result.promptEvalCount || 0,
+      outputTokens: result.evalCount || 0,
       amountUsd: 0,
       note: 'self-hosted',
     });
