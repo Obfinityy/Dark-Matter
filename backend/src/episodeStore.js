@@ -107,6 +107,7 @@ function getDb() {
 export function importanceForEvent(event) {
   const kind = String(event?.type || 'unknown');
   if (kind === 'finding') return event.verified === true ? 10 : 8;
+  if (kind === 'consolidation') return 7;
   if (kind === 'recall') return 6;
   if (kind === 'test' || kind === 'tool_call') return 4;
   if (kind === 'thinking' || kind === 'briefing') return 2;
@@ -354,6 +355,37 @@ export function getRecentEpisodes(huntId, limit = 20) {
     .prepare('SELECT * FROM episodes WHERE hunt_id = ? ORDER BY id DESC LIMIT ?')
     .all(String(huntId), limit)
     .reverse();
+}
+
+/** Generic episode query for stage-3+ consumers (dossier, eval). */
+export function queryEpisodes(huntId, { kind = null, outcome = null, limit = 50 } = {}) {
+  const d = getDb();
+  if (!d) return [];
+  let sql = 'SELECT * FROM episodes WHERE hunt_id = ?';
+  const args = [String(huntId)];
+  if (kind) { sql += ' AND kind = ?'; args.push(kind); }
+  if (outcome) { sql += ' AND outcome = ?'; args.push(outcome); }
+  sql += ' ORDER BY importance DESC, id DESC LIMIT ?';
+  args.push(limit);
+  return d.prepare(sql).all(...args);
+}
+
+/** Highest mirrored source_idx for a hunt (-1 when the ledger is empty). */
+export function maxSourceIdx(huntId) {
+  const d = getDb();
+  if (!d) return -1;
+  const row = d.prepare('SELECT MAX(source_idx) AS m FROM episodes WHERE hunt_id = ?').get(String(huntId));
+  return row && row.m != null ? row.m : -1;
+}
+
+/** source_idx of the newest consolidation episode for a hunt (-1 if none). */
+export function lastConsolidationIdx(huntId) {
+  const d = getDb();
+  if (!d) return -1;
+  const row = d
+    .prepare("SELECT MAX(source_idx) AS m FROM episodes WHERE hunt_id = ? AND kind = 'consolidation'")
+    .get(String(huntId));
+  return row && row.m != null ? row.m : -1;
 }
 
 export function getTopEpisodes(huntId, limit = 20) {

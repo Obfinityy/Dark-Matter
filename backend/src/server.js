@@ -22,6 +22,7 @@ import modelsRouter from './routes/models.js';
 import voiceRouter from './routes/voice.js';
 import billingRouter from './routes/billing.js';
 import { backfillAllHunts, episodeLedgerEnabled, runEmbeddingBackfill } from './episodeStore.js';
+import { maybeConsolidateAll } from './consolidation.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -358,4 +359,21 @@ server.listen(config.port, () => {
   }
   setTimeout(() => backfillEpisodeEmbeddings('boot'), 20000);
   setInterval(() => backfillEpisodeEmbeddings('periodic'), 60000);
+
+  // CONSOLIDATION (Job 6 stage 3) — the "sleep" job: between phases it
+  // writes each active target's dossier (DOSSIER.md) from validator-
+  // stamped records and logs a first-class consolidation episode. At
+  // most one hunt per tick; stopped/finished hunts are never touched.
+  function consolidateOnce(tag) {
+    try {
+      const r = maybeConsolidateAll();
+      if (r.done) {
+        console.log(`[consolidation:${tag}] ${r.huntId}: episodes ${r.covered[0]}–${r.covered[1]} -> DOSSIER.md`);
+      }
+    } catch (err) {
+      console.error(`[consolidation:${tag}] failed:`, err.message || err);
+    }
+  }
+  setTimeout(() => consolidateOnce('boot'), 35000);
+  setInterval(() => consolidateOnce('periodic'), 60000);
 });
