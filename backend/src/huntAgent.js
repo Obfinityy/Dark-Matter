@@ -120,6 +120,24 @@ function touchDriverLock(huntId) {
     /* best-effort */
   }
 }
+// Read-only driver-activity probe (solver #458): true when a loop driver is
+// genuinely driving this hunt — in THIS process (activeLoops) or in another
+// process holding a driver.lock whose pid is alive AND whose heartbeat is
+// fresh (same liveness rule tryAcquireDriverLock uses to refuse a steal).
+// Never acquires, steals, or mutates anything.
+export function isDriverActive(huntId) {
+  if (activeLoops.has(huntId)) return true;
+  try {
+    const existing = JSON.parse(fs.readFileSync(driverLockPath(huntId), 'utf8'));
+    if (!existing || typeof existing !== 'object') return false;
+    const alive = Number.isInteger(existing.pid) && lockPidAlive(existing.pid);
+    const fresh =
+      Number.isFinite(existing.heartbeatAt) && Date.now() - existing.heartbeatAt < DRIVER_LOCK_STALE_MS;
+    return alive && fresh;
+  } catch {
+    return false;
+  }
+}
 export function getOrchestrator(huntId) {
   return orchestrators.get(huntId) || null;
 }
@@ -2467,6 +2485,17 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
 export async function resumeInterruptedHunt(huntId) {
   const meta = readHuntMeta(huntId);
   if (!meta || meta.state !== 'running') return false;
+  // FIX (solver #458): a hunt whose driver is already active is NOT
+  // interrupted. The periodic reconciler in server.js calls this for every
+  // 'running' meta every 60 s; without this guard each call appended a
+  // spurious 'resumed_from_checkpoint' event, launched runAutonomousHunt
+  // only for the mutex to refuse it with a think line, and still returned
+  // true — so the scan logged a "resumed from checkpoint" success every
+  // minute for a hunt that was never interrupted. Returning false here
+  // keeps the scan silent for live hunts; a genuinely interrupted hunt
+  // (no active loop, dead lock pid, or stale heartbeat) still resumes
+  // exactly as before.
+  if (isDriverActive(huntId)) return false;
   // Clear stale pause indicators — a resume is an explicit un-pause.
   // If pausedReason is left set, isPaused() returns true (defensive fix)
   // and the loop gets stuck in waitWhilePaused() instead of hunting.
