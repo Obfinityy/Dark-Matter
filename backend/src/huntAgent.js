@@ -134,6 +134,7 @@ import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers
 import { episodeLedgerEnabled, retrieveEpisodes, formatRetrievalForPrompt, recordRuledOut, getRuledOutCounts, formatLessonsForPrompt, RETRY_BUDGET } from './episodeStore.js';
 import { proposePlaybook, formatPlaybookForPrompt } from './playbook.js';
 import { ensurePlanTree, renderPlanTree, recordPlanOutcome } from './planTree.js';
+import { summarizeToolOutput } from './toolOutput.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
 
 // Credit price per hunt iteration (USD), by hunt mode. The hunt auto-pauses
@@ -1555,7 +1556,8 @@ async function executeWithEvasion(huntId, target, command) {
       const text = results.length === 0
         ? 'No web results found.'
         : results.map((r, i) => `${i + 1}. ${r.title}\n   ${r.url}`).join('\n');
-      return { stdout: text, stderr: '', exitCode: 0 };
+      // ACI (stage 7): bounded envelope + explicit empty marker.
+      return { stdout: summarizeToolOutput(text).text, stderr: '', exitCode: 0 };
     } catch {
       return { stdout: 'Web search failed.', stderr: '', exitCode: 1 };
     }
@@ -1592,7 +1594,9 @@ async function executeWithEvasion(huntId, target, command) {
           }
         }
       } catch { /* ledger recall is best-effort */ }
-      const text = ledgerText ? `${ledgerText}\n\n${rec.text}` : rec.text;
+      const merged = ledgerText ? `${ledgerText}\n\n${rec.text}` : rec.text;
+      // ACI (stage 7): the model reads back a bounded envelope, never a raw dump.
+      const text = summarizeToolOutput(merged, { maxChars: 4000 }).text;
       appendHuntEvent(huntId, { type: 'recall', query, hits: rec.hits, ledgerHits });
       try {
         const m = readHuntMeta(huntId) || {};
@@ -1728,6 +1732,26 @@ function stripTerminalArtifacts(text) {
 }
 
 /** Assess a test result: weirdness check → evidence gate → verify. */
+/**
+ * VALIDATOR AS A STEP (Job 6 stage 7, XBOW pattern): every assessResult
+ * verdict — including the silent discards (execution failure, not
+ * interesting, evidence-gate rejection) that used to leave no trace —
+ * becomes a first-class 'validation' episode in the hunt stream, so the
+ * ledger can answer "how often did the validator speak, and what did it
+ * say?" for any hunt.
+ */
+function recordValidation(huntId, plan, verdict, detail = '') {
+  try {
+    appendHuntEvent(huntId, {
+      type: 'validation',
+      verdict,
+      plan: (plan && plan.test) || '',
+      detail: String(detail || '').slice(0, 300),
+      text: `validation: ${(plan && plan.test) || 'unnamed'} — ${verdict}`,
+    });
+  } catch { /* audit is best-effort */ }
+}
+
 async function assessResult(huntId, target, plan, result) {
   // FIX (19 Oct 2026, solver #6): Strip terminal artifacts (Kali MOTD, shell
   // prompts, ANSI codes) from tool output BEFORE using it as evidence.
@@ -1804,11 +1828,15 @@ function inferSeverity(testName, output) {
         linkEpisode: false,
       });
     } catch { /* registry is best-effort */ }
+    recordValidation(huntId, plan, 'execution-failed', `exit ${result && result.code}`);
     return null;
   }
 
   const interesting = weird.score >= 40 || /vulnerable|exposed|bypass|injection|leak|admin|secret|token|password|error.*sql|stack trace/i.test(output);
-  if (!interesting || output.trim().length < 50) return null;
+  if (!interesting || output.trim().length < 50) {
+    recordValidation(huntId, plan, 'not-interesting', output.trim() ? 'no signal in output' : 'empty output');
+    return null;
+  }
 
   // FIX (19 Oct 2026): evidenceGate requires impact_demo for critical-severity
   // findings, but nothing ever set it — so EVERY critical finding (including a
@@ -1828,7 +1856,10 @@ function inferSeverity(testName, output) {
     },
   };
   const { pass, gated } = evidenceGate(cand);
-  if (!pass) return null;
+  if (!pass) {
+    recordValidation(huntId, plan, 'gate-rejected', 'evidence gate rejected the candidate');
+    return null;
+  }
 
   // REAL VERIFICATION (not hardcoded): re-run the exact test to confirm
   // reproducibility. A one-off anomaly is not a vulnerability.
@@ -1867,6 +1898,7 @@ function inferSeverity(testName, output) {
   });
   const rec = { ...gated, verification: v.verdict, verified: v.verified };
   finding(huntId, rec);
+  recordValidation(huntId, plan, v.verified ? 'verified' : 'rejected', v.verdict);
 
   // Head records verified findings for the final report
   if (v.verified) {
