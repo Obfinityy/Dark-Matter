@@ -35,7 +35,7 @@
 // Everything external is an injectable dep (opts.deps) so the loop is
 // testable end-to-end with fakes — see scripts/test-human-loop.mjs.
 
-import { execInHuntContainer } from './huntRunner.js';
+import { execInHuntContainerWithRespawn } from './huntRunner.js';
 import { chatWithAI } from './llm.js';
 import { webSearch } from './webSearch.js';
 import { writeArtifact, spillOutput } from './artifacts.js';
@@ -360,7 +360,11 @@ export async function humanIteration(huntId, target, opts = {}) {
   const deps = {
     chat: d.chat || chatWithAI,
     exec: d.exec || null, // lazy: pipeline executeWithEvasion
-    execRaw: d.execRaw || ((h, c, t, o) => execInHuntContainer(h, c, t, o)),
+    // Lane E: the raw exec self-heals a missing hunt container (respawn
+    // + one retry, target closed over from this iteration) — before this
+    // the default called execInHuntContainer directly and a removed
+    // container never came back for the whole hunt.
+    execRaw: d.execRaw || ((h, c, t, o) => execInHuntContainerWithRespawn(h, c, t, { ...(o || {}), target })),
     search: d.search || webSearch,
     writeFile: d.writeFile || writeArtifact,
     spill: d.spill || spillOutput,

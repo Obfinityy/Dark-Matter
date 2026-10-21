@@ -32,7 +32,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { execInHuntContainer } from './huntRunner.js';
+import { execInHuntContainerWithRespawn } from './huntRunner.js';
 import { artifactsDir } from './artifacts.js';
 
 const GUI_DIR = '/tmp/dm-gui';
@@ -171,7 +171,10 @@ const probeCache = new Map(); // huntId -> { at, mode, chrome, display, scriptIn
 const PROBE_TTL_MS = 60 * 1000;
 
 function resolveExec(deps) {
-  return (deps && deps.exec) || ((h, c, t, o) => execInHuntContainer(h, c, t, o));
+  // Lane E: the default exec self-heals a missing hunt container
+  // (respawn + one retry; target resolved from the hunt meta) — browser
+  // actions no longer degrade forever after a container swap/crash.
+  return (deps && deps.exec) || ((h, c, t, o) => execInHuntContainerWithRespawn(h, c, t, o));
 }
 
 async function probeGui(huntId, deps = {}) {

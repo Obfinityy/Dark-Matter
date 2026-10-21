@@ -21,6 +21,7 @@ import {
   spawnHuntContainer,
   teardownHuntContainer,
   execInHuntContainer,
+  execInHuntContainerWithRespawn,
   dockerAvailable,
 } from './huntRunner.js';
 import { HuntOrchestrator } from './orchestrator.js';
@@ -1721,7 +1722,16 @@ export async function executeWithEvasion(huntId, target, command) {
     return r;
   };
 
-  let result = await execInHuntContainer(huntId, command, 180000, { bypassTmux: true });
+  // Lane E: the human-mode shell path self-heals a missing container
+  // (respawn + one retry) instead of handing the brain a dead machine —
+  // pipeline mode had this via execWithRespawn, human mode did not.
+  let result = await execInHuntContainerWithRespawn(huntId, command, 180000, {
+    bypassTmux: true,
+    target,
+    mode: (readHuntMeta(huntId) || {}).mode,
+  });
+  if (result.respawned) think(huntId, 'Hunt container was missing — respawned automatically and retried the command.');
+  else if (result.respawnFailed) think(huntId, 'Hunt container is missing and the automatic respawn failed — shell actions cannot run until it is back.');
   const blocked = /403|406|406 Not Acceptable|blocked by|waf|forbidden/i.test(result.stdout + result.stderr)
     && result.stdout.length < 500;
 
