@@ -209,10 +209,25 @@ export async function startHuntDesktop(huntId) {
     return { ok: false, error };
   };
 
-  const ready = await execInHuntContainer(
+  let ready = await execInHuntContainer(
     huntId, `test -f ${DESKTOP_READY_FILE} && echo ready`, 10000, { bypassTmux: true },
   );
-  if (ready.containerMissing) return fail('container_not_running');
+  if (ready.containerMissing) {
+    // Lane E self-heal: a RUNNING hunt whose container died (image swap,
+    // crash) respawns here too — the owner's live view is a first-class
+    // consumer, not a passive victim of the missing container. Hunts in
+    // any other state keep the honest container_not_running: the desktop
+    // of a paused/stopped hunt is never silently resurrected.
+    const meta = await readMetaTargetMode(huntId);
+    const healed = meta.state === 'running'
+      ? await ensureHuntContainer(huntId, { target: meta.target, mode: meta.mode })
+      : { ok: false };
+    if (!healed.ok) return fail('container_not_running');
+    ready = await execInHuntContainer(
+      huntId, `test -f ${DESKTOP_READY_FILE} && echo ready`, 10000, { bypassTmux: true },
+    );
+    if (ready.containerMissing) return fail('container_not_running');
+  }
   if (String(ready.stdout || '').includes('ready')) return { ok: true, alreadyRunning: true };
 
   const started = await execInHuntContainer(
@@ -323,6 +338,115 @@ export async function execInHuntContainer(huntId, cmd, timeoutMs = 120000, opts 
       code: typeof err.code === 'number' ? err.code : 1,
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Container self-heal (Lane E, 21 Oct 2026).
+//
+// Pipeline mode has always respawned a missing hunt container before
+// retrying (huntAgent's execWithRespawn), but every human-mode path —
+// the shell executor, humanLoop's raw exec, the GUI tools, and the
+// desktop starter — called execInHuntContainer directly, so a container
+// removed for an image swap or lost to a crash NEVER came back: the
+// loop kept "running" while every action degraded to
+// DM_CONTAINER_MISSING. The helpers below are the shared fix: ensure the
+// container exists (spawn at most once per outage, even under concurrent
+// callers), then retry the exec exactly once. They NEVER throw — a
+// failed spawn returns the original container-missing result with the
+// spawn error attached, so the brain sees one clear observation.
+// ---------------------------------------------------------------------------
+
+const containerSpawnsInFlight = new Map(); // huntId -> Promise<ensure result>
+
+/**
+ * Read the hunt's target/mode/state from its meta. Lazy import on
+ * purpose: this module has only node-builtin imports, and the meta is
+ * only needed on the rare respawn path. `impl.readMeta` overrides it in
+ * tests. Returns empty strings when the meta cannot be read.
+ */
+async function readMetaTargetMode(huntId, impl) {
+  try {
+    if (impl && impl.readMeta) {
+      const m = await impl.readMeta(huntId);
+      return { target: (m && m.target) || '', mode: (m && m.mode) || '', state: (m && m.state) || '' };
+    }
+    const { readHuntMeta } = await import('./store.js');
+    const meta = readHuntMeta(huntId) || {};
+    return { target: meta.target || '', mode: meta.mode || '', state: meta.state || '' };
+  } catch {
+    return { target: '', mode: '', state: '' };
+  }
+}
+
+/**
+ * Ensure the hunt container exists: spawn it (at most once per outage)
+ * when it is missing. NEVER throws.
+ * @returns {{ok: true, spawned: boolean, container?: string} |
+ *           {ok: false, spawned: false, error: string}}
+ *
+ * opts: { target, mode } — spawn parameters; when target is absent it
+ * is resolved from the hunt meta. opts._impl injects { running, spawn,
+ * readMeta } fakes for tests.
+ */
+export async function ensureHuntContainer(huntId, opts = {}) {
+  const impl = opts._impl || {};
+  const runningImpl = impl.running || huntContainerRunning;
+  const spawnImpl = impl.spawn || spawnHuntContainer;
+  try {
+    if (await runningImpl(huntId)) return { ok: true, spawned: false };
+  } catch { /* a failed probe proves nothing — fall through to spawn */ }
+
+  let flight = containerSpawnsInFlight.get(huntId);
+  if (!flight) {
+    flight = (async () => {
+      try {
+        let target = opts.target || '';
+        let mode = opts.mode || '';
+        if (!target) {
+          const meta = await readMetaTargetMode(huntId, impl);
+          target = meta.target;
+          mode = mode || meta.mode;
+        }
+        if (!target) return { ok: false, spawned: false, error: 'no_target_for_respawn' };
+        const { container } = await spawnImpl(huntId, target, { mode: mode || 'normal' });
+        return { ok: true, spawned: true, container };
+      } catch (err) {
+        return { ok: false, spawned: false, error: String((err && err.message) || err) };
+      }
+    })();
+    containerSpawnsInFlight.set(huntId, flight);
+    flight.then(() => {
+      if (containerSpawnsInFlight.get(huntId) === flight) containerSpawnsInFlight.delete(huntId);
+    }, () => {});
+  }
+  return flight;
+}
+
+/**
+ * execInHuntContainer + self-heal: when the exec reports the container
+ * missing, ensure it (spawn once) and retry the command exactly once.
+ * The retried result carries `respawned: true` when a spawn happened.
+ * When the spawn fails, the ORIGINAL container-missing result is
+ * returned with `respawnFailed: true` and the spawn error appended to
+ * stderr — one clear observation for the brain, never a throw.
+ * opts: everything execInHuntContainer takes, plus { target, mode,
+ * _impl } for the respawn.
+ */
+export async function execInHuntContainerWithRespawn(huntId, cmd, timeoutMs = 120000, opts = {}) {
+  const impl = opts._impl || {};
+  const execImpl = impl.exec || execInHuntContainer;
+  const first = await execImpl(huntId, cmd, timeoutMs, opts);
+  if (!first || !first.containerMissing) return first;
+  const ensured = await ensureHuntContainer(huntId, { target: opts.target, mode: opts.mode, _impl: impl });
+  if (!ensured.ok) {
+    return {
+      ...first,
+      respawnFailed: true,
+      stderr: `${first.stderr || 'DM_CONTAINER_MISSING: hunt container not running'} (automatic respawn failed: ${ensured.error || 'unknown error'})`,
+    };
+  }
+  const retry = await execImpl(huntId, cmd, timeoutMs, opts);
+  return ensured.spawned ? { ...retry, respawned: true } : retry;
 }
 
 /**
