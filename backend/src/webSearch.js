@@ -84,16 +84,63 @@ async function searchDuckDuckGo(query, maxResults) {
   return results;
 }
 
+// Effective host of a result URL, unwrapping DuckDuckGo redirect
+// links (duckduckgo.com/l/?uddg=<real-url>) so domain checks see the
+// destination, not the redirector.
+function resultHost(url) {
+  try {
+    const u = new URL(String(url || ''));
+    if (/(^|\.)duckduckgo\.com$/i.test(u.hostname)) {
+      const real = u.searchParams.get('uddg');
+      if (real) return new URL(real).hostname.toLowerCase();
+    }
+    return u.hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * When a query carries an explicit site:domain restriction, keep only
+ * results actually on that domain (Lane D, 21 Oct 2026 — Ezviz audit).
+ * Providers routinely ignore the operator and return generic pages for
+ * the query's keywords — observed live: "site:open.ys7.com security
+ * headers" returned Wikipedia's "Security" article and a JustDial
+ * listing for security guards in Jamnagar. Fed to the hunter as
+ * "results", that junk reads as evidence the query found something,
+ * and the identical query gets re-asked (17 times in the audited
+ * hunt). An honest empty result is better information than junk:
+ * it tells the hunter the index holds nothing for that query.
+ */
+export function filterSiteResults(query, results) {
+  const m = /site:([a-z0-9.-]+)/i.exec(String(query || ''));
+  if (!m) return results || [];
+  const dom = m[1].toLowerCase().replace(/\/.*$/, '');
+  return (results || []).filter((r) => {
+    const h = resultHost(r && r.url);
+    return h !== '' && (h === dom || h.endsWith('.' + dom));
+  });
+}
+
 /**
  * Search the web for security intelligence.
  * Tries providers in order until one returns results; [] only when
- * every provider fails (network down / all bot-walled).
+ * every provider fails (network down / all bot-walled) — or, for a
+ * site:-restricted query, when no provider returns a single result
+ * actually on that domain.
  */
 export async function webSearch(query, maxResults = 5) {
+  const siteRestricted = /site:/i.test(String(query || ''));
   for (const provider of [searchBing, searchDuckDuckGo]) {
     try {
       const r = await provider(query, maxResults);
-      if (r.length > 0) return r;
+      if (r.length > 0) {
+        if (!siteRestricted) return r;
+        const filtered = filterSiteResults(query, r);
+        if (filtered.length > 0) return filtered;
+        // All off-domain junk from this provider — fall through: the
+        // next provider may honour the operator.
+      }
     } catch { /* fall through to the next provider */ }
   }
   return [];

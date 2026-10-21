@@ -38,7 +38,13 @@ import { artifactsDir } from './artifacts.js';
 const GUI_DIR = '/tmp/dm-gui';
 const CDP_PORT = 9222;
 const NOT_AVAILABLE =
-  'Desktop/browser not available on this machine yet (no Chromium, no display, no CDP endpoint). Work through the shell instead — curl shows you the same pages as text.';
+  'Desktop/browser not available on this machine (no Chromium, no display, no CDP endpoint). That is a fixed property of this environment — not something to install your way out of. Work through the shell instead — curl shows you the same pages as text.';
+// Lane D (21 Oct 2026, Ezviz audit): the earlier fallback wording said
+// the desktop was "not up yet" / "not controllable yet". The hunter
+// read that as a defect IT could fix and burned ~14 turns over 82
+// minutes on apt-get install attempts (including invented packages)
+// for a Chromium that was already installed. Fallback text must state
+// plainly: look-only, environment-fixed, not hunter-fixable.
 
 // ---------------------------------------------------------------------------
 // In-container CDP driver (written on first use). Zero-dependency: Node's
@@ -241,9 +247,15 @@ function snapshotFromHtml(html, url) {
   for (const m of text0.matchAll(/<input\b([^>]*?)>/gi)) pushEl('input', m[1], '');
   for (const m of text0.matchAll(/<textarea\b([^>]*)>/gi)) pushEl('textarea', m[1], '');
   const text = text0
+    .replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
+    // JS/CSS banner comments that survive as text nodes in a DOM dump
+    // (the Ezviz SPA leads with a long /*! ... @ezviz/ezd ... */ banner)
+    // are not page content — they ate the head of every snapshot's
+    // visible-text budget and taught the hunter the page was code.
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ')
@@ -338,7 +350,7 @@ export async function guiBrowserOpen(huntId, url, deps = {}) {
     return {
       ok: true,
       observation:
-        `Opened ${url} (headless preview — the live desktop browser is not controllable yet, but you can still SEE pages).\n` +
+        `Opened ${url} (headless preview — this browser is look-only: the clickable desktop is not running in this environment and nothing you install can change that. You can SEE pages here; to interact with a page, use shell + curl).\n` +
         formatSnapshot(snap),
     };
   } catch (err) {
@@ -370,7 +382,7 @@ export async function guiBrowserClick(huntId, text, deps = {}) {
     const probe = await probeGui(huntId, deps);
     if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE };
     if (probe.mode !== 'cdp') {
-      return { ok: false, observation: 'Clicking needs the live desktop browser (CDP), which is not up yet — this machine only has the headless preview. Use browser_open/browser_snapshot to look, and shell + curl to act.' };
+      return { ok: false, observation: 'Clicking needs the live desktop browser (CDP). It is not running in this environment and cannot be started or installed from inside the hunt — do not spend turns trying to fix it. Use browser_open/browser_snapshot to look, and shell + curl to act.' };
     }
     const res = await cdpAction(huntId, 'click', { text: String(text || '') }, deps);
     if (!res) return { ok: false, observation: NOT_AVAILABLE };
@@ -387,7 +399,7 @@ export async function guiBrowserType(huntId, text, submit = false, deps = {}) {
     const probe = await probeGui(huntId, deps);
     if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE };
     if (probe.mode !== 'cdp') {
-      return { ok: false, observation: 'Typing needs the live desktop browser (CDP), which is not up yet — this machine only has the headless preview. Use shell + curl to send data instead.' };
+      return { ok: false, observation: 'Typing needs the live desktop browser (CDP). It is not running in this environment and cannot be started or installed from inside the hunt — do not spend turns trying to fix it. Use shell + curl to send data instead.' };
     }
     const res = await cdpAction(huntId, 'type', { text: String(text || ''), submit: Boolean(submit) }, deps);
     if (!res) return { ok: false, observation: NOT_AVAILABLE };
