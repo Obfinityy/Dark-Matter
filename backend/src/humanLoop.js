@@ -104,6 +104,17 @@ export function scopeViolation(url, target, parsedScope) {
   if (!host) return null;
   if (DOWNLOAD_HOSTS.has(host)) return null;
   const tHost = targetHostOf(target);
+  // Named out-of-scope hosts beat everything else — including a
+  // wildcard in-scope base (the programme may put *.ys7.com in scope
+  // while naming test.ys7.com out; the named exclusion wins). The
+  // hunt's own target host is exempt: contradictory scope text must
+  // not brick the hunt itself. (Lane D, 21 Oct 2026.)
+  if (host !== tHost) {
+    for (const oos of parsedScope.outOfScopeHosts || []) {
+      const d = String(oos).toLowerCase();
+      if (host === d || host.endsWith('.' + d)) return url;
+    }
+  }
   if (tHost && (host === tHost || host.endsWith('.' + tHost))) return null;
   for (const entry of parsedScope.inScope || []) {
     const d = String(entry).toLowerCase();
@@ -236,7 +247,66 @@ function findingsFromEvents(deps, huntId) {
   }
 }
 
-function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns }) {
+/**
+ * Exact-repeat counts from the hunt's own tool_call record (Lane D,
+ * 21 Oct 2026 — Ezviz audit). In the audited 24h, 59% of the hunter's
+ * actions were exact repeats of an earlier action (browser_open of
+ * the same login page ×27, the identical search ×17), because nothing
+ * on the screen ever showed the hunter its own repetition — each new
+ * session re-derived the same first moves from the same briefing.
+ * This renders the counts as FACTS from the record. It forbids
+ * nothing; the hunter stays the sole decision-maker.
+ */
+export function repetitionLines(events) {
+  const counts = new Map();
+  for (const e of events || []) {
+    if (!e || e.type !== 'tool_call') continue;
+    const detail = String(e.detail || '').trim();
+    if (!detail) continue; // detail-less calls (snapshots) are not meaningful repeats
+    const key = `${e.tool}|${detail}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  const rows = [...counts.entries()]
+    .map(([key, n]) => {
+      const cut = key.indexOf('|');
+      return { tool: key.slice(0, cut), detail: key.slice(cut + 1), n };
+    })
+    .filter((r) => (r.tool === 'search' ? r.n >= 3 : r.n >= 5))
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 5);
+  if (!rows.length) return [];
+  return [
+    'Exact repeats from your own record (same action, same input):',
+    ...rows.map((r) => `- ${r.tool} ${r.detail} — ×${r.n}`),
+    'An identical repeat returns the identical result; it only teaches something when something has changed.',
+  ];
+}
+
+/**
+ * Factual hunt-state lines the screen previously never carried
+ * (Lane D, 21 Oct 2026). Chief among them: whether the hunt holds
+ * any test-account credentials. The Ezviz hunt held NONE, and the
+ * hunter — never told — spent turns POSTing guessed/placeholder
+ * credentials (admin / your_username / test) at the login form,
+ * which is not the "own accounts only" testing the programme
+ * permits. Stating the fact is perception, not direction.
+ */
+export function huntFactLines(meta) {
+  const m = meta || {};
+  const hasCreds = ['credentials', 'testAccount', 'testAccounts', 'accounts', 'loginCredentials']
+    .some((k) => {
+      const v = m[k];
+      if (Array.isArray(v)) return v.length > 0;
+      if (v && typeof v === 'object') return Object.keys(v).length > 0;
+      return Boolean(v);
+    });
+  if (hasCreds) return [];
+  return [
+    'No test-account credentials were provided for this hunt. The programme permits testing only the owner\'s own accounts, so a login you cannot complete with provided credentials is a closed door — not something to guess at.',
+  ];
+}
+
+function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [] }) {
   const confirmed = (findings || []).filter((f) => f.verified);
   const unconfirmed = (findings || []).filter((f) => !f.verified);
   const findLines = [
@@ -251,12 +321,17 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     '=== YOUR TARGET ===',
     String(target),
     rpm ? `Programme pace: max ${rpm} requests/min, human-paced probes only.` : '',
+    ...(scopeHosts && scopeHosts.length
+      ? ['', '=== IN SCOPE FOR THIS PROGRAMME ===', `You may test: ${scopeHosts.join(', ')} (a listed domain\'s subdomains are in scope too). Anything else is out of scope and will be blocked.`]
+      : []),
     '',
     '=== WHAT YOU KNOW (your memory — everything you have done and learned) ===',
     briefing || '(nothing yet — this hunt is young)',
     '',
     '=== FINDINGS SO FAR ===',
     findLines.length ? findLines.join('\n') : '(none yet)',
+    ...(facts && facts.length ? ['', '=== FACTS ABOUT THIS HUNT ===', ...facts] : []),
+    ...(repetition && repetition.length ? ['', '=== REPETITION CHECK ===', ...repetition] : []),
     '',
     '=== RESULT OF YOUR LAST ACTION ===',
     lastObservation || '(this is your first move — start by looking: open the target in your browser or curl it, and see what it is)',
@@ -358,6 +433,15 @@ export async function humanIteration(huntId, target, opts = {}) {
   } catch { /* briefing is best-effort */ }
 
   const system = systemPromptFor(target, parsedScope);
+  // Perception facts computed once per session from the hunt's own
+  // records (Lane D): the programme surface the gate will actually
+  // allow, hunt-state facts (credentials), and exact-repeat counts.
+  const scopeHosts = parsedScope && Array.isArray(parsedScope.inScope) ? parsedScope.inScope : [];
+  const facts = huntFactLines(meta0);
+  let repetition = [];
+  try {
+    repetition = repetitionLines(deps.readEvents(huntId));
+  } catch { /* repetition is best-effort */ }
   let lastObservation = '';
   let lastShellAt = 0;
   let lastShellCommand = '';
@@ -397,6 +481,9 @@ export async function humanIteration(huntId, target, opts = {}) {
       lastObservation,
       turn,
       turns,
+      scopeHosts,
+      facts,
+      repetition,
     });
 
     // THINK: one brain call. Full reply is recorded verbatim (total
