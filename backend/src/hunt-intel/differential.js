@@ -284,12 +284,34 @@ function normalizeText(s) {
  * Lines of `text` that support a claim: a signal match whose position is
  * not preceded by a negation cue in the same line. Returns
  * [{signal, line, index}] — index is the match offset within the line.
+ *
+ * FRAMING EXCLUSION (Lane A, 21 Oct 2026 — verifier label-trust re-fire):
+ * when `excludeText` (the executed probe command) is supplied, a line
+ * that appears VERBATIM in the command is the probe's own framing —
+ * echo banners and printed labels — not target content, and is skipped.
+ * Root cause it closes: the canary-controlled /ftp probe v3 prints the
+ * banner "--- /ftp/ directory listing ---" UNCONDITIONALLY as its first
+ * line. On open.ys7.com every per-file verdict was "not exposed:", yet
+ * the banner alone supplied a non-negated, baseline-novel 'dir-listing'
+ * signal, so the verifier "confirmed" a finding whose own evidence
+ * negated it (Ezviz stamp 2026-10-20T13:23:12.720Z, episode #16010).
+ * Deterministic probes reproduce their banner perfectly, so a
+ * reproducibility check over raw text confirms the banner, not the
+ * vulnerability. Lines the probe instantiates per-result (a filename
+ * substituted into a label) are NOT verbatim in the command and still
+ * count — that asymmetry is exactly what separates a conditional
+ * verdict label from unconditional framing.
  */
-export function supportingSignalLines(text) {
+export function supportingSignalLines(text, { excludeText = '' } = {}) {
   const out = [];
+  const framingCorpus = excludeText ? normalizeText(excludeText) : '';
   for (const rawLine of String(text || '').split('\n')) {
     const line = rawLine.trim();
     if (!line) continue;
+    if (framingCorpus) {
+      const normLine = normalizeText(line);
+      if (normLine.length >= 10 && framingCorpus.includes(normLine)) continue;
+    }
     const neg = NEGATION_CUE.exec(line);
     const negIdx = neg ? neg.index : -1;
     for (const { id, re } of RELEVANCE_SIGNAL_PATTERNS) {
@@ -301,6 +323,26 @@ export function supportingSignalLines(text) {
     }
   }
   return out;
+}
+
+/**
+ * Signal ids EVIDENCED by an executed probe's output: signals carried
+ * by lines that are (a) not negated before the match and (b) not the
+ * probe's own framing (verbatim in the executed command). This is the
+ * only signal set the verify path may trust — assessResult's
+ * reproducibility confirmation and impact assessment consume it, so a
+ * deterministic probe can no longer "confirm" itself by re-printing
+ * its own banner/labels, and a superseded probe whose verdict lines
+ * are all negated ("not exposed: …") yields an EMPTY set even though
+ * the raw text is full of signal words. Tightening only: genuine
+ * target content (response bodies, per-result verdict labels with
+ * substituted values) is never verbatim in the command and is
+ * unaffected.
+ */
+export function evidenceSignalIds(text, command = '') {
+  const ids = new Set();
+  for (const s of supportingSignalLines(text, { excludeText: command })) ids.add(s.signal);
+  return [...ids].sort();
 }
 
 /** Hosts a shell command references: URLs and bare IPv4, host[:port]. */
