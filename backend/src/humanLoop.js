@@ -282,6 +282,172 @@ export function repetitionLines(events) {
   ];
 }
 
+// ---------------------------------------------------------------------------
+// ALREADY-DONE GATE (Lane F, 21 Oct 2026)
+//
+// The Repetition Check above only SHOWS the hunter its repeats, and
+// the live Ezviz audit (21 Oct, ~22:05 IST) proved the 8B brain
+// ignores what it is merely shown: 536 tool_call events, only 214
+// unique — browser_open of the target root ×94, the identical search
+// ×18, a marketing-button click ×6 in the last 60 actions. Memory
+// that is only displayed is not memory that constrains. This gate
+// enforces the record in deterministic code: an action whose
+// signature already appears >= 2 times in the hunt's history is NOT
+// executed; the brain gets an observation saying so (with the last
+// result, when known) and must choose a different action.
+//
+// The gate covers exactly the action kinds whose recorded detail
+// fully identifies the action: shell, search, browser_open,
+// browser_click, browser_type. Deliberately NOT covered:
+//   write_file — re-writing the same filename with new content is
+//     how a human iterates on a script; the recorded detail (the
+//     name) does not capture content, so a signature would
+//     false-positive on legitimate work;
+//   claim_finding — a claim is the verifier's call (assessResult),
+//     never this gate's;
+//   note / browser_snapshot / screenshot — no repeatable identity
+//     (detail-less) or pure observation; repeating them harms nothing.
+// First- and second-time actions pass untouched, and every existing
+// gate (scope, heavy-scan, pacing, verifier) is exactly as it was —
+// this only ever stops an action, never allows one.
+// ---------------------------------------------------------------------------
+
+const GATED_TOOLS = new Set(['shell', 'search', 'browser_open', 'browser_click', 'browser_type']);
+const DEDUP_THRESHOLD = 2; // an action already run this many times is not run again
+
+/**
+ * The normalised detail of an action — the part of its identity that
+ * survives superficial respelling. Deliberately conservative: only
+ * differences that cannot change the result are erased.
+ *   browser_open — URL scheme/host case and a trailing slash on the
+ *     path ('https://X.test/login/' IS 'https://x.test/login');
+ *   search — query lowercased, whitespace collapsed (a search engine
+ *     treats those alike);
+ *   shell / browser_click / browser_type — trimmed only (commands
+ *     and labels are case-sensitive; never fold them).
+ * The detail is first cut to the 300 chars the tool_call record
+ * itself keeps, so a candidate action is judged on exactly the bytes
+ * history was recorded with.
+ */
+export function normalisedActionDetail(tool, detail) {
+  const t = String(tool || '').toLowerCase();
+  let d = String(detail || '').slice(0, 300);
+  if (t === 'browser_open') {
+    const raw = d.trim();
+    try {
+      const u = new URL(raw);
+      let p = u.pathname || '/';
+      if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+      return `${u.protocol.toLowerCase()}//${u.host.toLowerCase()}${p}${u.search || ''}`;
+    } catch {
+      d = raw.toLowerCase();
+      if (d.length > 1 && d.endsWith('/')) d = d.slice(0, -1);
+      return d;
+    }
+  }
+  if (t === 'search') return d.trim().toLowerCase().replace(/\s+/g, ' ');
+  return d.trim();
+}
+
+/** Canonical identity of one executed action: `tool|normalised detail`. */
+export function actionSignature(tool, detail) {
+  const t = String(tool || '').toLowerCase();
+  return `${t}|${normalisedActionDetail(t, detail)}`;
+}
+
+/**
+ * The hunt's executed-action history, built from its recorded
+ * tool_call events: signature -> { tool, detail, count, lastResult }.
+ * Detail-less calls and non-gated tools carry no repeatable identity
+ * and are skipped. lastResult is filled in live by the running
+ * session (events do not store results); across sessions it stays
+ * empty and the gate's observation simply omits it.
+ */
+export function buildActionHistory(events) {
+  const history = new Map();
+  for (const e of events || []) {
+    if (!e || e.type !== 'tool_call') continue;
+    const tool = String(e.tool || '').toLowerCase();
+    if (!GATED_TOOLS.has(tool)) continue;
+    if (!String(e.detail || '').trim()) continue;
+    const sig = actionSignature(tool, e.detail);
+    const cur = history.get(sig);
+    if (cur) cur.count++;
+    else history.set(sig, { tool, detail: normalisedActionDetail(tool, e.detail), count: 1, lastResult: '' });
+  }
+  return history;
+}
+
+/**
+ * The "Already explored — do not repeat" digest for the screen:
+ * deduped actions already run 3+ times (i.e. already past the gate),
+ * grouped by kind, most-repeated first, capped at ~`limit` item
+ * lines. Built from the same live history the gate enforces, so what
+ * the hunter reads and what the code enforces can never disagree.
+ */
+export function exploredDigestLines(history, limit = 30) {
+  const sections = [
+    ['browser_open', 'Visited pages:'],
+    ['search', 'Searches already run:'],
+    ['shell', 'Shell commands already run:'],
+    ['browser_click', 'Clicks already done:'],
+    ['browser_type', 'Text already typed:'],
+  ];
+  const groups = [];
+  for (const [tool, label] of sections) {
+    const rows = [...(history || new Map()).values()]
+      .filter((e) => e.tool === tool && e.count >= DEDUP_THRESHOLD + 1)
+      .sort((a, b) => b.count - a.count);
+    if (rows.length) groups.push({ label, rows });
+  }
+  if (!groups.length) return [];
+  const lines = [
+    '=== ALREADY EXPLORED — DO NOT REPEAT ===',
+    'From your own record in THIS hunt: every action below has already been run 3 or more times. An identical repeat is stopped before it runs and wastes your turn — vary the page, the query or the approach, or act on what you already learned.',
+  ];
+  let used = 0;
+  for (const { label, rows } of groups) {
+    if (used >= limit) break;
+    lines.push(label);
+    for (const r of rows) {
+      if (used >= limit) break;
+      lines.push(`- ${r.detail} — ×${r.count}`);
+      used++;
+    }
+  }
+  return lines;
+}
+
+/**
+ * The candidate action's identity in the same (tool, detail) form the
+ * loop records via toolCall, or null when the gate does not cover the
+ * action kind. The detail slicings mirror the ACT dispatch exactly,
+ * so the gate compares like with like.
+ */
+function gatedCandidate(kind, action) {
+  switch (kind) {
+    case 'shell': return { tool: 'shell', detail: String(action.command || '').slice(0, COMMAND_CAP) };
+    case 'search': return { tool: 'search', detail: String(action.query || '').slice(0, 200) };
+    case 'browser_open': return { tool: 'browser_open', detail: String(action.url || '') };
+    case 'browser_click': return { tool: 'browser_click', detail: String(action.text || '') };
+    case 'browser_type': return { tool: 'browser_type', detail: String(action.text || '').slice(0, 80) };
+    default: return null;
+  }
+}
+
+/**
+ * Gate verdict for one parsed action against the hunt's history:
+ * { tool, detail, count, lastResult } when the identical action has
+ * already been executed >= DEDUP_THRESHOLD times, else null.
+ */
+export function dedupeGateHit(kind, action, history) {
+  const cand = gatedCandidate(String(kind || '').toLowerCase(), action || {});
+  if (!cand || !cand.detail.trim()) return null;
+  const entry = (history || new Map()).get(actionSignature(cand.tool, cand.detail));
+  if (!entry || entry.count < DEDUP_THRESHOLD) return null;
+  return { tool: cand.tool, detail: entry.detail, count: entry.count, lastResult: entry.lastResult || '' };
+}
+
 /**
  * Factual hunt-state lines the screen previously never carried
  * (Lane D, 21 Oct 2026). Chief among them: whether the hunt holds
@@ -306,7 +472,7 @@ export function huntFactLines(meta) {
   ];
 }
 
-function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [] }) {
+function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [] }) {
   const confirmed = (findings || []).filter((f) => f.verified);
   const unconfirmed = (findings || []).filter((f) => !f.verified);
   const findLines = [
@@ -324,6 +490,10 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     ...(scopeHosts && scopeHosts.length
       ? ['', '=== IN SCOPE FOR THIS PROGRAMME ===', `You may test: ${scopeHosts.join(', ')} (a listed domain\'s subdomains are in scope too). Anything else is out of scope and will be blocked.`]
       : []),
+    // Lane F: the already-explored digest sits EARLY — ahead of the
+    // (long, capped) memory briefing — so no prompt cap downstream
+    // can truncate away the record of what is already done.
+    ...(explored && explored.length ? ['', ...explored] : []),
     '',
     '=== WHAT YOU KNOW (your memory — everything you have done and learned) ===',
     briefing || '(nothing yet — this hunt is young)',
@@ -396,6 +566,19 @@ export async function humanIteration(huntId, target, opts = {}) {
   };
   const toolCall = (tool, detail) => {
     try { deps.record(huntId, { type: 'tool_call', tool, detail: String(detail || '').slice(0, 300), via: 'human-mode' }); } catch { /* best-effort */ }
+    // Lane F: every executed action joins the already-done history
+    // the moment it is dispatched, so the gate sees this session's
+    // own actions too — not just past sessions' records.
+    try {
+      const t = String(tool || '').toLowerCase();
+      if (GATED_TOOLS.has(t) && String(detail || '').trim()) {
+        const sig = actionSignature(t, detail);
+        const cur = actionHistory.get(sig);
+        if (cur) cur.count++;
+        else actionHistory.set(sig, { tool: t, detail: normalisedActionDetail(t, detail), count: 1, lastResult: '' });
+        pendingSig = sig;
+      }
+    } catch { /* gate bookkeeping is best-effort */ }
   };
   const note = (entry) => {
     try { deps.recordNote(huntId, entry); } catch { /* best-effort */ }
@@ -445,10 +628,20 @@ export async function humanIteration(huntId, target, opts = {}) {
   // allow, hunt-state facts (credentials), and exact-repeat counts.
   const scopeHosts = parsedScope && Array.isArray(parsedScope.inScope) ? parsedScope.inScope : [];
   const facts = huntFactLines(meta0);
+  // The hunt's recorded events, read once: they feed both the
+  // Repetition Check (display) and the already-done gate (Lane F,
+  // enforcement). The gate's history then stays live in-session via
+  // toolCall above.
+  let sessionEvents = [];
+  try {
+    sessionEvents = deps.readEvents(huntId) || [];
+  } catch { /* events are best-effort */ }
   let repetition = [];
   try {
-    repetition = repetitionLines(deps.readEvents(huntId));
+    repetition = repetitionLines(sessionEvents);
   } catch { /* repetition is best-effort */ }
+  const actionHistory = buildActionHistory(sessionEvents);
+  let pendingSig = null; // signature of the action executing this turn
   let lastObservation = '';
   let lastShellAt = 0;
   let lastShellCommand = '';
@@ -491,6 +684,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       scopeHosts,
       facts,
       repetition,
+      explored: exploredDigestLines(actionHistory),
     });
 
     // THINK: one brain call. Full reply is recorded verbatim (total
@@ -528,7 +722,23 @@ export async function humanIteration(huntId, target, opts = {}) {
     let observation = '';
 
     // ACT
-    if (kind === 'shell') {
+    // ALREADY-DONE GATE (Lane F): the identical action has already
+    // been executed >= 2 times in this hunt — do not execute it
+    // again. The block is recorded as a dedup_block event (visible
+    // in events.jsonl, countable by monitors) and the brain gets an
+    // observation carrying the count and, when known, the last
+    // result — then it must choose a different action. Every other
+    // gate below runs exactly as before for actions that pass.
+    const gateHit = dedupeGateHit(kind, action, actionHistory);
+    if (gateHit) {
+      try { deps.record(huntId, { type: 'dedup_block', tool: gateHit.tool, detail: gateHit.detail, count: gateHit.count, via: 'human-mode' }); } catch { /* best-effort */ }
+      say(`Already-done gate stopped a repeat: ${gateHit.tool} ${gateHit.detail.slice(0, 120)} — already run ×${gateHit.count} in this hunt.`);
+      observation =
+        `BLOCKED — ALREADY DONE: you have already performed this exact action ${gateHit.count} times in this hunt (${gateHit.tool}: ${gateHit.detail}).` +
+        (gateHit.lastResult ? ` Last result: ${gateHit.lastResult}` : '') +
+        ' It was NOT executed again — an identical repeat returns the identical result and only burns a turn. Choose a DIFFERENT action: a page you have not visited, a search you have not run, a probe you have not tried — or act on what you already learned.';
+      note({ action: `dedup_block: ${gateHit.tool} ${gateHit.detail.slice(0, 120)}`, why: thinkingText, result: `repeat blocked — already run ×${gateHit.count}`, learned: 'Exact repeats are stopped by the record; vary the action.' });
+    } else if (kind === 'shell') {
       const command = String(action.command || '').slice(0, COMMAND_CAP);
       if (!command) {
         observation = 'Empty shell command — nothing ran. Give a real command.';
@@ -691,6 +901,14 @@ export async function humanIteration(huntId, target, opts = {}) {
       note({ action: `claim_finding: ${title}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else {
       observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, browser_open, browser_snapshot, browser_click, browser_type, screenshot, claim_finding. Pick exactly one, as JSON on the last line.`;
+    }
+
+    // Lane F: remember what the executed action returned, so a later
+    // repeat attempt can be answered with its last result.
+    if (pendingSig) {
+      const entry = actionHistory.get(pendingSig);
+      if (entry) entry.lastResult = String(observation).slice(0, 220);
+      pendingSig = null;
     }
 
     log.push({ turn, action: kind, observation: String(observation).slice(0, 300) });
