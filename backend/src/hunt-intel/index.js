@@ -20,7 +20,7 @@ import { generateLogicTests } from './logicTester.js';
 export { getPlaybook, playbookSummary, recordHuntExperience, reflectHunt } from './learning.js';
 export { generateLogicTests, checkInvariants, classifyTarget, BL_MODULES, blModulesFor } from './logicTester.js';
 export { HUNT_MODES, MODE_ORDER, TIERS, getMode, modesForTier, canUseMode } from './modes.js';
-export { evidenceGate, verifyPipeline, VERIFY_STEPS, executionFailed, assessContentRelevance, supportingSignalLines, commandHostRefs, targetHostRef, extractLinkedAssetUrls } from './differential.js';
+export { evidenceGate, verifyPipeline, VERIFY_STEPS, executionFailed, assessContentRelevance, supportingSignalLines, evidenceSignalIds, commandHostRefs, targetHostRef, extractLinkedAssetUrls } from './differential.js';
 export { createTaskTree, addTask, findNode, setTaskStatus, attachFinding, summarizeTree, serializeTree, deserializeTree } from './taskTree.js';
 export { TECHNIQUE_CATALOG, techniquesByTactic, searchTechniques } from './attackCatalog.js';
 export { beamSearchChains, SSRF_CHAINS, SSRF_CONFIRM_LADDER, inferProducerConsumer } from './chainEngine.js';

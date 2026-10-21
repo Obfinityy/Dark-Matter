@@ -204,6 +204,8 @@ import {
   verifyPipeline,
   executionFailed,
   assessContentRelevance,
+  evidenceSignalIds,
+  supportingSignalLines,
   extractLinkedAssetUrls,
   beamSearchChains,
   analyzeFindings,
@@ -1214,6 +1216,16 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // detId ('ftp-kdbx-exposure-v3') per the premise-version rule;
     // validators untouched. Driver-tested 20 Oct against BOTH targets:
     // Ezviz → all six "not exposed"; lab → KDBX EXPOSED.
+    // POSTSCRIPT (21 Oct 2026, Lane A): v3's honest output STILL
+    // stamped verified:true on Ezviz at 13:23Z — the verifier derived
+    // its 'dir-listing' signal from this probe's own unconditional
+    // echo banner (verbatim in the command) and its payload check
+    // matched 'exposed' inside the negated verdict lines. The probe
+    // was never the remaining bug; the verifier's label trust was.
+    // Fixed in assessResult/differential (evidenceSignalIds:
+    // non-negated, non-framing signals only) and both Ezviz stamps
+    // retracted; v1/v2 detIds are RETIRED_DET_IDS. This probe's
+    // premise and command are unchanged.
     if (!plansMention(/\/ftp|lfi|path.?traversal|directory.?list|backup.?file|sensitive.?file|kdbx/i) && !detRun.has('ftp-kdbx-exposure-v3')) {
       detFront.push({
         detId: 'ftp-kdbx-exposure-v3',
@@ -1888,11 +1900,32 @@ async function getTargetBaselines(huntId, target) {
   }
 }
 
+// RETIRED DETECTORS (Lane A, 21 Oct 2026): deterministic-probe premise
+// versions whose stamps were audited FALSE and formally retracted. The
+// premise-version rule already gives a corrected probe a new detId, so
+// these ids never appear in detFront again — but a retired premise must
+// not be able to stamp verified:true through ANY replay path (cached
+// plans, restored checkpoints, hand-issued commands carrying the old
+// detId). assessResult refuses them before any other work. Tightening
+// only: no live detector is in this set.
+//   ftp-kdbx-exposure / -v2 — status+size-only EXPOSED premise; on the
+//   open.ys7.com catch-all (HTTP 200 + identical 43-byte login JSON for
+//   every /ftp/* path) it manufactured the false verified stamp of
+//   2026-10-20T12:57:24.801Z (episode #15923, retracted 21 Oct 2026).
+//   Superseded by canary-controlled 'ftp-kdbx-exposure-v3' (58a6140).
+const RETIRED_DET_IDS = new Set(['ftp-kdbx-exposure', 'ftp-kdbx-exposure-v2']);
+
 export async function assessResult(huntId, target, plan, result) {
   // FIX (19 Oct 2026, solver #6): Strip terminal artifacts (Kali MOTD, shell
   // prompts, ANSI codes) from tool output BEFORE using it as evidence.
   // Contaminated output caused payload_validation to fail on genuine findings.
   const output = stripTerminalArtifacts(sanitizeForAI(result.stdout + '\n' + result.stderr)).slice(0, 3000);
+
+  // RETIRED-DETECTOR GATE (Lane A, 21 Oct 2026): see RETIRED_DET_IDS.
+  if (plan && plan.detId && RETIRED_DET_IDS.has(plan.detId)) {
+    recordValidation(huntId, plan, 'rejected', `superseded detector ${plan.detId} — premise retired after a retracted false stamp; it can never verify`);
+    return null;
+  }
 
   // Weirdness check: investigate even without signature match
   const weird = scoreWeirdness(
@@ -1979,7 +2012,18 @@ function inferSeverity(testName, output) {
   // working SQLi auth bypass, classified critical by inferSeverity) was silently
   // discarded at the gate and could never verify. The signal-bearing response
   // excerpt IS the impact demonstration.
-  const sigs = extractSignal(output);
+  // LABEL-TRUST FIX (Lane A, 21 Oct 2026): the verify path no longer
+  // derives its signals from raw output text. extractSignal() is
+  // negation-blind and provenance-blind: it matched 'directory listing'
+  // in the /ftp probe's own UNCONDITIONAL echo banner and 'exposed'
+  // inside the probe's negated "not exposed:" verdict lines — so the
+  // canary-controlled v3 probe, whose every verdict on open.ys7.com was
+  // negative, still "verified" (stamp 2026-10-20T13:23:12.720Z, episode
+  // #16010, retracted). Signals for verification now come from
+  // evidenceSignalIds: lines that are neither negated nor the probe's
+  // own framing (verbatim in the executed command). A deterministic
+  // probe can no longer confirm itself by re-printing its banner.
+  const sigs = evidenceSignalIds(output, plan.command).join(',');
   const cand = {
     class: 'agent_finding',
     title: plan.test || 'agent-discovered anomaly',
@@ -2013,8 +2057,13 @@ function inferSeverity(testName, output) {
     // Confirmation: second run shows the same interesting signals.
     // FIX (solver #442): the re-run must also have EXECUTED — a reproduced
     // failure yields the same echo-derived signal and is not confirmation.
-    const sig1 = extractSignal(output);
-    const sig2 = extractSignal(confirmOutput);
+    // LABEL-TRUST FIX (Lane A, 21 Oct 2026): the compared signal sets are
+    // evidence signals (evidenceSignalIds) — non-negated, non-framing.
+    // Previously both runs' extractSignal matched the probe's own echo
+    // banner ('dir-listing'), so sig1 === sig2 "confirmed" the banner's
+    // reproducibility while every actual check in the probe was negative.
+    const sig1 = evidenceSignalIds(output, plan.command).join(',');
+    const sig2 = evidenceSignalIds(confirmOutput, plan.command).join(',');
     confirmed = !executionFailed(retry, confirmOutput) && sig1.length > 0 && sig1 === sig2;
     if (confirmed) {
       think(huntId, `Verified: reproducible finding (${sig1}).`);
@@ -2034,7 +2083,12 @@ function inferSeverity(testName, output) {
   // ARE the impact demonstration — honour them here.
   const v = verifyPipeline({
     reachability: output.length > 50,
-    payload_validation: /vulnerable|exposed|bypass|injection|leak|admin|secret|token|password|error.*sql|stack trace/i.test(output),
+    // LABEL-TRUST FIX (Lane A, 21 Oct 2026): payload validation must be
+    // carried by an evidence line (non-negated, non-framing) or a claim
+    // word in the output — previously the bare regex matched 'exposed'
+    // inside the probe's own "not exposed:" verdict lines, validating a
+    // payload the evidence itself said never landed.
+    payload_validation: supportingSignalLines(output, { excludeText: plan.command }).length > 0 || /vulnerable|bypass|injection|leak/i.test(output),
     impact_assessment: weird.score >= 40 || sigs.length > 0 || /vulnerable|bypass|injection|leak/i.test(output),
     exploit_confirmation: confirmed,
   });
@@ -2202,7 +2256,12 @@ async function generatePoC(huntId, target, findingRec) {
     // SPA fallback headers all became "PoC confirmed" findings. Require the
     // PoC command to have SUCCEEDED and its output to carry a real impact
     // signal (same vocabulary the finding pipeline uses).
-    if (!executionFailed(result, out) && out.trim().length > 20 && extractSignal(out).length > 0) {
+    // LABEL-TRUST FIX (Lane A, 21 Oct 2026): the PoC stamp is a
+    // verified:true write, so its signal must be an EVIDENCE signal
+    // (non-negated, not the PoC command's own echoed text) — a PoC
+    // command that echoes signal words, or output whose only signal
+    // lines are negated, cannot confirm anything.
+    if (!executionFailed(result, out) && out.trim().length > 20 && evidenceSignalIds(out, cmd).length > 0) {
       // CONTENT-RELEVANCE (solver #454): the PoC stamp is a verified:true
       // write, so the same binding applies — the PoC must have run against
       // the hunt target, its output's signal must be novel (not the
@@ -2212,8 +2271,13 @@ async function generatePoC(huntId, target, findingRec) {
       // login bypass). Tightening only.
       const baselines = await getTargetBaselines(huntId, target);
       const rel = assessContentRelevance({ command: cmd, target, output: out, baselines: baselines || [] });
-      const parentSigs = extractSignal(`${String(findingRec.evidence?.response || '')} ${String(findingRec.evidence?.impact_demo || '')}`).split(',').filter(Boolean);
-      const pocSigs = extractSignal(out).split(',').filter(Boolean);
+      // LABEL-TRUST FIX (Lane A, 21 Oct 2026): family comparison over
+      // evidence signals on BOTH sides. The parent's stored impact_demo
+      // embeds its raw output excerpt — including any probe banner the
+      // parent command printed verbatim — so raw extractSignal let a
+      // retracted banner-labelled parent match an equally hollow PoC.
+      const parentSigs = evidenceSignalIds(`${String(findingRec.evidence?.response || '')} ${String(findingRec.evidence?.impact_demo || '')}`, String(findingRec.evidence?.request || ''));
+      const pocSigs = evidenceSignalIds(out, cmd);
       const sameFamily = pocSigs.some((s) => parentSigs.includes(s));
       if (rel.relevant && sameFamily) {
         appendHuntEvent(huntId, {
