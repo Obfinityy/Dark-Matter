@@ -35,14 +35,16 @@
 // Everything external is an injectable dep (opts.deps) so the loop is
 // testable end-to-end with fakes — see scripts/test-human-loop.mjs.
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { execInHuntContainerWithRespawn } from './huntRunner.js';
 import { chatWithAI } from './llm.js';
 import { webSearch } from './webSearch.js';
 import { writeArtifact, spillOutput } from './artifacts.js';
-import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents } from './store.js';
+import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents, dataDir } from './store.js';
 import { isInScope } from './scopeParser.js';
-import { recordReasoning, getAllReasoning, buildFullHistoryLedger } from './reasoningMemory.js';
-import { getRelevantMemories, formatGlobalMemoryForPrompt } from './globalMemory.js';
+import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
+import { getRelevantMemories, formatGlobalMemoryForPrompt, readAllGlobalMemories } from './globalMemory.js';
 import { getRuledOut } from './episodeStore.js';
 import {
   guiBrowserOpen,
@@ -380,8 +382,9 @@ export function globalLessonLines(memories = []) {
  * full-history ledger (the caller sizes the ledger to the budget this
  * head leaves). Empty sources contribute nothing — no placeholders.
  */
-export function assembleMemoryBriefing({ deadEnds = [], unprobed = [], globalLessons = [], ledgerText = '', budgetChars = BRIEFING_BUDGET } = {}) {
+export function assembleMemoryBriefing({ deadEnds = [], unprobed = [], globalLessons = [], ledgerText = '', dossierText = '', budgetChars = BRIEFING_BUDGET } = {}) {
   const head = [];
+  if (dossierText) head.push(['--- FROM YOUR DOSSIER (open threads / next step) ---', String(dossierText)].join('\n'));
   if (deadEnds.length) head.push(['--- DEAD ENDS ON THIS TARGET (tried and failed here — do not repeat these) ---', ...deadEnds].join('\n'));
   if (unprobed.length) head.push(['--- RESEARCHED BUT NEVER PROBED (your own open threads) ---', ...unprobed].join('\n'));
   if (globalLessons.length) head.push(['--- LESSONS FROM ALL PAST HUNTS ---', ...globalLessons].join('\n'));
@@ -391,15 +394,120 @@ export function assembleMemoryBriefing({ deadEnds = [], unprobed = [], globalLes
 }
 
 /** Length of the priority head alone — sizes the ledger's budget. */
-export function memoryHeadLength({ deadEnds = [], unprobed = [], globalLessons = [] } = {}) {
-  return assembleMemoryBriefing({ deadEnds, unprobed, globalLessons, ledgerText: '', budgetChars: Number.MAX_SAFE_INTEGER }).length;
+export function memoryHeadLength({ deadEnds = [], unprobed = [], globalLessons = [], dossierText = '' } = {}) {
+  return assembleMemoryBriefing({ deadEnds, unprobed, globalLessons, dossierText, ledgerText: '', budgetChars: Number.MAX_SAFE_INTEGER }).length;
+}
+
+// ---------------------------------------------------------------------------
+// WORKING MEMORY (Lane I, 21 Oct 2026 — owner order: "make it like a
+// human — when he is thinking he knows his past, what he has done
+// already, and what he is doing now").
+//
+// Three truth fixes on top of Lanes F+G:
+//   * RETRACTIONS: Lane A appended 'retraction' events for the two
+//     false Ezviz FTP stamps, but every display path still read the
+//     raw finding events, so the brain kept seeing its own retracted
+//     claims stamped [VERIFIED]. applyRetractions is the display-side
+//     truth filter (the verifier itself is untouched).
+//   * DOSSIER: consolidation writes DOSSIER.md into the hunt dir, but
+//     human mode never read it — its distilled open threads / next
+//     step now lead the briefing. ONLY those two sections are read:
+//     the dossier's Confirmed-facts section can still carry
+//     pre-retraction pollution, so it is never surfaced here.
+//   * CONTINUITY + JOURNAL + RECALL live in humanIteration below.
+// ---------------------------------------------------------------------------
+
+const eventTs = (e) => (e && (e.cachedAt || e.ts || e.at)) || '';
+
+/**
+ * Finding events with retracted ones removed. A finding is retracted
+ * when a LATER retraction event (type 'retraction') names it:
+ * findingTitle must match the finding's title (normalised), and when
+ * the retraction carries retractsStampTs AND the finding carries a
+ * timestamp, the stamp must match too — conservative on purpose: a
+ * title-only collision with a different stamp never removes a
+ * genuine finding. Pure over the events array (array order is the
+ * hunt's chronological record).
+ */
+export function applyRetractions(events) {
+  const list = events || [];
+  const findings = [];
+  list.forEach((e, idx) => {
+    if (e && e.type === 'finding') findings.push({ e, idx });
+  });
+  return findings
+    .filter(({ e, idx }) => {
+      const title = normTitle(e.title);
+      if (!title) return true;
+      const fTs = eventTs(e);
+      for (let j = idx + 1; j < list.length; j++) {
+        const r = list[j];
+        if (!r || r.type !== 'retraction') continue;
+        if (normTitle(r.findingTitle) !== title) continue;
+        if (r.retractsStampTs && fTs && String(r.retractsStampTs) !== String(fTs)) continue;
+        return false; // a later retraction names this finding
+      }
+      return true;
+    })
+    .map(({ e }) => e);
+}
+
+/** How many finding events applyRetractions removes (for the screen note). */
+export function retractedFindingCount(events) {
+  const total = (events || []).filter((e) => e && e.type === 'finding').length;
+  return total - applyRetractions(events).length;
+}
+
+/**
+ * Extract ONLY the 'Open threads' and 'Next step' sections of a
+ * DOSSIER.md text, bounded to ≤600 chars total. Placeholder lines
+ * ("- (none recorded)") are dropped; every other section — above all
+ * 'Confirmed facts', which can carry pre-retraction pollution — is
+ * never returned. Returns '' when there is nothing real to show.
+ */
+export function extractDossierBriefing(dossierText) {
+  const lines = String(dossierText || '').split('\n');
+  const buckets = { open: [], next: [] };
+  let current = null;
+  for (const line of lines) {
+    const h = /^##\s+(.+?)\s*$/.exec(line);
+    if (h) {
+      const t = h[1].toLowerCase();
+      current = t === 'open threads' ? 'open' : t === 'next step' ? 'next' : null;
+      continue;
+    }
+    if (!current) continue;
+    const t = line.trim();
+    if (!t) continue;
+    if (/^-\s*\(.*\)\s*$/.test(t)) continue; // "(none recorded)"-style placeholders carry no thread
+    buckets[current].push(t);
+  }
+  const parts = [];
+  if (buckets.open.length) parts.push(['Open threads:', ...buckets.open].join('\n'));
+  if (buckets.next.length) parts.push(['Next step:', ...buckets.next].join('\n'));
+  return parts.join('\n').slice(0, 600);
+}
+
+/** Read the hunt's DOSSIER.md (consolidation's path, mirrored) — best-effort. */
+function readDossierBriefing(huntId) {
+  try {
+    const raw = fs.readFileSync(path.join(dataDir(), 'hunts', String(huntId), 'DOSSIER.md'), 'utf8');
+    return extractDossierBriefing(raw);
+  } catch {
+    return '';
+  }
 }
 
 export function buildMemoryBriefing(huntId, target, meta) {
   try {
     const rows = getAllReasoning(huntId);
     const events = readHuntEvents(huntId);
-    const findings = events.filter((e) => e.type === 'finding');
+    // Lane I: retracted claims are not findings — the ledger must not
+    // keep stamping them [VERIFIED] after their retraction landed.
+    const findings = applyRetractions(events);
+    // Lane I: the dossier consolidation wrote for this target leads
+    // the briefing (open threads + next step only — see above).
+    const dossierText = readDossierBriefing(huntId);
 
     // (a) dead ends for this target — validator registry + rejected claims
     let ruledOut = [];
@@ -419,7 +527,7 @@ export function buildMemoryBriefing(huntId, target, meta) {
     // The ledger fills whatever the priority head leaves of the
     // existing cap (its own action budget was 6,000 when it stood
     // alone; findings/dead-end fixed lines always render in full).
-    const headLen = memoryHeadLength({ deadEnds, unprobed, globalLessons });
+    const headLen = memoryHeadLength({ deadEnds, unprobed, globalLessons, dossierText });
     const ledgerBudget = Math.max(1200, Math.min(6000, BRIEFING_BUDGET - headLen - 1));
     const ledger = buildFullHistoryLedger({
       reasoningRows: rows,
@@ -431,6 +539,7 @@ export function buildMemoryBriefing(huntId, target, meta) {
       deadEnds,
       unprobed,
       globalLessons,
+      dossierText,
       ledgerText: ledger.text || '',
       budgetChars: BRIEFING_BUDGET,
     });
@@ -461,6 +570,7 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"browser_type","text":"...","submit":true} — type into the page field (submit=true presses Enter)',
     '{"action":"screenshot"} — capture the desktop to a PNG artifact; you also get the page text',
     '{"action":"note","text":"..."} — write a note in your own notebook (your memory is permanent)',
+    '{"action":"recall","query":"..."} — search YOUR OWN memory: this hunt\'s full record and the lessons of every past hunt. Use it whenever your briefing mentions something you need in detail — an exact result, a payload you tried, a lesson — instead of re-doing the work; remembering is free and instant.',
     '{"action":"claim_finding","title":"...","evidence":"the exact output that proves it","command":"the exact command that produced that evidence"} — claim a vulnerability. An independent verifier re-runs your command and checks the evidence; ONLY verified findings count. Never claim without reproduced evidence.',
     'Act like a person: if you need a tool, download it; if you don\'t know something, search; if output is interesting, dig; one step at a time — you will see the result on the next screen.',
     `Programme rules you must obey: ${rules.join('; ')}.`,
@@ -469,10 +579,101 @@ function systemPromptFor(target, parsedScope) {
 
 function findingsFromEvents(deps, huntId) {
   try {
-    return deps.readEvents(huntId).filter((e) => e.type === 'finding');
+    return applyRetractions(deps.readEvents(huntId));
   } catch {
     return [];
   }
+}
+
+/**
+ * The session journal (Lane I): this session's own trail, one line
+ * per executed action — turn, kind + short detail, and a ≤80-char
+ * result summary. A human glancing at his own last hour does not
+ * re-derive it from a lifetime ledger; the loop's log IS that trail
+ * (entries carry detail since Lane I). Pure over the log.
+ */
+export function sessionJournalLines(logEntries) {
+  return (logEntries || []).map((l) => {
+    const detail = l.detail ? ` ${clipLine(l.detail, 70)}` : '';
+    const result = clipLine(l.observation || '', 80);
+    return `- Turn ${l.turn}: ${l.action}${detail}${result ? ` → ${result}` : ''}`;
+  });
+}
+
+/**
+ * The left-off block (Lane I): the previous session's structured
+ * hand-off, rendered high on the screen so the hunter resumes its
+ * own train of thought instead of starting cold. Pure over the
+ * persisted meta.humanLoop.leftOff object.
+ */
+export function leftOffLines(leftOff) {
+  if (!leftOff || typeof leftOff !== 'object') return [];
+  const lines = ['=== WHERE YOU LEFT OFF (last session) ==='];
+  if (leftOff.lastThinking) lines.push(`Your train of thought when you stopped: ${clipLine(leftOff.lastThinking, 240)}`);
+  if (Array.isArray(leftOff.lastActions) && leftOff.lastActions.length) {
+    lines.push('Your last actions:');
+    for (const a of leftOff.lastActions) {
+      if (!a) continue;
+      const detail = a.detail ? ` ${clipLine(a.detail, 80)}` : '';
+      const result = a.result ? ` → ${clipLine(a.result, 80)}` : '';
+      lines.push(`- ${a.tool || a.action || ''}${detail}${result}`);
+    }
+  }
+  if (leftOff.lastNote) lines.push(`Your last note to self: ${clipLine(leftOff.lastNote, 220)}`);
+  if (Array.isArray(leftOff.openThreads) && leftOff.openThreads.length) {
+    lines.push('Open threads you left:');
+    for (const t of leftOff.openThreads.slice(0, 6)) {
+      const s = String(t);
+      lines.push(s.startsWith('-') ? s : `- ${s}`);
+    }
+  }
+  return lines.length > 1 ? lines : [];
+}
+
+/** The detail a log/journal entry carries for one parsed action. */
+function detailForAction(kind, action) {
+  switch (kind) {
+    case 'shell': return String(action.command || '').slice(0, 160);
+    case 'search': return String(action.query || '').slice(0, 160);
+    case 'write_file': return String(action.name || '').slice(0, 120);
+    case 'note': return String(action.text || '').slice(0, 160);
+    case 'browser_open': return String(action.url || '').slice(0, 160);
+    case 'browser_click': return String(action.text || '').slice(0, 120);
+    case 'browser_type': return String(action.text || '').slice(0, 80);
+    case 'claim_finding': return String(action.title || '').slice(0, 160);
+    case 'recall': return String(action.query || '').slice(0, 160);
+    default: return '';
+  }
+}
+
+/**
+ * Default RECALL (Lane I): the hunter deliberately remembers. Reads
+ * ONLY its own memory — this hunt's events + reasoning rows and the
+ * global-memory store via searchRecall, plus the episode ledger's
+ * hybrid retrieval when available (dynamic import, mirroring the
+ * lazy assessResult wiring; any failure falls back to searchRecall
+ * alone). Bounded to ~1500 chars of observation.
+ */
+async function defaultRecallMemory(huntId, query) {
+  const rec = searchRecall({
+    events: readHuntEvents(huntId),
+    reasoningRows: getAllReasoning(huntId),
+    globalMemories: (() => { try { return readAllGlobalMemories(); } catch { return []; } })(),
+    query,
+    limit: 8,
+  });
+  let ledgerText = '';
+  try {
+    const es = await import('./episodeStore.js');
+    if (es.episodeLedgerEnabled && es.episodeLedgerEnabled()) {
+      const ret = await es.retrieveEpisodes(query, { huntId, crossHunt: true, limit: 5 });
+      if (ret && ret.results && ret.results.length) {
+        ledgerText = es.formatRetrievalForPrompt(ret.results, { budgetChars: 900, query });
+      }
+    }
+  } catch { /* ledger recall is best-effort — searchRecall stands alone */ }
+  const merged = ledgerText ? `${ledgerText}\n${rec.text}` : rec.text;
+  return String(merged).slice(0, 1500);
 }
 
 /**
@@ -700,7 +901,7 @@ export function huntFactLines(meta) {
   ];
 }
 
-function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [] }) {
+function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0 }) {
   const confirmed = (findings || []).filter((f) => f.verified);
   const unconfirmed = (findings || []).filter((f) => !f.verified);
   const findLines = [
@@ -718,6 +919,9 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     ...(scopeHosts && scopeHosts.length
       ? ['', '=== IN SCOPE FOR THIS PROGRAMME ===', `You may test: ${scopeHosts.join(', ')} (a listed domain\'s subdomains are in scope too). Anything else is out of scope and will be blocked.`]
       : []),
+    // Lane I: where the hunter left off last session sits beside the
+    // explored digest — continuity first, before the long briefing.
+    ...(leftOff && leftOff.length ? ['', ...leftOff] : []),
     // Lane F: the already-explored digest sits EARLY — ahead of the
     // (long, capped) memory briefing — so no prompt cap downstream
     // can truncate away the record of what is already done.
@@ -728,8 +932,10 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     '',
     '=== FINDINGS SO FAR ===',
     findLines.length ? findLines.join('\n') : '(none yet)',
+    ...(retractedCount > 0 ? [`(${retractedCount} earlier claim(s) were retracted as false positives — see dead ends)`] : []),
     ...(facts && facts.length ? ['', '=== FACTS ABOUT THIS HUNT ===', ...facts] : []),
     ...(repetition && repetition.length ? ['', '=== REPETITION CHECK ===', ...repetition] : []),
+    ...(journal && journal.length ? ['', '=== THIS SESSION SO FAR ===', ...journal] : []),
     '',
     '=== RESULT OF YOUR LAST ACTION ===',
     lastObservation || '(this is your first move — start by looking: open the target in your browser or curl it, and see what it is)',
@@ -779,6 +985,7 @@ export async function humanIteration(huntId, target, opts = {}) {
     sleep: d.sleep || ((ms) => new Promise((r) => setTimeout(r, ms))),
     now: d.now || (() => Date.now()),
     buildBriefing: d.buildBriefing || buildMemoryBriefing,
+    recall: d.recall || defaultRecallMemory,
   };
   const turns = Math.max(1, opts.turns || 6);
   const log = [];
@@ -875,6 +1082,12 @@ export async function humanIteration(huntId, target, opts = {}) {
   let lastShellCommand = '';
   let aiOk = false;
   let turnsRun = 0;
+  // Lane I continuity state: the previous session's hand-off renders
+  // on every screen of this session; this session's own trail feeds
+  // the journal on screen and the leftOff persisted at session end.
+  const prevLeftOff = leftOffLines(meta0.humanLoop && meta0.humanLoop.leftOff);
+  let sessionLastThinking = '';
+  let sessionLastNote = '';
 
   say(`Human mode session: ${turns} turns at my own machine. Target: ${target}.`);
 
@@ -888,6 +1101,19 @@ export async function humanIteration(huntId, target, opts = {}) {
       }
     } catch { /* meta check is best-effort */ }
 
+    // PER-TURN MEMORY REFRESH (Lane I): the briefing was built ONCE
+    // per session and frozen for all 6 turns, so the brain's own
+    // notes and actions from earlier turns of THIS session never
+    // entered its memory until the next session. Rebuild it every
+    // turn (the session-start call above is turn 1's). Best-effort:
+    // a failed refresh keeps the previous briefing, never the turn.
+    if (turn > 1) {
+      try {
+        const fresh = await deps.buildBriefing(huntId, target, deps.readMeta(huntId) || meta0);
+        if (typeof fresh === 'string' && fresh.length > 0) briefing = fresh;
+      } catch { /* keep the previous briefing */ }
+    }
+
     // PERCEIVE: live machine state (working directory + workspace).
     let machineState = '';
     try {
@@ -900,6 +1126,10 @@ export async function humanIteration(huntId, target, opts = {}) {
     const evFindings = findingsFromEvents(deps, huntId);
     const seenTitles = new Set(evFindings.map((f) => f.title));
     const findingsNow = [...evFindings, ...newFindings.filter((f) => !seenTitles.has(f.title))];
+    let retractedCount = 0;
+    try {
+      retractedCount = retractedFindingCount(deps.readEvents(huntId) || []);
+    } catch { /* retraction note is best-effort */ }
     const screen = buildScreen({
       target,
       parsedScope,
@@ -913,6 +1143,9 @@ export async function humanIteration(huntId, target, opts = {}) {
       facts,
       repetition,
       explored: exploredDigestLines(actionHistory),
+      leftOff: prevLeftOff,
+      journal: sessionJournalLines(log),
+      retractedCount,
     });
 
     // THINK: one brain call. Full reply is recorded verbatim (total
@@ -938,14 +1171,16 @@ export async function humanIteration(huntId, target, opts = {}) {
 
     const parsed = parseHumanAction(replyText);
     if (!parsed) {
+      sessionLastThinking = replyText.trim().slice(0, 400);
       lastObservation =
         'Your reply had NO parseable action JSON, so nothing happened. Reply with brief thinking, then end with EXACTLY ONE action as a JSON object on the last line — e.g. {"action":"shell","command":"curl -s ' + String(target).slice(0, 60) + '"}';
       note({ action: 'unparseable reply', why: replyText.slice(0, 300), result: 'no action executed', learned: 'Replies must end with exactly one action JSON.' });
-      log.push({ turn, action: 'unparseable', observation: lastObservation });
+      log.push({ turn, action: 'unparseable', detail: '', observation: lastObservation });
       continue;
     }
     const action = parsed.action;
     const thinkingText = replyText.slice(0, parsed.jsonStart).trim().slice(0, 400);
+    sessionLastThinking = thinkingText;
     const kind = String(action.action).toLowerCase();
     let observation = '';
 
@@ -1039,9 +1274,22 @@ export async function humanIteration(huntId, target, opts = {}) {
       note({ action: `write_file: ${name}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'note') {
       const text = String(action.text || '');
+      sessionLastNote = text;
       note({ action: 'note to self', why: text, result: 'recorded', learned: text.slice(0, 300) });
       say(`Note to self: ${text.slice(0, 300)}`);
       observation = 'Note saved in your notebook — it will be in your memory briefing from now on.';
+    } else if (kind === 'recall') {
+      // Lane I: deliberate remembering. NOT dedupe-gated (remembering
+      // is free) and NOT scope-gated (it reads only the hunter's own
+      // memory — no traffic leaves the machine).
+      const query = String(action.query || '').slice(0, 200);
+      toolCall('recall', query);
+      try {
+        observation = String(await deps.recall(huntId, query) || '').slice(0, 1500) || 'Recall returned nothing.';
+      } catch {
+        observation = 'Recall failed this time — your briefing still carries the distilled memory.';
+      }
+      note({ action: `recall: ${query}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'browser_open') {
       const url = String(action.url || '');
       const bad = scopeViolation(url, target, parsedScope);
@@ -1128,7 +1376,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       }
       note({ action: `claim_finding: ${title}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else {
-      observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, browser_open, browser_snapshot, browser_click, browser_type, screenshot, claim_finding. Pick exactly one, as JSON on the last line.`;
+      observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, browser_open, browser_snapshot, browser_click, browser_type, screenshot, claim_finding. Pick exactly one, as JSON on the last line.`;
     }
 
     // Lane F: remember what the executed action returned, so a later
@@ -1139,14 +1387,56 @@ export async function humanIteration(huntId, target, opts = {}) {
       pendingSig = null;
     }
 
-    log.push({ turn, action: kind, observation: String(observation).slice(0, 300) });
+    log.push({ turn, action: kind, detail: detailForAction(kind, action), observation: String(observation).slice(0, 300) });
     lastObservation = observation;
   }
 
-  // Checkpoint: session totals on the hunt meta under humanLoop.
+  // Checkpoint: session totals on the hunt meta under humanLoop,
+  // plus the LEFT-OFF hand-off (Lane I): where this session stopped —
+  // its last actions WITH detail and result, its last note, its open
+  // threads, and the tail of its train of thought — so the next
+  // session resumes as the same person, not a cold stranger.
   try {
     const m = deps.readMeta(huntId) || {};
     const prev = m.humanLoop || {};
+    let endEvents = sessionEvents;
+    try {
+      endEvents = deps.readEvents(huntId) || sessionEvents;
+    } catch { /* fall back to the session-start read */ }
+    let endRows = [];
+    try {
+      endRows = getAllReasoning(huntId) || [];
+    } catch { /* reasoning read is best-effort */ }
+    let lastNote = sessionLastNote;
+    if (!lastNote) {
+      for (let i = endRows.length - 1; i >= 0 && !lastNote; i--) {
+        const r = endRows[i];
+        if (r && r.action === 'note to self') lastNote = String(r.learned || r.why || '');
+      }
+    }
+    if (!lastNote) {
+      for (let i = endEvents.length - 1; i >= 0 && !lastNote; i--) {
+        const e = endEvents[i];
+        if (e && e.type === 'thinking' && String(e.text || '').startsWith('Note to self:')) {
+          lastNote = String(e.text).slice('Note to self:'.length).trim();
+        }
+      }
+    }
+    let openThreads = [];
+    try {
+      openThreads = researchedNotProbedLines({ events: endEvents, reasoningRows: endRows });
+    } catch { /* open threads are best-effort */ }
+    const leftOff = {
+      at: new Date().toISOString(),
+      lastActions: log.slice(-5).map((l) => ({
+        tool: l.action,
+        detail: clipLine(l.detail || '', 160),
+        result: clipLine(l.observation || '', 220),
+      })),
+      lastNote: clipLine(lastNote || '', 300),
+      openThreads,
+      lastThinking: clipLine(sessionLastThinking || '', 240),
+    };
     deps.writeMeta(huntId, {
       ...m,
       huntId,
@@ -1155,6 +1445,7 @@ export async function humanIteration(huntId, target, opts = {}) {
         turnsTotal: (prev.turnsTotal || 0) + turnsRun,
         lastTurnAt: new Date().toISOString(),
         lastActions: log.slice(-6).map((l) => l.action),
+        leftOff,
       },
     });
   } catch { /* checkpoint is best-effort */ }
