@@ -43,6 +43,7 @@ import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents 
 import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger } from './reasoningMemory.js';
 import { getRelevantMemories, formatGlobalMemoryForPrompt } from './globalMemory.js';
+import { getRuledOut } from './episodeStore.js';
 import {
   guiBrowserOpen,
   guiBrowserSnapshot,
@@ -188,24 +189,251 @@ export function parseHumanAction(reply) {
   return null;
 }
 
-function defaultBriefing(huntId, target, meta) {
+// ---------------------------------------------------------------------------
+// MEMORY BRIEFING (Lane G, 21 Oct 2026 — owner order: "it HAS memory, so it
+// must never redo work it already did").
+//
+// AUDIT of what reached the human-mode screen before this change (measured
+// with a synthetic hunt modelled on the live Ezviz pattern — 30 reasoning
+// rows, 60 tool calls, 2 rejected claims, 7 ruled_out rows):
+//   - system prompt 2,163 chars; screen 5,287 chars total on a young hunt;
+//     briefing section 3,919 chars (ledger 3,437 + global memory ~480).
+//   - The briefing was ONLY buildFullHistoryLedger (action budget 6,000)
+//     followed by global memory (sliced to 1,500), the whole thing sliced
+//     at 7,500 — so the lowest-density content (raw action lines) sat
+//     FIRST and the lessons were the first thing the cap ate on a mature
+//     hunt.
+//   - The dead-end registry (episodeStore ruled_out — the validator-gated
+//     lessons the pipeline renders via formatLessonsForPrompt) was NEVER
+//     imported here: 0 bytes of it reached the human-mode brain.
+//   - The ledger's own DEAD ENDS line is structurally always empty in
+//     human mode: note() writes reasoning rows with hypothesis '', and
+//     the ledger groups dead ends by hypothesis (measured deadEnds: 0
+//     even with rejected claims in the record). A rejected claim showed
+//     up only as a raw "[unverified]" line among the action history.
+//   - "Researched but never probed" was computed NOWHERE: SSTI appeared
+//     only as 16 identical raw "search:" action lines.
+// The builders below fix the content side (Lane F adds the hard dedupe
+// gate on the action side). Priority order inside the SAME 7,500-char
+// briefing cap: (a) dead ends for this target, (b) researched-but-not-
+// probed next-action candidates, (c) distilled global lessons, then the
+// full-history ledger fills whatever budget remains. A section whose
+// source is empty is omitted silently — no placeholder text, ever.
+
+const BRIEFING_BUDGET = 7500; // the pre-existing briefing cap — unchanged
+
+const clipLine = (s, n) => {
+  const t = String(s || '').replace(/\s+/g, ' ').trim();
+  return t.length > n ? t.slice(0, n - 1) + '…' : t;
+};
+
+const normTitle = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+/**
+ * (a) Dead ends for THIS target: what was tried on this hunt and failed,
+ * one line each. Sources, in order: the validator-gated dead-end
+ * registry (ruled_out — lessons composed by code from validator
+ * verdicts), then this hunt's rejected/unverified claim records that the
+ * registry does not already cover. Pure over plain data; capped at 8.
+ */
+export function deadEndLines({ ruledOut = [], events = [] } = {}) {
+  const lines = [];
+  const covered = new Set();
+  const byKey = new Map();
+  for (const r of ruledOut || []) {
+    if (!r) continue;
+    const key = normTitle(r.key || r.title || '');
+    if (!key) continue;
+    if (!byKey.has(key)) byKey.set(key, { lesson: r.lesson || '', n: 0 });
+    const e = byKey.get(key);
+    e.n++;
+    if (r.lesson && (!e.lesson || (r.id || 0) > (e.newestId || 0))) {
+      e.lesson = r.lesson;
+      e.newestId = r.id || 0;
+    }
+  }
+  const ruled = [...byKey.values()].sort((a, b) => b.n - a.n).slice(0, 6);
+  for (const e of ruled) {
+    if (e.lesson) lines.push(`- ${clipLine(e.lesson, 220)} (ruled out ×${e.n})`);
+  }
+  for (const key of byKey.keys()) covered.add(key);
+  const rejected = [];
+  const seenRejected = new Set();
+  for (const ev of events || []) {
+    if (!ev || ev.type !== 'finding' || ev.verified) continue;
+    const key = normTitle(ev.title);
+    if (!key || covered.has(key) || seenRejected.has(key)) continue;
+    seenRejected.add(key);
+    rejected.push(ev);
+  }
+  for (const ev of rejected.slice(0, 4)) {
+    if (lines.length >= 8) break;
+    const verdict = clipLine(ev.verification || 'the verifier did not confirm it', 110);
+    lines.push(`- Claim rejected: "${clipLine(ev.title, 90)}" — ${verdict}`);
+  }
+  return lines.slice(0, 8);
+}
+
+// Technique topics for the researched-not-probed derivation. `research`
+// matches the topic in searches/notes/stated intent; `probes` are the
+// payload/signature shapes that count as an actual test against the
+// target (plus a topic mention inside an executed shell/browser/claim
+// action). Deliberately conservative: reading about a technique never
+// counts as probing it.
+const PROBE_TOPICS = [
+  { id: 'ssti', label: 'SSTI (template injection)', re: /\bssti\b|template injection/i, probes: [/\{\{[^}]{0,60}\}\}/, /\$\{[^}]{0,60}\}/, /\{%[^%]{0,60}%}/] },
+  { id: 'xss', label: 'XSS (cross-site scripting)', re: /\bxss\b|cross[- ]site scripting/i, probes: [/<script\b/i, /\balert\s*\(/, /\bonerror\s*=/i, /<svg\b/i, /\bprompt\s*\(/] },
+  { id: 'sqli', label: 'SQL injection', re: /\bsqli\b|sql injection/i, probes: [/\bunion\s+(all\s+)?select\b/i, /'\s*or\s+('?1'?|\d+)\s*=\s*\1/i, /'\s*(--|#)/, /\b(sleep|benchmark)\s*\(\s*\d/i] },
+  { id: 'ssrf', label: 'SSRF', re: /\bssrf\b|server[- ]side request forgery/i, probes: [/169\.254\.169\.254/, /metadata\.google/i, /100\.100\.100\.200/, /\bgopher:\/\//i] },
+  { id: 'xxe', label: 'XXE', re: /\bxxe\b|xml external entit/i, probes: [/<!ENTITY/i, /<!DOCTYPE[^>]*\[/] },
+  { id: 'lfi', label: 'LFI / path traversal', re: /\blfi\b|path traversal|directory traversal|local file inclusion/i, probes: [/\.\.[/\\]\.\.[/\\]/, /\/etc\/passwd/, /%2e%2e(%2f|\/)/i] },
+  { id: 'cmdi', label: 'command injection', re: /command injection|\bos command\b/i, probes: [/[;|&`]\s*(id|whoami|sleep\s+\d)/i, /\$\(\s*(id|whoami)/] },
+  { id: 'jwt', label: 'JWT attacks', re: /\bjwt\b|json web token/i, probes: [/eyJ[A-Za-z0-9_-]{5,}\.eyJ/, /alg["']?\s*[:=]\s*["']?none/i] },
+  { id: 'cors', label: 'CORS misconfiguration', re: /\bcors\b|cross-origin/i, probes: [/origin\s*:/i] },
+  { id: 'headers', label: 'security headers', re: /security headers|content-security-policy|\bcsp\b|clickjacking/i, probes: [/curl\s+[^|;&]*-[a-zA-Z]*I\b/, /curl\s+[^|;&]*--head\b/i] },
+  { id: 'openredirect', label: 'open redirect', re: /open redirect/i, probes: [/[?&](url|next|redirect|redirect_uri|return|dest|target)=https?%3a/i] },
+  { id: 'graphql', label: 'GraphQL', re: /graphql/i, probes: [/\/graphql\b/i, /\{\s*__schema\b/, /\bintrospection\b/i] },
+];
+
+/**
+ * (b) Researched but not yet probed: topics this hunt has searched or
+ * noted (or stated as intent in a reasoning row's "why") with NO probe
+ * action against the target anywhere in the hunt's own record. One line
+ * each, phrased as an explicit next-action candidate. Pure; capped at 6,
+ * most-researched first.
+ */
+export function researchedNotProbedLines({ events = [], reasoningRows = [] } = {}) {
+  // Counting rule (kept explainable — the hunter is shown these
+  // numbers): a research hit is one SEARCH action (counted from its
+  // tool_call event; the mirrored reasoning row for the same search is
+  // a duplicate and skipped) or one distinct note/intent snippet from
+  // a non-search reasoning row, deduplicated by text.
+  const counts = new Map(); // topicId -> hits
+  const noteSnippets = new Map(); // topicId -> Set of normalised snippets
+  const probeText = [];
+  const hit = (t) => counts.set(t.id, (counts.get(t.id) || 0) + 1);
+  for (const e of events || []) {
+    if (!e || e.type !== 'tool_call') continue;
+    const detail = String(e.detail || '');
+    if (e.tool === 'search') {
+      for (const t of PROBE_TOPICS) if (t.re.test(detail)) hit(t);
+    } else if (['shell', 'browser_open', 'browser_click', 'browser_type', 'claim_finding'].includes(e.tool)) {
+      probeText.push(detail);
+    }
+  }
+  for (const r of reasoningRows || []) {
+    if (!r) continue;
+    const action = String(r.action || '');
+    if (action.startsWith('search:')) continue; // duplicate of the tool_call event
+    if (/^(shell|claim_finding):/.test(action)) probeText.push(action);
+    // Notes and stated intent in a row's why/learned count as research,
+    // never as a probe — thinking about a technique is not testing it.
+    const intent = `${r.why || ''} ${r.learned || ''}`;
+    if (!intent.trim()) continue;
+    for (const t of PROBE_TOPICS) {
+      if (!t.re.test(intent)) continue;
+      if (!noteSnippets.has(t.id)) noteSnippets.set(t.id, new Set());
+      const key = normTitle(intent).slice(0, 140);
+      if (!noteSnippets.get(t.id).has(key)) {
+        noteSnippets.get(t.id).add(key);
+        hit(t);
+      }
+    }
+  }
+  const probeBlob = probeText.join('\n');
+  const out = [];
+  for (const t of PROBE_TOPICS) {
+    const n = counts.get(t.id) || 0;
+    if (!n) continue;
+    const probed = t.re.test(probeBlob) || t.probes.some((re) => re.test(probeBlob));
+    if (probed) continue;
+    out.push({ n, line: `- ${t.label}: researched ×${n} in your searches/notes, never probed — candidate next action: send ONE real probe for this at the target now instead of researching it again.` });
+  }
+  out.sort((a, b) => b.n - a.n);
+  return out.slice(0, 6).map((o) => o.line);
+}
+
+/**
+ * (c) Distilled global-memory lessons relevant to this target type, as
+ * compact one-liners (reuses the store's own prompt formatter, header
+ * stripped). Capped at 5 lines.
+ */
+export function globalLessonLines(memories = []) {
+  let text = '';
+  try {
+    text = formatGlobalMemoryForPrompt(memories || []);
+  } catch {
+    return [];
+  }
+  if (!text) return [];
+  return text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith('•'))
+    .slice(0, 5)
+    .map((l) => `- ${clipLine(l.replace(/^•\s*/, ''), 200)}`);
+}
+
+/**
+ * Assemble the memory briefing in binding priority order inside the
+ * existing cap: dead ends → researched-not-probed → global lessons →
+ * full-history ledger (the caller sizes the ledger to the budget this
+ * head leaves). Empty sources contribute nothing — no placeholders.
+ */
+export function assembleMemoryBriefing({ deadEnds = [], unprobed = [], globalLessons = [], ledgerText = '', budgetChars = BRIEFING_BUDGET } = {}) {
+  const head = [];
+  if (deadEnds.length) head.push(['--- DEAD ENDS ON THIS TARGET (tried and failed here — do not repeat these) ---', ...deadEnds].join('\n'));
+  if (unprobed.length) head.push(['--- RESEARCHED BUT NEVER PROBED (your own open threads) ---', ...unprobed].join('\n'));
+  if (globalLessons.length) head.push(['--- LESSONS FROM ALL PAST HUNTS ---', ...globalLessons].join('\n'));
+  const headText = head.join('\n\n');
+  const parts = [headText, String(ledgerText || '')].filter((p) => p && p.trim());
+  return parts.join('\n').slice(0, budgetChars);
+}
+
+/** Length of the priority head alone — sizes the ledger's budget. */
+export function memoryHeadLength({ deadEnds = [], unprobed = [], globalLessons = [] } = {}) {
+  return assembleMemoryBriefing({ deadEnds, unprobed, globalLessons, ledgerText: '', budgetChars: Number.MAX_SAFE_INTEGER }).length;
+}
+
+export function buildMemoryBriefing(huntId, target, meta) {
   try {
     const rows = getAllReasoning(huntId);
-    const findings = readHuntEvents(huntId).filter((e) => e.type === 'finding');
+    const events = readHuntEvents(huntId);
+    const findings = events.filter((e) => e.type === 'finding');
+
+    // (a) dead ends for this target — validator registry + rejected claims
+    let ruledOut = [];
+    try {
+      ruledOut = getRuledOut(huntId, 60);
+    } catch { /* registry is best-effort */ }
+    const deadEnds = deadEndLines({ ruledOut, events });
+    // (b) researched but never probed — from the hunt's own record
+    const unprobed = researchedNotProbedLines({ events, reasoningRows: rows });
+    // (c) distilled global lessons for this target type
+    let globalLessons = [];
+    try {
+      const fp = (meta && meta.appFingerprint) || { appType: 'unknown', techStack: [] };
+      globalLessons = globalLessonLines(getRelevantMemories(fp, 6));
+    } catch { /* global memory is best-effort */ }
+
+    // The ledger fills whatever the priority head leaves of the
+    // existing cap (its own action budget was 6,000 when it stood
+    // alone; findings/dead-end fixed lines always render in full).
+    const headLen = memoryHeadLength({ deadEnds, unprobed, globalLessons });
+    const ledgerBudget = Math.max(1200, Math.min(6000, BRIEFING_BUDGET - headLen - 1));
     const ledger = buildFullHistoryLedger({
       reasoningRows: rows,
       findings,
       chainContext: (meta && meta.chainContext) || null,
-      budgetChars: 6000,
+      budgetChars: ledgerBudget,
     });
-    let gm = '';
-    try {
-      const fp = (meta && meta.appFingerprint) || { appType: 'unknown', techStack: [] };
-      gm = formatGlobalMemoryForPrompt(getRelevantMemories(fp, 6)).slice(0, 1500);
-    } catch { /* global memory is best-effort */ }
-    return [ledger.text || '', gm ? `\n--- LESSONS FROM ALL PAST HUNTS ---\n${gm}` : '']
-      .join('\n')
-      .slice(0, 7500);
+    return assembleMemoryBriefing({
+      deadEnds,
+      unprobed,
+      globalLessons,
+      ledgerText: ledger.text || '',
+      budgetChars: BRIEFING_BUDGET,
+    });
   } catch {
     return '';
   }
@@ -380,7 +608,7 @@ export async function humanIteration(huntId, target, opts = {}) {
     gui: d.gui || null, // lazy: guiTools bound to execRaw
     sleep: d.sleep || ((ms) => new Promise((r) => setTimeout(r, ms))),
     now: d.now || (() => Date.now()),
-    buildBriefing: d.buildBriefing || defaultBriefing,
+    buildBriefing: d.buildBriefing || buildMemoryBriefing,
   };
   const turns = Math.max(1, opts.turns || 6);
   const log = [];
