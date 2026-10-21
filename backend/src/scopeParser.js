@@ -52,6 +52,48 @@ export function parseScope(target, scopeText = '') {
     }
   }
 
+  // Explicit in-scope enumeration (Lane D, 21 Oct 2026 — Ezviz audit).
+  // Until now this parser NEVER read the programme's asset list:
+  // inScope was silently just [target domain]. On a multi-asset
+  // programme (Ezviz lists 11 assets) the hunt was confined to the
+  // single target host — the other named assets were unreachable by
+  // the scope gate and invisible on the hunter's screen, and the
+  // brief's recommended public surface (www.ezviz.com) could not be
+  // touched at all. Extraction is deliberately narrow and fail-closed:
+  //   - it runs ONLY when the text carries an explicit "In scope:"
+  //     enumeration (no marker -> behaviour is byte-identical to before);
+  //   - it reads domain-shaped tokens between that marker and the
+  //     first out-of-scope marker;
+  //   - hosts named in the out-of-scope region land in
+  //     outOfScopeHosts and WIN over the in-scope list (a named
+  //     exclusion like test.ys7.com beats the *.ys7.com wildcard).
+  result.outOfScopeHosts = [];
+  try {
+    const inMarker = /in[\s-]?scope\s*:/i.exec(scope);
+    if (inMarker) {
+      let region = scope.slice(inMarker.index + inMarker[0].length);
+      const oosAt = region.search(/out[\s-]?of[\s-]?scope\s*:|exclude\s*:|do not test\s*:|not in scope\s*:/i);
+      const oosRegion = oosAt >= 0 ? region.slice(oosAt) : '';
+      if (oosAt >= 0) region = region.slice(0, oosAt);
+      const domRe = /(?:\*\.)?((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,})/gi;
+      const hostsIn = new Set();
+      const hostsOut = new Set();
+      let dm;
+      while ((dm = domRe.exec(region)) !== null) hostsIn.add(dm[1].toLowerCase());
+      domRe.lastIndex = 0;
+      while ((dm = domRe.exec(oosRegion)) !== null) hostsOut.add(dm[1].toLowerCase());
+      for (const h of hostsOut) {
+        // The target domain itself is never listed as an out host:
+        // contradictory text must not brick the hunt's own target.
+        if (h !== domain) result.outOfScopeHosts.push(h);
+      }
+      for (const h of hostsIn) {
+        if (hostsOut.has(h)) continue; // named in both lists -> fail closed (out wins)
+        if (!result.inScope.includes(h)) result.inScope.push(h);
+      }
+    }
+  } catch { /* extraction is best-effort; the [domain] default stands */ }
+
   // Detect program rules
   if (/no[\s-]?dos|denial of service.*forbidden|dos.*not allowed/i.test(scope)) {
     result.rules.noDoS = true;

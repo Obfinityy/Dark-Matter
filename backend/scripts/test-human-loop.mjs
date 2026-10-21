@@ -30,7 +30,7 @@ import path from 'node:path';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dm-human-'));
 process.env.DATA_DIR = tmp;
 
-const { humanIteration, parseHumanAction, scopeViolation } = await import('../src/humanLoop.js');
+const { humanIteration, parseHumanAction, scopeViolation, repetitionLines, huntFactLines } = await import('../src/humanLoop.js');
 
 let failures = 0;
 function check(name, cond) {
@@ -215,6 +215,64 @@ const res3 = await humanIteration('h_human_test3', TARGET, {
   },
 });
 check('brain silence: aiOk false + failKind no_reply', res3.aiOk === false && res3.failKind === 'no_reply');
+
+// ---------------------------------------------------------------------------
+// Perception facts (Lane D, 21 Oct 2026): in-scope surface, the
+// no-credentials fact, and exact-repeat counts — all rendered from
+// the hunt's own records. Ezviz audit: 59% of the hunter's actions
+// were exact repeats and it POSTed guessed credentials, because the
+// screen carried none of these facts.
+// ---------------------------------------------------------------------------
+check('unit: repetitionLines counts exact repeats', (() => {
+  const evs = [];
+  for (let i = 0; i < 6; i++) evs.push({ type: 'tool_call', tool: 'browser_open', detail: 'https://x.test/login' });
+  for (let i = 0; i < 3; i++) evs.push({ type: 'tool_call', tool: 'search', detail: 'q1' });
+  for (let i = 0; i < 2; i++) evs.push({ type: 'tool_call', tool: 'search', detail: 'q2' });
+  const lines = repetitionLines(evs).join('\n');
+  return lines.includes('×6') && lines.includes('×3') && !lines.includes('q2');
+})());
+check('unit: huntFactLines flags missing credentials', huntFactLines({}).join(' ').includes('No test-account credentials'));
+check('unit: huntFactLines quiet when accounts exist', huntFactLines({ testAccounts: [{ user: 'a@b.c' }] }).length === 0);
+
+const PS4 = { domain: 'open.ys7.com', inScope: ['open.ys7.com', 'www.ezviz.com', 'api.ezvizlife.com'], outOfScope: [], outOfScopeHosts: ['test.ys7.com'], rules: { noDoS: true, noHeavyScan: true, maxRequestsPerMin: 20 } };
+const pastEvents = [];
+for (let i = 0; i < 27; i++) pastEvents.push({ type: 'tool_call', tool: 'browser_open', detail: 'https://open.ys7.com/login', via: 'human-mode' });
+for (let i = 0; i < 17; i++) pastEvents.push({ type: 'tool_call', tool: 'search', detail: 'site:open.ys7.com security headers', via: 'human-mode' });
+for (let i = 0; i < 2; i++) pastEvents.push({ type: 'tool_call', tool: 'search', detail: 'a rare query', via: 'human-mode' });
+const screens4 = [];
+let meta4 = { huntId: 'h_human_test4', target: 'https://open.ys7.com', parsedScope: PS4 };
+await humanIteration('h_human_test4', 'https://open.ys7.com', {
+  turns: 1,
+  deps: {
+    ...deps,
+    chat: async (messages) => { screens4.push(messages[0].text); return 'Noted.\n{"action":"note","text":"ok"}'; },
+    readMeta: () => meta4,
+    writeMeta: (h, m) => { meta4 = m; },
+    readEvents: () => pastEvents,
+    record: () => {},
+    recordNote: () => {},
+  },
+});
+check('perceive: screen lists the in-scope programme surface', screens4[0].includes('IN SCOPE FOR THIS PROGRAMME') && screens4[0].includes('www.ezviz.com') && screens4[0].includes('api.ezvizlife.com'));
+check('perceive: repetition check shows exact counts', screens4[0].includes('REPETITION CHECK') && screens4[0].includes('×27') && screens4[0].includes('×17'));
+check('perceive: below-threshold repeats not shown', !screens4[0].includes('a rare query'));
+check('perceive: no-credentials fact shown when hunt holds none', screens4[0].includes('No test-account credentials were provided'));
+
+const screens5 = [];
+let meta5 = { huntId: 'h_human_test5', target: 'https://open.ys7.com', parsedScope: PS4, testAccounts: [{ user: 'owner@example.com' }] };
+await humanIteration('h_human_test5', 'https://open.ys7.com', {
+  turns: 1,
+  deps: {
+    ...deps,
+    chat: async (messages) => { screens5.push(messages[0].text); return 'Noted.\n{"action":"note","text":"ok"}'; },
+    readMeta: () => meta5,
+    writeMeta: (h, m) => { meta5 = m; },
+    readEvents: () => [],
+    record: () => {},
+    recordNote: () => {},
+  },
+});
+check('perceive: credentials fact hidden when accounts exist', !screens5[0].includes('No test-account credentials were provided'));
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);
