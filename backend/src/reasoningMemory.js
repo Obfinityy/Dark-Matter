@@ -36,13 +36,69 @@ export function recordReasoning(huntId, entry) {
 }
 
 /**
+ * Parse raw reasoning.jsonl text into row objects, TOLERANTLY (Lane H,
+ * 21 Oct 2026 — live root cause: on hunt h_07c2709955d3 one torn line —
+ * two JSON objects concatenated on a single line — made the old
+ * all-or-nothing `.map(JSON.parse)` throw, its catch returned [], and the
+ * brain's briefing read "ACTIONS YOU HAVE TAKEN (0 total)" despite 541
+ * valid rows on disk). Mirrors the per-line pattern of store.js
+ * readHuntEvents: every line is parsed independently; blank and
+ * unparseable lines are skipped, never fatal. File order is preserved.
+ *
+ * Torn-line recovery (conservative, deterministic): if a line fails
+ * JSON.parse, we attempt ONE recovery — the exact shape seen live, two or
+ * more complete objects concatenated with no separator ("}{" boundary; a
+ * "}\n{" split is already handled by the line split itself). The line is
+ * split on "}{", braces are restored, and the pieces are accepted ONLY if
+ * every piece parses as a plain object; any doubt (a piece fails, a piece
+ * is not an object) discards the WHOLE line — partial recovery is never
+ * emitted, so a "}{" inside a string value can at worst lose that one
+ * line, never invent rows. If recovery is unsafe the line is skipped like
+ * any other torn line.
+ */
+export function parseReasoningText(text) {
+  const rows = [];
+  for (const rawLine of String(text || '').split('\n')) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    try {
+      const parsed = JSON.parse(line);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) rows.push(parsed);
+      continue;
+    } catch { /* fall through to torn-line recovery */ }
+    const recovered = recoverConcatenatedObjects(line);
+    if (recovered) rows.push(...recovered);
+  }
+  return rows;
+}
+
+function recoverConcatenatedObjects(line) {
+  if (!line.startsWith('{') || !line.endsWith('}')) return null;
+  const parts = line.split('}{');
+  if (parts.length < 2) return null;
+  const objs = [];
+  for (let i = 0; i < parts.length; i++) {
+    const piece = (i > 0 ? '{' : '') + parts[i] + (i < parts.length - 1 ? '}' : '');
+    try {
+      const parsed = JSON.parse(piece);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+      objs.push(parsed);
+    } catch {
+      return null;
+    }
+  }
+  return objs;
+}
+
+/**
  * Get recent reasoning chains for the AI to learn from.
+ * Returns the last `limit` VALID rows — torn lines are skipped first, so
+ * they can no longer hide the rows around them.
  */
 export function getReasoningHistory(huntId, limit = 10) {
   try {
     const content = fs.readFileSync(reasoningFile(huntId), 'utf8');
-    const lines = content.trim().split('\n').filter(Boolean);
-    return lines.slice(-limit).map((l) => JSON.parse(l));
+    return parseReasoningText(content).slice(-limit);
   } catch {
     return [];
   }
@@ -92,7 +148,7 @@ export function normalizeHypothesis(h) {
 function readAllReasoning(huntId) {
   try {
     const content = fs.readFileSync(reasoningFile(huntId), 'utf8');
-    return content.trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
+    return parseReasoningText(content);
   } catch {
     return [];
   }
