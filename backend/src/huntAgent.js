@@ -148,7 +148,7 @@ import { recordGlobalLearning, getRelevantMemories, formatGlobalMemoryForPrompt,
 import { webSearch, searchCVE } from './webSearch.js';
 import { runBrowserTask, crawlScript } from './browserAgent.js';
 import { getHuntCost } from './costTracker.js';
-import { appendHuntEvent, writeHuntMeta, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel, huntDir } from './store.js';
+import { appendHuntEvent, writeHuntMeta, writeHuntMetaCheckpoint, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel, huntDir } from './store.js';
 import { episodeLedgerEnabled, retrieveEpisodes, formatRetrievalForPrompt, recordRuledOut, getRuledOutCounts, formatLessonsForPrompt, RETRY_BUDGET, recordFact } from './episodeStore.js';
 import { proposePlaybook, formatPlaybookForPrompt } from './playbook.js';
 import { ensurePlanTree, renderPlanTree, recordPlanOutcome } from './planTree.js';
@@ -190,8 +190,7 @@ function chargeIteration(huntId, userId, mode, iteration) {
   if (isAdminUser(userId)) return true; // owner testing is free
   const priceCents = Math.round((ITERATION_PRICE_USD[mode] || ITERATION_PRICE_USD.normal) * 100);
   if (getBalanceUsd(userId) * 100 < priceCents) {
-    const m = readHuntMeta(huntId) || {};
-    writeHuntMeta(huntId, { ...m, state: 'out_of_credits', paused: true });
+    writeHuntMetaCheckpoint(huntId, { state: 'out_of_credits', paused: true });
     think(huntId, 'Out of credits — hunt paused. Top up your balance and press Resume to continue.');
     appendHuntEvent(huntId, { type: 'status', state: 'out_of_credits', iteration });
     return false;
@@ -694,7 +693,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     if (queue.length) {
       steering = queue.map((q) => `- ${q.from}: ${q.message}`).join('\n');
       think(huntId, `Received your instruction — following it this round: ${queue[queue.length - 1].message.slice(0, 120)}`);
-      writeHuntMeta(huntId, { ...m, huntId, steerQueue: [] });
+      writeHuntMetaCheckpoint(huntId, { steerQueue: [] });
     }
   } catch { /* steering must never break the hunt */ }
 
@@ -811,7 +810,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   try {
     const m0 = readHuntMeta(huntId) || {};
     if (JSON.stringify(m0.appFingerprint || null) !== JSON.stringify(appFingerprint)) {
-      writeHuntMeta(huntId, { ...m0, huntId, appFingerprint });
+      writeHuntMetaCheckpoint(huntId, { appFingerprint });
     }
   } catch { /* best-effort */ }
 
@@ -1311,9 +1310,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     plans.unshift(...detFrontProbes);
     think(huntId, `Deterministic probes forced to front (once per hunt, guaranteed execution): ${detFrontProbes.map((t) => t.test).join(', ')}`);
     try {
-      writeHuntMeta(huntId, {
-        ...(readHuntMeta(huntId) || {}),
-        huntId,
+      writeHuntMetaCheckpoint(huntId, {
         deterministicProbesRun: [...detRun, ...detFrontProbes.map((t) => t.detId)],
       });
     } catch { /* once-per-hunt record is best-effort */ }
@@ -1335,7 +1332,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       // get their sweep.
       const classes = backfillVerifiedClasses(sweepEvents);
       vs = { backfilled: true, classes };
-      try { writeHuntMeta(huntId, { ...meta0, huntId, variantSweep: vs }); } catch { /* best-effort */ }
+      try { writeHuntMetaCheckpoint(huntId, { variantSweep: vs }); } catch { /* best-effort */ }
     }
     // LATE-CLASS MERGE (19 Oct 2026, solver #131): a class can verify BEFORE
     // its sweep class ships — XXE verified 15:23 UTC while classifyFinding
@@ -1349,7 +1346,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       const missing = fresh.filter((c) => !(vs.classes || []).includes(c));
       if (missing.length) {
         vs = { ...vs, classes: [...(vs.classes || []), ...missing] };
-        writeHuntMeta(huntId, { ...meta0, huntId, variantSweep: vs });
+        writeHuntMetaCheckpoint(huntId, { variantSweep: vs });
         think(huntId, `Variant sweep: late-verified class queued — ${missing.join(', ')} (verified before its sweep class shipped).`);
       }
     } catch { /* sweep queue is best-effort */ }
@@ -1370,9 +1367,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       plans.unshift(sweepProbe); // FRONT: the active discovery frontier outranks everything this iteration
       think(huntId, `Variant sweep (elite move — verified class, NEW vector): ${sweepProbe.test} — front of execution window, once per hunt`);
       try {
-        writeHuntMeta(huntId, {
-          ...(readHuntMeta(huntId) || {}),
-          huntId,
+        writeHuntMetaCheckpoint(huntId, {
           deterministicProbesRun: [...detRun2, sweepProbe.detId],
         });
       } catch { /* once-per-hunt record is best-effort */ }
@@ -1660,8 +1655,7 @@ export async function executeWithEvasion(huntId, target, command) {
       const text = summarizeToolOutput(merged, { maxChars: 4000 }).text;
       appendHuntEvent(huntId, { type: 'recall', query, hits: rec.hits, ledgerHits });
       try {
-        const m = readHuntMeta(huntId) || {};
-        writeHuntMeta(huntId, { ...m, huntId, recallSection: { query, text: text.slice(0, 3000), at: new Date().toISOString() } });
+        writeHuntMetaCheckpoint(huntId, { recallSection: { query, text: text.slice(0, 3000), at: new Date().toISOString() } });
       } catch { /* stash is best-effort */ }
       return { stdout: text, stderr: '', exitCode: 0 };
     } catch {
@@ -2080,7 +2074,7 @@ function inferSeverity(testName, output) {
         const m = readHuntMeta(huntId) || {};
         const vsw = m.variantSweep || { backfilled: false, classes: [] };
         if (!vsw.classes.includes(vcls)) {
-          writeHuntMeta(huntId, { ...m, huntId, variantSweep: { ...vsw, classes: [...vsw.classes, vcls] } });
+          writeHuntMetaCheckpoint(huntId, { variantSweep: { ...vsw, classes: [...vsw.classes, vcls] } });
           think(huntId, `New verified class "${vcls}" — variant sweep queued for its sibling vectors.`);
         }
       }
@@ -2118,7 +2112,6 @@ function inferSeverity(testName, output) {
       if (jwtMatch) {
         const chainPath = chains.length ? chains[0].path : ['data_read', 'auth_bypass', 'priv_esc'];
         const chainScore = chains.length ? chains[0].score : 0.5;
-        const meta = readHuntMeta(huntId) || {};
         const chainCtx = {
           artifacts: { jwt: jwtMatch[0] },
           chainPath,
@@ -2126,7 +2119,7 @@ function inferSeverity(testName, output) {
           fromFinding: rec.title,
           createdAt: new Date().toISOString(),
         };
-        writeHuntMeta(huntId, { ...meta, huntId, chainContext: chainCtx });
+        writeHuntMetaCheckpoint(huntId, { chainContext: chainCtx });
         // FACTS (stage 8): auth state changed — record PRESENCE only.
         // The token value itself is never written to the facts table.
         try { recordFact({ huntId, subject: 'auth', predicate: 'jwt', object: 'present (captured from verified finding)' }); } catch { /* best-effort */ }
@@ -2287,6 +2280,24 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
       think(huntId, `Autonomous hunt starting — mode ${mode}. No iteration limit: I hunt until you stop me or the wallet runs out.`);
     }
 
+    // FIX (21 Oct 2026, lane B): a driver must never drive a hunt the
+    // owner is holding. A legitimate start/resume clears the hold flags
+    // BEFORE launching the loop, so a held meta here means this driver
+    // was started erroneously (stale watchdog, double launch). Hold —
+    // do not even spawn the container — until the owner resumes, and
+    // stop cleanly if the hunt was stopped meanwhile.
+    if (isStopped(huntId)) {
+      think(huntId, 'Hunt is stopped — loop driver not starting.');
+      return;
+    }
+    if (isPaused(huntId)) {
+      await waitWhilePaused(huntId);
+      if (isStopped(huntId)) {
+        think(huntId, 'Hunt stopped by user.');
+        return;
+      }
+    }
+
     if (!(await dockerAvailable())) {
       think(huntId, 'Docker unavailable — running intel-only analysis (no container).');
       appendHuntEvent(huntId, { type: 'status', state: 'degraded', reason: 'no_docker' });
@@ -2295,10 +2306,11 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
 
     // Spawn is done by the route; ensure container exists
     const { container } = await spawnHuntContainer(huntId, target, { mode });
-    // MERGE — writeHuntMeta replaces the whole file, so spreading the
-    // existing meta preserves userId/target/mode/createdAt. Also mark the
-    // hunt running so the status is honest everywhere (list, reports, UI).
-    writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, container, state: 'running' });
+    // MERGE — the checkpoint writer merges over the meta as it exists at
+    // write time (preserving userId/target/mode/createdAt) and never
+    // stomps an owner-set pause/stop. Mark the hunt running so the status
+    // is honest everywhere (list, reports, UI).
+    writeHuntMetaCheckpoint(huntId, { container, state: 'running' });
     appendHuntEvent(huntId, { type: 'status', state: 'container_spawned', container });
 
     // ORCHESTRATOR: the head of the hunt team. It plans, spawns specialist
@@ -2325,7 +2337,7 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
     if (!recon) {
       recon = await reconPhase(huntId, target);
       try {
-        writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, recon });
+        writeHuntMetaCheckpoint(huntId, { recon });
       } catch { /* recon persist is best-effort */ }
     }
     head.review(reconWorker, { ok: true, output: JSON.stringify(recon).slice(0, 500) }, () => recon && recon.profile);
@@ -2396,10 +2408,16 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
       // CHECKPOINT — persist progress every iteration so a killed backend
       // can resume this hunt from here instead of from zero. The per-hunt
       // memory folder (data/hunts/<id>/) is the source of truth.
+      // FIX (21 Oct 2026, lane B): this write used to force
+      // state:'running' over the persisted meta, so a pause the owner set
+      // during the previous (in-flight) iteration flipped back to
+      // 'running' here — and after a backend restart the reconciler then
+      // cleared the pause flags and relaunched the hunt. The checkpoint
+      // writer preserves an owner-set paused/stopped hold; progress
+      // fields (iteration, checkpointAt) are still recorded.
       try {
-        writeHuntMeta(huntId, {
-          ...(readHuntMeta(huntId) || {}),
-          huntId, iteration: i, phase: 'hunting', state: 'running',
+        writeHuntMetaCheckpoint(huntId, {
+          iteration: i, phase: 'hunting', state: 'running',
           checkpointAt: new Date().toISOString(),
         });
       } catch { /* checkpoint is best-effort */ }
@@ -2478,7 +2496,7 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
           think(huntId, `${label} ${aiFailStreak}x in a row — pausing hunt. Resume when it's responsive.`);
           appendHuntEvent(huntId, { type: 'status', state: 'paused', reason: pauseReason, at: new Date().toISOString() });
           try {
-            writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, state: 'paused', pausedReason: pauseReason });
+            writeHuntMetaCheckpoint(huntId, { state: 'paused', pausedReason: pauseReason });
           } catch { /* best-effort */ }
           // Return early — do NOT fall through to "finished". This hunt is
           // paused, not done. Resume will pick up from the checkpoint.
@@ -2518,7 +2536,9 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
     think(huntId, `Hunt finished: ${findings.length} findings (${findings.filter((f) => f.verified).length} verified).`);
     appendHuntEvent(huntId, { type: 'status', state: 'finished', findings: findings.length });
     try {
-      writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, state: 'finished' });
+      // Checkpoint writer: if the owner stopped the hunt during the
+      // final in-flight iteration, 'stopped' is preserved, not 'finished'.
+      writeHuntMetaCheckpoint(huntId, { state: 'finished' });
     } catch { /* meta is best-effort here */ }
 
     // QUEUE: auto-start next hunt if queued
@@ -2542,7 +2562,7 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
   } catch (err) {
     appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
     try {
-      writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, state: 'failed' });
+      writeHuntMetaCheckpoint(huntId, { state: 'failed' });
     } catch { /* meta is best-effort here */ }
   } finally {
     // Always clean up the container
@@ -2612,7 +2632,7 @@ export async function resumeInterruptedHunt(huntId) {
   }).catch((err) => {
     appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
     try {
-      writeHuntMeta(huntId, { ...(readHuntMeta(huntId) || {}), huntId, state: 'failed' });
+      writeHuntMetaCheckpoint(huntId, { state: 'failed' });
     } catch { /* ignore */ }
   });
   return true;

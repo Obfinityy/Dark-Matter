@@ -39,7 +39,7 @@ import { execInHuntContainer } from './huntRunner.js';
 import { chatWithAI } from './llm.js';
 import { webSearch } from './webSearch.js';
 import { writeArtifact, spillOutput } from './artifacts.js';
-import { appendHuntEvent, readHuntMeta, writeHuntMeta, readHuntEvents } from './store.js';
+import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents } from './store.js';
 import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger } from './reasoningMemory.js';
 import { getRelevantMemories, formatGlobalMemoryForPrompt } from './globalMemory.js';
@@ -291,7 +291,10 @@ export async function humanIteration(huntId, target, opts = {}) {
     spill: d.spill || spillOutput,
     record: d.record || appendHuntEvent,
     readMeta: d.readMeta || readHuntMeta,
-    writeMeta: d.writeMeta || writeHuntMeta,
+    // FIX (21 Oct 2026, lane B): the session-end checkpoint goes through
+    // the guarded checkpoint writer — a pause/stop the owner set during
+    // the session must survive it (see store.writeHuntMetaCheckpoint).
+    writeMeta: d.writeMeta || writeHuntMetaCheckpoint,
     readEvents: d.readEvents || readHuntEvents,
     recordNote: d.recordNote || recordReasoning,
     assess: 'assess' in d ? d.assess : (opts.assess || undefined), // undefined -> lazy pipeline assessResult; null -> disabled

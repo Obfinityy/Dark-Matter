@@ -115,6 +115,57 @@ export function readHuntMeta(huntId) {
   return readJson(path.join(config.dataDir, 'hunts', String(huntId), 'meta.json'), null);
 }
 
+// ---- Guarded checkpoint writes --------------------------------------------
+// FIX (21 Oct 2026, lane B): the pause checkpoint-race. writeHuntMeta
+// REPLACES meta.json wholesale, and the hunt loop's writers used it in two
+// racy ways while an iteration was in flight:
+//   1. The per-iteration checkpoint re-read the meta but then forced
+//      state:'running' over whatever was persisted. An owner's pause
+//      (state:'paused' + paused:true, written by the pause route during
+//      the in-flight iteration) flipped back to state:'running' at the
+//      next iteration boundary — the hunt LOOKED running again, and after
+//      any backend restart the boot reconciler treated it as an
+//      interrupted 'running' hunt, cleared the pause flags and relaunched
+//      the loop. The pause did not hold (observed live on
+//      h_bench_d69e5746, 20 Oct 2026 ~19:55Z).
+//   2. Mid-iteration writers spread a snapshot read before long awaited
+//      LLM/tool work and wrote the whole stale object back, wiping any
+//      field set in the meantime.
+// writeHuntMetaCheckpoint(huntId, patch) is the loop-side writer. It
+// merges `patch` over the meta AS IT EXISTS AT WRITE TIME (never over a
+// caller's stale snapshot), and if the persisted meta is in an
+// owner-held state (paused/stopped — by state or by flag), the hold
+// fields (state, paused, stopped, pausedReason) are preserved from the
+// persisted meta no matter what the patch says; progress fields in the
+// patch (iteration, checkpointAt, humanLoop totals, ...) are still
+// recorded. Lifecycle owners — the pause/resume/stop routes and the
+// resume path — keep using plain writeHuntMeta and retain full control:
+// a resume clears the hold exactly as before.
+const HELD_META_STATES = new Set(['paused', 'stopped']);
+
+/** True when a meta carries an owner-set hold (pause or stop). */
+export function isHeldMeta(meta) {
+  if (!meta || typeof meta !== 'object') return false;
+  return HELD_META_STATES.has(meta.state) || meta.paused === true || meta.stopped === true;
+}
+
+export function writeHuntMetaCheckpoint(huntId, patch) {
+  const current = readHuntMeta(huntId) || {};
+  const next = { ...current, ...(patch || {}), huntId };
+  if (isHeldMeta(current)) {
+    // The owner-set hold wins over anything the loop wants to persist.
+    // Stop is terminal, so it outranks a pause when both are present.
+    if (current.stopped === true || current.state === 'stopped') next.state = 'stopped';
+    else if (current.paused === true || current.state === 'paused') next.state = 'paused';
+    else next.state = current.state;
+    if ('paused' in current) next.paused = current.paused;
+    if ('stopped' in current) next.stopped = current.stopped;
+    if ('pausedReason' in current) next.pausedReason = current.pausedReason;
+  }
+  writeHuntMeta(huntId, next);
+  return next;
+}
+
 /** List all hunt metadata (for per-user filtering by the caller). */
 export function listHuntMetas() {
   const out = [];
