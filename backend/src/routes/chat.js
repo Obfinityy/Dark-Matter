@@ -285,10 +285,16 @@ function summaryReply({ ctx, live, liveError, cached, findings }) {
   let reply = ctx;
   if (findings.length) {
     const verified = findings.filter((f) => f.verified);
-    reply += verified.length
-      ? ` Found ${verified.length} confirmed vulnerability${verified.length > 1 ? 'ies' : ''}: ` +
-        verified.slice(0, 5).map((f) => f.title || f.type || 'finding').join(', ') + '.'
-      : ` ${findings.length} lead(s) under investigation — nothing confirmed yet.`;
+    if (verified.length) {
+      // Dedupe by title: a long hunt stamps the same vulnerability many
+      // times, and reading the same title five times sounds broken.
+      const titles = [...new Set(verified.map((f) => f.title || f.type || 'finding'))];
+      reply +=
+        ` Found ${verified.length} confirmed ${verified.length > 1 ? 'vulnerabilities' : 'vulnerability'}: ` +
+        titles.slice(0, 5).join(', ') + '.';
+    } else {
+      reply += ` ${findings.length} lead(s) under investigation — nothing confirmed yet.`;
+    }
   } else {
     reply += ' Still in early recon — no vulnerabilities found yet, but the hunt is methodically mapping your site.';
   }
