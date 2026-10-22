@@ -47,6 +47,18 @@ import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall 
 import { getRelevantMemories, formatGlobalMemoryForPrompt, readAllGlobalMemories } from './globalMemory.js';
 import { getRuledOut } from './episodeStore.js';
 import {
+  loadCoverage,
+  saveCoverage,
+  applyRecord,
+  recordCoverage,
+  updateCoverage,
+  mergeResearchDebt,
+  openGapRows,
+  probedClassIds,
+  normaliseSurface,
+  classLabelFor,
+} from './coverageLedger.js';
+import {
   guiBrowserOpen,
   guiBrowserSnapshot,
   guiBrowserClick,
@@ -583,6 +595,159 @@ export function unprobedLeadLines({ events = [], reasoningRows = [], target = ''
   return lines.slice(0, limit);
 }
 
+// ---------------------------------------------------------------------------
+// COVERAGE LEDGER + SESSION RECONCILIATION (Lane L, 22 Oct 2026)
+//
+// Lane J made researched-but-unprobed classes concrete for the
+// CURRENT screen, but its leads are recomputed from the raw record
+// every turn and carry no accounting: nothing records that a class
+// was ever DELIBERATELY closed, and research debt evaporates at the
+// session boundary (Lane I's open threads are recomputed hunt-wide,
+// not accumulated). Lane L adds the durable half, re-implementing
+// the state contracts Lane K extracted from usestrix/strix (§1.6,
+// §3 P1+P4) in our idiom:
+//
+//   P1 — a per-hunt coverage ledger (coverageLedger.js): rows keyed
+//   by (surface, class), written by the brain's own record_coverage
+//   action, with code-enforced uniqueness (a second row for a key
+//   returns the existing row instead of duplicating) and closure
+//   evidence (ruled_out / not_applicable must name the control).
+//   Open rows render on screen next to Lane J's leads and take
+//   precedence over them (mergeLeadsWithCoverage below).
+//
+//   P4 — at session end, the classes researched in THIS session are
+//   reconciled against probe actions and ledger rows
+//   (reconcileSessionResearch below). Unaccounted research becomes
+//   an open_gap ledger row + a leftOff open item, and the cumulative
+//   researched-vs-probed counters (research debt) persist in the
+//   ledger, so "researched ×104, never probed" is a tracked debt
+//   the briefing shows, not a statistic that resets.
+//
+// One free hunter preserved: record_coverage is the brain's choice,
+// like recall/note; nothing probes or claims on its behalf. The P4
+// reconciliation writes ONLY bookkeeping rows about research debt —
+// it records that research is unaccounted, never that a probe
+// happened. DOSSIER.md is deliberately NOT written here:
+// consolidation.js owns it and regenerates it wholesale, so open
+// items live in leftOff + the ledger instead of fighting it.
+// ---------------------------------------------------------------------------
+
+/** The topic a Lane J lead line belongs to, when it names one. */
+function leadTopicOf(line) {
+  const s = String(line || '');
+  for (const t of PROBE_TOPICS) {
+    if (s.startsWith(`- ${t.label} `) || s.startsWith(`- ${t.label} —`)) return t;
+    if (s.includes(`pairs with your unprobed research: ${t.label} (`)) return t;
+  }
+  return null;
+}
+
+/** The first URL a lead line names (its grounded surface), or ''. */
+function leadUrlOf(line) {
+  const m = /https?:\/\/[^\s'"]+/.exec(String(line || ''));
+  return m ? m[0].replace(/[.,;]+$/, '') : '';
+}
+
+/**
+ * Merge Lane J's computed leads with the coverage ledger for the
+ * screen. Precedence rule: a ledger row accounts for its
+ * (surface, class) key, so a computed lead for the SAME key is
+ * dropped — the ledger line replaces it. A row recorded against
+ * the hunt target as a whole additionally takes precedence over
+ * that class's topic lead (the brain accounted for the class on
+ * the target generally; the concrete computed lead would only
+ * re-list the same class). Computed leads still cover every class
+ * and endpoint with no row yet. Returns { leads, coverage }:
+ * the filtered Lane J lines, and the ledger lines (open gaps
+ * first, then research debt for classes no row accounts for).
+ * Pure.
+ */
+export function mergeLeadsWithCoverage({ leads = [], rows = [], debt = {}, target = '' } = {}) {
+  const rowList = Array.isArray(rows) ? rows : [];
+  const targetSurface = normaliseSurface(target);
+  const hasRow = (surface, cls) => rowList.some((r) => r.class === cls && r.surface === surface);
+  const keptLeads = [];
+  for (const line of leads || []) {
+    const topic = leadTopicOf(line);
+    if (topic) {
+      const url = normaliseSurface(leadUrlOf(line));
+      if (hasRow(url, topic.id) || (targetSurface && hasRow(targetSurface, topic.id))) continue;
+    }
+    keptLeads.push(line);
+  }
+  const coverage = [];
+  const gaps = openGapRows({ rows: rowList })
+    .slice()
+    .sort((a, b) => ((debt[b.class] && debt[b.class].researched) || 0) - ((debt[a.class] && debt[a.class].researched) || 0));
+  for (const r of gaps.slice(0, 6)) {
+    const d = debt[r.class];
+    const debtNote = d && d.researched > 0 && !d.probed ? ` — researched ×${d.researched} across sessions, still unprobed` : '';
+    const ev = r.evidence ? ` ${clipLine(r.evidence, 140)}` : '';
+    coverage.push(clipLine(`- OPEN GAP: ${r.surface} × ${classLabelFor(r.class)}${debtNote}.${ev}`, 280));
+  }
+  const gapClasses = new Set(gaps.map((r) => r.class));
+  const accounted = new Set(rowList.map((r) => r.class));
+  const debtLines = Object.entries(debt || {})
+    .filter(([cls, d]) => d && Number(d.researched) > 0 && !d.probed && !gapClasses.has(cls) && !accounted.has(cls))
+    .sort((a, b) => (Number(b[1].researched) || 0) - (Number(a[1].researched) || 0))
+    .slice(0, 3)
+    .map(([cls, d]) => clipLine(`- RESEARCH DEBT: ${classLabelFor(cls)} — researched ×${d.researched} across ${d.sessionsResearched || 1} session(s), still unprobed, and no coverage row accounts for it yet.`, 280));
+  return { leads: keptLeads, coverage: [...coverage, ...debtLines].slice(0, 8) };
+}
+
+/**
+ * Session-end reconciliation (Lane L P4) — pure. Diffs the classes
+ * researched in THIS session (the session's own event/reasoning
+ * slice, counted by the same researchedTopicStats machinery the
+ * briefing uses) against (a) probe-signature actions in the same
+ * slice and (b) any coverage-ledger row for the class. Returns:
+ *   openItems  — leftOff lines for researched-but-unaccounted classes
+ *   gapInputs  — open_gap row inputs for those classes (surface =
+ *                the hunt target; the ledger's uniqueness rule means
+ *                re-running this never duplicates a row)
+ *   debtStats  — [{ id, n, probed }] for EVERY class researched this
+ *                session, for the cumulative debt merge
+ * A class probed this session, or already carrying any ledger row,
+ * is accounted and produces no open item.
+ */
+export function reconcileSessionResearch({ sessionEvents = [], sessionRows = [], coverageData = null, target = '' } = {}) {
+  const stats = researchedTopicStats({ events: sessionEvents, reasoningRows: sessionRows });
+  const rows = coverageData && Array.isArray(coverageData.rows) ? coverageData.rows : [];
+  const prevDebt = (coverageData && coverageData.researchDebt) || {};
+  const openItems = [];
+  const gapInputs = [];
+  const debtStats = [];
+  for (const s of stats) {
+    debtStats.push({ id: s.topic.id, n: s.n, probed: s.probed });
+    if (s.probed) continue;
+    if (rows.some((r) => r.class === s.topic.id)) continue;
+    const cumulative = (Number(prevDebt[s.topic.id] && prevDebt[s.topic.id].researched) || 0) + s.n;
+    openItems.push(`- ${s.topic.label}: researched ×${s.n} this session (×${cumulative} across all sessions), 0 probes — carried open in your coverage ledger.`);
+    gapInputs.push({
+      surface: String(target || ''),
+      class: s.topic.id,
+      outcome: 'open_gap',
+      evidence: `Researched ×${s.n} this session with no probe and no coverage row; opened by session-end reconciliation — memory bookkeeping about research debt, not a probe.`,
+    });
+  }
+  return { openItems, gapInputs, debtStats };
+}
+
+/** The observation text for a record_coverage result. */
+function coverageObservation(result, { surface, cls }) {
+  const label = classLabelFor(cls);
+  if (!result) return 'Coverage ledger unavailable this turn — nothing was recorded.';
+  if (result.status === 'created' || result.status === 'updated') {
+    const row = result.row || {};
+    return `Coverage ${result.status === 'created' ? 'recorded' : 'updated'}: ${row.surface || surface} × ${label} → ${row.outcome}. Your ledger is your accounting: a surface × class counts as dealt with only when its row says so, and an open_gap row stays on your screen until you probe it or close it with a named control.`;
+  }
+  if (result.status === 'duplicate') {
+    const row = result.row || {};
+    return `Already on your coverage ledger: ${row.surface || surface} × ${label} is recorded as ${row.outcome}${row.evidence ? ` (evidence: ${clipLine(row.evidence, 160)})` : ''}. A surface × class is accounted for exactly once, so nothing was written. To change the row, send record_coverage again with "update":true.`;
+  }
+  return `NOT recorded: ${result.error || 'the coverage write was rejected'}.`;
+}
+
 /**
  * (c) Distilled global-memory lessons relevant to this target type, as
  * compact one-liners (reuses the store's own prompt formatter, header
@@ -799,6 +964,7 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"screenshot"} — capture the desktop to a PNG artifact; you also get the page text',
     '{"action":"note","text":"..."} — write a note in your own notebook (your memory is permanent)',
     '{"action":"recall","query":"..."} — search YOUR OWN memory: this hunt\'s full record and the lessons of every past hunt. Use it whenever your briefing mentions something you need in detail — an exact result, a payload you tried, a lesson — instead of re-doing the work; remembering is free and instant.',
+    '{"action":"record_coverage","surface":"the page/endpoint/feature","class":"the vuln class","outcome":"probed_clean|confirmed|ruled_out|not_applicable|open_gap","evidence":"what you observed"} — account for a surface × class in your coverage ledger. Each pair is recorded exactly once; closing as ruled_out or not_applicable REQUIRES the evidence to name the control that stops the class. Add "update":true to change an existing row. Researched-but-unprobed classes are carried as open gaps automatically — closing them is how they leave your screen.',
     '{"action":"claim_finding","title":"...","evidence":"the exact output that proves it","command":"the exact command that produced that evidence"} — claim a vulnerability. An independent verifier re-runs your command and checks the evidence; ONLY verified findings count. Never claim without reproduced evidence.',
     'Act like a person: if you need a tool, download it; if you don\'t know something, search; if output is interesting, dig; one step at a time — you will see the result on the next screen.',
     `Programme rules you must obey: ${rules.join('; ')}.`,
@@ -870,6 +1036,7 @@ function detailForAction(kind, action) {
     case 'browser_type': return String(action.text || '').slice(0, 80);
     case 'claim_finding': return String(action.title || '').slice(0, 160);
     case 'recall': return String(action.query || '').slice(0, 160);
+    case 'record_coverage': return `${String(action.surface || '').slice(0, 100)} ${String(action.class || '').slice(0, 40)} ${String(action.outcome || '').slice(0, 30)}`.trim().slice(0, 160);
     default: return '';
   }
 }
@@ -1129,7 +1296,7 @@ export function huntFactLines(meta) {
   ];
 }
 
-function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [] }) {
+function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [] }) {
   const confirmed = (findings || []).filter((f) => f.verified);
   const unconfirmed = (findings || []).filter((f) => !f.verified);
   const findLines = [
@@ -1162,6 +1329,15 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     // dossier's distilled next step inside the briefing.
     ...(leads && leads.length
       ? ['', '=== UNPROBED LEADS — CONCRETE NEXT PROBES (from your own record) ===', ...leads, 'A search result is not a test: only a request sent to the target tests anything.']
+      : []),
+    // Lane L: the coverage ledger's open accounting sits with the
+    // leads, in the same outside-the-cap region — open_gap rows the
+    // brain recorded (or reconciliation opened for its research
+    // debt) and the cumulative researched-but-unprobed debt. A
+    // class leaves this list only by being probed or by a
+    // record_coverage row closing it with a named control.
+    ...(coverage && coverage.length
+      ? ['', '=== COVERAGE LEDGER — OPEN GAPS & RESEARCH DEBT (your own accounting) ===', ...coverage, 'Missing information is not proof of safety: an open gap is unexamined, not clean.']
       : []),
     '',
     '=== WHAT YOU KNOW (your memory — everything you have done and learned) ===',
@@ -1308,6 +1484,13 @@ export async function humanIteration(huntId, target, opts = {}) {
   try {
     sessionEvents = deps.readEvents(huntId) || [];
   } catch { /* events are best-effort */ }
+  // Lane L: the reasoning-row count at session start — the session-
+  // end reconciliation (P4) diffs only THIS session's slice of the
+  // record, so it needs to know where the session began.
+  let sessionRowCount = 0;
+  try {
+    sessionRowCount = (getAllReasoning(huntId) || []).length;
+  } catch { /* reasoning read is best-effort */ }
   let repetition = [];
   try {
     repetition = repetitionLines(sessionEvents);
@@ -1379,6 +1562,17 @@ export async function humanIteration(huntId, target, opts = {}) {
       } catch { /* reasoning rows are best-effort */ }
       leads = unprobedLeadLines({ events: leadEvents, reasoningRows: leadRows, target });
     } catch { /* leads are best-effort perception */ }
+    // Lane L: merge the hunt's coverage ledger into the same
+    // region — rows the brain recorded take precedence over the
+    // computed lead for their (surface, class) key, and open gaps
+    // + cumulative research debt render alongside what remains.
+    let coverageLines = [];
+    try {
+      const covData = loadCoverage(huntId);
+      const merged = mergeLeadsWithCoverage({ leads, rows: covData.rows, debt: covData.researchDebt, target });
+      leads = merged.leads;
+      coverageLines = merged.coverage;
+    } catch { /* coverage is best-effort perception */ }
     const screen = buildScreen({
       target,
       parsedScope,
@@ -1396,6 +1590,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       journal: sessionJournalLines(log),
       retractedCount,
       leads,
+      coverage: coverageLines,
     });
 
     // THINK: one brain call. Full reply is recorded verbatim (total
@@ -1540,6 +1735,32 @@ export async function humanIteration(huntId, target, opts = {}) {
         observation = 'Recall failed this time — your briefing still carries the distilled memory.';
       }
       note({ action: `recall: ${query}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'record_coverage') {
+      // Lane L: the hunter accounts for a surface × class in its
+      // own coverage ledger. NOT dedupe-gated (accounting is free,
+      // like recall) and NOT scope-gated (it writes only the hunt's
+      // own ledger — no traffic leaves the machine). The ledger
+      // enforces its contracts in code: uniqueness per key, and
+      // closure evidence naming the control for ruled_out /
+      // not_applicable.
+      const covInput = {
+        surface: String(action.surface || '').slice(0, 300),
+        class: String(action.class || '').slice(0, 80),
+        outcome: String(action.outcome || '').slice(0, 40),
+        evidence: String(action.evidence || '').slice(0, 500),
+      };
+      toolCall('record_coverage', detailForAction(kind, action));
+      let covResult = null;
+      try {
+        covResult = action.update === true
+          ? updateCoverage(huntId, covInput)
+          : recordCoverage(huntId, covInput);
+      } catch { /* ledger write is best-effort — the observation says so */ }
+      observation = coverageObservation(covResult, { surface: covInput.surface, cls: covInput.class });
+      if (covResult && (covResult.status === 'created' || covResult.status === 'updated')) {
+        say(`Coverage ${covResult.status}: ${covInput.surface} × ${covInput.class} → ${covInput.outcome}`);
+      }
+      note({ action: `record_coverage: ${covInput.surface} ${covInput.class} ${covInput.outcome}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'browser_open') {
       const url = String(action.url || '');
       const bad = scopeViolation(url, target, parsedScope);
@@ -1626,7 +1847,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       }
       note({ action: `claim_finding: ${title}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else {
-      observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, browser_open, browser_snapshot, browser_click, browser_type, screenshot, claim_finding. Pick exactly one, as JSON on the last line.`;
+      observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, record_coverage, browser_open, browser_snapshot, browser_click, browser_type, screenshot, claim_finding. Pick exactly one, as JSON on the last line.`;
     }
 
     // Lane F: remember what the executed action returned, so a later
@@ -1676,6 +1897,37 @@ export async function humanIteration(huntId, target, opts = {}) {
     try {
       openThreads = researchedNotProbedLines({ events: endEvents, reasoningRows: endRows });
     } catch { /* open threads are best-effort */ }
+    // Lane L (P4): session-end researched-vs-probed reconciliation.
+    // The classes researched in THIS session's slice of the record
+    // are diffed against probe actions and coverage rows; whatever
+    // is unaccounted becomes an open item in this leftOff AND an
+    // open_gap row in the coverage ledger, and the cumulative
+    // research-debt counters are folded into the ledger. This is
+    // memory bookkeeping about research debt — it never records a
+    // probe that did not happen, and it writes no DOSSIER.md
+    // (consolidation owns that file and regenerates it wholesale).
+    try {
+      const covData = loadCoverage(huntId);
+      const sliceEvents = endEvents.length >= sessionEvents.length ? endEvents.slice(sessionEvents.length) : [];
+      const sliceRows = endRows.slice(sessionRowCount);
+      const rec = reconcileSessionResearch({ sessionEvents: sliceEvents, sessionRows: sliceRows, coverageData: covData, target });
+      if (rec.gapInputs.length || rec.debtStats.length) {
+        let next = covData;
+        for (const g of rec.gapInputs) next = applyRecord(next, g).data;
+        const huntProbed = new Set(
+          researchedTopicStats({ events: endEvents, reasoningRows: endRows })
+            .filter((s) => s.probed)
+            .map((s) => s.topic.id),
+        );
+        for (const id of probedClassIds(next)) huntProbed.add(id);
+        next = mergeResearchDebt(next, rec.debtStats, new Date().toISOString(), huntProbed);
+        saveCoverage(huntId, next);
+      }
+      for (const item of rec.openItems) {
+        const label = item.replace(/^-\s*/, '').split(':')[0];
+        if (!openThreads.some((l) => l.includes(label))) openThreads.push(item);
+      }
+    } catch { /* reconciliation is best-effort bookkeeping */ }
     const leftOff = {
       at: new Date().toISOString(),
       lastActions: log.slice(-5).map((l) => ({
