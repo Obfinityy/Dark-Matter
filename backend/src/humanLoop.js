@@ -35,17 +35,14 @@
 // Everything external is an injectable dep (opts.deps) so the loop is
 // testable end-to-end with fakes — see scripts/test-human-loop.mjs.
 
-import fs from 'node:fs';
-import path from 'node:path';
 import { execInHuntContainerWithRespawn } from './huntRunner.js';
 import { chatWithAI } from './llm.js';
 import { webSearch } from './webSearch.js';
 import { writeArtifact, spillOutput, artifactInfo } from './artifacts.js';
-import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents, dataDir } from './store.js';
+import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents } from './store.js';
 import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
 import { getRelevantMemories, formatGlobalMemoryForPrompt, readAllGlobalMemories } from './globalMemory.js';
-import { getRuledOut } from './episodeStore.js';
 import { listSkills, loadSkill } from './skillCards.js';
 import {
   loadCoverage,
@@ -67,6 +64,23 @@ import {
   guiBrowserType,
   guiBrowserScreenshot,
 } from './guiTools.js';
+// Lane O: huntMemory.js is the single read path for the hunt's
+// permanent record (reasoning, events, findings, coverage, the
+// ruled-out registry, dossier, left-off, prior hunts of the same
+// target). The pure record helpers that used to live in this file
+// (applyRetractions, retractedFindingCount, extractDossierBriefing,
+// deadEndLines) moved there and are re-exported below, so existing
+// imports keep working unchanged.
+import {
+  loadHuntMemory,
+  buildStateOfMind,
+  applyRetractions,
+  retractedFindingCount,
+  extractDossierBriefing,
+  deadEndLines,
+} from './huntMemory.js';
+
+export { applyRetractions, retractedFindingCount, extractDossierBriefing, deadEndLines };
 
 const OBS_BUDGET = 3500; // chars of an action result shown on the next screen
 const COMMAND_CAP = 4000; // same transport cap as the pipeline (solver #459)
@@ -245,50 +259,9 @@ const clipLine = (s, n) => {
 
 const normTitle = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
 
-/**
- * (a) Dead ends for THIS target: what was tried on this hunt and failed,
- * one line each. Sources, in order: the validator-gated dead-end
- * registry (ruled_out — lessons composed by code from validator
- * verdicts), then this hunt's rejected/unverified claim records that the
- * registry does not already cover. Pure over plain data; capped at 8.
- */
-export function deadEndLines({ ruledOut = [], events = [] } = {}) {
-  const lines = [];
-  const covered = new Set();
-  const byKey = new Map();
-  for (const r of ruledOut || []) {
-    if (!r) continue;
-    const key = normTitle(r.key || r.title || '');
-    if (!key) continue;
-    if (!byKey.has(key)) byKey.set(key, { lesson: r.lesson || '', n: 0 });
-    const e = byKey.get(key);
-    e.n++;
-    if (r.lesson && (!e.lesson || (r.id || 0) > (e.newestId || 0))) {
-      e.lesson = r.lesson;
-      e.newestId = r.id || 0;
-    }
-  }
-  const ruled = [...byKey.values()].sort((a, b) => b.n - a.n).slice(0, 6);
-  for (const e of ruled) {
-    if (e.lesson) lines.push(`- ${clipLine(e.lesson, 220)} (ruled out ×${e.n})`);
-  }
-  for (const key of byKey.keys()) covered.add(key);
-  const rejected = [];
-  const seenRejected = new Set();
-  for (const ev of events || []) {
-    if (!ev || ev.type !== 'finding' || ev.verified) continue;
-    const key = normTitle(ev.title);
-    if (!key || covered.has(key) || seenRejected.has(key)) continue;
-    seenRejected.add(key);
-    rejected.push(ev);
-  }
-  for (const ev of rejected.slice(0, 4)) {
-    if (lines.length >= 8) break;
-    const verdict = clipLine(ev.verification || 'the verifier did not confirm it', 110);
-    lines.push(`- Claim rejected: "${clipLine(ev.title, 90)}" — ${verdict}`);
-  }
-  return lines.slice(0, 8);
-}
+// (a) Dead ends for this target are rendered by deadEndLines in
+// huntMemory.js (imported + re-exported above) — the single memory
+// read path owns the record helpers since Lane O.
 
 // Technique topics for the researched-not-probed derivation. `research`
 // matches the topic in searches/notes/stated intent; `probes` are the
@@ -812,110 +785,39 @@ export function memoryHeadLength({ deadEnds = [], unprobed = [], globalLessons =
 //   * CONTINUITY + JOURNAL + RECALL live in humanIteration below.
 // ---------------------------------------------------------------------------
 
-const eventTs = (e) => (e && (e.cachedAt || e.ts || e.at)) || '';
+// applyRetractions / retractedFindingCount live in huntMemory.js
+// since Lane O (imported + re-exported above).
 
-/**
- * Finding events with retracted ones removed. A finding is retracted
- * when a LATER retraction event (type 'retraction') names it:
- * findingTitle must match the finding's title (normalised), and when
- * the retraction carries retractsStampTs AND the finding carries a
- * timestamp, the stamp must match too — conservative on purpose: a
- * title-only collision with a different stamp never removes a
- * genuine finding. Pure over the events array (array order is the
- * hunt's chronological record).
- */
-export function applyRetractions(events) {
-  const list = events || [];
-  const findings = [];
-  list.forEach((e, idx) => {
-    if (e && e.type === 'finding') findings.push({ e, idx });
-  });
-  return findings
-    .filter(({ e, idx }) => {
-      const title = normTitle(e.title);
-      if (!title) return true;
-      const fTs = eventTs(e);
-      for (let j = idx + 1; j < list.length; j++) {
-        const r = list[j];
-        if (!r || r.type !== 'retraction') continue;
-        if (normTitle(r.findingTitle) !== title) continue;
-        if (r.retractsStampTs && fTs && String(r.retractsStampTs) !== String(fTs)) continue;
-        return false; // a later retraction names this finding
-      }
-      return true;
-    })
-    .map(({ e }) => e);
-}
-
-/** How many finding events applyRetractions removes (for the screen note). */
-export function retractedFindingCount(events) {
-  const total = (events || []).filter((e) => e && e.type === 'finding').length;
-  return total - applyRetractions(events).length;
-}
-
-/**
- * Extract ONLY the 'Open threads' and 'Next step' sections of a
- * DOSSIER.md text, bounded to ≤600 chars total. Placeholder lines
- * ("- (none recorded)") are dropped; every other section — above all
- * 'Confirmed facts', which can carry pre-retraction pollution — is
- * never returned. Returns '' when there is nothing real to show.
- */
-export function extractDossierBriefing(dossierText) {
-  const lines = String(dossierText || '').split('\n');
-  const buckets = { open: [], next: [] };
-  let current = null;
-  for (const line of lines) {
-    const h = /^##\s+(.+?)\s*$/.exec(line);
-    if (h) {
-      const t = h[1].toLowerCase();
-      current = t === 'open threads' ? 'open' : t === 'next step' ? 'next' : null;
-      continue;
-    }
-    if (!current) continue;
-    const t = line.trim();
-    if (!t) continue;
-    if (/^-\s*\(.*\)\s*$/.test(t)) continue; // "(none recorded)"-style placeholders carry no thread
-    buckets[current].push(t);
-  }
-  const parts = [];
-  if (buckets.open.length) parts.push(['Open threads:', ...buckets.open].join('\n'));
-  if (buckets.next.length) parts.push(['Next step:', ...buckets.next].join('\n'));
-  return parts.join('\n').slice(0, 600);
-}
-
-/** Read the hunt's DOSSIER.md (consolidation's path, mirrored) — best-effort. */
-function readDossierBriefing(huntId) {
-  try {
-    const raw = fs.readFileSync(path.join(dataDir(), 'hunts', String(huntId), 'DOSSIER.md'), 'utf8');
-    return extractDossierBriefing(raw);
-  } catch {
-    return '';
-  }
-}
+// extractDossierBriefing lives in huntMemory.js since Lane O
+// (imported + re-exported above); the dossier itself is loaded by
+// loadHuntMemory, so the briefing below reads it from the snapshot.
 
 export function buildMemoryBriefing(huntId, target, meta) {
   try {
-    const rows = getAllReasoning(huntId);
-    const events = readHuntEvents(huntId);
+    // Lane O: every hunt-local source comes through the single
+    // memory read path (huntMemory.loadHuntMemory), which loads and
+    // reconciles the reasoning record, the event record, the
+    // retraction-filtered findings, the ruled-out registry and the
+    // dossier from disk — tolerantly, so a torn line in any store
+    // costs that line, never the briefing.
+    const memory = loadHuntMemory(huntId, { target, meta });
+    const rows = memory.reasoningRows;
+    const events = memory.events;
     // Lane I: retracted claims are not findings — the ledger must not
     // keep stamping them [VERIFIED] after their retraction landed.
-    const findings = applyRetractions(events);
+    const findings = memory.findings;
     // Lane I: the dossier consolidation wrote for this target leads
     // the briefing (open threads + next step only — see above).
-    const dossierText = readDossierBriefing(huntId);
+    const dossierText = memory.dossierBriefing;
 
     // (a) dead ends for this target — validator registry + rejected claims
-    let ruledOut = [];
-    try {
-      ruledOut = getRuledOut(huntId, 60);
-    } catch { /* registry is best-effort */ }
-    const deadEnds = deadEndLines({ ruledOut, events });
+    const deadEnds = deadEndLines({ ruledOut: memory.ruledOut, events });
     // (b) researched but never probed — from the hunt's own record
     const unprobed = researchedNotProbedLines({ events, reasoningRows: rows });
     // (c) distilled global lessons for this target type
     let globalLessons = [];
     try {
-      const fp = (meta && meta.appFingerprint) || { appType: 'unknown', techStack: [] };
+      const fp = (meta && meta.appFingerprint) || (memory.meta && memory.meta.appFingerprint) || { appType: 'unknown', techStack: [] };
       globalLessons = globalLessonLines(getRelevantMemories(fp, 6));
     } catch { /* global memory is best-effort */ }
 
@@ -927,7 +829,7 @@ export function buildMemoryBriefing(huntId, target, meta) {
     const ledger = buildFullHistoryLedger({
       reasoningRows: rows,
       findings,
-      chainContext: (meta && meta.chainContext) || null,
+      chainContext: (meta && meta.chainContext) || (memory.meta && memory.meta.chainContext) || null,
       budgetChars: ledgerBudget,
     });
     return assembleMemoryBriefing({
@@ -1424,7 +1326,7 @@ export function skillCardLines() {
   }
 }
 
-function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [] }) {
+function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [], stateOfMind = [] }) {
   const confirmed = (findings || []).filter((f) => f.verified);
   const unconfirmed = (findings || []).filter((f) => !f.verified);
   const findLines = [
@@ -1449,6 +1351,16 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     // (long, capped) memory briefing — so no prompt cap downstream
     // can truncate away the record of what is already done.
     ...(explored && explored.length ? ['', ...explored] : []),
+    // Lane O: the state-of-mind block — the complete memory
+    // essentials (where I left off / what I have done, rolled up by
+    // endpoint and class / what I know / what I have NOT done, in
+    // full / paths already ruled out, in full / what earlier hunts
+    // of this target established), rebuilt from the permanent
+    // record every turn by huntMemory. It sits in the same
+    // outside-the-cap region as the digest, so the briefing's
+    // 7,500-char cap can never cut the not-done table or the
+    // ruled-out list — the two things a hunter must never lose.
+    ...(stateOfMind && stateOfMind.length ? ['', ...stateOfMind] : []),
     // Lane J: the unprobed leads sit with the digest, OUTSIDE the
     // briefing cap — concrete next probes (researched class ×
     // discovered endpoint × input × test value) derived from the
@@ -1535,6 +1447,19 @@ export async function humanIteration(huntId, target, opts = {}) {
     now: d.now || (() => Date.now()),
     buildBriefing: d.buildBriefing || buildMemoryBriefing,
     recall: d.recall || defaultRecallMemory,
+  };
+  // Lane O: the state-of-mind computer. Production path loads the
+  // hunt's complete memory through huntMemory (the single read
+  // path) and joins it with this file's own derivations (topic
+  // accounting, endpoint discovery) over the same record. Tests may
+  // inject deps.buildStateOfMind.
+  const computeStateOfMind = (meta) => {
+    if (typeof d.buildStateOfMind === 'function') return d.buildStateOfMind(huntId, target, meta);
+    const memory = loadHuntMemory(huntId, { target, meta });
+    return buildStateOfMind(memory, {
+      topicStats: researchedTopicStats({ events: memory.events, reasoningRows: memory.reasoningRows }),
+      endpoints: discoveredEndpoints(memory.events, target),
+    });
   };
   const turns = Math.max(1, opts.turns || 6);
   const log = [];
@@ -1644,7 +1569,14 @@ export async function humanIteration(huntId, target, opts = {}) {
   // Lane I continuity state: the previous session's hand-off renders
   // on every screen of this session; this session's own trail feeds
   // the journal on screen and the leftOff persisted at session end.
-  const prevLeftOff = leftOffLines(meta0.humanLoop && meta0.humanLoop.leftOff);
+  // Lane O: the hand-off comes through the memory read path — when
+  // the persisted leftOff is missing (legacy meta, a crash before
+  // the first clean session end, a lost write), loadHuntMemory
+  // derives one from the permanent record, so a hunt with history
+  // never starts cold.
+  let memory0 = null;
+  try { memory0 = loadHuntMemory(huntId, { target, meta: meta0 }); } catch { /* memory is best-effort */ }
+  const prevLeftOff = leftOffLines((memory0 && memory0.leftOff) || (meta0.humanLoop && meta0.humanLoop.leftOff));
   let sessionLastThinking = '';
   let sessionLastNote = '';
 
@@ -1712,6 +1644,14 @@ export async function humanIteration(huntId, target, opts = {}) {
       leads = merged.leads;
       coverageLines = merged.coverage;
     } catch { /* coverage is best-effort perception */ }
+    // Lane O: the state-of-mind block, refreshed every turn from
+    // the permanent record (the same per-turn discipline as the
+    // Lane I briefing refresh) — as probes land and rows close,
+    // the done / not-done picture moves with the hunt.
+    let stateOfMind = [];
+    try {
+      stateOfMind = computeStateOfMind(deps.readMeta(huntId) || meta0) || [];
+    } catch { /* state of mind is best-effort perception */ }
     const screen = buildScreen({
       target,
       parsedScope,
@@ -1731,6 +1671,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       leads,
       coverage: coverageLines,
       skills: skillLines,
+      stateOfMind,
     });
 
     // THINK: one brain call. Full reply is recorded verbatim (total
