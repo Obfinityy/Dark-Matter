@@ -195,12 +195,15 @@ router.post(
       return res.json({ ok: true, action: 'stop', reply: `Hunt stopped. ${ctx}` });
     }
     if (action === 'summary') {
-      // Prefer the real AI; fall back to the deterministic summary.
-      if (aiAvailable()) {
-        const system = buildHuntSystemPrompt({ huntId, meta, live, liveError, cached, findings });
-        const aiReply = await chatWithAI([{ role: 'user', text: message }], system, { huntId });
-        if (aiReply) return res.json({ ok: true, reply: aiReply, ai: true });
-      }
+      // Status / progress / findings questions are answered DETERMINISTICALLY
+      // from live hunt state — instantly. The old code asked the AI first and
+      // only fell back when it returned null, but the chat shares one model
+      // with the hunt itself: a "what is the progress?" message queued behind
+      // the hunt's own generations and could wait many minutes with no reply
+      // at all (found live 23 Oct 2026 — the UI sat on "Stop generating" for
+      // ~9 minutes). A status answer must never be held hostage by the
+      // brain's queue; summaryReply reads the same live state (meta + event
+      // log + latest thinking) the AI would have been given.
       return res.json({ ok: true, reply: summaryReply({ ctx, live, liveError, cached, findings }) });
     }
     // Open questions: REAL AI with full hunt context (no hardcoded answers).
