@@ -46,6 +46,7 @@ import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
 import { getRelevantMemories, formatGlobalMemoryForPrompt, readAllGlobalMemories } from './globalMemory.js';
 import { getRuledOut } from './episodeStore.js';
+import { listSkills, loadSkill } from './skillCards.js';
 import {
   loadCoverage,
   saveCoverage,
@@ -301,7 +302,7 @@ export function deadEndLines({ ruledOut = [], events = [] } = {}) {
 // in a concrete payload shape (see unprobedLeadLines). They are
 // perception text, never an executed action: the hunter still chooses
 // every action itself.
-const PROBE_TOPICS = [
+export const PROBE_TOPICS = [
   { id: 'ssti', label: 'SSTI (template injection)', re: /\bssti\b|template injection/i, probes: [/\{\{[^}]{0,60}\}\}/, /\$\{[^}]{0,60}\}/, /\{%[^%]{0,60}%}/], testValue: '{{7*7}}', testNote: 'if the response shows 49, the template engine evaluated your input' },
   { id: 'xss', label: 'XSS (cross-site scripting)', re: /\bxss\b|cross[- ]site scripting/i, probes: [/<script\b/i, /\balert\s*\(/, /\bonerror\s*=/i, /<svg\b/i, /\bprompt\s*\(/], testValue: '<script>alert(1)</script>', testNote: 'then check whether your marker comes back in the page unescaped' },
   { id: 'sqli', label: 'SQL injection', re: /\bsqli\b|sql injection/i, probes: [/\bunion\s+(all\s+)?select\b/i, /'\s*or\s+('?1'?|\d+)\s*=\s*\1/i, /'\s*(--|#)/, /\b(sleep|benchmark)\s*\(\s*\d/i], testValue: "' OR 1=1", testNote: "compare with the same request using ' OR 1=2 — if the two answers differ, the input reaches the query" },
@@ -965,6 +966,7 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"note","text":"..."} — write a note in your own notebook (your memory is permanent)',
     '{"action":"recall","query":"..."} — search YOUR OWN memory: this hunt\'s full record and the lessons of every past hunt. Use it whenever your briefing mentions something you need in detail — an exact result, a payload you tried, a lesson — instead of re-doing the work; remembering is free and instant.',
     '{"action":"record_coverage","surface":"the page/endpoint/feature","class":"the vuln class","outcome":"probed_clean|confirmed|ruled_out|not_applicable|open_gap","evidence":"what you observed"} — account for a surface × class in your coverage ledger. Each pair is recorded exactly once; closing as ruled_out or not_applicable REQUIRES the evidence to name the control that stops the class. Add "update":true to change an existing row. Researched-but-unprobed classes are carried as open gaps automatically — closing them is how they leave your screen.',
+    '{"action":"load_skill","skill":"sqli"} — pull one of your SKILL CARDS: a compact procedure for a vuln class (attack surface, detection channels, numbered testing steps, and the proof bar a claim must clear). Pull one when you OPEN a class, instead of searching the web — the card\'s steps end in a probe. The card index is on every screen; one card at a time.',
     '{"action":"claim_finding","title":"...","evidence":"the exact output that proves it","command":"the exact command that produced that evidence"} — claim a vulnerability. An independent verifier re-runs your command and checks the evidence; ONLY verified findings count. Never claim without reproduced evidence.',
     'Act like a person: if you need a tool, download it; if you don\'t know something, search; if output is interesting, dig; one step at a time — you will see the result on the next screen.',
     `Programme rules you must obey: ${rules.join('; ')}.`,
@@ -1037,6 +1039,7 @@ function detailForAction(kind, action) {
     case 'claim_finding': return String(action.title || '').slice(0, 160);
     case 'recall': return String(action.query || '').slice(0, 160);
     case 'record_coverage': return `${String(action.surface || '').slice(0, 100)} ${String(action.class || '').slice(0, 40)} ${String(action.outcome || '').slice(0, 30)}`.trim().slice(0, 160);
+    case 'load_skill': return String(action.skill || '').slice(0, 120);
     default: return '';
   }
 }
@@ -1296,7 +1299,30 @@ export function huntFactLines(meta) {
   ];
 }
 
-function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [] }) {
+/**
+ * The skill-card index for the screen (Lane M): names + one-liners
+ * ONLY — the cheap advertisement. A card's body is never inlined
+ * here; it is pulled via the load_skill action and arrives as one
+ * turn's observation, so at most one card body is ever in context.
+ * Kept to a single short block alongside the other early perception
+ * blocks, sized so it cannot crowd out Lane J's leads. Pure over
+ * skillCards.listSkills; any failure renders nothing.
+ */
+export function skillCardLines() {
+  try {
+    const skills = listSkills();
+    if (!skills.length) return [];
+    return [
+      '=== SKILL CARDS — PULL A PROCEDURE INSTEAD OF SEARCHING ===',
+      'Pull one when you open a class: {"action":"load_skill","skill":"sqli"} — it returns as your next observation: surface, detection, numbered steps, proof bar. One card at a time.',
+      ...skills.map((s) => `- ${s.name}: ${s.description}`),
+    ];
+  } catch {
+    return [];
+  }
+}
+
+function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [] }) {
   const confirmed = (findings || []).filter((f) => f.verified);
   const unconfirmed = (findings || []).filter((f) => !f.verified);
   const findLines = [
@@ -1339,6 +1365,10 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     ...(coverage && coverage.length
       ? ['', '=== COVERAGE LEDGER — OPEN GAPS & RESEARCH DEBT (your own accounting) ===', ...coverage, 'Missing information is not proof of safety: an open gap is unexamined, not clean.']
       : []),
+    // Lane M: the skill-card index sits with the other early blocks —
+    // names + one-liners only, after the leads so it can never crowd
+    // them out; bodies are pulled on demand via load_skill.
+    ...(skills && skills.length ? ['', ...skills] : []),
     '',
     '=== WHAT YOU KNOW (your memory — everything you have done and learned) ===',
     briefing || '(nothing yet — this hunt is young)',
@@ -1476,6 +1506,9 @@ export async function humanIteration(huntId, target, opts = {}) {
   // allow, hunt-state facts (credentials), and exact-repeat counts.
   const scopeHosts = parsedScope && Array.isArray(parsedScope.inScope) ? parsedScope.inScope : [];
   const facts = huntFactLines(meta0);
+  // Lane M: the skill-card index is static (our own playbook files),
+  // so it is computed once per session and rides every screen.
+  const skillLines = skillCardLines();
   // The hunt's recorded events, read once: they feed both the
   // Repetition Check (display) and the already-done gate (Lane F,
   // enforcement). The gate's history then stays live in-session via
@@ -1591,6 +1624,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       retractedCount,
       leads,
       coverage: coverageLines,
+      skills: skillLines,
     });
 
     // THINK: one brain call. Full reply is recorded verbatim (total
@@ -1761,6 +1795,23 @@ export async function humanIteration(huntId, target, opts = {}) {
         say(`Coverage ${covResult.status}: ${covInput.surface} × ${covInput.class} → ${covInput.outcome}`);
       }
       note({ action: `record_coverage: ${covInput.surface} ${covInput.class} ${covInput.outcome}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'load_skill') {
+      // Lane M: pull a procedure card from the hunter's own playbook
+      // (Research Lane K, proposal P2). NOT dedupe-gated — re-pulling
+      // a card after the context has rolled is legitimate — and NOT
+      // scope-gated: it reads only our own files, no traffic leaves
+      // the machine. The card returns as THIS turn's observation, so
+      // exactly one card body is ever in play; nothing accumulates
+      // into the briefing. loadSkill never throws and answers an
+      // unknown name with the index.
+      const name = String(action.skill || '').slice(0, 80);
+      toolCall('load_skill', name);
+      try {
+        observation = String(loadSkill(name) || '').slice(0, 2600) || 'That skill card is empty.';
+      } catch {
+        observation = 'Skill cards are unavailable this turn — work from your briefing and your leads.';
+      }
+      note({ action: `load_skill: ${name}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'browser_open') {
       const url = String(action.url || '');
       const bad = scopeViolation(url, target, parsedScope);
@@ -1847,7 +1898,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       }
       note({ action: `claim_finding: ${title}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else {
-      observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, record_coverage, browser_open, browser_snapshot, browser_click, browser_type, screenshot, claim_finding. Pick exactly one, as JSON on the last line.`;
+      observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, record_coverage, load_skill, browser_open, browser_snapshot, browser_click, browser_type, screenshot, claim_finding. Pick exactly one, as JSON on the last line.`;
     }
 
     // Lane F: remember what the executed action returned, so a later
