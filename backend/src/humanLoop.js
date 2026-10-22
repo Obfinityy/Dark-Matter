@@ -40,7 +40,7 @@ import path from 'node:path';
 import { execInHuntContainerWithRespawn } from './huntRunner.js';
 import { chatWithAI } from './llm.js';
 import { webSearch } from './webSearch.js';
-import { writeArtifact, spillOutput } from './artifacts.js';
+import { writeArtifact, spillOutput, artifactInfo } from './artifacts.js';
 import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents, dataDir } from './store.js';
 import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
@@ -57,6 +57,7 @@ import {
   openGapRows,
   probedClassIds,
   normaliseSurface,
+  normaliseCoverageClass,
   classLabelFor,
 } from './coverageLedger.js';
 import {
@@ -967,7 +968,7 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"recall","query":"..."} — search YOUR OWN memory: this hunt\'s full record and the lessons of every past hunt. Use it whenever your briefing mentions something you need in detail — an exact result, a payload you tried, a lesson — instead of re-doing the work; remembering is free and instant.',
     '{"action":"record_coverage","surface":"the page/endpoint/feature","class":"the vuln class","outcome":"probed_clean|confirmed|ruled_out|not_applicable|open_gap","evidence":"what you observed"} — account for a surface × class in your coverage ledger. Each pair is recorded exactly once; closing as ruled_out or not_applicable REQUIRES the evidence to name the control that stops the class. Add "update":true to change an existing row. Researched-but-unprobed classes are carried as open gaps automatically — closing them is how they leave your screen.',
     '{"action":"load_skill","skill":"sqli"} — pull one of your SKILL CARDS: a compact procedure for a vuln class (attack surface, detection channels, numbered testing steps, and the proof bar a claim must clear). Pull one when you OPEN a class, instead of searching the web — the card\'s steps end in a probe. The card index is on every screen; one card at a time.',
-    '{"action":"claim_finding","title":"...","evidence":"the exact output that proves it","command":"the exact command that produced that evidence"} — claim a vulnerability. An independent verifier re-runs your command and checks the evidence; ONLY verified findings count. Never claim without reproduced evidence.',
+    '{"action":"claim_finding","title":"...","class":"sqli","evidence":"the exact output that proves it","command":"the exact command that produced that evidence","counterevidence":"the control/baseline result that could have disproved it","confidence":"high|medium|low","confidence_rationale":"required when confidence is not high"} — claim a vulnerability. The filing is complete-the-proof gated: a claim missing any of title, class, a runnable reproduction ("command", or "poc" naming a proof script saved in this hunt), evidence, counterevidence, or confidence is bounced back UNRECORDED with the missing pieces named — complete the package and claim again. A complete claim goes to an independent verifier, which re-runs your command and checks the evidence; ONLY verified findings count. Never claim without reproduced evidence.',
     'Act like a person: if you need a tool, download it; if you don\'t know something, search; if output is interesting, dig; one step at a time — you will see the result on the next screen.',
     `Programme rules you must obey: ${rules.join('; ')}.`,
   ].join('\n');
@@ -979,6 +980,107 @@ function findingsFromEvents(deps, huntId) {
   } catch {
     return [];
   }
+}
+
+// ---------------------------------------------------------------------------
+// COMPLETE-THE-PROOF GATE (Lane N, 22 Oct 2026 — Lane K's Strix P3,
+// re-implemented by reference; no Strix code copied)
+//
+// Strix's report tool refuses to file a vulnerability until the proof
+// package is complete (PoC + evidence + counterevidence + confidence),
+// because a verifier handed prose has to re-argue the claim instead of
+// checking artefacts. Our claim path had the same hole: claim_finding
+// recorded (or sent to assessResult) whatever title/evidence/command
+// the brain supplied, so half-proved claims reached the verifier as
+// assertions. This gate is the deterministic completeness half of
+// that contract, applied at the recording point in the claim_finding
+// branch — BEFORE the verifier is invoked and before any finding is
+// recorded. It judges COMPLETENESS ONLY, never truth: assessResult
+// remains the sole judge of whether a complete claim is real.
+//
+// A claim is complete when it carries ALL of:
+//   - title — one line naming the vulnerability;
+//   - class — the vuln class ("class" field, normalised through the
+//     coverage ledger's class normaliser; when the field is absent,
+//     a PROBE_TOPICS match on the title supplies it);
+//   - a runnable reproduction — the exact "command" (the claim path's
+//     existing last-shell-command fallback counts, exactly as the
+//     recording path has always used it) OR "poc" naming an artefact
+//     that exists in this hunt's own artifacts (checked through
+//     deps.pocExists, so a fabricated handle bounces);
+//   - evidence — the exact output that proves it, at least
+//     CLAIM_EVIDENCE_MIN chars: a real response excerpt, not a bare
+//     assertion like "it worked";
+//   - counterevidence — what the hunter checked that could have
+//     disproved the claim (for a differential class, the baseline /
+//     control result beside the trigger result);
+//   - confidence — high | medium | low; when not high, a
+//     confidence_rationale is required.
+//
+// An incomplete claim is NOT recorded and the verifier never sees
+// it. The brain gets ONE observation naming every missing piece and
+// the field that supplies it, and the refusal is recorded as a
+// claim_bounce event (the dedup_block pattern: countable by
+// monitors, so the bounce rate is measurable). The gate injects no
+// actions and adds no stages — it only shapes a filing the hunter
+// chose to make.
+// ---------------------------------------------------------------------------
+
+export const CLAIM_EVIDENCE_MIN = 30; // chars of real output, not an assertion
+export const CLAIM_COUNTER_MIN = 10; // chars — more than "n/a" or "checked"
+export const CLAIM_COMMAND_MIN = 8; // chars — a real probe command, not a word
+
+/** Vuln class from a claim title via PROBE_TOPICS (deterministic). */
+export function claimClassFromTitle(title) {
+  const t = String(title || '');
+  if (!t.trim()) return '';
+  for (const topic of PROBE_TOPICS) if (topic.re.test(t)) return topic.id;
+  return '';
+}
+
+/**
+ * The completeness check. Pure: artefact existence arrives as the
+ * caller-computed `pocExists` boolean. Returns
+ * { ok, missing: [{ field, hint }], cls } — every missing piece is
+ * named with the field that supplies it, so the bounce observation
+ * can be assembled without further logic.
+ */
+export function claimGateCheck({
+  title = '',
+  cls = '',
+  command = '',
+  poc = '',
+  pocExists = false,
+  evidence = '',
+  counterevidence = '',
+  confidence = '',
+  rationale = '',
+} = {}) {
+  const missing = [];
+  if (!String(title).trim()) {
+    missing.push({ field: 'title', hint: '"title" — one line naming the vulnerability' });
+  }
+  if (!String(cls).trim()) {
+    missing.push({ field: 'class', hint: '"class" — the vuln class (e.g. "sqli", "xss"); or name the class in the title so it can be matched' });
+  }
+  if (String(command).trim().length < CLAIM_COMMAND_MIN && !pocExists) {
+    missing.push(poc
+      ? { field: 'poc', hint: `"poc" — the artefact "${String(poc).slice(0, 80)}" is not in this hunt's artifacts; save the proof script with write_file first, or give the exact "command" instead` }
+      : { field: 'command', hint: '"command" — the exact command that reproduces it (the verifier re-runs it), or "poc" naming a proof script you saved in this hunt' });
+  }
+  if (String(evidence).trim().length < CLAIM_EVIDENCE_MIN) {
+    missing.push({ field: 'evidence', hint: '"evidence" — the exact output that proves it: a real excerpt of the response/output, not a summary or an assertion' });
+  }
+  if (String(counterevidence).trim().length < CLAIM_COUNTER_MIN) {
+    missing.push({ field: 'counterevidence', hint: '"counterevidence" — what you checked that could have disproved this: the control/baseline result beside the trigger (e.g. the \' OR 1=2 response next to \' OR 1=1), or the strongest false-positive explanation and what ruled it out' });
+  }
+  const conf = String(confidence || '').trim().toLowerCase();
+  if (!['high', 'medium', 'low'].includes(conf)) {
+    missing.push({ field: 'confidence', hint: '"confidence" — "high", "medium" or "low" (add "confidence_rationale" whenever it is not high)' });
+  } else if (conf !== 'high' && !String(rationale).trim()) {
+    missing.push({ field: 'confidence_rationale', hint: '"confidence_rationale" — confidence is not high, so say why: what is still uncertain about this claim' });
+  }
+  return { ok: missing.length === 0, missing, cls: String(cls || '') };
 }
 
 /**
@@ -1398,7 +1500,8 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
  *   deps      — injectable machinery (tests): chat, exec (shell, pipeline
  *               semantics), execRaw (container exec), search, writeFile,
  *               spill, record, readMeta, writeMeta, readEvents, recordNote,
- *               assess (pipeline verifier; explicit null disables the lazy
+ *               pocExists (Lane N claim-gate artefact check), assess
+ *               (pipeline verifier; explicit null disables the lazy
  *               default and claims are recorded UNVERIFIED), gui, sleep,
  *               now, buildBriefing
  */
@@ -1423,6 +1526,9 @@ export async function humanIteration(huntId, target, opts = {}) {
     writeMeta: d.writeMeta || writeHuntMetaCheckpoint,
     readEvents: d.readEvents || readHuntEvents,
     recordNote: d.recordNote || recordReasoning,
+    // Lane N: the claim gate's artefact check — a "poc" handle counts
+    // only if the named file really exists in this hunt's artifacts.
+    pocExists: d.pocExists || ((h, name) => Boolean(artifactInfo(h, name))),
     assess: 'assess' in d ? d.assess : (opts.assess || undefined), // undefined -> lazy pipeline assessResult; null -> disabled
     gui: d.gui || null, // lazy: guiTools bound to execRaw
     sleep: d.sleep || ((ms) => new Promise((r) => setTimeout(r, ms))),
@@ -1845,9 +1951,42 @@ export async function humanIteration(huntId, target, opts = {}) {
       const res = await getGui().screenshot(huntId);
       observation = res.observation || '(no observation)';
     } else if (kind === 'claim_finding') {
-      const title = String(action.title || 'Untitled claim').slice(0, 200);
+      const rawTitle = String(action.title || '');
+      const title = String(rawTitle.trim() ? rawTitle : 'Untitled claim').slice(0, 200);
       const evidence = String(action.evidence || '');
       const command = String(action.command || lastShellCommand || '');
+      // COMPLETE-THE-PROOF GATE (Lane N): the filing is checked for
+      // completeness BEFORE the verifier is invoked and before any
+      // finding is recorded. An incomplete claim is not recorded and
+      // the verifier never sees it; the brain gets one observation
+      // naming every missing piece, and the refusal is recorded as a
+      // countable claim_bounce event. The gate judges completeness
+      // only — assessResult below remains the sole judge of truth.
+      const poc = String(action.poc || '').trim().slice(0, 120);
+      let pocExists = false;
+      if (poc) {
+        try { pocExists = Boolean(deps.pocExists(huntId, poc)); } catch { pocExists = false; }
+      }
+      const gate = claimGateCheck({
+        title: rawTitle,
+        cls: normaliseCoverageClass(action.class) || claimClassFromTitle(rawTitle),
+        command,
+        poc,
+        pocExists,
+        evidence,
+        counterevidence: action.counterevidence,
+        confidence: action.confidence,
+        rationale: action.confidence_rationale,
+      });
+      if (!gate.ok) {
+        try { deps.record(huntId, { type: 'claim_bounce', tool: 'claim_finding', detail: title, missing: gate.missing.map((m) => m.field), via: 'human-mode' }); } catch { /* best-effort */ }
+        say(`Claim bounced — incomplete proof package (missing: ${gate.missing.map((m) => m.field).join(', ')}).`);
+        observation =
+          'CLAIM NOT RECORDED — the proof package is incomplete, so the verifier never saw it. Missing: ' +
+          gate.missing.map((m) => m.hint).join('; ') +
+          '. Complete every piece and claim again — run the control/baseline probe first if that is what is missing. This gate checks completeness only; the verifier still decides whether a complete claim is true.';
+        note({ action: `claim_finding: ${title}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      } else {
       toolCall('claim_finding', title);
       const assess = await getAssess();
       if (assess) {
@@ -1897,6 +2036,7 @@ export async function humanIteration(huntId, target, opts = {}) {
         observation = 'Recorded as an UNVERIFIED claim (no pipeline verifier is wired into this session). It does not count as a finding until the verifier confirms it.';
       }
       note({ action: `claim_finding: ${title}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      }
     } else {
       observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, record_coverage, load_skill, browser_open, browser_snapshot, browser_click, browser_type, screenshot, claim_finding. Pick exactly one, as JSON on the last line.`;
     }
