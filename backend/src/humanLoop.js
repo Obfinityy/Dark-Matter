@@ -282,29 +282,38 @@ export function deadEndLines({ ruledOut = [], events = [] } = {}) {
 // target (plus a topic mention inside an executed shell/browser/claim
 // action). Deliberately conservative: reading about a technique never
 // counts as probing it.
+//
+// `testValue` / `testNote` (Lane J, 22 Oct 2026) are the canonical
+// FIRST probe for the class — the textbook test value and what its
+// result would mean — used only to GROUND the unprobed-leads section
+// in a concrete payload shape (see unprobedLeadLines). They are
+// perception text, never an executed action: the hunter still chooses
+// every action itself.
 const PROBE_TOPICS = [
-  { id: 'ssti', label: 'SSTI (template injection)', re: /\bssti\b|template injection/i, probes: [/\{\{[^}]{0,60}\}\}/, /\$\{[^}]{0,60}\}/, /\{%[^%]{0,60}%}/] },
-  { id: 'xss', label: 'XSS (cross-site scripting)', re: /\bxss\b|cross[- ]site scripting/i, probes: [/<script\b/i, /\balert\s*\(/, /\bonerror\s*=/i, /<svg\b/i, /\bprompt\s*\(/] },
-  { id: 'sqli', label: 'SQL injection', re: /\bsqli\b|sql injection/i, probes: [/\bunion\s+(all\s+)?select\b/i, /'\s*or\s+('?1'?|\d+)\s*=\s*\1/i, /'\s*(--|#)/, /\b(sleep|benchmark)\s*\(\s*\d/i] },
-  { id: 'ssrf', label: 'SSRF', re: /\bssrf\b|server[- ]side request forgery/i, probes: [/169\.254\.169\.254/, /metadata\.google/i, /100\.100\.100\.200/, /\bgopher:\/\//i] },
-  { id: 'xxe', label: 'XXE', re: /\bxxe\b|xml external entit/i, probes: [/<!ENTITY/i, /<!DOCTYPE[^>]*\[/] },
-  { id: 'lfi', label: 'LFI / path traversal', re: /\blfi\b|path traversal|directory traversal|local file inclusion/i, probes: [/\.\.[/\\]\.\.[/\\]/, /\/etc\/passwd/, /%2e%2e(%2f|\/)/i] },
-  { id: 'cmdi', label: 'command injection', re: /command injection|\bos command\b/i, probes: [/[;|&`]\s*(id|whoami|sleep\s+\d)/i, /\$\(\s*(id|whoami)/] },
-  { id: 'jwt', label: 'JWT attacks', re: /\bjwt\b|json web token/i, probes: [/eyJ[A-Za-z0-9_-]{5,}\.eyJ/, /alg["']?\s*[:=]\s*["']?none/i] },
-  { id: 'cors', label: 'CORS misconfiguration', re: /\bcors\b|cross-origin/i, probes: [/origin\s*:/i] },
-  { id: 'headers', label: 'security headers', re: /security headers|content-security-policy|\bcsp\b|clickjacking/i, probes: [/curl\s+[^|;&]*-[a-zA-Z]*I\b/, /curl\s+[^|;&]*--head\b/i] },
-  { id: 'openredirect', label: 'open redirect', re: /open redirect/i, probes: [/[?&](url|next|redirect|redirect_uri|return|dest|target)=https?%3a/i] },
-  { id: 'graphql', label: 'GraphQL', re: /graphql/i, probes: [/\/graphql\b/i, /\{\s*__schema\b/, /\bintrospection\b/i] },
+  { id: 'ssti', label: 'SSTI (template injection)', re: /\bssti\b|template injection/i, probes: [/\{\{[^}]{0,60}\}\}/, /\$\{[^}]{0,60}\}/, /\{%[^%]{0,60}%}/], testValue: '{{7*7}}', testNote: 'if the response shows 49, the template engine evaluated your input' },
+  { id: 'xss', label: 'XSS (cross-site scripting)', re: /\bxss\b|cross[- ]site scripting/i, probes: [/<script\b/i, /\balert\s*\(/, /\bonerror\s*=/i, /<svg\b/i, /\bprompt\s*\(/], testValue: '<script>alert(1)</script>', testNote: 'then check whether your marker comes back in the page unescaped' },
+  { id: 'sqli', label: 'SQL injection', re: /\bsqli\b|sql injection/i, probes: [/\bunion\s+(all\s+)?select\b/i, /'\s*or\s+('?1'?|\d+)\s*=\s*\1/i, /'\s*(--|#)/, /\b(sleep|benchmark)\s*\(\s*\d/i], testValue: "' OR 1=1", testNote: "compare with the same request using ' OR 1=2 — if the two answers differ, the input reaches the query" },
+  { id: 'ssrf', label: 'SSRF', re: /\bssrf\b|server[- ]side request forgery/i, probes: [/169\.254\.169\.254/, /metadata\.google/i, /100\.100\.100\.200/, /\bgopher:\/\//i], testValue: 'http://169.254.169.254/latest/meta-data/', testNote: 'watch whether the server fetches it or the answer changes' },
+  { id: 'xxe', label: 'XXE', re: /\bxxe\b|xml external entit/i, probes: [/<!ENTITY/i, /<!DOCTYPE[^>]*\[/], testValue: 'an XML body declaring <!ENTITY xxe SYSTEM "file:///etc/passwd">', testNote: "if the response contains the file's contents, the parser resolved your entity" },
+  { id: 'lfi', label: 'LFI / path traversal', re: /\blfi\b|path traversal|directory traversal|local file inclusion/i, probes: [/\.\.[/\\]\.\.[/\\]/, /\/etc\/passwd/, /%2e%2e(%2f|\/)/i], testValue: '../../etc/passwd', testNote: "if the response contains 'root:' lines, the server read the file" },
+  { id: 'cmdi', label: 'command injection', re: /command injection|\bos command\b/i, probes: [/[;|&`]\s*(id|whoami|sleep\s+\d)/i, /\$\(\s*(id|whoami)/], testValue: 'test; id', testNote: 'if a uid= line from id appears in the response, the command ran' },
+  { id: 'jwt', label: 'JWT attacks', re: /\bjwt\b|json web token/i, probes: [/eyJ[A-Za-z0-9_-]{5,}\.eyJ/, /alg["']?\s*[:=]\s*["']?none/i], testValue: 'the session token with its header alg set to none and an empty signature', testNote: 'if the API still accepts it, signature verification is missing' },
+  { id: 'cors', label: 'CORS misconfiguration', re: /\bcors\b|cross-origin/i, probes: [/origin\s*:/i], testValue: 'https://evil.example', testNote: 'if the response reflects it in Access-Control-Allow-Origin while allowing credentials, it is misconfigured', via: (param) => 'with an Origin: https://evil.example header' },
+  { id: 'headers', label: 'security headers', re: /security headers|content-security-policy|\bcsp\b|clickjacking/i, probes: [/curl\s+[^|;&]*-[a-zA-Z]*I\b/, /curl\s+[^|;&]*--head\b/i], testValue: '', testNote: 'missing Content-Security-Policy or X-Frame-Options on a page with a login form is a reportable weakness', via: () => 'by running curl -s -I on it and reading which security headers are absent', oneShot: true },
+  { id: 'openredirect', label: 'open redirect', re: /open redirect/i, probes: [/[?&](url|next|redirect|redirect_uri|return|dest|target)=https?%3a/i], testValue: 'https://example.com', testNote: 'if the browser lands on example.com, the redirect is open' },
+  { id: 'graphql', label: 'GraphQL', re: /graphql/i, probes: [/\/graphql\b/i, /\{\s*__schema\b/, /\bintrospection\b/i], testValue: '{__schema{types{name}}}', testNote: 'a full schema answer means introspection is switched on' },
+  { id: 'fileupload', label: 'file upload', re: /file upload|upload vulnerab|unrestricted upload/i, probes: [/curl\s+[^|;&]*\s-F\b/, /multipart\/form-data/i], testValue: 'a small test file (first a harmless .txt, then an .html carrying a marker)', testNote: 'if the file is afterwards reachable and served as-is, the upload is unrestricted', pathRe: /upload/i, via: () => 'by sending a real file with curl -F' },
 ];
 
 /**
- * (b) Researched but not yet probed: topics this hunt has searched or
- * noted (or stated as intent in a reasoning row's "why") with NO probe
- * action against the target anywhere in the hunt's own record. One line
- * each, phrased as an explicit next-action candidate. Pure; capped at 6,
- * most-researched first.
+ * Per-topic research/probe accounting over the hunt's own record —
+ * the shared counting core for the briefing's researched-not-probed
+ * section (Lane G) and the concrete unprobed leads (Lane J). Returns
+ * [{ topic, n, probed }] for every topic with n > 0, most-researched
+ * first. `probed` means a payload-signature action for the topic
+ * exists somewhere in the record (see PROBE_TOPICS).
  */
-export function researchedNotProbedLines({ events = [], reasoningRows = [] } = {}) {
+export function researchedTopicStats({ events = [], reasoningRows = [] } = {}) {
   // Counting rule (kept explainable — the hunter is shown these
   // numbers): a research hit is one SEARCH action (counted from its
   // tool_call event; the mirrored reasoning row for the same search is
@@ -348,11 +357,230 @@ export function researchedNotProbedLines({ events = [], reasoningRows = [] } = {
     const n = counts.get(t.id) || 0;
     if (!n) continue;
     const probed = t.re.test(probeBlob) || t.probes.some((re) => re.test(probeBlob));
-    if (probed) continue;
-    out.push({ n, line: `- ${t.label}: researched ×${n} in your searches/notes, never probed — candidate next action: send ONE real probe for this at the target now instead of researching it again.` });
+    out.push({ topic: t, n, probed });
   }
   out.sort((a, b) => b.n - a.n);
-  return out.slice(0, 6).map((o) => o.line);
+  return out;
+}
+
+/**
+ * (b) Researched but not yet probed: topics this hunt has searched or
+ * noted (or stated as intent in a reasoning row's "why") with NO probe
+ * action against the target anywhere in the hunt's own record. One line
+ * each, phrased as an explicit next-action candidate. Pure; capped at 6,
+ * most-researched first.
+ */
+export function researchedNotProbedLines({ events = [], reasoningRows = [] } = {}) {
+  return researchedTopicStats({ events, reasoningRows })
+    .filter((s) => !s.probed)
+    .slice(0, 6)
+    .map((s) => `- ${s.topic.label}: researched ×${s.n} in your searches/notes, never probed — candidate next action: send ONE real probe for this at the target now instead of researching it again.`);
+}
+
+// ---------------------------------------------------------------------------
+// UNPROBED LEADS + ENDPOINT COVERAGE (Lane J, 22 Oct 2026)
+//
+// Live diagnosis on the Ezviz hunt (iter 148, 2,121 events, 633 tool
+// calls, 0 genuine verified): 335 of 633 tool calls were web searches
+// (53%); after a search the next action was another search 62% of the
+// time and a shell probe only 14 times in the whole hunt. Lane G's
+// briefing section DID render ("command injection: researched ×64,
+// never probed — send ONE real probe for this at the target") — but it
+// named no page, no input and no payload, and the brain's own record
+// shows what that produces: a thinking block resolving to "send a
+// real probe for command injection at the target now", followed by a
+// plain registration POST carrying no payload at all. Intent without
+// grounding does not convert. The surface the hunt itself discovered
+// (/rest/user/login with username+password, /rest/user/profile with
+// file=, /upload opened twice) was never presented back as a coverage
+// map, so researched classes and known endpoints never met on screen:
+// file upload was researched repeatedly while /upload never received
+// a single probe (no multipart action exists in the record).
+//
+// The builders below derive BOTH halves from the hunt's own record
+// and join them into concrete leads: researched class × discovered
+// endpoint × the input it takes × the canonical first test value.
+// Pure perception — nothing is executed, injected or staged; the
+// hunter remains the sole decision-maker.
+// ---------------------------------------------------------------------------
+
+const URL_IN_TEXT = /https?:\/\/[^\s'"<>)\]|]+/gi;
+
+function paramNamesFrom(text) {
+  const names = [];
+  const seen = new Set();
+  const add = (n) => {
+    if (n && !seen.has(n) && names.length < 6) {
+      seen.add(n);
+      names.push(n);
+    }
+  };
+  for (const m of String(text || '').matchAll(/"([A-Za-z_][\w-]*)"\s*:/g)) add(m[1]);
+  for (const m of String(text || '').matchAll(/(?:^|[&\s'"])([A-Za-z_][\w-]*)=/g)) add(m[1]);
+  return names;
+}
+
+/**
+ * The hunt's discovered endpoint coverage, derived ONLY from its own
+ * tool_call record: every URL on the target host the hunter has
+ * touched (browser_open, or a URL inside a shell command), with how
+ * often, which input names it was seen taking (query keys + body
+ * keys), whether data was ever sent to it, and which probe classes
+ * have actually reached it (payload-signature match on the actions
+ * that touched it). Sorted most-visited first. Pure.
+ */
+export function discoveredEndpoints(events, target) {
+  const tHost = targetHostOf(target);
+  if (!tHost) return [];
+  const byKey = new Map();
+  const touch = (rawUrl, text, dataSent) => {
+    let u;
+    try {
+      u = new URL(rawUrl);
+    } catch {
+      return;
+    }
+    if (u.hostname.toLowerCase() !== tHost) return;
+    let p = u.pathname || '/';
+    if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+    const key = `${u.protocol.toLowerCase()}//${u.host.toLowerCase()}${p}`;
+    let ep = byKey.get(key);
+    if (!ep) {
+      ep = { url: key, path: p, visits: 0, params: [], dataSent: false, probeActions: 0, probedClasses: new Set() };
+      byKey.set(key, ep);
+    }
+    ep.visits++;
+    if (dataSent) ep.dataSent = true;
+    for (const name of paramNamesFrom(`${u.search || ''} ${text || ''}`)) {
+      if (!ep.params.includes(name) && ep.params.length < 6) ep.params.push(name);
+    }
+    let probedHere = false;
+    for (const t of PROBE_TOPICS) {
+      if (t.probes.some((re) => re.test(text || ''))) {
+        ep.probedClasses.add(t.id);
+        probedHere = true;
+      }
+    }
+    if (probedHere) ep.probeActions++;
+  };
+  for (const e of events || []) {
+    if (!e || e.type !== 'tool_call') continue;
+    const detail = String(e.detail || '');
+    if (!detail) continue;
+    if (e.tool === 'browser_open') {
+      touch(detail.trim(), detail, false);
+    } else if (e.tool === 'shell') {
+      const dataSent = /(-d\b|--data|-X\s*(POST|PUT|PATCH|DELETE)\b|-F\b)/i.test(detail);
+      for (const m of detail.match(URL_IN_TEXT) || []) touch(m, detail, dataSent);
+    }
+  }
+  return [...byKey.values()]
+    .map((ep) => ({ ...ep, probedClasses: [...ep.probedClasses] }))
+    .sort((a, b) => b.visits - a.visits);
+}
+
+/**
+ * How many actions in the record carry a payload signature for the
+ * topic — the strict, per-class probe count (events side only; the
+ * same tool set the topic accounting treats as probe-capable).
+ */
+export function probeSignatureHits(events, topic) {
+  if (!topic || !Array.isArray(topic.probes)) return 0;
+  let hits = 0;
+  for (const e of events || []) {
+    if (!e || e.type !== 'tool_call') continue;
+    if (!['shell', 'browser_open', 'browser_click', 'browser_type', 'claim_finding'].includes(e.tool)) continue;
+    const detail = String(e.detail || '');
+    if (detail && topic.probes.some((re) => re.test(detail))) hits++;
+  }
+  return hits;
+}
+
+/**
+ * Concrete unprobed leads: the join of researchedTopicStats and
+ * discoveredEndpoints. Two kinds, topic leads first:
+ *   1. a researched class that has never been probed — or that the
+ *      binary probed flag credits on glancing evidence only (at most
+ *      one payload-signature action against ≥5 research hits, and
+ *      the class is not one whose canonical probe is a single
+ *      observation) — grounded on the best discovered endpoint for
+ *      it (a path match for the class, else the most-visited
+ *      endpoint that takes input and has not been probed for this
+ *      class), naming the input and the canonical first test value.
+ *      On the live Ezviz record this tier is what surfaces SQL
+ *      injection at all: researched ×104, its entire "probing" one
+ *      typed fragment (`sql' --` in a form field).
+ *   2. a discovered endpoint that has never received any probe at
+ *      all (the bare root path is the lobby, not a lead, and is
+ *      skipped unless it takes parameters), ordered so an endpoint
+ *      matching an unprobed class's path pattern and endpoints
+ *      taking parameters come before plain pages.
+ * An endpoint already probed for a class is not offered for it; an
+ * endpoint that receives a probe drops off the coverage list.
+ * Pure; capped at `limit` lines, each clipped.
+ */
+export function unprobedLeadLines({ events = [], reasoningRows = [], target = '', limit = 6 } = {}) {
+  const allStats = researchedTopicStats({ events, reasoningRows });
+  const neverProbed = allStats.filter((s) => !s.probed).map((s) => ({ ...s, glancing: -1 }));
+  const glancing = allStats
+    .filter((s) => s.probed && !s.topic.oneShot && s.n >= 5)
+    .map((s) => ({ ...s, glancing: probeSignatureHits(events, s.topic) }))
+    .filter((s) => s.glancing <= 1);
+  const topicLeads = [...neverProbed, ...glancing].sort((a, b) => b.n - a.n).slice(0, 4);
+  const endpoints = discoveredEndpoints(events, target);
+  const lines = [];
+  const namedUrls = new Set();
+  // 1. Topic leads — researched class × concrete surface.
+  for (const s of topicLeads) {
+    const t = s.topic;
+    const candidates = endpoints.filter((ep) => !ep.probedClasses.includes(t.id));
+    // Rank: endpoints no probe of ANY class has reached first (virgin
+    // input surface beats re-working an endpoint another class is
+    // already on), then most-visited.
+    const ranked = [...candidates].sort((a, b) => (a.probeActions > 0 ? 1 : 0) - (b.probeActions > 0 ? 1 : 0) || b.visits - a.visits);
+    const pathMatch = t.pathRe ? ranked.find((ep) => t.pathRe.test(ep.path)) : null;
+    const ep = pathMatch || ranked.find((e) => e.params.length || e.dataSent) || ranked[0] || null;
+    const where = ep ? ep.url : String(target || '');
+    if (ep) namedUrls.add(ep.url);
+    const param = ep && ep.params.length ? ep.params[0] : '';
+    const via = t.via
+      ? t.via(param)
+      : param
+        ? `with ${param} set to ${t.testValue}`
+        : t.testValue
+          ? `with a test input set to ${t.testValue}`
+          : '';
+    // Topics carrying their own phrasing (t.via) name the method
+    // themselves; the rest get a plain method + endpoint + input.
+    const lead = t.via
+      ? `Concrete next probe: ${where}${via ? ` ${via}` : ''} — ${t.testNote}.`
+      : `Concrete next probe: ${ep && ep.dataSent ? 'POST' : 'send a request to'} ${where}${via ? ` ${via}` : ''} — ${t.testNote}.`;
+    const researched = s.glancing < 0
+      ? `researched ×${s.n}, never probed`
+      : s.glancing === 0
+        ? `researched ×${s.n}; no payload for it exists anywhere in your record — never actually probed`
+        : `researched ×${s.n}; your whole record holds exactly one glancing attempt at it — never a complete probe`;
+    lines.push(clipLine(`- ${t.label} — ${researched}. ${lead}`, 280));
+  }
+  // 2. Coverage leads — discovered surface no probe has ever reached,
+  // ordered: an endpoint matching a lead-eligible class's path
+  // pattern first, then endpoints taking parameters, then the rest
+  // by visits.
+  const coverage = endpoints
+    .filter((ep) => ep.probeActions === 0 && !(ep.path === '/' && !ep.params.length) && !namedUrls.has(ep.url))
+    .map((ep) => {
+      const pair = topicLeads.find((s) => s.topic.pathRe && s.topic.pathRe.test(ep.path)) ||
+        allStats.find((s) => !s.probed && s.topic.pathRe && s.topic.pathRe.test(ep.path));
+      return { ep, pair };
+    })
+    .sort((a, b) => (b.pair ? 1 : 0) - (a.pair ? 1 : 0) || (b.ep.params.length ? 1 : 0) - (a.ep.params.length ? 1 : 0) || b.ep.visits - a.ep.visits);
+  for (const { ep, pair } of coverage) {
+    if (lines.length >= limit) break;
+    const paramNote = ep.params.length ? ` It takes parameters: ${ep.params.join(', ')}.` : '';
+    const pairNote = pair ? ` It pairs with your unprobed research: ${pair.topic.label} (researched ×${pair.n}, never probed).` : '';
+    lines.push(clipLine(`- ${ep.url} — discovered in your own record (visited ×${ep.visits}), never probed: no test payload has ever been sent to it.${paramNote}${pairNote}`, 280));
+  }
+  return lines.slice(0, limit);
 }
 
 /**
@@ -901,7 +1129,7 @@ export function huntFactLines(meta) {
   ];
 }
 
-function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0 }) {
+function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [] }) {
   const confirmed = (findings || []).filter((f) => f.verified);
   const unconfirmed = (findings || []).filter((f) => !f.verified);
   const findLines = [
@@ -926,6 +1154,15 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     // (long, capped) memory briefing — so no prompt cap downstream
     // can truncate away the record of what is already done.
     ...(explored && explored.length ? ['', ...explored] : []),
+    // Lane J: the unprobed leads sit with the digest, OUTSIDE the
+    // briefing cap — concrete next probes (researched class ×
+    // discovered endpoint × input × test value) derived from the
+    // hunt's own record, so conversion material cannot be crowded
+    // out by the ledger and does not have to compete with the
+    // dossier's distilled next step inside the briefing.
+    ...(leads && leads.length
+      ? ['', '=== UNPROBED LEADS — CONCRETE NEXT PROBES (from your own record) ===', ...leads, 'A search result is not a test: only a request sent to the target tests anything.']
+      : []),
     '',
     '=== WHAT YOU KNOW (your memory — everything you have done and learned) ===',
     briefing || '(nothing yet — this hunt is young)',
@@ -1130,6 +1367,18 @@ export async function humanIteration(huntId, target, opts = {}) {
     try {
       retractedCount = retractedFindingCount(deps.readEvents(huntId) || []);
     } catch { /* retraction note is best-effort */ }
+    // Lane J: concrete unprobed leads, refreshed every turn from the
+    // hunt's current record (same per-turn discipline as the Lane I
+    // briefing refresh) — as probes land, leads drop off the screen.
+    let leads = [];
+    try {
+      const leadEvents = deps.readEvents(huntId) || sessionEvents;
+      let leadRows = [];
+      try {
+        leadRows = getAllReasoning(huntId) || [];
+      } catch { /* reasoning rows are best-effort */ }
+      leads = unprobedLeadLines({ events: leadEvents, reasoningRows: leadRows, target });
+    } catch { /* leads are best-effort perception */ }
     const screen = buildScreen({
       target,
       parsedScope,
@@ -1146,6 +1395,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       leftOff: prevLeftOff,
       journal: sessionJournalLines(log),
       retractedCount,
+      leads,
     });
 
     // THINK: one brain call. Full reply is recorded verbatim (total
