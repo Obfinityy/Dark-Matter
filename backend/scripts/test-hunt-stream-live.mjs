@@ -96,6 +96,18 @@ try {
   check('socket stayed OPEN after connect (no engine_unreachable close)',
     !closed && !messages.some((m) => m.state === 'engine_unreachable'));
 
+  // Lane V, symptom 2: replayed events must keep their OWN recorded
+  // time. The bridge used to strip cachedAt (stripCacheFields), so
+  // the client stamped every history line with the page-load moment
+  // and the whole feed rendered with one identical elapsed stamp —
+  // the hunt's total elapsed at load, on every line.
+  const replayThink = messages.find((m) => m.type === 'thinking');
+  const replayTool = messages.find((m) => m.type === 'tool_call');
+  check('replayed thinking kept its own cachedAt (not stripped by the bridge)',
+    Boolean(replayThink) && replayThink.cachedAt === '2026-10-23T11:02:43.000Z');
+  check('replayed tool_call kept its own, different cachedAt (per-event times survive)',
+    Boolean(replayTool) && replayTool.cachedAt === '2026-10-23T11:03:00.000Z');
+
   // The running loop writes a new event and the iteration advances.
   fs.appendFileSync(eventsFile, JSON.stringify({
     type: 'thinking', text: 'LIVE-MARKER: probing the login form now', cachedAt: new Date().toISOString(),
@@ -110,6 +122,29 @@ try {
     () => messages.some((m) => m.type === 'status' && m.step === 167),
     6000, 'meta progress forwarded');
   check('meta progress (iteration 167) forwarded over the same socket', gotStep);
+
+  // Lane V, symptom 3 (bridge side): human-mode events must cross
+  // the bridge untouched — tool + detail + via + their own stamp —
+  // so the feed can render what the hunter actually did. (The
+  // rendering half of that defect was in the frontend's feed
+  // shaping; the bridge's job is to not lose the fields.)
+  const hmStamp = new Date().toISOString();
+  fs.appendFileSync(eventsFile,
+    JSON.stringify({
+      type: 'tool_call', tool: 'browser_open', detail: 'http://172.17.0.1:3000/ftp', via: 'human-mode', cachedAt: hmStamp,
+    }) + '\n' + JSON.stringify({
+      type: 'thinking', text: 'HUMAN-MARKER: I see the /ftp listing; the KeePass file is the prize', via: 'human-mode', cachedAt: hmStamp,
+    }) + '\n');
+  const gotHmTool = await waitFor(
+    () => messages.some((m) => m.type === 'tool_call' && m.via === 'human-mode' && m.detail === 'http://172.17.0.1:3000/ftp'),
+    6000, 'human-mode tool_call over the open socket');
+  check('human-mode tool_call pushed LIVE with tool + detail intact', gotHmTool);
+  const hmToolMsg = messages.find((m) => m.type === 'tool_call' && m.via === 'human-mode');
+  check('human-mode tool_call kept its own cachedAt', Boolean(hmToolMsg) && hmToolMsg.cachedAt === hmStamp);
+  const gotHmThink = await waitFor(
+    () => messages.some((m) => m.type === 'thinking' && String(m.text || '').includes('HUMAN-MARKER')),
+    6000, 'human-mode thinking over the open socket');
+  check('human-mode thinking pushed LIVE', gotHmThink);
   check('socket still open at the end', !closed);
 } finally {
   try { if (ws) ws.close(); } catch { /* ignore */ }

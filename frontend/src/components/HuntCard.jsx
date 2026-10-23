@@ -2,7 +2,7 @@
 // Status line ("Hunting <target>…"), expandable event feed, findings stream,
 // and Pause/Resume/Stop pill buttons. All stream/control logic unchanged.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { pauseHunt, resumeHunt, stopHunt, getHuntCost, steerHunt, listHunts } from '../lib/api';
+import { pauseHunt, resumeHunt, stopHunt, getHuntCost, getHuntEvents, steerHunt, listHunts } from '../lib/api';
 import { HuntStreamClient, createSimulatedStream, isDemoMode } from '../lib/huntStream';
 import { toast } from '../lib/toast';
 
@@ -58,6 +58,30 @@ function statusText(status, target) {
   }
 }
 
+// Lane V: a stream event's OWN time. Every recorded event carries
+// the stamp the backend wrote (cachedAt; some events also carry
+// `at`). Feed lines must render their event's time — stamping a
+// replayed history line with the moment the page happened to load
+// made every history line show one identical elapsed stamp (the
+// hunt's total elapsed at load). Date.now() is only the fallback
+// for a live frame that carries no stamp of its own.
+function eventTimeMs(payload) {
+  const t = Date.parse((payload && (payload.at || payload.cachedAt)) || '');
+  return Number.isFinite(t) ? t : Date.now();
+}
+
+// One feed line for a tool_call event/record, identical for the
+// history pull and the live stream. Host-side events (pipeline AND
+// human mode) carry {tool, detail}; engine-era frames carried
+// {tool, args}. The stream handler used to read only args/output,
+// so every host-side tool line collapsed to the bare tool name and
+// the action itself (which page, which command) never rendered.
+function toolCallText(e) {
+  const tool = (e && e.tool) || 'tool';
+  const detail = (e && (e.detail || e.args)) || '';
+  return `${tool}${detail ? ` ${detail}` : ''}`;
+}
+
 import HuntPiP from './HuntPiP';
 import HuntTerminalModal from './HuntTerminalModal';
 import LiveMachine from './LiveMachine';
@@ -89,7 +113,11 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
   // the hunt had restarted from zero (owner's live QA, 23 Oct 2026).
   // Track the load so the card says "loading" while it is loading.
   const [historyLoaded, setHistoryLoaded] = useState(false);
-  // Load historical events for real timestamps on existing log lines
+  // Load historical events for real timestamps on existing log lines,
+  // plus the reconciled findings snapshot (Lane V): the panel's
+  // findings come from the backend's single read path
+  // (loadHuntMemory -> panelFindings — retraction-filtered, one row
+  // per unique title), the same source mid-hunt chat counts from.
   useEffect(() => {
     let cancelled = false;
     import('../lib/api').then(({ getHuntEvents }) =>
@@ -97,21 +125,41 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
         if (cancelled) return;
         setHistoryLoaded(true);
         if (!r.ok || !r.data) return;
+        if (Array.isArray(r.data.findings)) setFindings(r.data.findings);
         const evts = r.data.events || r.data || [];
         if (!Array.isArray(evts) || evts.length === 0) return;
         const mapped = evts
-          .filter((e) => e.type === 'thinking' || e.type === 'tool_call')
-          .map((e) => ({
-            kind: e.type === 'tool_call' ? 'tool' : 'thinking',
-            text: e.text || e.message || e.detail || '',
-            at: (e.at || e.cachedAt) ? new Date(e.at || e.cachedAt).getTime() : Date.now(),
-          }))
+          .filter((e) => e.type === 'thinking' || e.type === 'tool_call' || e.type === 'dedup_block')
+          .map((e) => {
+            const at = (e.at || e.cachedAt) ? new Date(e.at || e.cachedAt).getTime() : Date.now();
+            if (e.type === 'tool_call') return { kind: 'tool', text: toolCallText(e), at };
+            if (e.type === 'dedup_block') {
+              return { kind: 'thinking', text: `dedup_block: ${e.tool || ''} ${e.detail || ''}`.trim(), at };
+            }
+            return { kind: 'thinking', text: e.text || e.message || e.detail || '', at };
+          })
           .filter((l) => l.text);
         if (mapped.length) setLogs(mapped.slice(-99));
       }).catch(() => { if (!cancelled) setHistoryLoaded(true); })
     );
     return () => { cancelled = true; };
   }, [hunt.huntId]);
+
+  // Lane V: keep the panel's findings on the reconciled snapshot
+  // while the stream runs. A streamed 'finding'/'retraction' event
+  // is a signal to re-read the snapshot (debounced), never a row to
+  // append raw — raw accumulation is what desynced the panel from
+  // chat (dropped `verified`, no retractions, duplicate stamps).
+  const findingsTimerRef = useRef(null);
+  const refreshFindings = () => {
+    getHuntEvents(hunt.huntId, 200).then((r) => {
+      if (r && r.ok && r.data && Array.isArray(r.data.findings)) setFindings(r.data.findings);
+    }).catch(() => {});
+  };
+  const refreshFindingsSoon = () => {
+    if (findingsTimerRef.current) clearTimeout(findingsTimerRef.current);
+    findingsTimerRef.current = setTimeout(refreshFindings, 800);
+  };
   useEffect(() => {
     if (hunt.createdAt) { setResolvedCreatedAt(hunt.createdAt); return; }
     let cancelled = false;
@@ -165,17 +213,31 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
         human = `I found something: ${text.slice(0, 120)}`;
       } else if (entry.kind === 'tool') {
         const t = text.toLowerCase();
-        if (t.includes('nmap')) { emoji = '🔍'; human = 'I scanned the target for open ports'; }
+        // Human-mode GUI actions (Lane V): the line carries the tool
+        // name + detail ("browser_open http://…/ftp"), so name what
+        // the hunter actually did. These used to fall through to one
+        // generic line, deduped by text into invisibility — the
+        // activity feed showed nothing of human mode at all.
+        if (t.startsWith('browser_open')) {
+          const u = (text.match(/https?:\/\/\S+/) || [])[0];
+          emoji = '🌐'; human = u ? `I opened ${u.slice(0, 80)} in my browser` : 'I opened a page in my browser';
+        }
+        else if (t.startsWith('browser_click')) { emoji = '🖱️'; human = `I clicked ${text.replace(/^browser_click\s*/i, '').slice(0, 60) || 'a page element'}`; }
+        else if (t.startsWith('browser_type')) { emoji = '⌨️'; human = 'I typed into the page'; }
+        else if (t.startsWith('browser_snapshot')) { emoji = '👀'; human = 'I took a close look at the page'; }
+        else if (t.includes('nmap')) { emoji = '🔍'; human = 'I scanned the target for open ports'; }
         else if (t.includes('subdomain') || t.includes('subfinder') || t.includes('amass')) { emoji = '🌐'; human = 'I enumerated subdomains'; }
         else if (t.includes('nuclei')) { emoji = '🔬'; human = 'I ran vulnerability checks'; }
         else if (t.includes('curl') || t.includes('wget')) { emoji = '📡'; human = 'I fetched a web page to inspect it'; }
         else if (t.includes('sqlmap') || t.includes('sql')) { emoji = '💉'; human = 'I tested for SQL injection'; }
         else if (t.includes('xss')) { emoji = '⚡'; human = 'I tested for cross-site scripting'; }
+        else if (t.startsWith('shell')) { emoji = '💻'; human = `I ran a command: ${text.replace(/^shell\s*/i, '').slice(0, 70)}`; }
         else { emoji = '🔧'; human = `I ran a security test`; }
       } else {
         // thinking entries — make them first-person and friendly
         const t = text.toLowerCase();
-        if (t.includes('reconnaissance') || t.includes('mapping the attack')) { emoji = '🗺️'; human = 'I started mapping the website'; }
+        if (t.includes('dedup_block')) { emoji = '🛑'; human = 'I caught myself repeating an action — my own record stopped it'; }
+        else if (t.includes('reconnaissance') || t.includes('mapping the attack')) { emoji = '🗺️'; human = 'I started mapping the website'; }
         else if (t.includes('understanding target')) { emoji = '👀'; human = `I'm looking at ${hunt.target}`; }
         else if (t.includes('iteration')) { const m = text.match(/iteration\s+(\d+)/i); emoji = '🔄'; human = m ? `I'm on round ${m[1]} of testing` : 'I continued testing'; }
         else if (t.includes('business-logic') || t.includes('bl module')) { emoji = '🧠'; human = 'I planned business-logic attack scenarios'; }
@@ -183,6 +245,14 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
         else if (t.includes('finished')) { emoji = '✅'; human = 'I finished the hunt'; }
         else if (t.includes('paused')) { emoji = '⏸️'; human = 'I paused — waiting for you'; }
         else if (t.includes('stopped')) { emoji = '⏹️'; human = 'I stopped the hunt'; }
+        if (!human && text.trim()) {
+          // Lane V: human-mode thinking is free-form first-person
+          // reasoning that matches none of the pipeline-era patterns
+          // above; dropping it froze this feed at the last pipeline
+          // narration line while the hunter kept working. Show the
+          // reasoning itself, trimmed to a feed line.
+          human = text.replace(/\s+/g, ' ').trim().slice(0, 140);
+        }
       }
       if (human && !seen.has(human)) {
         seen.add(human);
@@ -224,28 +294,43 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
     const handlers = {
       onEvent: (type, payload) => {
         if (type === 'thinking') {
-          setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: payload.text || payload.message || '', at: Date.now() }]);
+          setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: payload.text || payload.message || '', at: eventTimeMs(payload) }]);
         } else if (type === 'tool_call') {
           const line = payload.output
             ? `${payload.tool} → output received`
-            : `${payload.tool}${payload.args ? ` ${payload.args}` : ''}`;
-          setLogs((prev) => [...prev.slice(-99), { kind: 'tool', text: line, at: Date.now() }]);
-        } else if (type === 'finding') {
-          setFindings((prev) => [
-            ...prev,
-            {
-              title: payload.title || 'Finding',
-              severity: String(payload.severity || 'low').toLowerCase(),
-              detail: payload.detail || '',
-            },
-          ]);
+            : toolCallText(payload);
+          setLogs((prev) => [...prev.slice(-99), { kind: 'tool', text: line, at: eventTimeMs(payload) }]);
+        } else if (type === 'dedup_block') {
+          setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: `dedup_block: ${payload.tool || ''} ${payload.detail || ''}`.trim(), at: eventTimeMs(payload) }]);
+        } else if (type === 'finding' || type === 'retraction') {
+          // Lane V: never accumulate raw finding events in the panel.
+          // The reconciled snapshot (loadHuntMemory -> panelFindings,
+          // the same source chat counts from) is the only truth here;
+          // a streamed finding/retraction just schedules a re-read.
+          // (Demo mode has no backend to re-read — keep its scripted
+          // findings, this time WITH the verified flag intact.)
+          if (payload.demo) {
+            if (type === 'finding') {
+              setFindings((prev) => [
+                ...prev,
+                {
+                  title: payload.title || 'Finding',
+                  severity: String(payload.severity || 'low').toLowerCase(),
+                  verified: payload.verified === true,
+                  detail: payload.detail || '',
+                },
+              ]);
+            }
+          } else {
+            refreshFindingsSoon();
+          }
         } else if (type === 'status') {
           if (payload.status) updateStatus(payload.status);
           if (payload.phase) setPhase(payload.phase);
         } else if (type === 'done') {
           updateStatus('done');
           if (payload.summary) {
-            setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: payload.summary, at: Date.now() }]);
+            setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: payload.summary, at: eventTimeMs(payload) }]);
           }
         }
       },
