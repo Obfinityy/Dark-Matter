@@ -327,6 +327,38 @@ function resolveStartDesktop(deps) {
   return (deps && deps.startDesktop) || startHuntDesktop;
 }
 
+// Lane AB (24 Oct 2026): after a start attempt the desktop needs a
+// few seconds before its CDP endpoint answers — a cold Chromium on
+// this loaded box is not instant. Lane Z's single immediate re-probe
+// raced that cold start live on the DVWA hunt: the starter brought
+// the stack up, the lone re-probe scored the recovery "failed", and
+// the action still went look-only that turn (the NEXT action found
+// the desktop serving normally). So a successful start now earns a
+// short poll window: re-probe every few seconds, stop at the first
+// CDP answer. Only the recovery path pays the window — the healthy
+// path and the throttled path gain no delay. Attempts and interval
+// are injectable through the same deps seam as the starter, so tests
+// run instantly.
+const RECOVERY_POLL_ATTEMPTS = 8; // total probes; the first is immediate
+const RECOVERY_POLL_INTERVAL_MS = 3000; // 7 sleeps x 3s + probe time ~= a 25s window
+
+function resolveSleep(deps) {
+  // Injectable for tests, like the exec seam.
+  return (deps && deps.sleep) || ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+}
+
+function recoveryPollConfig(deps) {
+  const attempts =
+    deps && Number.isInteger(deps.recoveryPollAttempts) && deps.recoveryPollAttempts > 0
+      ? deps.recoveryPollAttempts
+      : RECOVERY_POLL_ATTEMPTS;
+  const intervalMs =
+    deps && Number.isFinite(deps.recoveryPollIntervalMs) && deps.recoveryPollIntervalMs >= 0
+      ? deps.recoveryPollIntervalMs
+      : RECOVERY_POLL_INTERVAL_MS;
+  return { attempts, intervalMs };
+}
+
 async function recoverDesktop(huntId, deps = {}) {
   if (desktopStartRecentlyFailed(huntId)) {
     return { attempted: false, ok: false, throttled: true };
@@ -339,15 +371,22 @@ async function recoverDesktop(huntId, deps = {}) {
     res = { ok: false, error: String((err && err.message) || err) };
   }
   if (res && res.ok) {
-    // Re-probe from scratch: the cached probe may keep saying
-    // 'headless' for up to PROBE_TTL_MS after the desktop came up.
-    probeCache.delete(huntId);
-    const probe = await probeGui(huntId, deps);
-    if (probe.mode === 'cdp') return { attempted: true, ok: true, probe };
-    // The starter claims success but no CDP endpoint is visible — the
-    // recovery did not restore the hunter's hands; record it as a
-    // failure so later actions throttle instead of paying for a start
-    // on every call, and let the caller fall back honestly.
+    // Poll for the desktop to finish its cold start. Re-probe from
+    // scratch each time: the cached probe may keep saying 'headless'
+    // for up to PROBE_TTL_MS after the desktop came up.
+    const { attempts, intervalMs } = recoveryPollConfig(deps);
+    const sleep = resolveSleep(deps);
+    for (let i = 0; i < attempts; i++) {
+      if (i > 0) await sleep(intervalMs);
+      probeCache.delete(huntId);
+      const probe = await probeGui(huntId, deps);
+      if (probe.mode === 'cdp') return { attempted: true, ok: true, probe };
+    }
+    // The starter claims success but no CDP endpoint became visible
+    // within the poll window — the recovery did not restore the
+    // hunter's hands; record it as a failure so later actions throttle
+    // instead of paying for a start on every call, and let the caller
+    // fall back honestly.
     noteDesktopStartFailure(huntId);
     return { attempted: true, ok: false, error: 'desktop_started_but_cdp_unreachable' };
   }
