@@ -558,7 +558,7 @@ export async function guiBrowserOpen(huntId, url, deps = {}) {
   const exec = resolveExec(deps);
   try {
     const { probe, recovery } = await probeWithRecovery(huntId, deps);
-    if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE };
+    if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE, degraded: true };
     if (probe.mode === 'cdp') {
       const res = await cdpAction(huntId, 'navigate', { url }, deps);
       if (res && !res.observation) return { ok: true, observation: `Opened ${url} in your desktop browser.\n${formatSnapshot(res)}` };
@@ -568,6 +568,13 @@ export async function guiBrowserOpen(huntId, url, deps = {}) {
     const snap = await headlessSnapshot(huntId, url, deps);
     return {
       ok: true,
+      // Lane AF: this observation is the look-only fallback — the
+      // hunter did not see the real interactive page. The result
+      // says so in machine-readable form (`degraded`) so the dedupe
+      // gate's history can refuse to count it as work done; the
+      // flag is set HERE, at the single place the fallback text is
+      // composed, never inferred from prose elsewhere.
+      degraded: true,
       observation:
         `Opened ${url} (headless preview — this browser is look-only: the clickable desktop is not running in this environment and nothing you install can change that. You can SEE pages here; to interact with a page, use shell + curl).${desktopRecoveryNote(recovery)}\n` +
         formatSnapshot(snap),
@@ -581,7 +588,7 @@ export async function guiBrowserSnapshot(huntId, deps = {}) {
   const exec = resolveExec(deps);
   try {
     const { probe, recovery } = await probeWithRecovery(huntId, deps);
-    if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE };
+    if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE, degraded: true };
     if (probe.mode === 'cdp') {
       const res = await cdpAction(huntId, 'snapshot', {}, deps);
       if (res && !res.observation) return { ok: true, observation: formatSnapshot(res) };
@@ -593,6 +600,7 @@ export async function guiBrowserSnapshot(huntId, deps = {}) {
     const note = desktopRecoveryNote(recovery);
     return {
       ok: true,
+      degraded: true, // Lane AF: the look-only headless view, as in guiBrowserOpen.
       observation: (note ? `(Look-only headless view — the desktop browser is not running.${note})\n` : '') + formatSnapshot(snap),
     };
   } catch (err) {
@@ -603,9 +611,13 @@ export async function guiBrowserSnapshot(huntId, deps = {}) {
 export async function guiBrowserClick(huntId, text, deps = {}) {
   try {
     const { probe, recovery } = await probeWithRecovery(huntId, deps);
-    if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE };
+    if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE, degraded: true };
     if (probe.mode !== 'cdp') {
-      return { ok: false, observation: 'Clicking needs the live desktop browser (CDP). It is not running in this environment and cannot be started or installed from inside the hunt — do not spend turns trying to fix it. Use browser_open/browser_snapshot to look, and shell + curl to act.' + desktopRecoveryNote(recovery) };
+      // Lane AF: the click did not happen — the desktop-down
+      // fallback refused it. Flagged degraded like the open
+      // fallback, so the gate does not count a non-click as a
+      // performed click and starve the next recovery attempt.
+      return { ok: false, degraded: true, observation: 'Clicking needs the live desktop browser (CDP). It is not running in this environment and cannot be started or installed from inside the hunt — do not spend turns trying to fix it. Use browser_open/browser_snapshot to look, and shell + curl to act.' + desktopRecoveryNote(recovery) };
     }
     const res = await cdpAction(huntId, 'click', { text: String(text || '') }, deps);
     if (!res) return { ok: false, observation: NOT_AVAILABLE };
@@ -620,9 +632,11 @@ export async function guiBrowserClick(huntId, text, deps = {}) {
 export async function guiBrowserType(huntId, text, submit = false, deps = {}) {
   try {
     const { probe, recovery } = await probeWithRecovery(huntId, deps);
-    if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE };
+    if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE, degraded: true };
     if (probe.mode !== 'cdp') {
-      return { ok: false, observation: 'Typing needs the live desktop browser (CDP). It is not running in this environment and cannot be started or installed from inside the hunt — do not spend turns trying to fix it. Use shell + curl to send data instead.' + desktopRecoveryNote(recovery) };
+      // Lane AF: typing did not happen — desktop-down fallback
+      // refusal, flagged degraded exactly like the click refusal.
+      return { ok: false, degraded: true, observation: 'Typing needs the live desktop browser (CDP). It is not running in this environment and cannot be started or installed from inside the hunt — do not spend turns trying to fix it. Use shell + curl to send data instead.' + desktopRecoveryNote(recovery) };
     }
     const res = await cdpAction(huntId, 'type', { text: String(text || ''), submit: Boolean(submit) }, deps);
     if (!res) return { ok: false, observation: NOT_AVAILABLE };

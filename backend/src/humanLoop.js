@@ -1408,6 +1408,27 @@ export function repetitionLines(events) {
 const GATED_TOOLS = new Set(['shell', 'search', 'browser_open', 'browser_click', 'browser_type', 'intercept_replay']);
 const DEDUP_THRESHOLD = 2; // an action already run this many times is not run again
 
+// Lane AF (24 Oct 2026): DEGRADED executions — a browser action
+// whose observation was guiTools' headless look-only fallback (the
+// desktop was down; the hunter never saw the real interactive
+// page) — are not the work the gate exists to stop repeating: the
+// DVWA hunt's only two opens were both fallbacks, the gate counted
+// them as full runs, and then blocked the very open whose guiTools
+// probe would have retried the desktop start (Lane Z/AB recovery
+// only fires when a browser action EXECUTES). History therefore
+// tracks, per signature, fullCount (real executions) separately
+// from degradedStreak (fallback executions since the last full
+// one): the gate blocks at DEDUP_THRESHOLD full executions — Lane
+// F semantics, unchanged — or at DEGRADED_THRESHOLD degraded ones,
+// so a desktop that never recovers still cannot loop forever. A
+// full execution resets the streak. The degradation signal is
+// guiTools' own `degraded` result flag, threaded through the
+// loop's post-execution bookkeeping and persisted as a paired
+// tool_degraded event, so a history rebuilt from the record
+// (buildActionHistory) replays the identical accounting — one
+// consistent record for the gate and Lane AD's settled lines.
+const DEGRADED_THRESHOLD = 4; // fallback executions of one signature (since the last full one) before the gate blocks
+
 /**
  * The normalised detail of an action — the part of its identity that
  * survives superficial respelling. Deliberately conservative: only
@@ -1450,23 +1471,59 @@ export function actionSignature(tool, detail) {
 
 /**
  * The hunt's executed-action history, built from its recorded
- * tool_call events: signature -> { tool, detail, count, lastResult }.
- * Detail-less calls and non-gated tools carry no repeatable identity
- * and are skipped. lastResult is filled in live by the running
- * session (events do not store results); across sessions it stays
- * empty and the gate's observation simply omits it.
+ * tool_call events: signature -> { tool, detail, count, fullCount,
+ * degradedStreak, lastResult }. Detail-less calls and non-gated
+ * tools carry no repeatable identity and are skipped. lastResult
+ * is filled in live by the running session (events do not store
+ * results); across sessions it stays empty and the gate's
+ * observation simply omits it.
+ *
+ * Lane AF: `count` stays the total number of executions (what the
+ * explored digest and Lane AD's settled lines have always read).
+ * `fullCount` counts only executions that really ran (a browser
+ * action on the live desktop, or any non-browser action);
+ * `degradedStreak` counts consecutive look-only-fallback
+ * executions since the last full one. A tool_call is replayed as
+ * a full execution UNLESS its paired tool_degraded event follows
+ * — the loop records that amendment in the same turn, right after
+ * the execution it reclassifies — in which case the streak that
+ * stood before it is restored and incremented instead. Records
+ * written before this lane have no tool_degraded events, so every
+ * execution in them replays as full, exactly as the gate judged
+ * them at the time.
  */
 export function buildActionHistory(events) {
   const history = new Map();
+  const unamended = new Map(); // sig -> degradedStreak before the latest execution not yet amended
   for (const e of events || []) {
-    if (!e || e.type !== 'tool_call') continue;
+    if (!e) continue;
+    if (e.type === 'tool_degraded') {
+      const tool = String(e.tool || '').toLowerCase();
+      if (!GATED_TOOLS.has(tool)) continue;
+      if (!String(e.detail || '').trim()) continue;
+      const sig = actionSignature(tool, e.detail);
+      const cur = history.get(sig);
+      if (cur && unamended.has(sig)) {
+        cur.fullCount = Math.max(0, cur.fullCount - 1);
+        cur.degradedStreak = unamended.get(sig) + 1;
+        unamended.delete(sig);
+      }
+      continue;
+    }
+    if (e.type !== 'tool_call') continue;
     const tool = String(e.tool || '').toLowerCase();
     if (!GATED_TOOLS.has(tool)) continue;
     if (!String(e.detail || '').trim()) continue;
     const sig = actionSignature(tool, e.detail);
-    const cur = history.get(sig);
-    if (cur) cur.count++;
-    else history.set(sig, { tool, detail: normalisedActionDetail(tool, e.detail), count: 1, lastResult: '' });
+    let cur = history.get(sig);
+    if (!cur) {
+      cur = { tool, detail: normalisedActionDetail(tool, e.detail), count: 0, fullCount: 0, degradedStreak: 0, lastResult: '' };
+      history.set(sig, cur);
+    }
+    cur.count++;
+    cur.fullCount++;
+    unamended.set(sig, cur.degradedStreak);
+    cur.degradedStreak = 0;
   }
   return history;
 }
@@ -1532,15 +1589,23 @@ function gatedCandidate(kind, action) {
 
 /**
  * Gate verdict for one parsed action against the hunt's history:
- * { tool, detail, count, lastResult } when the identical action has
- * already been executed >= DEDUP_THRESHOLD times, else null.
+ * { tool, detail, count, fullCount, degradedStreak, lastResult }
+ * when the identical action has already been executed >=
+ * DEDUP_THRESHOLD times for real, or >= DEGRADED_THRESHOLD times
+ * as look-only fallbacks since its last real execution (Lane AF),
+ * else null. `count` in the verdict stays the TOTAL run count —
+ * the figure the block observation, the dedup_block event and
+ * Lane AD's settled lines have always carried.
  */
 export function dedupeGateHit(kind, action, history) {
   const cand = gatedCandidate(String(kind || '').toLowerCase(), action || {});
   if (!cand || !cand.detail.trim()) return null;
   const entry = (history || new Map()).get(actionSignature(cand.tool, cand.detail));
-  if (!entry || entry.count < DEDUP_THRESHOLD) return null;
-  return { tool: cand.tool, detail: entry.detail, count: entry.count, lastResult: entry.lastResult || '' };
+  if (!entry) return null;
+  const fullCount = entry.fullCount != null ? entry.fullCount : entry.count;
+  const degradedStreak = entry.degradedStreak || 0;
+  if (fullCount < DEDUP_THRESHOLD && degradedStreak < DEGRADED_THRESHOLD) return null;
+  return { tool: cand.tool, detail: entry.detail, count: entry.count, fullCount, degradedStreak, lastResult: entry.lastResult || '' };
 }
 
 // ---------------------------------------------------------------------------
@@ -1927,9 +1992,22 @@ export async function humanIteration(huntId, target, opts = {}) {
       const t = String(tool || '').toLowerCase();
       if (GATED_TOOLS.has(t) && String(detail || '').trim()) {
         const sig = actionSignature(t, detail);
-        const cur = actionHistory.get(sig);
-        if (cur) cur.count++;
-        else actionHistory.set(sig, { tool: t, detail: normalisedActionDetail(t, detail), count: 1, lastResult: '' });
+        // Lane AF: the execution counts as FULL for now — the
+        // post-execution bookkeeping (below, where lastResult is
+        // attached) reclassifies it if the GUI result carried the
+        // degraded flag. pendingPrevStreak remembers the streak
+        // this execution is about to reset, so the reclassification
+        // can restore-and-increment it, exactly as
+        // buildActionHistory replays the recorded pair.
+        let cur = actionHistory.get(sig);
+        if (!cur) {
+          cur = { tool: t, detail: normalisedActionDetail(t, detail), count: 0, fullCount: 0, degradedStreak: 0, lastResult: '' };
+          actionHistory.set(sig, cur);
+        }
+        cur.count++;
+        cur.fullCount++;
+        pendingPrevStreak = cur.degradedStreak;
+        cur.degradedStreak = 0;
         pendingSig = sig;
       }
     } catch { /* gate bookkeeping is best-effort */ }
@@ -2029,6 +2107,8 @@ export async function humanIteration(huntId, target, opts = {}) {
     failedSkills = failedSkillAsks(getAllReasoning(huntId) || []);
   } catch { /* failed-skill memory is best-effort */ }
   let pendingSig = null; // signature of the action executing this turn
+  let pendingDegraded = false; // Lane AF: the executing browser action's result was the look-only fallback
+  let pendingPrevStreak = 0; // Lane AF: the signature's degraded streak before this execution
   let lastObservation = '';
   let lastShellAt = 0;
   let lastShellCommand = '';
@@ -2220,7 +2300,14 @@ export async function humanIteration(huntId, target, opts = {}) {
       observation =
         `BLOCKED — ALREADY DONE: you have already performed this exact action ${gateHit.count} times in this hunt (${gateHit.tool}: ${gateHit.detail}).` +
         (gateHit.lastResult ? ` Last result: ${gateHit.lastResult}` : '') +
-        ' It was NOT executed again — an identical repeat returns the identical result and only burns a turn. Choose a DIFFERENT action: a page you have not visited, a search you have not run, a probe you have not tried — or act on what you already learned.';
+        ' It was NOT executed again — an identical repeat returns the identical result and only burns a turn. Choose a DIFFERENT action: a page you have not visited, a search you have not run, a probe you have not tried — or act on what you already learned.' +
+        // Lane AF: for a blocked page-open, name the two variations
+        // that are NOT blocked, deterministically — the cheap half
+        // of the DVWA rescue (the brain there never discovered
+        // either on its own).
+        (gateHit.tool === 'browser_open'
+          ? ' For this page specifically: browser_snapshot shows the page you already have open, without re-opening it; and a deeper URL on the same site (its login or setup page, for example) is a different action that is not blocked.'
+          : '');
       note({ action: `dedup_block: ${gateHit.tool} ${gateHit.detail.slice(0, 120)}`, why: thinkingText, result: `repeat blocked — already run ×${gateHit.count}`, learned: 'Exact repeats are stopped by the record; vary the action.' });
     } else if (kind === 'shell') {
       const command = String(action.command || '').slice(0, COMMAND_CAP);
@@ -2483,6 +2570,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       } else {
         toolCall('browser_open', url);
         const res = await getGui().open(huntId, url);
+        if (res && res.degraded === true) pendingDegraded = true; // Lane AF
         observation = res.observation || '(no observation)';
       }
       note({ action: `browser_open: ${url.slice(0, 120)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
@@ -2494,12 +2582,14 @@ export async function humanIteration(huntId, target, opts = {}) {
       const text = String(action.text || '');
       toolCall('browser_click', text);
       const res = await getGui().click(huntId, text);
+      if (res && res.degraded === true) pendingDegraded = true; // Lane AF
       observation = res.observation || '(no observation)';
       note({ action: `browser_click: ${text.slice(0, 80)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'browser_type') {
       const text = String(action.text || '');
       toolCall('browser_type', text.slice(0, 80));
       const res = await getGui().type(huntId, text, action.submit === true);
+      if (res && res.degraded === true) pendingDegraded = true; // Lane AF
       observation = res.observation || '(no observation)';
       note({ action: 'browser_type', why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'screenshot') {
@@ -2601,8 +2691,23 @@ export async function humanIteration(huntId, target, opts = {}) {
     // repeat attempt can be answered with its last result.
     if (pendingSig) {
       const entry = actionHistory.get(pendingSig);
-      if (entry) entry.lastResult = String(observation).slice(0, 220);
+      if (entry) {
+        entry.lastResult = String(observation).slice(0, 220);
+        // Lane AF: the execution was counted as full at dispatch;
+        // if the GUI result says it was really the look-only
+        // fallback, reclassify it — the full count comes back off,
+        // the streak it interrupted is restored and incremented —
+        // and persist the amendment as a paired tool_degraded event
+        // so the next session's rebuilt history replays the same
+        // accounting from the same record.
+        if (pendingDegraded) {
+          entry.fullCount = Math.max(0, (entry.fullCount || 0) - 1);
+          entry.degradedStreak = pendingPrevStreak + 1;
+          try { deps.record(huntId, { type: 'tool_degraded', tool: entry.tool, detail: entry.detail, via: 'human-mode' }); } catch { /* best-effort */ }
+        }
+      }
       pendingSig = null;
+      pendingDegraded = false;
     }
 
     log.push({ turn, action: kind, detail: detailForAction(kind, action), observation: String(observation).slice(0, 300) });
