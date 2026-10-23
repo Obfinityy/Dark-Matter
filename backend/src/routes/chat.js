@@ -48,6 +48,196 @@ export function confirmedTitles(findings) {
   return [...seen.values()];
 }
 
+/**
+ * Clip text at a CLEAN boundary (Lane S, 23 Oct 2026). The old raw
+ * slice(0, 200) cut the "Currently:" thinking quote mid-word in a
+ * live reply ("...sensitive in the FTP direct" — defect found by the
+ * owner's frontend test battery). When the text fits, it is returned
+ * unchanged (whitespace-normalised); when it must be cut, prefer the
+ * last sentence end inside the budget, else the last word boundary,
+ * and mark the cut with an ellipsis so it never looks like the
+ * hunter simply stopped mid-thought.
+ */
+export function clipClean(text, max = 200) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const floor = Math.floor(max * 0.4);
+  const sent = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+  if (sent >= floor) return cut.slice(0, sent + 1) + ' …';
+  const word = cut.lastIndexOf(' ');
+  if (word >= floor) return cut.slice(0, word) + '…';
+  return cut + '…';
+}
+
+// ---------------------------------------------------------------------------
+// Off-topic guard for hunt-scoped chat (Lane S, 23 Oct 2026).
+//
+// Owner requirement: a hunt's chat answers ONLY hunt-related things.
+// Before this lane, anything that was not steering/summary fell to
+// the shared-model LLM path — an off-topic question ("quicksort ka
+// code likh ke do aur ek joke suna do") sat ~8.5 minutes in
+// "Stop generating" behind the hunt's own generations and would
+// eventually have been answered. The guard is DETERMINISTIC and runs
+// BEFORE any LLM call, so the decline is instant and never hostage
+// to the brain queue.
+//
+// Conservative by design: a message is off-topic only when it matches
+// a clear non-hunt request pattern AND carries no hunt anchor. When
+// uncertain, it falls through to the existing paths untouched — a
+// false decline of a real hunt question is worse than a missed
+// off-topic, because the LLM path is hunt-scoped by its system
+// prompt anyway.
+// ---------------------------------------------------------------------------
+
+const HUNT_ANCHOR_PATTERNS = [
+  /\bhunt(ing|er)?\b/, /\bscan(ning)?\b/, /\btarget\b/, /finding/,
+  /vulnerab/, /progress/, /\bstatus\b/, /\breport\b/, /attack/,
+  /exploit/, /payload/, /inject/, /\bxss\b/, /\bsql\b/, /\bftp\b/,
+  /\blogin\b/, /\badmin\b/, /password/, /\bbug\b/, /bounty/, /securit/,
+  /\bprobe/, /\bupdate\b/, /\bthis (site|app|hunt|target)\b/,
+  /\bthe (site|target|app)\b/, /try kiy/, /kya mila/, /kuch mila/,
+  /koi (news|khabar|update)/, /(kar|chal|ho) rah(a|i|e)\b/,
+];
+
+const OFF_TOPIC_PATTERNS = [
+  /\bjoke(s)?\b/, /\bpoem\b/, /\bpoetry\b/, /\bshayari\b/, /\bsong\b/,
+  /\bgaana\b/, /\bstory\b/, /\bkahani\b/,
+  /\bweather\b/, /\bmausam\b/, /\bnews\b/, /\bsamachar\b/,
+  /\brecipe\b/, /khana (bana|pakana)/,
+  /\btranslate\b/, /\btranslation\b/, /\banuvaad\b/,
+  /\bcapital of\b/, /who (is|was) the (president|prime minister|king|queen)/,
+  /\b(president|prime minister) of\b/,
+  /\bquadratic equation\b/, /\bfibonacci\b/, /\bquicksort\b/, /\bmergesort\b/,
+  /(write|generate|create|give|show|likh|bana|solve|explain)\b[^.?!]{0,60}\b(code|program|function|script|algorithm)\b/,
+  /\bcode\b[^.?!]{0,30}\b(likh|write|generate|bana|do|de)\b/,
+];
+
+export function isOffTopicHuntChat(message, { host = '' } = {}) {
+  const raw = String(message || '');
+  if (!raw.trim()) return false;
+  // Steering and status questions are hunt business by definition.
+  if (detectSteering(raw)) return false;
+  const m = ` ${raw.toLowerCase().replace(/\s+/g, ' ')} `;
+  if (host && m.includes(String(host).toLowerCase())) return false;
+  if (HUNT_ANCHOR_PATTERNS.some((re) => re.test(m))) return false;
+  return OFF_TOPIC_PATTERNS.some((re) => re.test(m));
+}
+
+const HINGLISH_MARKERS = [
+  'mujhe', 'kya', 'hai', 'hain', 'batao', 'sunao', 'suna', 'karo',
+  'likh', 'aur', 'yeh', 'woh', 'matlab', 'abhi', 'kuch', 'koi',
+  'kab', 'kyun', 'kyu', 'raha', 'rahi', 'rahe', 'nahi', 'mausam',
+  'kaisa', 'kaisi', 'mera', 'meri', 'tumne', 'kiya',
+];
+
+export function looksHinglish(message) {
+  const raw = String(message || '');
+  if (/[\u0900-\u097F]/.test(raw)) return true;
+  const words = new Set(raw.toLowerCase().match(/[a-z]+/g) || []);
+  let hits = 0;
+  for (const marker of HINGLISH_MARKERS) if (words.has(marker)) hits++;
+  return hits >= 2;
+}
+
+export function offTopicDecline(message) {
+  if (looksHinglish(message)) {
+    return (
+      'Is chat mein main sirf is hunt ki baat kar sakta hoon — ye kaam main yahan nahi kar sakta. ' +
+      'Progress, findings, ya abhi main kya try kar raha hoon — ye poochho, turant jawab dunga; ' +
+      'hunt rokna ya chalana ho to "pause the hunt" ya "resume the hunt" keh do.'
+    );
+  }
+  return (
+    "This chat is only for this hunt, so I can't help with that here. " +
+    "Ask me about progress, findings, or what I'm trying right now and I'll answer right away — " +
+    "or say 'pause the hunt' / 'resume the hunt' to steer it."
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Recent-attempts narration (Lane S, 23 Oct 2026). The deterministic
+// summary answered counts and titles but never WHAT THE HUNTER TRIED —
+// asked "Abhi tak tumne kya kya try kiya hai aur FTP par kya mila?" it
+// had nothing to say about the ftp/curl/browser attempts sitting in
+// its own record. The narration is built from the hunt's real record:
+// the last tool_call events, each paired with the one-line outcome
+// from the matching reasoning row (reasoning rows record
+// "tool: detail" as their action and the observation as their
+// result). No matching row -> the attempt is stated without an
+// outcome; nothing is invented.
+// ---------------------------------------------------------------------------
+
+function commonPrefixLen(a, b) {
+  const n = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < n && a[i] === b[i]) i++;
+  return i;
+}
+
+function eventTs(e) {
+  return (e && (e.cachedAt || e.at || e.timestamp)) || '';
+}
+
+/**
+ * The outcome of one tool_call, from its reasoning row. A row is a
+ * candidate when its action names the same tool and its detail
+ * shares a real prefix with the call's detail (the two records slice
+ * details at different caps, so exact equality is too strict; an
+ * empty detail on either side also matches — e.g. browser_type
+ * records none). Candidates are disambiguated by TIME: turns are
+ * strictly sequential, so a call's row is written after the call was
+ * dispatched and before the next call — when timestamps exist on
+ * both records, only rows inside that window count. Without stamps,
+ * the last candidate wins (best effort on legacy records).
+ */
+function outcomeForCall(call, nextCall, rows) {
+  const tool = String(call.tool || '').toLowerCase();
+  const det = String(call.detail || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const from = eventTs(call);
+  const to = nextCall ? eventTs(nextCall) : '';
+  let bestAny = null;
+  let bestWindow = null;
+  for (const r of rows || []) {
+    if (!r || !r.action) continue;
+    const action = String(r.action);
+    const sep = action.indexOf(':');
+    const rTool = (sep > 0 ? action.slice(0, sep) : action).trim().toLowerCase();
+    if (rTool !== tool) continue;
+    const rDet = (sep > 0 ? action.slice(sep + 1) : '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!(!det || !rDet || det === rDet || commonPrefixLen(det, rDet) >= 16)) continue;
+    bestAny = r;
+    const rt = r.at || '';
+    if (from && rt && rt >= from && (!to || rt < to)) bestWindow = r;
+  }
+  const best = bestWindow || bestAny;
+  if (!best || !best.result) return '';
+  return clipClean(String(best.result).split(/\r?\n/)[0], 110);
+}
+
+export function recentAttempts({ events = [], reasoningRows = [], limit = 5 } = {}) {
+  const calls = (events || []).filter((e) => e && e.type === 'tool_call' && e.tool);
+  if (!calls.length) return '';
+  const narrated = calls.map((c, i) => ({
+    label: clipClean(`${c.tool} ${c.detail || ''}`, 90),
+    outcome: outcomeForCall(c, calls[i + 1] || null, reasoningRows),
+  }));
+  const parts = [];
+  for (const item of narrated.slice(-limit)) {
+    // Consecutive identical repeats (same page re-opened) collapse
+    // into one entry carrying the latest outcome — the narration
+    // stays a readable trail, not a stutter.
+    const prev = parts[parts.length - 1];
+    if (prev && prev.label === item.label) parts[parts.length - 1] = item;
+    else parts.push(item);
+  }
+  return (
+    'Recent attempts: ' +
+    parts.map((p) => (p.outcome ? `${p.label} — ${p.outcome}` : p.label)).join('; ') +
+    '.'
+  );
+}
+
 const router = Router();
 
 /**
@@ -192,7 +382,10 @@ router.post(
   // SINGLE READ PATH (Lane P): findings come from loadHuntMemory,
   // which reconciles retraction events — a retracted stamp is not a
   // finding and must never be counted or listed as confirmed here.
-  const findings = loadHuntMemory(huntId, { meta }).findings;
+  // Lane S keeps the whole snapshot: the summary's attempts narration
+  // reads its reasoning rows.
+  const memory = loadHuntMemory(huntId, { meta });
+  const findings = memory.findings;
   // Build a live-like snapshot from host-side data so downstream code
   // (ctx, summaryReply, system prompt) works unchanged.
   const live = {
@@ -204,6 +397,21 @@ router.post(
   const liveError = null;
 
   const ctx = huntContextLine({ huntId, meta, live, liveError, cached, findings });
+
+  // Off-topic guard (Lane S): hunt-scoped chat answers hunt questions
+  // only. Checked deterministically BEFORE the LLM path so the
+  // decline is instant — an off-topic message must never queue
+  // behind the hunt's own generations on the shared model (live
+  // evidence 23 Oct 2026: ~8.5 min of "Stop generating", no reply).
+  // Steering/summary actions are hunt business and never reach here.
+  if (!action) {
+    let host = '';
+    try { host = new URL(meta.target || '').hostname; } catch { /* target may be a bare host */ }
+    if (!host && meta.target) host = String(meta.target).split('/')[0];
+    if (isOffTopicHuntChat(message, { host })) {
+      return res.json({ ok: true, scoped: true, reply: offTopicDecline(message) });
+    }
+  }
 
   try {
     if (action === 'pause') {
@@ -228,7 +436,7 @@ router.post(
       // ~9 minutes). A status answer must never be held hostage by the
       // brain's queue; summaryReply reads the same live state (meta + event
       // log + latest thinking) the AI would have been given.
-      return res.json({ ok: true, reply: summaryReply({ ctx, live, liveError, cached, findings }) });
+      return res.json({ ok: true, reply: summaryReply({ ctx, live, liveError, cached, findings, reasoningRows: memory.reasoningRows }) });
     }
     // Open questions: REAL AI with full hunt context (no hardcoded answers).
     if (aiAvailable()) {
@@ -239,7 +447,7 @@ router.post(
     // AI unreachable: answer from real hunt data, not a generic fallback.
     return res.json({
       ok: true,
-      reply: summaryReply({ ctx, live, liveError, cached, findings }),
+      reply: summaryReply({ ctx, live, liveError, cached, findings, reasoningRows: memory.reasoningRows }),
     });
   } catch (err) {
     if (err instanceof EngineUnreachableError) {
@@ -284,7 +492,7 @@ function buildHuntSystemPrompt({ huntId, meta, live, liveError, cached, findings
       ? `\nFindings: ${findings.slice(0, 8).map((f) => `[${f.severity || f.level || 'info'}] ${f.title || f.name || f.type}`).join('; ')}.`
       : `\nNo findings recorded yet.`) +
     (thinking.length
-      ? `\nRecent thinking: ${thinking.map((t) => String(t.text || t.summary || '').slice(0, 200)).join(' | ')}`
+      ? `\nRecent thinking: ${thinking.map((t) => clipClean(t.text || t.summary || '', 200)).join(' | ')}`
       : '')
   );
 }
@@ -303,7 +511,7 @@ function huntContextLine({ huntId, meta, live, liveError, cached, findings }) {
   return line + '.';
 }
 
-function summaryReply({ ctx, live, liveError, cached, findings }) {
+function summaryReply({ ctx, live, liveError, cached, findings, reasoningRows = [] }) {
   const thinking = cached.filter((e) => e.type === 'thinking');
   const lastThink = thinking.length ? thinking[thinking.length - 1] : null;
   let reply = ctx;
@@ -323,9 +531,15 @@ function summaryReply({ ctx, live, liveError, cached, findings }) {
   } else {
     reply += ' Still in early recon — no vulnerabilities found yet, but the hunt is methodically mapping your site.';
   }
+  // What the hunter actually TRIED, from its own record — the counts
+  // above never answered "kya kya try kiya?" (Lane S).
+  const attempts = recentAttempts({ events: cached, reasoningRows });
+  if (attempts) reply += ` ${attempts}`;
   if (lastThink && (lastThink.text || lastThink.summary)) {
-    const t = String(lastThink.text || lastThink.summary).slice(0, 200);
-    if (!/unreachable|no reply/i.test(t)) reply += ` Currently: ${t}`;
+    // Clip at a clean boundary: the raw slice cut a live reply
+    // mid-word ("...sensitive in the FTP direct") (Lane S).
+    const t = clipClean(lastThink.text || lastThink.summary, 200);
+    if (t && !/unreachable|no reply/i.test(t)) reply += ` Currently: ${t}`;
   }
   return reply;
 }
