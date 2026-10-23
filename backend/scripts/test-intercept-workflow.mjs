@@ -20,6 +20,10 @@
 //   - container ops over a fake exec: not-installed honesty,
 //     idempotent start, dashboard token URL, Chromium relaunch
 //     through the proxy, tail-window index arithmetic;
+//   - start readiness against REAL mitmweb behaviour (live-proven
+//     23 Oct 2026): the bare dashboard root answers 403 without its
+//     token, the token URL lands in the log only when the launch is
+//     PYTHONUNBUFFERED, and total HTTP silence is the only failure;
 //   - dispatch wiring through humanIteration: the four actions reach
 //     the intercept machinery, replay is scope-checked on its FINAL
 //     url (override AND captured third-party), paced/executed via
@@ -239,6 +243,71 @@ function makeFakeMachine({ installed = true, desktop = false, captureLines = [] 
     r.ok && m.state.commands.some((c) => c.includes('pkill') && c.includes('--proxy-server=http://127.0.0.1:8080')));
   check('start: relaunch note tells the hunter its tabs were closed',
     /restarted through the proxy/.test(r.observation));
+}
+
+// A machine modelling the REAL mitmweb the live smoke test met on
+// 23 Oct 2026: the bare dashboard root answers 403 without its
+// token (SPA shell behind the auth wall), the token URL printed in
+// the log answers 200, and the log line lands only after
+// `urlAfterGreps` unsuccessful greps (block-buffered stdout made it
+// never land at all before the PYTHONUNBUFFERED fix).
+function makeRealMitmMachine({ urlAfterGreps = 0, httpAnswers = true } = {}) {
+  const state = { started: false, addonWritten: false, commands: [], greps: 0 };
+  const TOKEN_URL = 'http://127.0.0.1:8081/?token=FAKETOKEN123';
+  const exec = async (h, cmd) => {
+    state.commands.push(cmd);
+    const out = (stdout) => ({ stdout, stderr: '', code: 0 });
+    if (cmd.includes('command -v mitmweb')) return out('/usr/bin/mitmweb\n');
+    if (cmd.includes('kill -0')) return out(state.started ? 'alive' : 'dead');
+    if (cmd.includes(`base64 -d > ${ADDON_PATH}`)) { state.addonWritten = true; return out(`${ADDON_SIZE}\n`); }
+    if (cmd.includes(`wc -c < ${ADDON_PATH}`)) return out(state.addonWritten ? `${ADDON_SIZE}\n` : '0\n');
+    if (cmd.includes('nohup mitmweb')) { state.started = true; return out('launched'); }
+    if (cmd.includes('grep -oE')) { state.greps++; return out(state.started && state.greps > urlAfterGreps ? `${TOKEN_URL}\n` : ''); }
+    if (cmd.includes('%{http_code}')) {
+      if (!state.started || !httpAnswers) return out('000');
+      return out(cmd.includes('token=FAKETOKEN123') ? '200' : '403');
+    }
+    if (cmd.includes('/json/version')) return out('');
+    if (cmd.includes(`wc -l < ${CAPTURE_PATH}`)) return out('0\n');
+    if (cmd.includes('tail -n 5')) return out('some mitm log line');
+    return out('');
+  };
+  return { exec, state, TOKEN_URL };
+}
+{
+  // (a) The token URL is in the log from the start, but / alone
+  // would only ever answer 403 — the pre-fix probe could never
+  // pass here. Readiness must probe the token URL and succeed.
+  const m = makeRealMitmMachine({ urlAfterGreps: 0 });
+  const r = await startInterceptProxy('h_fake', { exec: m.exec, sleep: async () => {} });
+  check('start readiness: 403-only root does not fail a healthy proxy (token URL probed instead)',
+    r.ok === true);
+  check('start readiness: returned dashboard URL is the token URL from the log',
+    r.webUrl === m.TOKEN_URL && r.observation.includes(m.TOKEN_URL));
+  check('start readiness: launch is PYTHONUNBUFFERED and a probe really hit the token URL',
+    m.state.commands.some((c) => c.includes('nohup mitmweb') && c.includes('PYTHONUNBUFFERED=1')) &&
+    m.state.commands.some((c) => c.includes('%{http_code}') && c.includes('token=FAKETOKEN123')));
+}
+{
+  // (b) The log line lands late: early greps find nothing and /
+  // answers 403 (listening, auth wall) — readiness keeps polling
+  // and succeeds via the token URL once it appears.
+  const m = makeRealMitmMachine({ urlAfterGreps: 2 });
+  const r = await startInterceptProxy('h_fake', { exec: m.exec, sleep: async () => {} });
+  check('start readiness: 403 auth wall counts as listening while the URL is still missing',
+    r.ok === true && m.state.greps > 2);
+  check('start readiness: late-landing log line still yields the token URL',
+    r.webUrl === m.TOKEN_URL);
+}
+{
+  // (c) Total HTTP silence: nothing ever answers (curl prints 000)
+  // and no URL ever lands — the ONLY case that may fail, with the
+  // established failure observation (log tail included).
+  const m = makeRealMitmMachine({ urlAfterGreps: Infinity, httpAnswers: false });
+  const r = await startInterceptProxy('h_fake', { exec: m.exec, sleep: async () => {} });
+  check('start readiness: total HTTP silence still fails the start', r.ok === false);
+  check('start readiness: failure observation keeps its shape (log tail included)',
+    /failed to start/.test(r.observation) && r.observation.includes('some mitm log line'));
 }
 {
   const lines = [line(FLOW_LOGIN), line(FLOW_CDN), line(FLOW_BIG)];
