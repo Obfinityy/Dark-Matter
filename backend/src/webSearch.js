@@ -23,6 +23,22 @@
 // and every provider's list passes refineResults() (dictionary
 // hygiene for technical queries + a token-overlap relevance floor)
 // before it reaches the hunter. See refineResults below.
+//
+// PROVIDER ORDER (Lane AC, 24 Oct 2026): Bing turned actively
+// harmful from the EC2 datacenter IP — re-probed live that night,
+// the DVWA research query returned an all-dictionary page unpinned
+// and porn spam pinned (mkt=en-US); Lane AA's floor dropped the
+// spam, fell through to DDG html, and that parser read a
+// bot/landing page as one pseudo-result ("DuckDuckGo — Privacy,
+// simplified."). Same-night probes of Brave (429), Yahoo (500),
+// Ecosia (403), Startpage (200, no parseable results) and Mojeek
+// (403) all failed from that IP, but DuckDuckGo Lite
+// (lite.duckduckgo.com/lite/) answered HTTP 200 with 10 parseable
+// results — the endpoint the 20 Oct audit had found bot-walled.
+// Provider health from datacenter IPs varies over time; the
+// fall-through contract absorbs the changes. Order is now: DDG
+// Lite first, Bing second (Lane AA refinement still applies),
+// DDG html last.
 
 function decodeEntities(s) {
   return String(s || '')
@@ -94,6 +110,69 @@ async function searchDuckDuckGo(query, maxResults) {
   let m;
   while ((m = regex.exec(html)) !== null && results.length < maxResults) {
     results.push({ url: decodeEntities(m[1]), title: stripTags(m[2]), snippet: '' });
+  }
+  return results;
+}
+
+// DuckDuckGo wraps result URLs in a redirector:
+// //duckduckgo.com/l/?uddg=<url-encoded real URL>&rut=<hash>.
+// Unwrap to the destination, the same way resultHost() below reads
+// through the wrapper for its domain checks. Non-DDG URLs pass
+// through unchanged.
+function unwrapDdgUrl(u) {
+  try {
+    let s = String(u || '');
+    if (s.startsWith('//')) s = 'https:' + s;
+    const parsed = new URL(s);
+    if (/(^|\.)duckduckgo\.com$/i.test(parsed.hostname)) {
+      const real = parsed.searchParams.get('uddg');
+      if (real) return real;
+    }
+    return s;
+  } catch {
+    return String(u || '');
+  }
+}
+
+// DuckDuckGo Lite (Lane AC, 24 Oct 2026): plain-HTML results in a
+// table — each result is an anchor with class 'result-link' (href
+// usually the DDG redirector), followed in the next row by a
+// <td class='result-snippet'>. Attribute order and quoting vary, so
+// anchors are matched loosely and href/class read off the tag. A
+// bot/landing page carries no result-link anchors and yields [],
+// never a pseudo-result parsed out of page furniture.
+async function searchDuckDuckGoLite(query, maxResults) {
+  const html = await fetchHtml(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`);
+  if (!html) return [];
+  const anchors = [];
+  const anchorRe = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
+  let m;
+  while ((m = anchorRe.exec(html)) !== null) {
+    if (!/\bclass=(["'])result-link\1/i.test(m[1])) continue;
+    const hrefM = m[1].match(/\bhref=(["'])([\s\S]*?)\1/i);
+    if (!hrefM) continue;
+    anchors.push({
+      start: m.index,
+      end: anchorRe.lastIndex,
+      url: unwrapDdgUrl(decodeEntities(hrefM[2])),
+      title: stripTags(m[2]),
+    });
+  }
+  const snippetRe = /<td\b[^>]*\bclass=(["'])result-snippet\1[^>]*>([\s\S]*?)<\/td>/i;
+  const results = [];
+  for (let i = 0; i < anchors.length && results.length < maxResults; i++) {
+    // The snippet row follows its anchor row, before the next
+    // result begins — search only that window so snippets never
+    // attach to the wrong result.
+    const windowEnd = i + 1 < anchors.length ? anchors[i + 1].start : html.length;
+    const s = html.slice(anchors[i].end, windowEnd).match(snippetRe);
+    results.push({
+      url: anchors[i].url,
+      title: anchors[i].title,
+      // Group 1 of snippetRe is the quote character; the cell
+      // content is group 2.
+      snippet: s ? stripTags(s[2]).slice(0, 300) : '',
+    });
   }
   return results;
 }
@@ -240,7 +319,7 @@ export function refineResults(query, results) {
  */
 export async function webSearch(query, maxResults = 5) {
   const siteRestricted = /site:/i.test(String(query || ''));
-  for (const provider of [searchBing, searchDuckDuckGo]) {
+  for (const provider of [searchDuckDuckGoLite, searchBing, searchDuckDuckGo]) {
     try {
       const raw = await provider(query, maxResults);
       if (raw.length > 0) {

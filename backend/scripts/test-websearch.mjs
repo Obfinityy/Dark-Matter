@@ -1,6 +1,7 @@
 // Test for the site: honesty filter in webSearch (Lane D, 21 Oct 2026),
 // extended with the result-quality refinement (Lane AA, 24 Oct 2026):
-// market pinning, dictionary hygiene and the relevance floor.
+// market pinning, dictionary hygiene and the relevance floor, and the
+// DuckDuckGo Lite provider (Lane AC, 24 Oct 2026).
 //
 // Providers ignore the site: operator and return generic pages for
 // the query keywords — observed live in the Ezviz hunt: the query
@@ -147,6 +148,93 @@ bingFixture = '<html><body><ol>'
   + '</ol></body></html>';
 const siteRes = await webSearch('site:open.ys7.com security headers');
 check('e2e site:: on-domain result only, through refinement', siteRes.length === 1 && siteRes[0].url.includes('open.ys7.com/docs'));
+
+globalThis.fetch = realFetch;
+
+// ---------------------------------------------------------------------------
+// Lane AC (24 Oct 2026): DuckDuckGo Lite provider, first in the order.
+//
+// Bing turned actively harmful from the EC2 datacenter IP (all-
+// dictionary unpinned, porn spam pinned), while lite.duckduckgo.com
+// answered 200 with parseable results the same night. The fixtures
+// below model the real lite markup captured live: result anchors
+// with class='result-link' (single quotes, href before class, hrefs
+// usually the //duckduckgo.com/l/?uddg=… redirector), each followed
+// by a <td class='result-snippet'> row. One row deliberately flips
+// attribute order and quote style — the parser must be liberal.
+// ---------------------------------------------------------------------------
+
+const fetched2 = [];
+let liteFixture = '';
+let bingFixture2 = '';
+globalThis.fetch = async (url) => {
+  const u = String(url);
+  fetched2.push(u);
+  if (u.includes('lite.duckduckgo.com')) return { ok: true, text: async () => liteFixture };
+  if (u.includes('bing.com')) return { ok: true, text: async () => bingFixture2 };
+  return { ok: false, status: 202, text: async () => '' }; // DDG html bot-walled
+};
+
+const liteRow = (anchor, snippet) => `
+      <tr><td valign="top">1.&nbsp;</td><td>${anchor}</td></tr>
+      <tr><td>&nbsp;&nbsp;&nbsp;</td><td class='result-snippet'>${snippet}</td></tr>
+      <tr><td>&nbsp;&nbsp;&nbsp;</td><td><span class='link-text'>x</span></td></tr>`;
+
+liteFixture = '<html><head><title>DVWA vulnerabilities exploit at DuckDuckGo</title></head><body><table border="0">'
+  + liteRow(
+    '<a rel="nofollow" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fgithub.com%2Fj0wittmann%2FAttacking-DVWA&amp;rut=bf986068" class=\'result-link\'>GitHub - Attacking DVWA: step-by-step exploit guide</a>',
+    '<b>DVWA</b> (Damn Vulnerable Web Application) is an intentionally vulnerable web app for practicing common web <b>exploits</b>.')
+  + liteRow(
+    '<a class="result-link" href="https://www.exploit-db.com/exploits/50139">DVWA - SQL Injection exploit</a>',
+    'Exploit for DVWA. Damn Vulnerable Web Application v1.10 suffers from an authenticated SQL injection vulnerability.')
+  + liteRow(
+    '<a rel="nofollow" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.golinuxcloud.com%2Fdvwa-command-injection%2F&amp;rut=86af8a" class=\'result-link\'>DVWA &#39;command injection&#39; &amp; more</a>',
+    'Walkthrough of DVWA command injection vulnerabilities and how to exploit them.')
+  + '</table></body></html>';
+bingFixture2 = '';
+
+fetched2.length = 0;
+const liteRes = await webSearch('DVWA vulnerabilities exploit');
+check('lite e2e: 3 results parsed in page order', liteRes.length === 3
+  && liteRes[0].url.includes('github.com/j0wittmann')
+  && liteRes[1].url.includes('exploit-db.com')
+  && liteRes[2].url.includes('golinuxcloud.com'));
+check('lite e2e: uddg wrapper unwrapped (rut dropped), direct href untouched', liteRes.length === 3
+  && liteRes[0].url === 'https://github.com/j0wittmann/Attacking-DVWA'
+  && liteRes[1].url === 'https://www.exploit-db.com/exploits/50139');
+check('lite e2e: title entities decoded', liteRes.length === 3 && liteRes[2].title === "DVWA 'command injection' & more");
+check('lite e2e: snippets extracted, highlight tags stripped', liteRes.length === 3
+  && liteRes[0].snippet.includes('intentionally vulnerable web app')
+  && !liteRes[0].snippet.includes('<b>'));
+check('order: lite answers -> bing and ddg-html never fetched', fetched2.length > 0
+  && fetched2.every((u) => u.includes('lite.duckduckgo.com')));
+
+// Bot/landing page: big title, no result-link anchors -> [], never a
+// pseudo-result parsed out of page furniture.
+liteFixture = '<html><head><title>DuckDuckGo</title></head><body><h1>DuckDuckGo — Privacy, simplified.</h1><p>The search engine that does not track you.</p></body></html>';
+bingFixture2 = '<html><body><ol></ol></body></html>';
+const botRes = await webSearch('DVWA vulnerabilities exploit');
+check('lite bot page: no pseudo-result, chain returns []', botRes.length === 0);
+
+// Order: lite empty -> Bing serves.
+liteFixture = '<html><body><p>No results found.</p></body></html>';
+bingFixture2 = '<html><body><ol>'
+  + bingBlock('https://research.example.org/ezviz-registration', 'Ezviz registration flow — research notes', 'Notes on the open.ys7.com registration process, email verification and account activation weaknesses.')
+  + '</ol></body></html>';
+fetched2.length = 0;
+const fallRes = await webSearch('open.ys7.com registration process vulnerabilities');
+check('order: lite empty -> bing fetched and serves', fallRes.length === 1
+  && fallRes[0].url.includes('research.example.org')
+  && fetched2.some((u) => u.includes('bing.com')));
+
+// Order: lite + bing both empty -> DDG html is fetched (and its
+// bot-wall answer ends the chain at []).
+liteFixture = '<html><body><p>No results found.</p></body></html>';
+bingFixture2 = '<html><body></body></html>';
+fetched2.length = 0;
+const emptyRes = await webSearch('DVWA vulnerabilities exploit');
+check('order: lite+bing empty -> ddg-html fetched, chain returns []', emptyRes.length === 0
+  && fetched2.some((u) => u.includes('html.duckduckgo.com')));
 
 globalThis.fetch = realFetch;
 
