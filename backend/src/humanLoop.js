@@ -1543,6 +1543,165 @@ export function dedupeGateHit(kind, action, history) {
   return { tool: cand.tool, detail: entry.detail, count: entry.count, lastResult: entry.lastResult || '' };
 }
 
+// ---------------------------------------------------------------------------
+// SETTLED ACTIONS + FAILED-SKILL MEMORY (Lane AD, 24 Oct 2026)
+//
+// The gate above stops repeat TRAFFIC, but the live audit behind
+// this lane (reasoning logs measured 24 Oct 2026) showed it does
+// not stop the repeat CHOICE: on the Ezviz hunt 173 of 791 human
+// turns (21.9%) were dedup_block re-choices — browser_open of
+// /rest/user/register alone was chosen ×62 AFTER the gate had
+// already blocked it, each one burning a full brain generation.
+// Lane P's "Do NOT retry" hand-off threads and the explored digest
+// state the prohibition; what they never do is correct the stale
+// PREMISE the brain re-derives every turn from its summary —
+// "the registration endpoint has been visited multiple times
+// without being probed" — nor state that re-OPENING a page cannot
+// satisfy a probing intent (a probe is a request WITH a payload:
+// a different action family). Memory that merely forbids is
+// overridden by a belief that still looks true.
+//
+// settledActionLines closes that gap deterministically from the
+// hunt's own record: any gated signature the gate has blocked
+// >= SETTLED_MIN_BLOCKS times is rendered in the screen's
+// never-trimmed continuity region (beside the Lane T thread,
+// outside every cap — Lane Q's SOM budget is untouched because
+// this is the screen region, not the SOM) as a SETTLED fact:
+// how many times it ran, how many times it was blocked, how many
+// requests were already SENT to that path, and — for a plain
+// page-open — the redirect to the action families that would
+// actually test the endpoint. Bounded: top SETTLED_LIMIT entries
+// by block count, each line clipped to SETTLED_LINE_CAP chars.
+//
+// The sibling failure (Juice, same audit): load_skill is
+// deliberately NOT dedupe-gated (re-pulling a real card after the
+// context rolls is legitimate), so a name that does not exist —
+// "ftp" — was asked, answered with "No skill card named" plus the
+// full index, and re-asked verbatim the next turn. failedSkillAsks
+// rebuilds the failed-name set from the reasoning record; the loop
+// answers a verbatim repeat from that record in the dedup_block
+// turn-shape (event + note + BLOCKED observation naming the real
+// cards) WITHOUT re-running the lookup. Only the exact repeat of
+// a name that already failed is gated — every other load_skill
+// behaves exactly as Lane M built it.
+// ---------------------------------------------------------------------------
+
+const SETTLED_MIN_BLOCKS = 3; // gate blocks before an action is carried as settled
+const SETTLED_LIMIT = 5; // settled entries on screen, most-blocked first
+const SETTLED_LINE_CAP = 220; // chars per settled entry
+
+/**
+ * Requests already SENT to a URL's path, from the executed record:
+ * shell commands and intercept replays whose recorded detail names
+ * the path. This is the fact that falsifies "visited but not
+ * probed" — a GET page-open is a look; these were sends.
+ */
+function requestsSentToPath(events, detail) {
+  let pathname = '';
+  try {
+    pathname = new URL(detail).pathname || '';
+  } catch {
+    return 0;
+  }
+  if (!pathname || pathname === '/') return 0;
+  let n = 0;
+  for (const e of events || []) {
+    if (!e || e.type !== 'tool_call') continue;
+    if (e.tool !== 'shell' && e.tool !== 'intercept_replay') continue;
+    if (String(e.detail || '').includes(pathname)) n++;
+  }
+  return n;
+}
+
+/**
+ * The SETTLED block for the hunter's screen, or [] when nothing
+ * has been blocked often enough to settle. Pure over the hunt's
+ * records: dedup_block events are the block timeline (the gate
+ * records one per blocked attempt), the executed-action history
+ * (buildActionHistory — live in-session) supplies run counts.
+ * Only signatures WITH executed history render: a block stream
+ * for an action that never executed through the gate (e.g. the
+ * load_skill repeats handled separately below) is not a settled
+ * action and never appears here — the two mechanisms stay
+ * disjoint, as Lane T and Lane P are.
+ */
+export function settledActionLines({ events = [], history = null } = {}) {
+  const hist = history || buildActionHistory(events);
+  const blocks = new Map();
+  for (const e of events || []) {
+    if (!e || e.type !== 'dedup_block') continue;
+    const tool = String(e.tool || '').toLowerCase();
+    if (!tool || !String(e.detail || '').trim()) continue;
+    const sig = actionSignature(tool, e.detail);
+    blocks.set(sig, (blocks.get(sig) || 0) + 1);
+  }
+  const rows = [];
+  for (const [sig, blockCount] of blocks) {
+    if (blockCount < SETTLED_MIN_BLOCKS) continue;
+    const entry = hist.get(sig);
+    if (!entry) continue;
+    rows.push({ tool: entry.tool, detail: entry.detail, count: entry.count, blockCount });
+  }
+  rows.sort((a, b) => b.blockCount - a.blockCount || a.detail.localeCompare(b.detail));
+  const top = rows.slice(0, SETTLED_LIMIT);
+  if (!top.length) return [];
+  const lines = ['=== SETTLED — YOUR RECORD HAS ALREADY ANSWERED THESE (stop re-choosing them) ==='];
+  for (const r of top) {
+    let line = `- ${r.tool} ${r.detail} — run ×${r.count}, blocked ×${r.blockCount}.`;
+    if (r.tool === 'browser_open') {
+      const sent = requestsSentToPath(events, r.detail);
+      if (sent > 0) line += ` requests sent ×${sent}.`;
+      line += ' Opening probes nothing (same captured page). To test it, SEND a request: curl with a payload, or type + submit.';
+    } else {
+      line += ' An identical repeat returns the identical result — vary the input or move on.';
+    }
+    lines.push(clipLine(line, SETTLED_LINE_CAP));
+  }
+  return lines;
+}
+
+/**
+ * The fold a hunter-supplied skill name goes through before it is
+ * judged — the same fold skillCards.resolveSkillName applies
+ * (lowercase, non-alphanumerics stripped), so "FTP!" and "ftp"
+ * are the same ask here exactly as they are at lookup time.
+ */
+function skillNameKey(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Skill names that have already FAILED in this hunt, rebuilt from
+ * the reasoning record: Map<folded name, { name, asks }>. A row
+ * counts when it is a load_skill whose recorded result carries
+ * loadSkill's own "No skill card named" verdict, or a Lane AD
+ * blocked repeat of one (`dedup_block: load_skill <name>`) — so
+ * `asks` is the hunt's total asks for that name, failures and
+ * blocked repeats alike. A successful pull (the card body as the
+ * result) never counts: re-pulling a real card stays free.
+ */
+export function failedSkillAsks(reasoningRows = []) {
+  const asks = new Map();
+  const bump = (raw) => {
+    const key = skillNameKey(raw);
+    if (!key) return;
+    const cur = asks.get(key);
+    if (cur) cur.asks++;
+    else asks.set(key, { name: String(raw || '').trim().slice(0, 60), asks: 1 });
+  };
+  for (const r of reasoningRows || []) {
+    const action = String((r && r.action) || '').trim();
+    const m = /^load_skill:\s*(.+)$/.exec(action);
+    if (m) {
+      if (String((r && r.result) || '').includes('No skill card named')) bump(m[1]);
+      continue;
+    }
+    const b = /^dedup_block:\s*load_skill\s+(.+)$/.exec(action);
+    if (b) bump(b[1]);
+  }
+  return asks;
+}
+
 /**
  * Factual hunt-state lines the screen previously never carried
  * (Lane D, 21 Oct 2026). Chief among them: whether the hunt holds
@@ -1590,7 +1749,7 @@ export function skillCardLines() {
   }
 }
 
-function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [], stateOfMind = [], followThrough = [] }) {
+function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [], stateOfMind = [], followThrough = [], settled = [] }) {
   const confirmed = (findings || []).filter((f) => f.verified);
   const unconfirmed = (findings || []).filter((f) => !f.verified);
   const findLines = [
@@ -1617,6 +1776,14 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     // every screen until a later action addresses it or it expires,
     // so a failed action's feedback can no longer be walked past.
     ...(followThrough && followThrough.length ? ['', ...followThrough] : []),
+    // Lane AD: the settled-actions block sits in the same
+    // never-trimmed continuity region — actions the gate has
+    // already blocked 3+ times, rendered as settled facts that
+    // correct the premise behind the re-choice (what ran, what was
+    // blocked, what was already SENT to the path, and the action
+    // families that would actually test it). Refreshed every turn
+    // from the hunt's record, like the Lane T thread above.
+    ...(settled && settled.length ? ['', ...settled] : []),
     // Lane F: the already-explored digest sits EARLY — ahead of the
     // (long, capped) memory briefing — so no prompt cap downstream
     // can truncate away the record of what is already done.
@@ -1852,6 +2019,15 @@ export async function humanIteration(huntId, target, opts = {}) {
     repetition = repetitionLines(sessionEvents);
   } catch { /* repetition is best-effort */ }
   const actionHistory = buildActionHistory(sessionEvents);
+  // Lane AD: skill names that already failed in this hunt, seeded
+  // from the permanent reasoning record — a verbatim repeat of one
+  // is answered from the record in the load_skill dispatch below
+  // instead of re-running the lookup. The loop also learns new
+  // failures as they happen, so the memory covers this session too.
+  let failedSkills = new Map();
+  try {
+    failedSkills = failedSkillAsks(getAllReasoning(huntId) || []);
+  } catch { /* failed-skill memory is best-effort */ }
   let pendingSig = null; // signature of the action executing this turn
   let lastObservation = '';
   let lastShellAt = 0;
@@ -1958,6 +2134,17 @@ export async function humanIteration(huntId, target, opts = {}) {
       } catch { /* reasoning rows are best-effort */ }
       followThrough = failedActionThreadLines({ events: ftEvents, reasoningRows: ftRows });
     } catch { /* follow-through is best-effort perception */ }
+    // Lane AD: the settled-actions block, refreshed every turn
+    // from the hunt's current record (the same discipline as the
+    // Lane T thread above) — block counts grow mid-session as the
+    // gate fires, and a signature settles the turn its third
+    // block lands. Block counts come from the recorded dedup_block
+    // events; run counts from the live action history.
+    let settled = [];
+    try {
+      const sEvents = deps.readEvents(huntId) || sessionEvents;
+      settled = settledActionLines({ events: sEvents, history: actionHistory });
+    } catch { /* settled is best-effort perception */ }
     const screen = buildScreen({
       target,
       parsedScope,
@@ -1979,6 +2166,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       skills: skillLines,
       stateOfMind,
       followThrough,
+      settled,
     });
 
     // THINK: one brain call. Full reply is recorded verbatim (total
@@ -2158,14 +2346,50 @@ export async function humanIteration(huntId, target, opts = {}) {
       // exactly one card body is ever in play; nothing accumulates
       // into the briefing. loadSkill never throws and answers an
       // unknown name with the index.
+      //
+      // Lane AD: ONE exception to "not gated" — a verbatim repeat
+      // of a name that ALREADY FAILED in this hunt ("No skill card
+      // named X"). Re-running the lookup cannot change that answer
+      // (the card set is our own static playbook), and live the
+      // hunter re-asked "ftp" the very next turn after being told
+      // exactly that. The repeat is answered from the record in
+      // the dedup_block turn-shape — a dedup_block event, a
+      // reasoning note, and a BLOCKED observation naming the cards
+      // that DO exist — and the lookup does not run again. A first
+      // ask of any name, and every ask of a real card, execute
+      // exactly as before.
       const name = String(action.skill || '').slice(0, 80);
-      toolCall('load_skill', name);
-      try {
-        observation = String(loadSkill(name) || '').slice(0, 2600) || 'That skill card is empty.';
-      } catch {
-        observation = 'Skill cards are unavailable this turn — work from your briefing and your leads.';
+      const skillKey = skillNameKey(name);
+      const priorFail = skillKey ? failedSkills.get(skillKey) : null;
+      if (priorFail) {
+        priorFail.asks++;
+        try { deps.record(huntId, { type: 'dedup_block', tool: 'load_skill', detail: priorFail.name, count: priorFail.asks, via: 'human-mode' }); } catch { /* best-effort */ }
+        say(`Already-answered gate stopped a repeat skill ask: "${priorFail.name}" — no such card (asked ×${priorFail.asks} in this hunt).`);
+        let cardNames = '';
+        try {
+          cardNames = listSkills().map((s) => s.name).join(', ');
+        } catch { /* the index is best-effort */ }
+        observation =
+          `BLOCKED — NO SUCH SKILL CARD: you have already asked for "${priorFail.name}" ${priorFail.asks} times in this hunt and there is no skill card with that name. It was NOT looked up again — asking again cannot create it.` +
+          (cardNames
+            ? ` The cards that exist: ${cardNames}. Pull one of those, or work from your briefing and leads.`
+            : ' Work from your briefing and leads.');
+        note({ action: `dedup_block: load_skill ${priorFail.name}`, why: thinkingText, result: `repeat blocked — no skill card named "${priorFail.name}" (asked ×${priorFail.asks})`, learned: 'A skill card that does not exist cannot be pulled into existence; pick a real card from the index.' });
+      } else {
+        toolCall('load_skill', name);
+        try {
+          observation = String(loadSkill(name) || '').slice(0, 2600) || 'That skill card is empty.';
+        } catch {
+          observation = 'Skill cards are unavailable this turn — work from your briefing and your leads.';
+        }
+        // Lane AD: a fresh failure joins the hunt's failed-name
+        // memory the moment it is observed, so a verbatim repeat
+        // later in this same session is answered from the record.
+        if (skillKey && observation.includes('No skill card named')) {
+          failedSkills.set(skillKey, { name: name.trim().slice(0, 60), asks: 1 });
+        }
+        note({ action: `load_skill: ${name}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
       }
-      note({ action: `load_skill: ${name}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'proxy_start') {
       // Lane U: start the intercept proxy + dashboard inside the
       // hunter's own container and route its Chromium through it.
