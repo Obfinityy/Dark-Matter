@@ -47,6 +47,86 @@ const NOT_AVAILABLE =
 // plainly: look-only, environment-fixed, not hunter-fixable.
 
 // ---------------------------------------------------------------------------
+// Click-target resolution (Lane R, 23 Oct 2026).
+//
+// Live evidence it answers: on the lab hunt (Juice Shop /ftp listing)
+// the hunter asked browser_click for "ftp/acquisitions.md"; the page's
+// link label is exactly "acquisitions.md". The old in-page matcher
+// demanded a byte-exact label (its only fallback was a contains test
+// in the wrong direction) and the click died with "no clickable
+// element matches". A human glances at the listing and clicks the
+// file. This resolver gives the click deterministic near-exact
+// resolution instead of a guess:
+//
+//   tier 1 — exact label match (the historical behaviour; the first
+//            match wins, exactly as before);
+//   tier 2 — path-prefix-insensitive: the requested text's basename
+//            ("ftp/acquisitions.md" -> "acquisitions.md") as an exact
+//            label, or a label that itself ends with "/<requested>"
+//            (a path-rendered label for a bare filename request);
+//   tier 3 — the same candidate forms, compared case-insensitively.
+//
+// Safety: tiers 2 and 3 must match EXACTLY ONE element — an ambiguous
+// tier is skipped, never guessed. There is deliberately NO substring
+// or contains matching anywhere: a request either names an element
+// (exactly, up to path prefix or case) or it fails, and the failure
+// carries the page's actual clickable labels so the hunter's next
+// turn can pick one verbatim.
+//
+// resolveClickTarget is PURE and self-contained on purpose: the CDP
+// driver script embeds this very function's source (see CDP_SCRIPT),
+// so the logic the unit tests exercise is byte-identical to the logic
+// that runs inside the page. Keep it free of closures/imports and of
+// syntax newer than ES2019.
+// ---------------------------------------------------------------------------
+export function resolveClickTarget(requested, labels) {
+  const norm = (s) => String(s == null ? '' : s).trim().replace(/\s+/g, ' ');
+  const req = norm(requested);
+  const labs = (Array.isArray(labels) ? labels : []).map(norm);
+  const candidates = [];
+  for (const l of labs) if (l && candidates.indexOf(l) === -1) candidates.push(l);
+  const listing = candidates.slice(0, 20);
+  const none = { status: 'none', tier: 0, index: -1, label: '', candidates: listing };
+  if (!req) return none;
+  // Tier 1 — exact label match; first match wins (historical behaviour).
+  for (let i = 0; i < labs.length; i++) {
+    if (labs[i] && labs[i] === req) return { status: 'exact', tier: 1, index: i, label: labs[i], candidates: listing };
+  }
+  // Fallback candidate forms: the basename of a path-like request,
+  // plus the request itself in path-suffix form ("/<requested>").
+  const parts = req.split(/[\\/]+/).filter((p) => p.length > 0);
+  const base = /[\\/]/.test(req) && parts.length ? parts[parts.length - 1] : '';
+  const baseForm = base && base !== req ? base : '';
+  const endsWithPath = (label, form, ci) => {
+    if (!form) return false;
+    const l = ci ? label.toLowerCase() : label;
+    const f = ci ? form.toLowerCase() : form;
+    return l.endsWith('/' + f) || l.endsWith('\\' + f);
+  };
+  const fallbackHits = (ci) => {
+    const hits = [];
+    for (let i = 0; i < labs.length; i++) {
+      const label = labs[i];
+      if (!label) continue;
+      const hit = ci
+        ? (baseForm && label.toLowerCase() === baseForm.toLowerCase()) ||
+          label.toLowerCase() === req.toLowerCase() ||
+          endsWithPath(label, req, true)
+        : (baseForm && label === baseForm) || endsWithPath(label, req, false);
+      if (hit) hits.push(i);
+    }
+    return hits;
+  };
+  // Tier 2 — path-prefix-insensitive, case-sensitive; unique only.
+  const t2 = fallbackHits(false);
+  if (t2.length === 1) return { status: 'resolved', tier: 2, index: t2[0], label: labs[t2[0]], candidates: listing };
+  // Tier 3 — the same forms, case-insensitive; unique only.
+  const t3 = fallbackHits(true);
+  if (t3.length === 1) return { status: 'resolved', tier: 3, index: t3[0], label: labs[t3[0]], candidates: listing };
+  return none;
+}
+
+// ---------------------------------------------------------------------------
 // In-container CDP driver (written on first use). Zero-dependency: Node's
 // global fetch + WebSocket. Params arrive base64-encoded in DMGUI_P64 so
 // shell quoting can never corrupt them.
@@ -65,6 +145,7 @@ const SNAP = \`(() => {
   });
   return { url: location.href, title: document.title, text: (document.body ? document.body.innerText : '').slice(0, 6000), elements: els.slice(0, 60) };
 })()\`;
+${resolveClickTarget.toString().replace(/^export\s+/, '')}
 async function getPage() {
   let list = await (await fetch(BASE + '/json/list')).json();
   let page = list.find((t) => t.type === 'page');
@@ -113,14 +194,18 @@ if (act === 'navigate') {
   out = await evaluate(SNAP);
 } else if (act === 'click') {
   const expr = \`(() => {
-    const want = \${JSON.stringify(params.text)}.toLowerCase();
     const raw = \${JSON.stringify(params.text)};
     let el = null;
     if (/^[#.\\[]/.test(raw)) { try { el = document.querySelector(raw); } catch {} }
     if (!el) {
       const cands = [...document.querySelectorAll('a,button,input,select,textarea,[role="button"],[onclick]')];
-      const lab = (e) => (e.innerText || e.value || e.getAttribute('aria-label') || e.placeholder || e.name || e.id || '').trim().toLowerCase();
-      el = cands.find((e) => lab(e) === want) || cands.find((e) => lab(e).includes(want));
+      const lab = (e) => (e.innerText || e.value || e.getAttribute('aria-label') || e.placeholder || e.name || e.id || '').trim().replace(/\\s+/g, ' ').slice(0, 80);
+      const verdict = resolveClickTarget(raw, cands.map(lab));
+      if (!verdict || verdict.status === 'none' || !cands[verdict.index]) {
+        const list = verdict && verdict.candidates && verdict.candidates.length ? ' — clickable labels on this page: ' + verdict.candidates.map((c) => '"' + c + '"').join(', ') : '';
+        return { ok: false, error: 'no clickable element matches "' + raw + '"' + list };
+      }
+      el = cands[verdict.index];
     }
     if (!el) return { ok: false, error: 'no clickable element matches "' + raw + '"' };
     el.scrollIntoView({ block: 'center' });
