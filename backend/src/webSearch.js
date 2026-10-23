@@ -13,6 +13,16 @@
 // returns zero parseable results falls through to the next one, and
 // titles/snippets are HTML-entity-decoded; Bing's redirect URLs are
 // unwrapped to the real destination where possible.
+//
+// RESULT QUALITY (Lane AA, 24 Oct 2026): pinning no market made Bing
+// localize by datacenter IP, and its answer-box/dictionary cards parse
+// as ordinary b_algo blocks — observed live in one night: a Cambridge
+// Dictionary definition of "damn" as result #1 for the DVWA research
+// query, and an unrelated regional Vimeo video as result #1 for an
+// Ezviz registration query. The Bing request now pins mkt/setlang,
+// and every provider's list passes refineResults() (dictionary
+// hygiene for technical queries + a token-overlap relevance floor)
+// before it reaches the hunter. See refineResults below.
 
 function decodeEntities(s) {
   return String(s || '')
@@ -54,7 +64,11 @@ async function fetchHtml(url) {
 }
 
 async function searchBing(query, maxResults) {
-  const html = await fetchHtml(`https://www.bing.com/search?q=${encodeURIComponent(query)}`);
+  // Market pinned (Lane AA): without mkt/setlang, Bing localizes by
+  // the caller's IP — from the EC2 datacenter that surfaced
+  // local-language answer cards and unrelated regional results as
+  // "research". en-US is the sanest market for security intelligence.
+  const html = await fetchHtml(`https://www.bing.com/search?q=${encodeURIComponent(query)}&mkt=en-US&setlang=en`);
   if (!html) return [];
   const results = [];
   const blocks = html.match(/<li class="b_algo"[\s\S]*?<\/li>/g) || [];
@@ -122,6 +136,101 @@ export function filterSiteResults(query, results) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Result-quality refinement (Lane AA, 24 Oct 2026).
+//
+// Two cheap, deterministic defences applied to every provider's list
+// before it reaches the hunter (see RESULT QUALITY in the header):
+//   1. Dictionary hygiene — for technical queries, drop results from
+//      pure dictionary domains: they define words, they never carry
+//      CVE/exploit intelligence.
+//   2. A relevance floor — a result whose title+snippet shares no
+//      significant token with the query is junk for that query and is
+//      dropped. The floor NEVER empties a list: if every result fails
+//      it, the list is returned untouched (an odd result beats a
+//      silent empty from a provider that did answer).
+// ---------------------------------------------------------------------------
+
+const STOPWORD_TOKENS = new Set([
+  'the', 'and', 'for', 'with', 'how', 'what', 'why', 'are', 'was', 'were',
+  'from', 'this', 'that', 'you', 'your', 'all', 'any', 'can', 'com', 'www',
+  'http', 'https',
+]);
+
+/**
+ * Significant query tokens: lowercase words of length >= 3, minus a
+ * small stopword set. The site: operator is stripped first — its
+ * domain pieces are a filter, not research terms.
+ */
+export function significantTokens(query) {
+  const q = String(query || '').replace(/site:\S+/gi, ' ');
+  const out = new Set();
+  for (const tok of q.toLowerCase().split(/[^a-z0-9]+/)) {
+    if (tok.length >= 3 && !STOPWORD_TOKENS.has(tok)) out.add(tok);
+  }
+  return [...out];
+}
+
+const TECHNICAL_SUBSTRINGS = ['vulnerab', 'exploit', 'injection', 'authentication', 'bypass'];
+const TECHNICAL_TOKEN_RE = /\b(cve|sql|xss|api)\b/i;
+const VERSION_TOKEN_RE = /\bv?\d+\.\d+/;
+
+/**
+ * Does this query look like security research (vs an everyday
+ * question)? Gates the dictionary hygiene, so a plain "damn meaning"
+ * query keeps its dictionary result. The short terms use word
+ * boundaries so "capital" does not trip the "api" test.
+ */
+export function isTechnicalQuery(query) {
+  const q = String(query || '').toLowerCase();
+  return TECHNICAL_SUBSTRINGS.some((s) => q.includes(s))
+    || TECHNICAL_TOKEN_RE.test(q)
+    || VERSION_TOKEN_RE.test(q);
+}
+
+// Pure definition domains: they define words, they never carry
+// vulnerability intelligence. Data-driven, deliberately tiny.
+const DICTIONARY_DOMAINS = [
+  'dictionary.cambridge.org',
+  'merriam-webster.com',
+  'dictionary.com',
+  'oxfordlearnersdictionaries.com',
+];
+
+function isDictionaryResult(r) {
+  const h = resultHost(r && r.url);
+  return h !== '' && DICTIONARY_DOMAINS.some((d) => h === d || h.endsWith('.' + d));
+}
+
+// Words of a result's title+snippet, for token-overlap checks.
+function resultTokens(r) {
+  const text = `${(r && r.title) || ''} ${(r && r.snippet) || ''}`.toLowerCase();
+  return new Set(text.split(/[^a-z0-9]+/).filter((t) => t.length >= 3));
+}
+
+/**
+ * Apply dictionary hygiene (technical queries only) and the
+ * relevance floor to one provider's result list. Provider order is
+ * preserved for survivors. Only the hygiene step may empty the list
+ * (a technical query whose provider returned nothing but dictionary
+ * cards); the caller treats that like other junk and falls through
+ * to the next provider.
+ */
+export function refineResults(query, results) {
+  const list = results || [];
+  if (list.length === 0) return list;
+  const afterHygiene = isTechnicalQuery(query)
+    ? list.filter((r) => !isDictionaryResult(r))
+    : list;
+  const tokens = significantTokens(query);
+  if (tokens.length === 0 || afterHygiene.length === 0) return afterHygiene;
+  const survivors = afterHygiene.filter((r) => {
+    const rt = resultTokens(r);
+    return tokens.some((t) => rt.has(t));
+  });
+  return survivors.length > 0 ? survivors : afterHygiene;
+}
+
 /**
  * Search the web for security intelligence.
  * Tries providers in order until one returns results; [] only when
@@ -133,8 +242,13 @@ export async function webSearch(query, maxResults = 5) {
   const siteRestricted = /site:/i.test(String(query || ''));
   for (const provider of [searchBing, searchDuckDuckGo]) {
     try {
-      const r = await provider(query, maxResults);
-      if (r.length > 0) {
+      const raw = await provider(query, maxResults);
+      if (raw.length > 0) {
+        const r = refineResults(query, raw);
+        // Hygiene emptied this provider's list (a technical query
+        // answered only with dictionary cards) — junk, so fall
+        // through to the next provider like off-domain site: junk.
+        if (r.length === 0) continue;
         if (!siteRestricted) return r;
         const filtered = filterSiteResults(query, r);
         if (filtered.length > 0) return filtered;
