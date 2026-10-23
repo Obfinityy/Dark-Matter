@@ -25,7 +25,7 @@ import { getBalanceUsd } from '../billing/credits.js';
 import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
 import { chatWithAI, aiAvailable } from '../llm.js';
 import { analyzeFindings } from '../hunt-intel/index.js';
-import { loadHuntMemory, normTitle } from '../huntMemory.js';
+import { loadHuntMemory, normTitle, findingCounts } from '../huntMemory.js';
 
 /**
  * The confirmed findings of a hunt, as UNIQUE titles. Findings must
@@ -503,11 +503,16 @@ function huntContextLine({ huntId, meta, live, liveError, cached, findings }) {
   const step = (live && (live.stepCount ?? live.step_count)) ?? (meta && (meta.iteration ?? meta.stepCount));
   const phase = (live && live.phase) || (meta && meta.phase);
   const verified = confirmedTitles(findings).length;
+  // Leads in the PANEL's unit — unique unconfirmed titles via
+  // huntMemory.findingCounts, never findings.length: the raw stamp
+  // count made chat say "284 lead(s)" where the panel said 76
+  // leads over the same record (Lane Y, 24 Oct 2026).
+  const leads = findingCounts(findings).leads;
   const stateWord = { running: 'actively hunting', paused: 'paused', stopped: 'stopped', starting: 'starting up' }[state] || state;
   let line = `Hunting ${target} — ${stateWord}`;
   if (phase) line += ` (${phase} phase)`;
   if (step !== undefined && step !== null) line += `, round ${step}`;
-  line += `. ${findings.length} lead(s), ${verified} confirmed so far`;
+  line += `. ${leads} lead(s), ${verified} confirmed so far`;
   return line + '.';
 }
 
@@ -526,7 +531,7 @@ function summaryReply({ ctx, live, liveError, cached, findings, reasoningRows = 
         ` Found ${titles.length} confirmed ${titles.length > 1 ? 'vulnerabilities' : 'vulnerability'}: ` +
         titles.slice(0, 5).join(', ') + '.';
     } else {
-      reply += ` ${findings.length} lead(s) under investigation — nothing confirmed yet.`;
+      reply += ` ${findingCounts(findings).leads} lead(s) under investigation — nothing confirmed yet.`;
     }
   } else {
     reply += ' Still in early recon — no vulnerabilities found yet, but the hunt is methodically mapping your site.';
