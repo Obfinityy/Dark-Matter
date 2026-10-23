@@ -73,8 +73,16 @@ if ! pgrep -x fluxbox >/dev/null 2>&1; then
 fi
 
 # --- Chromium (the agent's browser) -----------------------------------------
+# Lane U: when the intercept proxy has been started for this hunt
+# (proxy_start writes the marker with the proxy URL), Chromium is
+# launched THROUGH it so every request/response is captured. Without
+# the marker the launch is unchanged.
+DM_PROXY_FLAG=""
+if [ -f /tmp/dm-intercept/proxy.on ]; then
+  DM_PROXY_FLAG="--proxy-server=$(cat /tmp/dm-intercept/proxy.on)"
+fi
 if ! pgrep -f 'remote-debugging-port=9222' >/dev/null 2>&1; then
-  log "starting chromium (CDP 127.0.0.1:9222)"
+  log "starting chromium (CDP 127.0.0.1:9222${DM_PROXY_FLAG:+, via intercept proxy})"
   nohup chromium \
     --no-sandbox \
     --disable-dev-shm-usage \
@@ -83,6 +91,7 @@ if ! pgrep -f 'remote-debugging-port=9222' >/dev/null 2>&1; then
     --start-maximized \
     --remote-debugging-address=127.0.0.1 \
     --remote-debugging-port=9222 \
+    $DM_PROXY_FLAG \
     "${DM_DESKTOP_URL:-about:blank}" >>"$LOG_FILE" 2>&1 &
 fi
 

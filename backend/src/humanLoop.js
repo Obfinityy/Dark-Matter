@@ -18,9 +18,10 @@
 //   THINK     one chatWithAI call. The model thinks briefly in prose,
 //             then ends with EXACTLY ONE self-chosen action as JSON.
 //   ACT       shell / search / write_file / note / browser_* /
-//             screenshot / claim_finding — executed through the SAME
-//             machinery the pipeline uses (executeWithEvasion for
-//             shell, webSearch, artifacts, guiTools).
+//             proxy_start / intercept_* (Lane U) / screenshot /
+//             claim_finding — executed through the SAME machinery
+//             the pipeline uses (executeWithEvasion for shell,
+//             webSearch, artifacts, guiTools, proxyIntercept).
 //   OBSERVE   the result becomes the next turn's screen. Nothing is
 //             hidden and nothing is staged.
 //
@@ -64,6 +65,18 @@ import {
   guiBrowserType,
   guiBrowserScreenshot,
 } from './guiTools.js';
+// Lane U: the Burp-style intercept workflow (mitmproxy inside the
+// hunt container; see proxyIntercept.js for the topology). The pure
+// replay builders + signature are imported directly — deterministic
+// code, exercised through the dispatch with a fake capture read.
+import {
+  startInterceptProxy,
+  listIntercept,
+  readInterceptEntry,
+  buildReplayRequest,
+  buildReplayCurl,
+  replaySignature,
+} from './proxyIntercept.js';
 // Lane O: huntMemory.js is the single read path for the hunt's
 // permanent record (reasoning, events, findings, coverage, the
 // ruled-out registry, dossier, left-off, prior hunts of the same
@@ -315,7 +328,7 @@ export function researchedTopicStats({ events = [], reasoningRows = [] } = {}) {
     const detail = String(e.detail || '');
     if (e.tool === 'search') {
       for (const t of PROBE_TOPICS) if (t.re.test(detail)) hit(t);
-    } else if (['shell', 'browser_open', 'browser_click', 'browser_type', 'claim_finding'].includes(e.tool)) {
+    } else if (['shell', 'browser_open', 'browser_click', 'browser_type', 'claim_finding', 'intercept_replay'].includes(e.tool)) {
       probeText.push(detail);
     }
   }
@@ -866,6 +879,10 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"browser_click","text":"visible label OR CSS selector"} — click in the desktop browser',
     '{"action":"browser_type","text":"...","submit":true} — type into the page field (submit=true presses Enter)',
     '{"action":"screenshot"} — capture the desktop to a PNG artifact; you also get the page text',
+    '{"action":"proxy_start"} — start your intercepting proxy (Burp-style) on this machine: your browser is re-routed through it so EVERY request/response is captured, and you get the intercept dashboard URL — open it in your browser to click through captured requests visually. The proxy is pass-through: traffic is captured, never held.',
+    '{"action":"intercept_list"} — list the requests your proxy has captured (newest last, each with a # index)',
+    '{"action":"intercept_read","index":3} — read one captured request in full: its headers and body, and the response headers and body',
+    '{"action":"intercept_replay","index":3,"headers":{"X-Test":"1"},"body":"changed=1","url":"http://target.test/other"} — resend a captured request from your machine, optionally with a changed URL, extra/changed headers (a null value removes a header), or a changed body. This is Burp Repeater work: change ONE thing at a time and compare the response. The URL is scope-checked like any other action.',
     '{"action":"note","text":"..."} — write a note in your own notebook (your memory is permanent)',
     '{"action":"recall","query":"..."} — search YOUR OWN memory: this hunt\'s full record and the lessons of every past hunt. Use it whenever your briefing mentions something you need in detail — an exact result, a payload you tried, a lesson — instead of re-doing the work; remembering is free and instant.',
     '{"action":"record_coverage","surface":"the page/endpoint/feature","class":"the vuln class","outcome":"probed_clean|confirmed|ruled_out|not_applicable|open_gap","evidence":"what you observed"} — account for a surface × class in your coverage ledger. Each pair is recorded exactly once; closing as ruled_out or not_applicable REQUIRES the evidence to name the control that stops the class. Add "update":true to change an existing row. Researched-but-unprobed classes are carried as open gaps automatically — closing them is how they leave your screen.',
@@ -1044,6 +1061,10 @@ function detailForAction(kind, action) {
     case 'recall': return String(action.query || '').slice(0, 160);
     case 'record_coverage': return `${String(action.surface || '').slice(0, 100)} ${String(action.class || '').slice(0, 40)} ${String(action.outcome || '').slice(0, 30)}`.trim().slice(0, 160);
     case 'load_skill': return String(action.skill || '').slice(0, 120);
+    case 'proxy_start': return '';
+    case 'intercept_list': return '';
+    case 'intercept_read': return `#${String(action.index ?? '').slice(0, 12)}`;
+    case 'intercept_replay': return replaySignature(action).slice(0, 160);
     default: return '';
   }
 }
@@ -1141,9 +1162,20 @@ export function repetitionLines(events) {
 // First- and second-time actions pass untouched, and every existing
 // gate (scope, heavy-scan, pacing, verifier) is exactly as it was —
 // this only ever stops an action, never allows one.
+//
+// Lane U (23 Oct 2026): intercept_replay joins the gated set — it
+// SENDS traffic to the target, and its recorded identity (capture
+// index + final URL + header mods + body, via replaySignature) fully
+// identifies the send, so an identical replay is the same mindless
+// repeat the gate exists for. The other intercept actions stay OUT:
+// proxy_start is an idempotent machine control (re-running it just
+// reports state, like recall) and intercept_list / intercept_read
+// only read the hunter's own capture file — reading the same page
+// of your notebook twice harms nothing, exactly like
+// browser_snapshot.
 // ---------------------------------------------------------------------------
 
-const GATED_TOOLS = new Set(['shell', 'search', 'browser_open', 'browser_click', 'browser_type']);
+const GATED_TOOLS = new Set(['shell', 'search', 'browser_open', 'browser_click', 'browser_type', 'intercept_replay']);
 const DEDUP_THRESHOLD = 2; // an action already run this many times is not run again
 
 /**
@@ -1223,6 +1255,7 @@ export function exploredDigestLines(history, limit = 30) {
     ['shell', 'Shell commands already run:'],
     ['browser_click', 'Clicks already done:'],
     ['browser_type', 'Text already typed:'],
+    ['intercept_replay', 'Replays already sent:'],
   ];
   const groups = [];
   for (const [tool, label] of sections) {
@@ -1262,6 +1295,7 @@ function gatedCandidate(kind, action) {
     case 'browser_open': return { tool: 'browser_open', detail: String(action.url || '') };
     case 'browser_click': return { tool: 'browser_click', detail: String(action.text || '') };
     case 'browser_type': return { tool: 'browser_type', detail: String(action.text || '').slice(0, 80) };
+    case 'intercept_replay': return { tool: 'intercept_replay', detail: replaySignature(action) };
     default: return null;
   }
 }
@@ -1414,8 +1448,9 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
  *               spill, record, readMeta, writeMeta, readEvents, recordNote,
  *               pocExists (Lane N claim-gate artefact check), assess
  *               (pipeline verifier; explicit null disables the lazy
- *               default and claims are recorded UNVERIFIED), gui, sleep,
- *               now, buildBriefing
+ *               default and claims are recorded UNVERIFIED), gui,
+ *               intercept (Lane U proxy workflow), sleep, now,
+ *               buildBriefing
  */
 export async function humanIteration(huntId, target, opts = {}) {
   const d = opts.deps || {};
@@ -1443,6 +1478,7 @@ export async function humanIteration(huntId, target, opts = {}) {
     pocExists: d.pocExists || ((h, name) => Boolean(artifactInfo(h, name))),
     assess: 'assess' in d ? d.assess : (opts.assess || undefined), // undefined -> lazy pipeline assessResult; null -> disabled
     gui: d.gui || null, // lazy: guiTools bound to execRaw
+    intercept: d.intercept || null, // lazy: proxyIntercept bound to execRaw (Lane U)
     sleep: d.sleep || ((ms) => new Promise((r) => setTimeout(r, ms))),
     now: d.now || (() => Date.now()),
     buildBriefing: d.buildBriefing || buildMemoryBriefing,
@@ -1511,6 +1547,20 @@ export async function humanIteration(huntId, target, opts = {}) {
       };
     }
     return deps.gui;
+  };
+
+  // Lane U: the intercept workflow, bound to the same self-healing
+  // raw exec as the GUI tools. Tests inject deps.intercept whole.
+  const getIntercept = () => {
+    if (!deps.intercept) {
+      const ex = (h, c, t, o) => deps.execRaw(h, c, t, o);
+      deps.intercept = {
+        start: (h) => startInterceptProxy(h, { exec: ex }),
+        list: (h) => listIntercept(h, { exec: ex }),
+        read: (h, index) => readInterceptEntry(h, index, { exec: ex }),
+      };
+    }
+    return deps.intercept;
   };
 
   const getExec = async () => {
@@ -1865,6 +1915,90 @@ export async function humanIteration(huntId, target, opts = {}) {
         observation = 'Skill cards are unavailable this turn — work from your briefing and your leads.';
       }
       note({ action: `load_skill: ${name}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'proxy_start') {
+      // Lane U: start the intercept proxy + dashboard inside the
+      // hunter's own container and route its Chromium through it.
+      // NOT dedupe-gated (an idempotent machine control — re-running
+      // it only reports state, like recall) and NOT scope-gated (it
+      // touches only the hunter's own machine; no traffic leaves).
+      toolCall('proxy_start', '');
+      const res = await getIntercept().start(huntId);
+      observation = res.observation || '(no observation)';
+      if (res.ok) say('Intercept proxy started — browser traffic is being captured.');
+      note({ action: 'proxy_start', why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'intercept_list') {
+      // Lane U: read the hunter's own capture file. NOT dedupe-gated
+      // and NOT scope-gated — a read of its own notebook, like recall.
+      toolCall('intercept_list', '');
+      const res = await getIntercept().list(huntId);
+      observation = res.observation || '(no observation)';
+      note({ action: 'intercept_list', why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'intercept_read') {
+      // Lane U: one captured flow in full. Same read-only treatment
+      // as intercept_list.
+      toolCall('intercept_read', `#${action.index ?? ''}`);
+      const res = await getIntercept().read(huntId, action.index);
+      observation = res.observation || '(no observation)';
+      note({ action: `intercept_read: #${action.index ?? ''}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'intercept_replay') {
+      // Lane U: Burp-Repeater work — resend one captured request
+      // with the hunter's modifications. This DOES send traffic, so
+      // it is treated exactly like a shell probe: dedupe-gated
+      // (above, on the replay signature), scope-checked on the FINAL
+      // url (a captured third-party request the page made, or a url
+      // override, may not be replayed out of programme), paced by
+      // the same requests-per-minute cap, and executed through the
+      // same pipeline exec as shell commands.
+      const read = await getIntercept().read(huntId, action.index);
+      if (!read.ok || !read.entry) {
+        observation = read.observation || 'That capture could not be read — run intercept_list and pick a real index.';
+      } else {
+        const built = buildReplayRequest(read.entry.flow, {
+          url: action.url,
+          headers: action.headers,
+          body: action.body,
+        });
+        if (!built.ok) {
+          observation = built.error;
+        } else {
+          const badUrl = scopeViolation(built.url, target, parsedScope);
+          if (badUrl) {
+            observation = `BLOCKED — OUT OF SCOPE: ${badUrl} is not part of this programme. A replay may only be sent to ${target} and its listed assets. Nothing was sent.`;
+            say(`Out-of-scope replay blocked: ${built.url.slice(0, 120)}`);
+          } else {
+            if (minShellGapMs > 0 && lastShellAt > 0) {
+              const wait = lastShellAt + minShellGapMs - deps.now();
+              if (wait > 0) await deps.sleep(wait);
+            }
+            toolCall('intercept_replay', replaySignature(action));
+            try {
+              const exec = await getExec();
+              const result = await exec(huntId, target, buildReplayCurl(built));
+              lastShellAt = deps.now();
+              const combined = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
+              const statusLine = /^HTTP\/\S+ \d{3}[^\n]*/m.exec(combined);
+              const head = `Replayed capture #${read.entry.index} as ${built.method} ${built.url} — ${statusLine ? statusLine[0] : 'no HTTP response received'}.`;
+              if (combined.length > OBS_BUDGET) {
+                let handle = '';
+                try {
+                  handle = deps.spill(huntId, combined);
+                } catch { /* spill is best-effort */ }
+                observation =
+                  `${head}\n${combined.slice(0, OBS_BUDGET)}` +
+                  `\n[response truncated on screen — ${combined.length} chars total${handle ? `, saved in full as artifact ${handle}` : ''}]`;
+              } else {
+                observation = combined ? `${head}\n${combined}` : `${head} (the replay produced no output)`;
+              }
+              if (result.code && result.code !== 0) {
+                observation += `\n[curl exit code ${result.code}]`;
+              }
+            } catch (err) {
+              observation = `Replay failed to run: ${err.message || err}`;
+            }
+          }
+        }
+      }
+      note({ action: `intercept_replay: #${action.index ?? ''}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'browser_open') {
       const url = String(action.url || '');
       const bad = scopeViolation(url, target, parsedScope);
@@ -1985,7 +2119,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       note({ action: `claim_finding: ${title}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
       }
     } else {
-      observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, record_coverage, load_skill, browser_open, browser_snapshot, browser_click, browser_type, screenshot, claim_finding. Pick exactly one, as JSON on the last line.`;
+      observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, record_coverage, load_skill, proxy_start, intercept_list, intercept_read, intercept_replay, browser_open, browser_snapshot, browser_click, browser_type, screenshot, claim_finding. Pick exactly one, as JSON on the last line.`;
     }
 
     // Lane F: remember what the executed action returned, so a later
