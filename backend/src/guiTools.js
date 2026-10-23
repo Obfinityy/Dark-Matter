@@ -32,7 +32,12 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { execInHuntContainerWithRespawn } from './huntRunner.js';
+import {
+  execInHuntContainerWithRespawn,
+  startHuntDesktop,
+  desktopStartRecentlyFailed,
+  noteDesktopStartFailure,
+} from './huntRunner.js';
 import { artifactsDir } from './artifacts.js';
 
 const GUI_DIR = '/tmp/dm-gui';
@@ -296,6 +301,93 @@ export function resetGuiProbeCache() {
 }
 
 // ---------------------------------------------------------------------------
+// Desktop recovery (Lane Z, 24 Oct 2026).
+//
+// Live evidence: on the DVWA hunt (h_bfb7a3a66bc8) the desktop's first
+// on-demand start died transiently under host RAM pressure (Chromium
+// crashpad zombies in the container) and EVERY later browser action
+// silently degraded to the look-only headless fallback for the rest of
+// the session — the hunter could see pages but could not click or
+// type, and nothing in the action path ever retried the start. The
+// stack itself was healthy: a manual hunt-desktop.sh start inside the
+// container came up instantly. One transient failure must not quietly
+// amputate the hunter's hands for a whole session, so before an action
+// accepts the fallback it makes ONE bounded restart attempt through
+// huntRunner's starter (the same idempotent one the screenshot poller
+// uses — never a second starter) and re-probes.
+//
+// The attempt is throttled by huntRunner's SHARED failure cache (30s):
+// a genuinely broken container costs one attempt per window, not a
+// stall on every action, and the poller and the action path never race
+// two starters. When the desktop is healthy (probe says CDP) nothing
+// here runs at all.
+// ---------------------------------------------------------------------------
+function resolveStartDesktop(deps) {
+  // Injectable for tests, like the exec seam.
+  return (deps && deps.startDesktop) || startHuntDesktop;
+}
+
+async function recoverDesktop(huntId, deps = {}) {
+  if (desktopStartRecentlyFailed(huntId)) {
+    return { attempted: false, ok: false, throttled: true };
+  }
+  const starter = resolveStartDesktop(deps);
+  let res = null;
+  try {
+    res = await starter(huntId);
+  } catch (err) {
+    res = { ok: false, error: String((err && err.message) || err) };
+  }
+  if (res && res.ok) {
+    // Re-probe from scratch: the cached probe may keep saying
+    // 'headless' for up to PROBE_TTL_MS after the desktop came up.
+    probeCache.delete(huntId);
+    const probe = await probeGui(huntId, deps);
+    if (probe.mode === 'cdp') return { attempted: true, ok: true, probe };
+    // The starter claims success but no CDP endpoint is visible — the
+    // recovery did not restore the hunter's hands; record it as a
+    // failure so later actions throttle instead of paying for a start
+    // on every call, and let the caller fall back honestly.
+    noteDesktopStartFailure(huntId);
+    return { attempted: true, ok: false, error: 'desktop_started_but_cdp_unreachable' };
+  }
+  if (res && res.error === 'desktop_unavailable') {
+    // The starter itself was throttled by a failure recorded after our
+    // check — no attempt actually happened. Do NOT re-stamp: that
+    // would stretch the window on every call.
+    return { attempted: false, ok: false, throttled: true };
+  }
+  // The real starter stamps the shared cache itself; an injected one
+  // may not. Stamp here so the throttle holds either way.
+  noteDesktopStartFailure(huntId);
+  return { attempted: true, ok: false, error: (res && res.error) || 'desktop_start_failed' };
+}
+
+// Probe, and when the live desktop is down (headless mode) spend the
+// one bounded recovery attempt before the caller accepts its fallback.
+async function probeWithRecovery(huntId, deps = {}) {
+  let probe = await probeGui(huntId, deps);
+  let recovery = null;
+  if (probe.mode === 'headless') {
+    recovery = await recoverDesktop(huntId, deps);
+    if (recovery.ok) probe = recovery.probe;
+  }
+  return { probe, recovery };
+}
+
+// Record-keeping for a fallback the hunter is about to be handed: the
+// observation must show that the system TRIED to bring its hands back,
+// so neither the hunter nor a reader of the hunt record believes the
+// look-only state was simply accepted.
+function desktopRecoveryNote(rec) {
+  if (!rec || rec.ok) return '';
+  if (rec.attempted) {
+    return ' The system automatically retried starting the desktop browser just now and the restart failed, so this look-only state stands for now — a later action will retry.';
+  }
+  return ' The desktop browser is still down (an automatic restart was already attempted moments ago and failed).';
+}
+
+// ---------------------------------------------------------------------------
 // Snapshot shaping — the model's "eyes". Same output shape for CDP and
 // headless snapshots.
 // ---------------------------------------------------------------------------
@@ -426,7 +518,7 @@ async function savePngArtifact(huntId, b64) {
 export async function guiBrowserOpen(huntId, url, deps = {}) {
   const exec = resolveExec(deps);
   try {
-    const probe = await probeGui(huntId, deps);
+    const { probe, recovery } = await probeWithRecovery(huntId, deps);
     if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE };
     if (probe.mode === 'cdp') {
       const res = await cdpAction(huntId, 'navigate', { url }, deps);
@@ -438,7 +530,7 @@ export async function guiBrowserOpen(huntId, url, deps = {}) {
     return {
       ok: true,
       observation:
-        `Opened ${url} (headless preview — this browser is look-only: the clickable desktop is not running in this environment and nothing you install can change that. You can SEE pages here; to interact with a page, use shell + curl).\n` +
+        `Opened ${url} (headless preview — this browser is look-only: the clickable desktop is not running in this environment and nothing you install can change that. You can SEE pages here; to interact with a page, use shell + curl).${desktopRecoveryNote(recovery)}\n` +
         formatSnapshot(snap),
     };
   } catch (err) {
@@ -449,7 +541,7 @@ export async function guiBrowserOpen(huntId, url, deps = {}) {
 export async function guiBrowserSnapshot(huntId, deps = {}) {
   const exec = resolveExec(deps);
   try {
-    const probe = await probeGui(huntId, deps);
+    const { probe, recovery } = await probeWithRecovery(huntId, deps);
     if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE };
     if (probe.mode === 'cdp') {
       const res = await cdpAction(huntId, 'snapshot', {}, deps);
@@ -459,7 +551,11 @@ export async function guiBrowserSnapshot(huntId, deps = {}) {
     const state = await readState(huntId, exec);
     if (!state.currentUrl) return { ok: false, observation: 'No page is open yet — use browser_open first.' };
     const snap = await headlessSnapshot(huntId, state.currentUrl, deps);
-    return { ok: true, observation: formatSnapshot(snap) };
+    const note = desktopRecoveryNote(recovery);
+    return {
+      ok: true,
+      observation: (note ? `(Look-only headless view — the desktop browser is not running.${note})\n` : '') + formatSnapshot(snap),
+    };
   } catch (err) {
     return { ok: false, observation: `browser_snapshot failed: ${err.message || err}` };
   }
@@ -467,10 +563,10 @@ export async function guiBrowserSnapshot(huntId, deps = {}) {
 
 export async function guiBrowserClick(huntId, text, deps = {}) {
   try {
-    const probe = await probeGui(huntId, deps);
+    const { probe, recovery } = await probeWithRecovery(huntId, deps);
     if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE };
     if (probe.mode !== 'cdp') {
-      return { ok: false, observation: 'Clicking needs the live desktop browser (CDP). It is not running in this environment and cannot be started or installed from inside the hunt — do not spend turns trying to fix it. Use browser_open/browser_snapshot to look, and shell + curl to act.' };
+      return { ok: false, observation: 'Clicking needs the live desktop browser (CDP). It is not running in this environment and cannot be started or installed from inside the hunt — do not spend turns trying to fix it. Use browser_open/browser_snapshot to look, and shell + curl to act.' + desktopRecoveryNote(recovery) };
     }
     const res = await cdpAction(huntId, 'click', { text: String(text || '') }, deps);
     if (!res) return { ok: false, observation: NOT_AVAILABLE };
@@ -484,10 +580,10 @@ export async function guiBrowserClick(huntId, text, deps = {}) {
 
 export async function guiBrowserType(huntId, text, submit = false, deps = {}) {
   try {
-    const probe = await probeGui(huntId, deps);
+    const { probe, recovery } = await probeWithRecovery(huntId, deps);
     if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE };
     if (probe.mode !== 'cdp') {
-      return { ok: false, observation: 'Typing needs the live desktop browser (CDP). It is not running in this environment and cannot be started or installed from inside the hunt — do not spend turns trying to fix it. Use shell + curl to send data instead.' };
+      return { ok: false, observation: 'Typing needs the live desktop browser (CDP). It is not running in this environment and cannot be started or installed from inside the hunt — do not spend turns trying to fix it. Use shell + curl to send data instead.' + desktopRecoveryNote(recovery) };
     }
     const res = await cdpAction(huntId, 'type', { text: String(text || ''), submit: Boolean(submit) }, deps);
     if (!res) return { ok: false, observation: NOT_AVAILABLE };

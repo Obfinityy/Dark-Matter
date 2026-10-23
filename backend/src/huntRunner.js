@@ -196,16 +196,37 @@ const desktopStartFailures = new Map(); // huntId -> timestamp ms
 const DESKTOP_RETRY_MS = 30000;
 
 /**
+ * Lane Z: shared access to the desktop-start failure cache. guiTools
+ * consults the SAME cache before spending a browser action on a
+ * restart attempt, so a start that just failed — for the screenshot
+ * poller OR for an action — throttles both consumers: one cache, one
+ * 30s window, never two starters racing.
+ */
+export function desktopStartRecentlyFailed(huntId) {
+  const last = desktopStartFailures.get(huntId) || 0;
+  return last > 0 && Date.now() - last < DESKTOP_RETRY_MS;
+}
+
+/** Record a failed desktop start in the shared negative cache. */
+export function noteDesktopStartFailure(huntId) {
+  desktopStartFailures.set(huntId, Date.now());
+}
+
+/** Test hook: forget recorded desktop-start failures. */
+export function resetDesktopStartFailures() {
+  desktopStartFailures.clear();
+}
+
+/**
  * Start the hunt machine's GUI desktop inside its container (idempotent).
  * @returns {{ok: true, alreadyRunning?: boolean} | {ok: false, error: string}}
  */
 export async function startHuntDesktop(huntId) {
-  const lastFail = desktopStartFailures.get(huntId) || 0;
-  if (Date.now() - lastFail < DESKTOP_RETRY_MS) {
+  if (desktopStartRecentlyFailed(huntId)) {
     return { ok: false, error: 'desktop_unavailable' };
   }
   const fail = (error) => {
-    desktopStartFailures.set(huntId, Date.now());
+    noteDesktopStartFailure(huntId);
     return { ok: false, error };
   };
 
