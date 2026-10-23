@@ -258,9 +258,43 @@ export function isTargetBeingHunted(target) {
 }
 
 // ---- Hunt queue ------------------------------------------------------------
-// One hunt runs at a time. Additional requests go into a FIFO queue with
-// admin-settable priority. When the active hunt finishes/stops, the next
-// queued hunt auto-starts.
+// Up to MAX_CONCURRENT_HUNTS hunts run at once (env, default 3 — see
+// huntConcurrencyCap). Additional requests go into a FIFO queue with
+// admin-settable priority. When a running hunt finishes/stops and a slot
+// is free, the next queued hunt auto-starts.
+
+export const DEFAULT_MAX_CONCURRENT_HUNTS = 3;
+
+/**
+ * Concurrency cap for simultaneously running hunts, from the
+ * MAX_CONCURRENT_HUNTS env var (parsed fresh on every call, so an ops
+ * .env change takes effect on restart). Missing, non-numeric, or
+ * non-positive values fall back to the default of 3.
+ */
+export function huntConcurrencyCap(env = process.env) {
+  const n = Number.parseInt(String((env || {}).MAX_CONCURRENT_HUNTS ?? ''), 10);
+  return Number.isInteger(n) && n > 0 ? n : DEFAULT_MAX_CONCURRENT_HUNTS;
+}
+
+/**
+ * Count hunts in state 'running'. Paused/stopped/finished hunts NEVER
+ * count (20 Oct 2026: a paused hunt is dormant by the owner's explicit
+ * order — counting it as active made every new target queue forever
+ * behind hunts nobody intended to run). Pass a metas list for a pure
+ * count; defaults to the on-disk metas.
+ */
+export function countRunningHunts(metas = listHuntMetas()) {
+  return (metas || []).filter((h) => h && h.state === 'running').length;
+}
+
+/**
+ * The queue decision, in ONE place for both call sites (POST /hunts and
+ * the hunt-end queue drain in huntAgent.js): true when the running-hunt
+ * cap is reached and a new hunt must queue instead of starting.
+ */
+export function huntQueueFull(metas = listHuntMetas(), env = process.env) {
+  return countRunningHunts(metas) >= huntConcurrencyCap(env);
+}
 
 export function readQueue() {
   return readJson(path.join(dataDir(), 'hunt-queue.json'), []);

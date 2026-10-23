@@ -2615,10 +2615,15 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
       writeHuntMetaCheckpoint(huntId, { state: 'finished' });
     } catch { /* meta is best-effort here */ }
 
-    // QUEUE: auto-start next hunt if queued
+    // QUEUE: auto-start next hunt if queued AND a concurrency slot is
+    // free. The cap decision lives in store.js (huntQueueFull), shared
+    // with POST /hunts — dequeueNextHunt marks the entry started, so it
+    // must not be called while the cap is still reached. (This hunt's
+    // meta was checkpointed 'finished' just above, so it no longer
+    // counts as running here.)
     try {
-      const { dequeueNextHunt } = await import('./store.js');
-      const next = dequeueNextHunt();
+      const { dequeueNextHunt, huntQueueFull } = await import('./store.js');
+      const next = huntQueueFull() ? null : dequeueNextHunt();
       if (next) {
         console.log(`[hunt] Queue: auto-starting ${next.queueId} for ${next.username} (target: ${next.target})`);
         // Import and call the hunt creation (deferred to avoid circular imports)

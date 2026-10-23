@@ -285,9 +285,17 @@ router.post('/', requireAuth, async (req, res) => {
       console.warn('[hunts] dedupe check failed:', err.message);
     }
   }
-  // ONE HUNT RUNNING AT A TIME with QUEUE: if a hunt is already running,
-  // add this request to the queue instead of rejecting. User gets their
-  // queue position. Admin can prioritize from the admin portal.
+  // CONCURRENCY CAP with QUEUE: up to MAX_CONCURRENT_HUNTS hunts (env,
+  // default 3 — huntConcurrencyCap in store.js) may run at once; only
+  // when the cap is reached does a new request queue instead of starting
+  // directly. User gets their queue position. Admin can prioritize from
+  // the admin portal.
+  // This replaces the original ONE-HUNT-AT-A-TIME rule (24 Oct 2026):
+  // several hunts already ran concurrently in practice (boot-resume
+  // restarts every 'running' hunt — the lab benchmark hunt and the
+  // real-target Ezviz hunt run side by side for days), and since hunts
+  // are unlimited by design, a one-at-a-time queue never drained — a new
+  // lab hunt (DVWA) queued forever behind the running Ezviz hunt.
   // PAUSED hunts do NOT block creation (20 Oct 2026): a paused hunt is
   // dormant by the owner's explicit order and stays paused until the
   // owner resumes it — counting it as "active" here made every new
@@ -295,9 +303,10 @@ router.post('/', requireAuth, async (req, res) => {
   // paused thebhavesh.online and benchmark hunts blocked the owner's
   // first real-target hunt, Ezviz, from ever starting).
   try {
-    const { listHuntMetas, enqueueHunt } = await import('../store.js');
-    const active = listHuntMetas().find((h) => h.state === 'running');
-    if (active) {
+    const { listHuntMetas, enqueueHunt, huntQueueFull } = await import('../store.js');
+    const metas = listHuntMetas();
+    if (huntQueueFull(metas)) {
+      const active = metas.find((h) => h.state === 'running');
       const { queueId, position, total } = enqueueHunt({
         userId: req.user.id,
         username: req.user.username,
@@ -311,7 +320,7 @@ router.post('/', requireAuth, async (req, res) => {
         queueId,
         position,
         totalInQueue: total,
-        message: `Hunt queued. You are #${position} in line. The hunt will start automatically when the current one finishes.`,
+        message: `Hunt queued. You are #${position} in line. The hunt will start automatically when a running hunt finishes.`,
         activeHuntId: active.huntId,
         activeTarget: active.target,
       });
