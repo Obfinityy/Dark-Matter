@@ -82,12 +82,21 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
   const [streamError, setStreamError] = useState(false);
   const [showFeed, setShowFeed] = useState(true);
   const [resolvedCreatedAt, setResolvedCreatedAt] = useState(hunt.createdAt || null);
+  // Lane P: until the history fetch settles, the card cannot tell a
+  // genuinely silent hunt from one whose record is still loading —
+  // on remount (e.g. Admin -> hunt via the sidebar) it used to flash
+  // "Waiting for hunt output…" plus a 00:00:00 timer, looking like
+  // the hunt had restarted from zero (owner's live QA, 23 Oct 2026).
+  // Track the load so the card says "loading" while it is loading.
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   // Load historical events for real timestamps on existing log lines
   useEffect(() => {
     let cancelled = false;
     import('../lib/api').then(({ getHuntEvents }) =>
       getHuntEvents(hunt.huntId, 200).then((r) => {
-        if (cancelled || !r.ok || !r.data) return;
+        if (cancelled) return;
+        setHistoryLoaded(true);
+        if (!r.ok || !r.data) return;
         const evts = r.data.events || r.data || [];
         if (!Array.isArray(evts) || evts.length === 0) return;
         const mapped = evts
@@ -99,7 +108,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
           }))
           .filter((l) => l.text);
         if (mapped.length) setLogs(mapped.slice(-99));
-      }).catch(() => {})
+      }).catch(() => { if (!cancelled) setHistoryLoaded(true); })
     );
     return () => { cancelled = true; };
   }, [hunt.huntId]);
@@ -137,7 +146,10 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
     const sec = String(s % 60).padStart(2, '0');
     return `${h}:${m}:${sec}`;
   }
-  const elapsedStr = elapsedStamp(now);
+  // Lane P: before the hunt's real start time resolves, show a
+  // placeholder instead of a timer counting up from the mount
+  // moment (the 00:00:00 flash read as "the hunt restarted").
+  const elapsedStr = resolvedCreatedAt ? elapsedStamp(now) : '--:--:--';
 
   // Plain-English activity feed: translate technical log entries into
   // "I did this" narration anyone can understand.
@@ -334,7 +346,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
           <span className="hunt-money hunt-burn-rate">⚡ ${perIter.toFixed(2)}/iter</span>
         </div>
         <div className="hunt-feed" ref={logEndRef} aria-live="polite">
-          {logs.length === 0 && <div className="empty-hint">Waiting for hunt output…</div>}
+          {logs.length === 0 && <div className="empty-hint">{historyLoaded ? 'Waiting for hunt output…' : 'Loading hunt history…'}</div>}
           {logs.map((entry, idx) => (
             <div key={idx} className={`log-line${entry.kind === 'tool' ? ' log-tool' : entry.kind === 'finding' ? ' log-finding' : ' log-think'}`}>
               <span className="log-time">[{elapsedStamp(entry.at)}]</span>
