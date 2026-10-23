@@ -2,9 +2,12 @@
 // Express orchestrator bridging the frontend to the PentAGI hunt engine.
 
 import express from 'express';
+import fs from 'node:fs';
 import http from 'node:http';
+import path from 'node:path';
 import { WebSocketServer } from 'ws';
 import { config } from './config.js';
+import { dataDir, readHuntEvents, readHuntMeta } from './store.js';
 import {
   EngineUnreachableError,
   getEngineEvents,
@@ -86,13 +89,17 @@ const server = http.createServer(app);
 // ---- WebSocket: WS /api/v1/hunts/:id/stream --------------------------------
 // Emits events {type: "thinking"|"tool_call"|"finding"|"status"|"done", ...}.
 //
-// Bridge choice: the PentAGI engine has no documented WebSocket/SSE feed, so
-// the backend POLLS its REST endpoint GET /api/v1/hunts/:id/events?since=<seq>
-// every 1s per connected client, forwards new events, and caches them locally
-// (powers mid-hunt reports + chat context). If the engine is unreachable, the
-// client gets a single {type:"status", state:"engine_unreachable"} event and
-// the socket closes with code 1011. Cached events are replayed on connect so
-// a fresh subscriber sees history.
+// Bridge choice: hunts with a local meta (every hunt on this box — they
+// run host-side) are bridged from the hunt's own events.jsonl: cached
+// events are replayed on connect, then the log is tailed and new events
+// are pushed as they land (Lane P — the old engine-only bridge closed
+// the socket on connect because the engine is unreachable here, which
+// froze every open hunt panel until reload). The legacy path for
+// engine-tracked hunts (no local meta) POLLS the PentAGI engine's REST
+// endpoint GET /api/v1/hunts/:id/events?since=<seq> every 1s per
+// connected client; if the engine is unreachable, the client gets a
+// single {type:"status", state:"engine_unreachable"} event and the
+// socket closes with code 1011.
 
 const wss = new WebSocketServer({ noServer: true });
 const STREAM_POLL_MS = parseInt(process.env.STREAM_POLL_MS || '1000', 10);
@@ -219,7 +226,67 @@ wss.on('connection', async (ws, req, huntId) => {
     send(stripCacheFields(cached));
   }
 
-  // 2) Current status snapshot from the engine.
+  // 2) HOST-SIDE hunts (Lane P, 23 Oct 2026): every hunt on this box
+  // runs host-side — the PentAGI engine was never set up here, so the
+  // old step 2 called getEngineHunt, got EngineUnreachableError, and
+  // CLOSED the socket seconds after connect. The panel then sat on
+  // the connect-time replay forever: new events the backend wrote to
+  // events.jsonl never reached an already-open hunt view, which
+  // looked frozen until a reload replayed the log (owner's live QA:
+  // the activity feed never advanced past the resume round in ~12
+  // minutes of Running). A hunt with a local meta is therefore
+  // bridged from its own record instead: a status snapshot from meta,
+  // then a tail of events.jsonl — new events are pushed as they are
+  // appended, and meta status/phase/iteration changes are forwarded
+  // so the panel's progress moves without a reload. The legacy
+  // engine path below now runs only for hunts with NO local meta
+  // (engine-tracked hunts, none on this box).
+  let hostMeta = null;
+  try { hostMeta = readHuntMeta(huntId); } catch { hostMeta = null; }
+  if (hostMeta) {
+    let cursor = getCachedEvents(huntId).length;
+    let lastStatusKey = '';
+    const sendMetaStatus = (m) => {
+      const key = `${m.state || ''}|${m.phase || ''}|${m.iteration ?? m.stepCount ?? ''}`;
+      if (key === lastStatusKey) return;
+      lastStatusKey = key;
+      send({
+        type: 'status',
+        huntId,
+        status: m.state || 'unknown',
+        state: m.state || 'unknown',
+        phase: m.phase,
+        step: m.iteration ?? m.stepCount,
+      });
+    };
+    sendMetaStatus(hostMeta);
+    const eventsFile = path.join(dataDir(), 'hunts', String(huntId), 'events.jsonl');
+    let lastSize = -1;
+    try { lastSize = fs.statSync(eventsFile).size; } catch { /* file may not exist yet */ }
+    const hostTimer = setInterval(() => {
+      if (!alive) return;
+      try {
+        let size = -1;
+        try { size = fs.statSync(eventsFile).size; } catch { size = -1; }
+        if (size !== lastSize) {
+          lastSize = size;
+          const events = readHuntEvents(huntId) || [];
+          if (events.length < cursor) cursor = 0; // log rotated/truncated: resync
+          for (let i = cursor; i < events.length; i++) send(stripCacheFields(events[i]));
+          cursor = events.length;
+        }
+        const m = readHuntMeta(huntId);
+        if (m) sendMetaStatus(m);
+      } catch { /* one bad poll never kills the stream */ }
+    }, STREAM_POLL_MS);
+    hostTimer.unref?.();
+    ws.on('close', () => { alive = false; clearInterval(hostTimer); });
+    ws.on('error', () => { alive = false; clearInterval(hostTimer); });
+    return;
+  }
+
+  // 3) Legacy engine path (engine-tracked hunts only): status snapshot
+  // from the engine, then poll its event feed.
   try {
     const status = await getEngineHunt(huntId);
     send({ type: 'status', huntId, snapshot: status });
@@ -232,7 +299,7 @@ wss.on('connection', async (ws, req, huntId) => {
     }
   }
 
-  // 3) Poll for new events until the hunt is done or the client disconnects.
+  // 4) Poll the engine for new events until the hunt is done or the client disconnects.
   const timer = setInterval(async () => {
     if (!alive) return;
     try {

@@ -96,12 +96,27 @@ function ProviderCard({ provider, onSaved }) {
 export default function PluginsPage() {
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   async function load() {
     setLoading(true);
     const res = await listProviders();
     setLoading(false);
-    if (res.ok && res.providers) setProviders(res.providers);
+    // The API client wraps every payload as { ok, data } — the
+    // provider list lives at res.data.providers. This page used to
+    // read res.providers (always undefined), so the list silently
+    // stayed empty and the page rendered its heading with zero
+    // integration cards (owner's live QA, 23 Oct 2026). Read the
+    // real shape, and surface failures honestly instead of
+    // swallowing them into a blank page.
+    const list = res.ok && res.data && Array.isArray(res.data.providers) ? res.data.providers : null;
+    if (list) {
+      setProviders(list);
+      setLoadError('');
+    } else {
+      setProviders([]);
+      setLoadError(res.error || 'Could not load the integrations list.');
+    }
   }
 
   useEffect(() => { load(); }, []);
@@ -117,6 +132,13 @@ export default function PluginsPage() {
         </header>
         {loading ? (
           <p className="page-sub">Loading…</p>
+        ) : loadError ? (
+          <p className="page-sub">
+            {loadError}{' '}
+            <button className="btn btn-ghost btn-sm" onClick={load}>Retry</button>
+          </p>
+        ) : providers.length === 0 ? (
+          <p className="page-sub">No integrations are available on the server right now.</p>
         ) : (
           <div className="provider-list">
             {providers.map((p) => (

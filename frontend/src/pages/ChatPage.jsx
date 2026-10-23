@@ -34,8 +34,18 @@ export default function ChatPage({
   const [launching, setLaunching] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
 
-  // Open hunt modal when triggered from Sidebar "New hunt"
+  // Open hunt modal when triggered from Sidebar "New hunt".
+  // The trigger is a counter in App state that only ever increases,
+  // and this effect also runs on MOUNT — so after visiting another
+  // page (e.g. Admin) and coming back, the remounted page saw the old
+  // trigger value > 0 and reopened the "Start a new hunt" dialog
+  // unprompted (owner's live QA, 23 Oct 2026). Only a CHANGE of the
+  // counter is a real trigger; the mount-time value is remembered,
+  // not acted on.
+  const prevHuntModalTriggerRef = useRef(huntModalTrigger);
   useEffect(() => {
+    if (huntModalTrigger === prevHuntModalTriggerRef.current) return;
+    prevHuntModalTriggerRef.current = huntModalTrigger;
     if (huntModalTrigger > 0) {
       if (ensureHuntAuth()) setHuntModalOpen(true);
     }

@@ -1466,6 +1466,12 @@ export async function humanIteration(huntId, target, opts = {}) {
   const newFindings = [];
 
   const meta0 = deps.readMeta(huntId) || {};
+  // Lane P: this session's turns-total baseline. Per-turn progress
+  // checkpoints (below) write ABSOLUTE totals computed from this
+  // base, and the session-end checkpoint takes the max of what it
+  // re-reads and base + turnsRun — so the two writers can never
+  // double-count a turn.
+  const sessionBaseTurns = (meta0.humanLoop && meta0.humanLoop.turnsTotal) || 0;
   const parsedScope = opts.parsedScope || meta0.parsedScope || null;
   const maxRpm = parsedScope && parsedScope.rules ? Number(parsedScope.rules.maxRequestsPerMin) || 0 : 0;
   const minShellGapMs = maxRpm > 0 ? Math.ceil(60000 / maxRpm) : 0;
@@ -1992,6 +1998,31 @@ export async function humanIteration(huntId, target, opts = {}) {
 
     log.push({ turn, action: kind, detail: detailForAction(kind, action), observation: String(observation).slice(0, 300) });
     lastObservation = observation;
+
+    // PROGRESS CHECKPOINT (Lane P, 23 Oct 2026): the hunt's totals
+    // used to move only at session end, so during a whole 6-turn
+    // session (10+ minutes on the 8B brain) meta.humanLoop.turnsTotal
+    // stood still and the website's hunt looked frozen at the round
+    // it resumed from — the owner's live QA watched round 166 for
+    // ~12 minutes while the backend was in fact writing reasoning
+    // rows and events. Persist the running total after EVERY turn
+    // through the guarded checkpoint writer (owner pause/stop holds
+    // are preserved; progress fields still record). Best-effort: a
+    // failed checkpoint never costs the turn.
+    try {
+      const cur = deps.readMeta(huntId) || {};
+      const curLoop = cur.humanLoop || {};
+      deps.writeMeta(huntId, {
+        ...cur,
+        huntId,
+        humanLoop: {
+          ...curLoop,
+          turnsTotal: sessionBaseTurns + turnsRun,
+          lastTurnAt: new Date().toISOString(),
+        },
+        checkpointAt: new Date().toISOString(),
+      });
+    } catch { /* progress checkpoint is best-effort */ }
   }
 
   // Checkpoint: session totals on the hunt meta under humanLoop,
@@ -2060,9 +2091,27 @@ export async function humanIteration(huntId, target, opts = {}) {
         if (!openThreads.some((l) => l.includes(label))) openThreads.push(item);
       }
     } catch { /* reconciliation is best-effort bookkeeping */ }
+    // Lane P: a dedup-BLOCKED attempt is not an action the hunter
+    // took and must never be stored as the hand-off's last actions —
+    // the next session reads those as its pending thread and retries
+    // the exact repeat (live: browser_open /api/register, blocked in
+    // one session, was already sitting in leftOff from the session
+    // before and got retried again). Blocked attempts instead become
+    // an explicit do-not-retry thread.
+    const isBlockedRepeat = (l) => String((l && l.observation) || '').startsWith('BLOCKED — ALREADY DONE');
+    const seenBlocked = new Set();
+    for (const b of log.filter(isBlockedRepeat)) {
+      const key = `${b.action}|${b.detail || ''}`;
+      if (seenBlocked.has(key)) continue;
+      seenBlocked.add(key);
+      const line = `- Do NOT retry: ${b.action} ${clipLine(b.detail || '', 120)} — the already-done gate blocked it as an exact repeat; it is not your pending step. Choose a different action.`;
+      if (!openThreads.some((t) => t.includes('Do NOT retry') && t.includes(clipLine(b.detail || '', 60)))) {
+        openThreads.push(line);
+      }
+    }
     const leftOff = {
       at: new Date().toISOString(),
-      lastActions: log.slice(-5).map((l) => ({
+      lastActions: log.filter((l) => !isBlockedRepeat(l)).slice(-5).map((l) => ({
         tool: l.action,
         detail: clipLine(l.detail || '', 160),
         result: clipLine(l.observation || '', 220),
@@ -2076,7 +2125,12 @@ export async function humanIteration(huntId, target, opts = {}) {
       huntId,
       humanLoop: {
         sessions: (prev.sessions || 0) + 1,
-        turnsTotal: (prev.turnsTotal || 0) + turnsRun,
+        // Lane P: per-turn progress checkpoints already advanced
+        // turnsTotal to sessionBaseTurns + turnsRun during this
+        // session; adding turnsRun again here would double-count.
+        // The max keeps the total correct whether or not the
+        // per-turn writes landed (e.g. a no-op writeMeta in tests).
+        turnsTotal: Math.max(prev.turnsTotal || 0, sessionBaseTurns + turnsRun),
         lastTurnAt: new Date().toISOString(),
         lastActions: log.slice(-6).map((l) => l.action),
         leftOff,

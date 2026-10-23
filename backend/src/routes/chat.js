@@ -25,6 +25,28 @@ import { getBalanceUsd } from '../billing/credits.js';
 import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
 import { chatWithAI, aiAvailable } from '../llm.js';
 import { analyzeFindings } from '../hunt-intel/index.js';
+import { loadHuntMemory, normTitle } from '../huntMemory.js';
+
+/**
+ * The confirmed findings of a hunt, as UNIQUE titles. Findings must
+ * come from huntMemory.loadHuntMemory — the single read path, which
+ * removes stamps a later retraction event withdrew. Counting raw
+ * finding events here (the pre-Lane-P code) told the owner "2
+ * confirmed" for the Ezviz FTP stamps that had been RETRACTED as
+ * false positives, while the hunt panel showed 0 confirmed — a
+ * 100%-truth-rule violation found by the owner's live browser QA
+ * (23 Oct 2026). Duplicate stamps of one title are one vulnerability.
+ */
+export function confirmedTitles(findings) {
+  const seen = new Map();
+  for (const f of findings || []) {
+    if (!f || !f.verified) continue;
+    const raw = f.title || f.type || 'finding';
+    const key = normTitle(raw);
+    if (!seen.has(key)) seen.set(key, raw);
+  }
+  return [...seen.values()];
+}
 
 const router = Router();
 
@@ -167,8 +189,10 @@ router.post(
   // live state directly from the hunt meta + event log. No engine calls.
   const meta = readHuntMeta(huntId) || {};
   const cached = readHuntEvents(huntId) || [];
-  const findings = cached.filter((e) => e.type === 'finding');
-  const verified = findings.filter((f) => f.verified);
+  // SINGLE READ PATH (Lane P): findings come from loadHuntMemory,
+  // which reconciles retraction events — a retracted stamp is not a
+  // finding and must never be counted or listed as confirmed here.
+  const findings = loadHuntMemory(huntId, { meta }).findings;
   // Build a live-like snapshot from host-side data so downstream code
   // (ctx, summaryReply, system prompt) works unchanged.
   const live = {
@@ -270,7 +294,7 @@ function huntContextLine({ huntId, meta, live, liveError, cached, findings }) {
   const state = (live && (live.state || live.status)) || (meta && meta.state) || 'unknown';
   const step = (live && (live.stepCount ?? live.step_count)) ?? (meta && (meta.iteration ?? meta.stepCount));
   const phase = (live && live.phase) || (meta && meta.phase);
-  const verified = findings.filter((f) => f.verified).length;
+  const verified = confirmedTitles(findings).length;
   const stateWord = { running: 'actively hunting', paused: 'paused', stopped: 'stopped', starting: 'starting up' }[state] || state;
   let line = `Hunting ${target} — ${stateWord}`;
   if (phase) line += ` (${phase} phase)`;
@@ -284,13 +308,14 @@ function summaryReply({ ctx, live, liveError, cached, findings }) {
   const lastThink = thinking.length ? thinking[thinking.length - 1] : null;
   let reply = ctx;
   if (findings.length) {
-    const verified = findings.filter((f) => f.verified);
-    if (verified.length) {
-      // Dedupe by title: a long hunt stamps the same vulnerability many
-      // times, and reading the same title five times sounds broken.
-      const titles = [...new Set(verified.map((f) => f.title || f.type || 'finding'))];
+    // Count CONFIRMED as unique titles, not raw stamps: a long hunt
+    // stamps the same vulnerability many times, and "Found 5 confirmed"
+    // for one vulnerability repeated five times is a false count —
+    // the number and the list must agree.
+    const titles = confirmedTitles(findings);
+    if (titles.length) {
       reply +=
-        ` Found ${verified.length} confirmed ${verified.length > 1 ? 'vulnerabilities' : 'vulnerability'}: ` +
+        ` Found ${titles.length} confirmed ${titles.length > 1 ? 'vulnerabilities' : 'vulnerability'}: ` +
         titles.slice(0, 5).join(', ') + '.';
     } else {
       reply += ` ${findings.length} lead(s) under investigation — nothing confirmed yet.`;
