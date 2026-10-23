@@ -281,7 +281,15 @@ async function proxyAlive(huntId, exec) {
   return String(r.stdout || '').includes('alive');
 }
 
-async function dashboardUrl(huntId, exec) {
+/**
+ * The dashboard URL mitmweb printed into its log, or null when the
+ * log has no URL yet. The printed URL carries the access token —
+ * the bare WEB_URL root answers 403 without it. This is the single
+ * log-parsing helper: dashboardUrl (display) and the start
+ * readiness probe both read the log through here, so they can
+ * never disagree about what the URL is.
+ */
+async function loggedDashboardUrl(huntId, exec) {
   try {
     const r = await exec(
       huntId,
@@ -290,10 +298,29 @@ async function dashboardUrl(huntId, exec) {
       { bypassTmux: true },
     );
     const url = String(r.stdout || '').trim().split('\n')[0];
-    return url || WEB_URL;
+    return url || null;
   } catch {
-    return WEB_URL;
+    return null;
   }
+}
+
+async function dashboardUrl(huntId, exec) {
+  return (await loggedDashboardUrl(huntId, exec)) || WEB_URL;
+}
+
+/**
+ * One HTTP status probe inside the container; '' when curl itself
+ * produced nothing, '000' when nothing answered (connection refused
+ * prints 000 — an HTTP status line it is not).
+ */
+async function httpStatus(huntId, exec, url) {
+  const probe = await exec(
+    huntId,
+    `curl -s --max-time 2 -o /dev/null -w '%{http_code}' ${shellQuote(url)} || true`,
+    10000,
+    { bypassTmux: true },
+  );
+  return String(probe.stdout || '').trim();
 }
 
 const NOT_INSTALLED =
@@ -330,11 +357,17 @@ export async function startInterceptProxy(huntId, deps = {}) {
     }
     // One process: mitmweb IS the proxy (listen 8080) + dashboard
     // (8081) + our capture addon — the dashboard and the capture
-    // file always show the same flows.
+    // file always show the same flows. PYTHONUNBUFFERED is load
+    // bearing: without it Python block-buffers mitmweb's stdout when
+    // it is redirected to the log file, the "Web server listening
+    // at …" line (which carries the dashboard token URL) may not
+    // land for minutes, and both the readiness probe and
+    // dashboardUrl read that log — the start looks dead on a
+    // healthy proxy (live-proven 23 Oct 2026).
     const start = await exec(
       huntId,
       `mkdir -p ${INTERCEPT_DIR} && printf %s ${shellQuote(PROXY_URL)} > ${PROXY_MARKER_PATH} && ` +
-      `DM_CAPTURE_FILE=${CAPTURE_PATH} nohup mitmweb --listen-host 127.0.0.1 --listen-port ${PROXY_PORT} ` +
+      `DM_CAPTURE_FILE=${CAPTURE_PATH} PYTHONUNBUFFERED=1 nohup mitmweb --listen-host 127.0.0.1 --listen-port ${PROXY_PORT} ` +
       `--web-host 127.0.0.1 --web-port ${WEB_PORT} --no-web-open-browser ` +
       `-s ${ADDON_PATH} --set confdir=${INTERCEPT_DIR}/conf >${MITM_LOG_PATH} 2>&1 & echo $! > ${MITM_PID_PATH}; echo launched`,
       20000,
@@ -343,18 +376,27 @@ export async function startInterceptProxy(huntId, deps = {}) {
     if (start.containerMissing) {
       return { ok: false, observation: 'Your hunt machine (container) is not running, so the intercept proxy cannot start.' };
     }
-    // Wait for the dashboard to answer (proxy listens with it).
+    // Wait for the dashboard to answer (the proxy listens with
+    // it). Probe the TOKEN URL from the log when it is there — that
+    // is the URL that answers 2xx. The bare root never can:
+    // mitmweb answers / without its token with 403 (the SPA shell
+    // behind an auth wall), so the old 2xx/3xx-on-/ probe reported
+    // "failed to start" on a healthy proxy (live-proven 23 Oct
+    // 2026). Any HTTP answer from / — the 403 included — still
+    // proves the server is listening, so keep polling for the URL
+    // while it is missing and declare failure only when the whole
+    // budget passes in total silence (no token-URL success AND no
+    // HTTP response from / at all).
     let up = false;
+    let heardHttp = false;
     for (let i = 0; i < 15 && !up; i++) {
-      const probe = await exec(
-        huntId,
-        `curl -s --max-time 2 -o /dev/null -w '%{http_code}' ${WEB_URL}/ || true`,
-        10000,
-        { bypassTmux: true },
-      );
-      up = /^[23]\d\d$/.test(String(probe.stdout || '').trim());
+      const logged = await loggedDashboardUrl(huntId, exec);
+      const code = await httpStatus(huntId, exec, logged || `${WEB_URL}/`);
+      if (/^[23]\d\d$/.test(code)) up = true;
+      else if (/^\d{3}$/.test(code) && code !== '000') heardHttp = true;
       if (!up) await sleep(1000);
     }
+    if (!up && heardHttp) up = true;
     if (!up || !(await proxyAlive(huntId, exec))) {
       const tail = await exec(huntId, `tail -n 5 ${MITM_LOG_PATH} 2>/dev/null`, 10000, { bypassTmux: true }).catch(() => ({ stdout: '' }));
       return {
