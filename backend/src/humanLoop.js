@@ -1659,23 +1659,86 @@ const SETTLED_LINE_CAP = 220; // chars per settled entry
  * Requests already SENT to a URL's path, from the executed record:
  * shell commands and intercept replays whose recorded detail names
  * the path. This is the fact that falsifies "visited but not
- * probed" — a GET page-open is a look; these were sends.
+ * probed" — a GET page-open is a look; these were sends. One
+ * implementation serves both Lane AD's settled lines (the count)
+ * and Lane AG's block evidence (the count + the most recent send).
  */
-function requestsSentToPath(events, detail) {
+function requestsToPath(events, detail) {
   let pathname = '';
   try {
     pathname = new URL(detail).pathname || '';
   } catch {
-    return 0;
+    return [];
   }
-  if (!pathname || pathname === '/') return 0;
-  let n = 0;
+  if (!pathname || pathname === '/') return [];
+  const hits = [];
   for (const e of events || []) {
     if (!e || e.type !== 'tool_call') continue;
     if (e.tool !== 'shell' && e.tool !== 'intercept_replay') continue;
-    if (String(e.detail || '').includes(pathname)) n++;
+    if (String(e.detail || '').includes(pathname)) hits.push(e);
   }
-  return n;
+  return hits;
+}
+
+function requestsSentToPath(events, detail) {
+  return requestsToPath(events, detail).length;
+}
+
+/**
+ * The most recent request SENT to a URL's path (same matching as
+ * requestsSentToPath), with the outcome the live history recorded
+ * for it when it holds one — events never store results, so across
+ * sessions the outcome is simply absent, never invented.
+ */
+function lastRequestToPath(events, history, detail) {
+  const hits = requestsToPath(events, detail);
+  if (!hits.length) return null;
+  const last = hits[hits.length - 1];
+  const entry = (history || new Map()).get(actionSignature(last.tool, last.detail));
+  return {
+    tool: String(last.tool || ''),
+    detail: String(last.detail || ''),
+    outcome: entry ? String(entry.lastResult || '') : '',
+  };
+}
+
+/**
+ * dedup_block counts per signature — the block timeline both Lane
+ * AD (settled lines) and Lane AG (settled block evidence) read.
+ */
+function settledBlockCounts(events) {
+  const blocks = new Map();
+  for (const e of events || []) {
+    if (!e || e.type !== 'dedup_block') continue;
+    const tool = String(e.tool || '').toLowerCase();
+    if (!tool || !String(e.detail || '').trim()) continue;
+    const sig = actionSignature(tool, e.detail);
+    blocks.set(sig, (blocks.get(sig) || 0) + 1);
+  }
+  return blocks;
+}
+
+/**
+ * The settled facts themselves, shared by Lane AD's screen lines
+ * and Lane AG's block evidence so the two can never disagree about
+ * what is settled: signatures the gate has blocked >=
+ * SETTLED_MIN_BLOCKS times THAT ALSO have executed history (a
+ * block stream for an action that never executed through the gate
+ * — e.g. the load_skill repeats — is not a settled action),
+ * most-blocked first.
+ */
+function settledFacts({ events = [], history = null } = {}) {
+  const hist = history || buildActionHistory(events);
+  const blocks = settledBlockCounts(events);
+  const rows = [];
+  for (const [sig, blockCount] of blocks) {
+    if (blockCount < SETTLED_MIN_BLOCKS) continue;
+    const entry = hist.get(sig);
+    if (!entry) continue;
+    rows.push({ tool: entry.tool, detail: entry.detail, count: entry.count, blockCount });
+  }
+  rows.sort((a, b) => b.blockCount - a.blockCount || a.detail.localeCompare(b.detail));
+  return rows;
 }
 
 /**
@@ -1691,24 +1754,7 @@ function requestsSentToPath(events, detail) {
  * disjoint, as Lane T and Lane P are.
  */
 export function settledActionLines({ events = [], history = null } = {}) {
-  const hist = history || buildActionHistory(events);
-  const blocks = new Map();
-  for (const e of events || []) {
-    if (!e || e.type !== 'dedup_block') continue;
-    const tool = String(e.tool || '').toLowerCase();
-    if (!tool || !String(e.detail || '').trim()) continue;
-    const sig = actionSignature(tool, e.detail);
-    blocks.set(sig, (blocks.get(sig) || 0) + 1);
-  }
-  const rows = [];
-  for (const [sig, blockCount] of blocks) {
-    if (blockCount < SETTLED_MIN_BLOCKS) continue;
-    const entry = hist.get(sig);
-    if (!entry) continue;
-    rows.push({ tool: entry.tool, detail: entry.detail, count: entry.count, blockCount });
-  }
-  rows.sort((a, b) => b.blockCount - a.blockCount || a.detail.localeCompare(b.detail));
-  const top = rows.slice(0, SETTLED_LIMIT);
+  const top = settledFacts({ events, history }).slice(0, SETTLED_LIMIT);
   if (!top.length) return [];
   const lines = ['=== SETTLED — YOUR RECORD HAS ALREADY ANSWERED THESE (stop re-choosing them) ==='];
   for (const r of top) {
@@ -1723,6 +1769,67 @@ export function settledActionLines({ events = [], history = null } = {}) {
     lines.push(clipLine(line, SETTLED_LINE_CAP));
   }
   return lines;
+}
+
+// ---------------------------------------------------------------------------
+// SETTLED BLOCK EVIDENCE (Lane AG, 24 Oct 2026)
+//
+// Lane AD put the settled facts in the screen preamble — and the
+// live Ezviz brain walked straight past them: both post-AD turns
+// re-chose the settled register open (blocks 65 and 66), each
+// opening with the identical premise "the registration endpoint
+// has been visited multiple times without being probed", refuted
+// on the same screen by "requests sent ×7". What the record shows
+// the brain actually building its next turn from is the last
+// RESULT text — every WHY echoes it. So when the gate blocks an
+// action that is SETTLED (Lane AD's own definition, via the
+// shared settledFacts/settledBlockCounts above — never a second
+// counting implementation), the counter-evidence moves into the
+// block observation itself: the block ordinal, the requests
+// actually SENT to the path with the most recent one and its
+// recorded outcome, and the same redirect AD states. A settled
+// open whose path genuinely has no request on record says so
+// truthfully instead of borrowing the falsifier. Non-settled
+// blocks return '' here and keep the existing observation
+// byte-for-byte. The block stays a block — this lane changes
+// only what the block SAYS.
+// ---------------------------------------------------------------------------
+
+const SETTLED_EVIDENCE_DETAIL_CAP = 100; // chars of the most-recent request shown
+const SETTLED_EVIDENCE_OUTCOME_CAP = 60; // chars of its recorded outcome shown
+
+/**
+ * The Lane AG addition to a dedupe-gate block observation, or ''
+ * when the blocked action is not settled. `extraBlocks` counts a
+ * block the caller has just recorded but the events snapshot
+ * predates (the gate records the current block before composing
+ * its observation; the ordinal the hunter reads must include it —
+ * and must agree with the "blocked ×N" its next screen's settled
+ * line will show, which counts the same recorded events).
+ */
+export function settledBlockEvidence({ events = [], history = null, tool, detail, extraBlocks = 0 } = {}) {
+  const t = String(tool || '').toLowerCase();
+  if (!t || !String(detail || '').trim()) return '';
+  const hist = history || buildActionHistory(events);
+  const sig = actionSignature(t, detail);
+  const entry = hist.get(sig);
+  if (!entry) return '';
+  const blockCount = (settledBlockCounts(events).get(sig) || 0) + (extraBlocks || 0);
+  if (blockCount < SETTLED_MIN_BLOCKS) return '';
+  if (entry.tool === 'browser_open') {
+    const sent = requestsSentToPath(events, entry.detail);
+    if (sent > 0) {
+      const last = lastRequestToPath(events, hist, entry.detail);
+      let text = ` SETTLED: this exact action has now been chosen and blocked ${blockCount} times. The record contradicts "not probed" for this path — ${sent} ${sent === 1 ? 'request' : 'requests'} already SENT to it`;
+      if (last) {
+        text += `, most recent: ${clipLine(last.detail, SETTLED_EVIDENCE_DETAIL_CAP)}`;
+        if (last.outcome) text += ` → ${clipLine(last.outcome, SETTLED_EVIDENCE_OUTCOME_CAP)}`;
+      }
+      return `${text}. Opening cannot probe it. SEND a request: curl with a payload, or type + submit.`;
+    }
+    return ` SETTLED: this exact action has now been chosen and blocked ${blockCount} times. No request has been sent to this path yet on your record — and opening it cannot send one. To test it, SEND a request: curl with a payload, or type + submit.`;
+  }
+  return ` SETTLED: this exact action has now been chosen and blocked ${blockCount} times. An identical repeat returns the identical result — vary the input or the approach, or act on what you already learned.`;
 }
 
 /**
@@ -2221,8 +2328,15 @@ export async function humanIteration(huntId, target, opts = {}) {
     // block lands. Block counts come from the recorded dedup_block
     // events; run counts from the live action history.
     let settled = [];
+    // Lane AG: this turn's events snapshot, kept for the gate
+    // block path below. It is a COPY: the gate records the
+    // current block into the same store mid-turn, and that block
+    // must not leak into its own evidence count — the block path
+    // adds it explicitly (extraBlocks) so the ordinal is exact.
+    let turnEvents = sessionEvents;
     try {
       const sEvents = deps.readEvents(huntId) || sessionEvents;
+      turnEvents = Array.isArray(sEvents) ? sEvents.slice() : sEvents;
       settled = settledActionLines({ events: sEvents, history: actionHistory });
     } catch { /* settled is best-effort perception */ }
     const screen = buildScreen({
@@ -2308,6 +2422,14 @@ export async function humanIteration(huntId, target, opts = {}) {
         (gateHit.tool === 'browser_open'
           ? ' For this page specifically: browser_snapshot shows the page you already have open, without re-opening it; and a deeper URL on the same site (its login or setup page, for example) is a different action that is not blocked.'
           : '');
+      // Lane AG: when the blocked action is SETTLED, the
+      // observation itself — the result text the hunter builds
+      // its next turn from — carries the counter-evidence from
+      // the record (settledBlockEvidence). Non-settled blocks
+      // append nothing and keep the observation above untouched.
+      try {
+        observation += settledBlockEvidence({ events: turnEvents, history: actionHistory, tool: gateHit.tool, detail: gateHit.detail, extraBlocks: 1 });
+      } catch { /* settled evidence is best-effort */ }
       note({ action: `dedup_block: ${gateHit.tool} ${gateHit.detail.slice(0, 120)}`, why: thinkingText, result: `repeat blocked — already run ×${gateHit.count}`, learned: 'Exact repeats are stopped by the record; vary the action.' });
     } else if (kind === 'shell') {
       const command = String(action.command || '').slice(0, COMMAND_CAP);
