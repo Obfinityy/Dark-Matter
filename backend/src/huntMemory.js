@@ -44,6 +44,12 @@
 //   Deep detail stays retrievable via the recall action; what a
 //   human would hold in mind — done, known, outstanding, ruled
 //   out — is always on screen.
+//   Lane Q (23 Oct 2026): the rendered block also carries a hard
+//   TOTAL budget (SOM_TOTAL_BUDGET). Per-section caps alone let it
+//   reach ~27k chars on the biggest record, crowding the model's
+//   context window; past the budget only the lowest-priority tails
+//   (ruled-out, then findings) give way, each replaced by an
+//   explicit on-record count so the knowledge is bounded, not lost.
 //
 // This module only READS. Every writer (appendHuntEvent,
 // recordReasoning, coverageLedger, consolidation, episodeStore)
@@ -490,6 +496,14 @@ function dedupeFindings(list) {
 }
 
 /**
+ * Hard total budget for the rendered state-of-mind block, in chars
+ * (Lane Q). Per-section caps alone let the block grow ~linearly with
+ * the record (measured ~27k chars on the biggest hunt); the total
+ * budget keeps it a bounded share of the model's context window.
+ */
+export const SOM_TOTAL_BUDGET = 12000;
+
+/**
  * Render the state-of-mind block from a loadHuntMemory snapshot.
  * `topicStats` (researchedTopicStats output) and `endpoints`
  * (discoveredEndpoints output) are the caller's derivations over the
@@ -497,10 +511,14 @@ function dedupeFindings(list) {
  * and passes them in; both default to empty, in which case the
  * coverage ledger's own accounting still renders.
  *
- * Completeness contract: the WHAT I HAVE NOT DONE table and the
- * ruled-out list render IN FULL (deduped, one clipped line each) —
- * they are never sliced to a char budget. Returns [] when the hunt
- * has no record at all (a young hunt shows no placeholder).
+ * Completeness contract: the WHAT I HAVE NOT DONE table renders IN
+ * FULL (deduped, one clipped line each) and the left-off / done
+ * sections are never trimmed. The block as a whole is bounded by
+ * SOM_TOTAL_BUDGET: past it, the lowest-priority tails (ruled-out
+ * lines, then finding lines) are dropped and replaced with ONE note
+ * per section stating how many more are on record, so nothing is
+ * silently forgotten. Returns [] when the hunt has no record at all
+ * (a young hunt shows no placeholder).
  */
 export function buildStateOfMind(memory, { topicStats = [], endpoints = [] } = {}) {
   if (!memory || typeof memory !== 'object') return [];
@@ -523,10 +541,10 @@ export function buildStateOfMind(memory, { topicStats = [], endpoints = [] } = {
   if (lo) {
     const tail = lo.lastThinking || lo.lastNote || '';
     if (tail) {
-      sections.push([`WHERE I LEFT OFF: ${clip(tail, 220)}${memory.leftOffDerived ? ' (hand-off rebuilt from your record — the last session ended before writing one)' : ''}`]);
+      sections.push({ kind: 'leftoff', lines: [`WHERE I LEFT OFF: ${clip(tail, 220)}${memory.leftOffDerived ? ' (hand-off rebuilt from your record — the last session ended before writing one)' : ''}`] });
     }
     if (Array.isArray(lo.openThreads) && lo.openThreads.length) {
-      sections.push([`Open threads you left (${lo.openThreads.length}): ${lo.openThreads.slice(0, 3).map((t) => clip(String(t).replace(/^-\s*/, ''), 130)).join(' · ')}`]);
+      sections.push({ kind: 'threads', lines: [`Open threads you left (${lo.openThreads.length}): ${lo.openThreads.slice(0, 3).map((t) => clip(String(t).replace(/^-\s*/, ''), 130)).join(' · ')}`] });
     }
   }
 
@@ -563,7 +581,7 @@ export function buildStateOfMind(memory, { topicStats = [], endpoints = [] } = {
       done.push(`- [${rowOutcome(r)}] ${clip(r.action, 90)}${r.result ? ` — ${clip(r.result, 90)}` : ''}`);
     }
   }
-  if (done.length) sections.push(['WHAT I HAVE DONE SO FAR:', ...done]);
+  if (done.length) sections.push({ kind: 'done', lines: ['WHAT I HAVE DONE SO FAR:', ...done] });
 
   // (c) WHAT I KNOW — findings with retraction state, captured
   // artefacts (key presence only), the target fingerprint.
@@ -585,7 +603,7 @@ export function buildStateOfMind(memory, { topicStats = [], endpoints = [] } = {
   if (fp && (fp.appType || (Array.isArray(fp.techStack) && fp.techStack.length))) {
     know.push(`- Target fingerprint: ${fp.appType || 'unknown'}${Array.isArray(fp.techStack) && fp.techStack.length ? ` · ${fp.techStack.join(', ')}` : ''}`);
   }
-  sections.push(['WHAT I KNOW:', ...know]);
+  sections.push({ kind: 'know', lines: ['WHAT I KNOW:', ...know] });
 
   // (d) WHAT I HAVE NOT DONE YET — the complete outstanding table.
   // Rendered in full: open gaps, research debt, researched-not-
@@ -619,9 +637,9 @@ export function buildStateOfMind(memory, { topicStats = [], endpoints = [] } = {
     notDone.push(`- ${ep.url} — discovered (visited ×${ep.visits}) but never probed${ep.params && ep.params.length ? `; it takes inputs: ${ep.params.join(', ')}` : ''}`);
   }
   if (notDone.length) {
-    sections.push(['WHAT I HAVE NOT DONE YET (complete — if it is not listed here, your record does not show it as outstanding):', ...notDone]);
+    sections.push({ kind: 'notdone', lines: ['WHAT I HAVE NOT DONE YET (complete — if it is not listed here, your record does not show it as outstanding):', ...notDone] });
   } else if (rows.length || events.length) {
-    sections.push(['WHAT I HAVE NOT DONE YET: nothing outstanding in your record — every researched class has been probed or accounted for in your coverage ledger.']);
+    sections.push({ kind: 'notdone', lines: ['WHAT I HAVE NOT DONE YET: nothing outstanding in your record — every researched class has been probed or accounted for in your coverage ledger.'] });
   }
 
   // (e) PATHS ALREADY RULED OUT — complete (deduped lessons +
@@ -630,7 +648,7 @@ export function buildStateOfMind(memory, { topicStats = [], endpoints = [] } = {
   const deadHyps = ((memory.hypothesisLedger || {}).dead || [])
     .map((d) => `- Dead premise (failed ×${d.failed}): "${clip(d.text, 140)}"`);
   if (dead.length || deadHyps.length) {
-    sections.push(['PATHS ALREADY RULED OUT (do not repeat these):', ...dead, ...deadHyps]);
+    sections.push({ kind: 'ruledout', lines: ['PATHS ALREADY RULED OUT (do not repeat these):', ...dead, ...deadHyps] });
   }
 
   // (f) Inheritance from earlier hunts of this same target.
@@ -649,12 +667,77 @@ export function buildStateOfMind(memory, { topicStats = [], endpoints = [] } = {
         }
       }
     }
-    if (inh.length) sections.push(['FROM YOUR EARLIER HUNTS ON THIS TARGET:', ...inh]);
+    if (inh.length) sections.push({ kind: 'inherit', lines: ['FROM YOUR EARLIER HUNTS ON THIS TARGET:', ...inh] });
   }
 
   if (!sections.length) return [];
-  return [
-    '=== STATE OF MIND — YOUR COMPLETE MEMORY (rebuilt from your permanent record every turn; the essentials are never cut short) ===',
-    ...sections.flatMap((s, i) => (i === 0 ? s : ['', ...s])),
+  const header = '=== STATE OF MIND — YOUR COMPLETE MEMORY (rebuilt from your permanent record every turn; the essentials are never cut short) ===';
+  const assemble = () => [
+    header,
+    ...sections.flatMap((s, i) => (i === 0 ? s.lines : ['', ...s.lines])),
   ];
+  let out = assemble();
+  const totalLen = () => out.join('\n').length;
+
+  // Lane Q: hard TOTAL budget. The sections above carry generous
+  // per-section caps, but nothing bounded their sum — on the biggest
+  // records the block reached ~27k chars and ate the model's context
+  // window (and prefill time) every single turn. Trim from the
+  // lowest-priority tail only: ruled-out lines first (already sorted
+  // most-frequent first, so the tail is the least-hit paths), then
+  // finding lines (claimed drop before verified — verified render
+  // first). Every trimmed section gains ONE explicit note carrying
+  // the dropped count, so the agent still KNOWS how much more is on
+  // record (knowledge, not silence). Left-off, done and not-done are
+  // never trimmed here; if they alone exceed the budget, the whole
+  // block is hard-clipped at the budget with a visible marker.
+  if (totalLen() > SOM_TOTAL_BUDGET) {
+    const trimTail = (section, isDroppable, noteText) => {
+      let dropped = 0;
+      let noteAt = -1;
+      while (totalLen() > SOM_TOTAL_BUDGET) {
+        let idx = -1;
+        for (let i = section.lines.length - 1; i >= 1; i--) {
+          if (i === noteAt) continue;
+          if (isDroppable(section.lines[i])) { idx = i; break; }
+        }
+        if (idx < 0) break;
+        section.lines.splice(idx, 1);
+        if (noteAt > idx) noteAt--;
+        dropped++;
+        if (noteAt < 0) {
+          let ins = 0;
+          for (let i = section.lines.length - 1; i >= 1; i--) {
+            if (isDroppable(section.lines[i])) { ins = i; break; }
+          }
+          section.lines.splice(ins + 1, 0, noteText(dropped));
+          noteAt = ins + 1;
+        } else {
+          section.lines[noteAt] = noteText(dropped);
+        }
+        out = assemble();
+      }
+      return dropped;
+    };
+
+    const ruled = sections.find((s) => s.kind === 'ruledout');
+    if (ruled) {
+      trimTail(ruled, () => true,
+        (n) => `- …and ${n} more ruled-out paths on record (ask via recall if needed)`);
+    }
+    if (totalLen() > SOM_TOTAL_BUDGET) {
+      const know = sections.find((s) => s.kind === 'know');
+      if (know) {
+        trimTail(know,
+          (l) => l.startsWith('- [VERIFIED] ') || l.startsWith('- [claimed, NOT verified] '),
+          (n) => `- …and ${n} more findings on record`);
+      }
+    }
+    if (totalLen() > SOM_TOTAL_BUDGET) {
+      const marker = '… (state of mind trimmed to budget)';
+      const text = out.join('\n');
+      return (text.slice(0, SOM_TOTAL_BUDGET - marker.length - 1) + '\n' + marker).split('\n');
+    }
+  }
+  return out;
 }
