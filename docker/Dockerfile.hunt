@@ -70,6 +70,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY docker/hunt-desktop.sh /usr/local/bin/hunt-desktop.sh
 RUN chmod +x /usr/local/bin/hunt-desktop.sh
 
+# --- Intercepting proxy (Lane U) ---
+# mitmproxy gives the hunter a Burp-style intercept workflow at its
+# own machine: proxy_start (backend/src/proxyIntercept.js) runs
+# mitmweb INSIDE this container, re-routes this Chromium through it,
+# and the hunter inspects/replays captured requests from a JSONL
+# capture — the dashboard is a web page it opens in this same
+# browser. Kali ships mitmproxy in apt; pip is the fallback. The
+# capture addon itself is NOT baked in — the backend injects the
+# repo's single canonical copy at proxy start (the guiTools pattern),
+# so image and backend can never drift apart on it.
+RUN (apt-get update && apt-get install -y --no-install-recommends mitmproxy \
+    && rm -rf /var/lib/apt/lists/*) \
+    || pip3 install --no-cache-dir --break-system-packages mitmproxy \
+    || true
+
 WORKDIR /opt/hunt
 COPY docker/hunt-runner/ ./
 
