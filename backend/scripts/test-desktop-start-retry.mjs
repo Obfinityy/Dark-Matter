@@ -1,5 +1,5 @@
 // Test for the desktop-start retry in the GUI action path
-// (Lane Z, 24 Oct 2026).
+// (Lane Z, 24 Oct 2026; Lane AB adds the post-start recovery poll).
 //
 // Live evidence it answers: on the DVWA hunt the desktop's first
 // on-demand start died transiently under host RAM pressure (Chromium
@@ -46,6 +46,14 @@ const CDP_SNAP = {
 function makeFakeExec(state) {
   return async (h, cmd) => {
     if (cmd.includes('command -v chromium')) {
+      state.probeCalls = (state.probeCalls || 0) + 1;
+      // Lane AB: a desktop whose start was requested but whose CDP
+      // endpoint needs a few more probes before it answers (cold
+      // Chromium). Inert unless a case sets state.starting.
+      if (state.starting) {
+        if (state.probeDelay > 0) state.probeDelay--;
+        else state.cdpUp = true;
+      }
       return {
         stdout: `chrome=/usr/bin/chromium\ncdp=${state.cdpUp ? '{"Browser":"fake-chrome"}' : ''}\nxsock=${state.cdpUp ? 'X0' : ''}\n`,
         stderr: '', code: 0,
@@ -194,6 +202,121 @@ function resetAll() {
   const type = await guiBrowserType('h_z_healthy', 'hello', false, deps);
   check('healthy: type works, still no start', startCalls === 0 && type.ok === true && type.observation.includes('Typed "hello"'));
   check('healthy: no recovery wording anywhere', !open.observation.includes('look-only') && !click.observation.includes('restart') && !type.observation.includes('restart'));
+}
+
+// ---------------------------------------------------------------------------
+// Lane AB (24 Oct 2026): the recovery POLL. Live on the DVWA hunt the
+// starter brought the desktop up but Lane Z's single immediate
+// re-probe raced Chromium's cold start, scored the recovery "failed",
+// and the action still went look-only that turn. The poll window
+// (injectable attempts/interval/sleep, so this suite never waits)
+// must let a slow-but-healthy start succeed, without taxing the
+// healthy or throttled paths.
+// ---------------------------------------------------------------------------
+
+// (AB-1) Start succeeds, CDP answers only on the third poll probe ->
+//        the action proceeds on the real desktop and NO failure is
+//        recorded (proven by a later outage retrying the start
+//        instead of throttling).
+{
+  resetAll();
+  const state = { cdpUp: false, currentUrl: '', starting: false, probeDelay: 2, probeCalls: 0 };
+  let startCalls = 0;
+  let sleepCalls = 0;
+  const startDesktop = async () => { startCalls++; state.starting = true; return { ok: true }; };
+  const deps = {
+    exec: makeFakeExec(state),
+    startDesktop,
+    sleep: async () => { sleepCalls++; },
+    recoveryPollIntervalMs: 0,
+  };
+
+  const open = await guiBrowserOpen('h_ab_slow', 'http://target.test/', deps);
+  check('poll-open: start attempted exactly once', startCalls === 1);
+  check('poll-open: slept only between poll probes (2 headless answers -> 2 sleeps)', sleepCalls === 2);
+  check('poll-open: action proceeded on the real desktop once CDP answered',
+    open.ok === true && open.observation.includes('Opened http://target.test/ in your desktop browser.') && !open.observation.includes('look-only'));
+  check('poll-open: desktop page text shown, no failed-restart wording',
+    open.observation.includes('Real desktop page text') && !open.observation.includes('restart failed'));
+
+  state.cdpUp = false;
+  state.starting = false;
+  state.probeDelay = 0;
+  resetGuiProbeCache();
+  const open2 = await guiBrowserOpen('h_ab_slow', 'http://target.test/', deps);
+  check('poll-open: success stamped no failure — a later outage retries the start', startCalls === 2);
+  check('poll-open: second recovery also lands on the real desktop', open2.ok === true && !open2.observation.includes('look-only'));
+}
+
+// (AB-2) Start claims success but CDP never comes up -> the poll
+//        exhausts the configured window, the failed recovery is
+//        recorded with the exact Lane Z wording, and the failure
+//        stamp throttles the next action.
+{
+  resetAll();
+  const state = { cdpUp: false, currentUrl: '', probeCalls: 0 };
+  let startCalls = 0;
+  let sleepCalls = 0;
+  const startDesktop = async () => { startCalls++; return { ok: true }; };
+  const deps = {
+    exec: makeFakeExec(state),
+    startDesktop,
+    sleep: async () => { sleepCalls++; },
+    recoveryPollAttempts: 4,
+    recoveryPollIntervalMs: 0,
+  };
+
+  const open = await guiBrowserOpen('h_ab_never', 'http://target.test/', deps);
+  check('poll-exhaust: start attempted exactly once', startCalls === 1);
+  check('poll-exhaust: 1 initial probe + 4 poll probes', state.probeCalls === 5);
+  check('poll-exhaust: slept only between poll probes (4 probes -> 3 sleeps)', sleepCalls === 3);
+  check('poll-exhaust: honest look-only fallback returned', open.ok === true && open.observation.includes('look-only'));
+  check('poll-exhaust: failed-restart wording preserved byte-for-byte',
+    open.observation.includes('automatically retried starting the desktop browser just now and the restart failed'));
+
+  const click = await guiBrowserClick('h_ab_never', 'Sign in', deps);
+  check('poll-exhaust: failure stamped — next action throttled, no second start',
+    startCalls === 1 && click.ok === false && click.observation.includes('already attempted moments ago and failed'));
+}
+
+// (AB-3) Healthy path: zero extra probes, zero sleeps, zero starts.
+{
+  resetAll();
+  const state = { cdpUp: true, currentUrl: '', probeCalls: 0 };
+  let startCalls = 0;
+  let sleepCalls = 0;
+  const deps = {
+    exec: makeFakeExec(state),
+    startDesktop: async () => { startCalls++; return { ok: true }; },
+    sleep: async () => { sleepCalls++; },
+  };
+
+  const open = await guiBrowserOpen('h_ab_healthy', 'http://target.test/', deps);
+  const click = await guiBrowserClick('h_ab_healthy', 'Sign in', deps);
+  const type = await guiBrowserType('h_ab_healthy', 'hello', false, deps);
+  check('healthy-counts: exactly one probe across open+click+type (cache reused, no poll probes)', state.probeCalls === 1);
+  check('healthy-counts: zero sleeps and zero starts', sleepCalls === 0 && startCalls === 0);
+  check('healthy-counts: all actions succeeded on the desktop', open.ok === true && click.ok === true && type.ok === true);
+}
+
+// (AB-4) Throttled path: no start, no poll probes, no sleeps.
+{
+  resetAll();
+  const state = { cdpUp: false, currentUrl: '', probeCalls: 0 };
+  noteDesktopStartFailure('h_ab_throttled');
+  let startCalls = 0;
+  let sleepCalls = 0;
+  const deps = {
+    exec: makeFakeExec(state),
+    startDesktop: async () => { startCalls++; return { ok: true }; },
+    sleep: async () => { sleepCalls++; },
+  };
+
+  const open = await guiBrowserOpen('h_ab_throttled', 'http://target.test/', deps);
+  check('throttled-counts: no start attempted and no sleeps', startCalls === 0 && sleepCalls === 0);
+  check('throttled-counts: only the initial probe ran (no poll probes)', state.probeCalls === 1);
+  check('throttled-counts: fallback notes the recent attempt',
+    open.ok === true && open.observation.includes('already attempted moments ago and failed'));
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`);
