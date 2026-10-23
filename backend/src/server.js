@@ -223,7 +223,7 @@ wss.on('connection', async (ws, req, huntId) => {
   // 1) Replay locally cached events so the client has history immediately.
   for (const cached of getCachedEvents(huntId)) {
     if (typeof cached.seq === 'number' && cached.seq > lastSeq) lastSeq = cached.seq;
-    send(stripCacheFields(cached));
+    send(streamEvent(cached));
   }
 
   // 2) HOST-SIDE hunts (Lane P, 23 Oct 2026): every hunt on this box
@@ -272,7 +272,7 @@ wss.on('connection', async (ws, req, huntId) => {
           lastSize = size;
           const events = readHuntEvents(huntId) || [];
           if (events.length < cursor) cursor = 0; // log rotated/truncated: resync
-          for (let i = cursor; i < events.length; i++) send(stripCacheFields(events[i]));
+          for (let i = cursor; i < events.length; i++) send(streamEvent(events[i]));
           cursor = events.length;
         }
         const m = readHuntMeta(huntId);
@@ -338,9 +338,16 @@ wss.on('connection', async (ws, req, huntId) => {
   });
 });
 
-function stripCacheFields(ev) {
-  const { cachedAt, ...rest } = ev;
-  return rest;
+// Lane V: stream events keep their recorded time. Every recorded
+// event carries `cachedAt` (the stamp appendHuntEvent wrote; the
+// same field GET /hunts/:id/events already exposes). The bridge
+// used to strip it, so the client stamped every replayed history
+// line with the page-load moment — the whole feed rendered with
+// ONE identical elapsed stamp, the hunt's total elapsed at load,
+// regardless of when each event actually happened. Passing the
+// event through untouched lets each line show its own time.
+function streamEvent(ev) {
+  return ev;
 }
 
 // ---- Boot -------------------------------------------------------------------

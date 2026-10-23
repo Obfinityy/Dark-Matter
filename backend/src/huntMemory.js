@@ -117,6 +117,65 @@ export function retractedFindingCount(events) {
   return total - applyRetractions(events).length;
 }
 
+const PANEL_SEVERITIES = new Set(['critical', 'high', 'medium', 'low']);
+
+/**
+ * Panel rows for the hunt card: ONE row per unique finding title,
+ * built from loadHuntMemory's retraction-filtered findings — the
+ * same array routes/chat.js counts with confirmedTitles, so the
+ * panel and the chat can never disagree (Lane V, 23 Oct 2026).
+ *
+ * Why this exists: the panel used to accumulate RAW streamed
+ * 'finding' events — it dropped their `verified` flag on the way
+ * in, never applied retractions, and never deduped duplicate
+ * stamps. On the lab hunt (125 verified stamps over 44 titles,
+ * 284 finding events) it rendered "No confirmed vulnerabilities
+ * yet — 284 leads under investigation" while chat, reading this
+ * same record through loadHuntMemory, correctly said 44 confirmed.
+ *
+ * A title is confirmed when ANY surviving stamp of it is verified;
+ * severity/detail/verification are taken from a verified stamp
+ * when one exists. Confirmed rows come first; within each group,
+ * rows keep first-appearance order. Pure over the findings array.
+ */
+export function panelFindings(findings) {
+  const order = [];
+  const byKey = new Map();
+  for (const f of findings || []) {
+    if (!f) continue;
+    const title = String(f.title || f.type || 'Finding').trim() || 'Finding';
+    const key = normTitle(title);
+    if (!key) continue;
+    let slot = byKey.get(key);
+    if (!slot) {
+      slot = {
+        row: { title, severity: 'low', verified: false, detail: '', verification: '', stamps: 0 },
+        sevFromVerified: false,
+        sevSet: false,
+      };
+      byKey.set(key, slot);
+      order.push(slot.row);
+    }
+    const row = slot.row;
+    row.stamps += 1;
+    const sev = String(f.severity || '').toLowerCase();
+    if (PANEL_SEVERITIES.has(sev)) {
+      if (f.verified) { row.severity = sev; slot.sevFromVerified = true; slot.sevSet = true; }
+      else if (!slot.sevFromVerified && !slot.sevSet) { row.severity = sev; slot.sevSet = true; }
+    }
+    if (f.verified && !row.verified) {
+      row.verified = true;
+      row.title = title; // display the verified stamp's own casing
+    }
+    const detail = String(f.detail || '').trim();
+    if (detail && (!row.detail || f.verified)) row.detail = detail;
+    if (f.verification && (!row.verification || f.verified)) {
+      row.verification = String(f.verification);
+    }
+  }
+  return [...order.filter((r) => r.verified), ...order.filter((r) => !r.verified)];
+}
+
 /**
  * Extract ONLY the 'Open threads' and 'Next step' sections of a
  * DOSSIER.md text, bounded to ≤600 chars total. Placeholder lines

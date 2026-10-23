@@ -39,6 +39,7 @@ import {
 import { requireAuth } from './auth.js';
 import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience, getMode, HUNT_MODES, MODE_ORDER, TIERS } from '../hunt-intel/index.js';
 import { getHuntCost, getUserCosts } from '../costTracker.js';
+import { loadHuntMemory, panelFindings } from '../huntMemory.js';
 import { understandTarget } from '../targetIntel.js';
 import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
 import { getBalanceUsd } from '../billing/credits.js';
@@ -711,7 +712,16 @@ router.get('/:id/events', requireAuth, (req, res) => {  const meta = requireHunt
   if (!meta) return;
   const limit = Math.min(parseInt(req.query.limit || '200', 10) || 200, 1000);
   const events = readHuntEvents(req.params.id);
-  res.json({ ok: true, huntId: req.params.id, events: events.slice(-limit) });
+  // Lane V: the hunt panel's findings come from the SAME reconciled
+  // source as mid-hunt chat — loadHuntMemory (retraction-filtered),
+  // shaped by panelFindings to one row per unique title. The panel
+  // used to rebuild its counts from raw streamed finding events
+  // (dropping `verified`, ignoring retractions, counting duplicate
+  // stamps) and flatly contradicted chat: "0 confirmed — 284 leads"
+  // on a hunt whose record holds 44 confirmed titles.
+  let findings = [];
+  try { findings = panelFindings(loadHuntMemory(req.params.id).findings); } catch { findings = []; }
+  res.json({ ok: true, huntId: req.params.id, events: events.slice(-limit), findings });
 });
 
 // ---- Download full hunt memory: meta + all events + findings as JSON.
