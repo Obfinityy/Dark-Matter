@@ -177,6 +177,28 @@ export function panelFindings(findings) {
 }
 
 /**
+ * The two counts every surface quotes, in panelFindings' unit —
+ * ONE unique title each: `confirmed` counts titles with at least
+ * one verified surviving stamp, `leads` counts the rest. Derived
+ * FROM panelFindings so the counting rule lives in exactly one
+ * place: any change to title grouping or verification there moves
+ * the panel and the chat together.
+ *
+ * Why this exists: chat's context line and summary quoted
+ * findings.length — the RAW stamp count — as their lead count.
+ * On the lab hunt (284 stamps over 120 titles) chat said "284
+ * lead(s), 44 confirmed" while the panel, counting unique titles,
+ * said 76 leads — same retraction-filtered record, contradictory
+ * numbers side by side (Lane Y, 24 Oct 2026).
+ */
+export function findingCounts(findings) {
+  const rows = panelFindings(findings);
+  let confirmed = 0;
+  for (const r of rows) if (r.verified) confirmed += 1;
+  return { leads: rows.length - confirmed, confirmed };
+}
+
+/**
  * Extract ONLY the 'Open threads' and 'Next step' sections of a
  * DOSSIER.md text, bounded to ≤600 chars total. Placeholder lines
  * ("- (none recorded)") are dropped; every other section — above all
