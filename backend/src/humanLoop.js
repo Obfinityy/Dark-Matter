@@ -1047,6 +1047,236 @@ export function leftOffLines(leftOff) {
   return lines.length > 1 ? lines : [];
 }
 
+// ---------------------------------------------------------------------------
+// FAILED-ACTION FOLLOW-THROUGH (Lane T, 23 Oct 2026)
+//
+// Lane P stopped a session hand-off from presenting a dedup-BLOCKED
+// attempt as the pending step. The sibling failure survived live on
+// the lab hunt (h_bench_d69e5746): turn 8's browser_click on
+// "ftp/acquisitions.md" FAILED — "Click failed: no clickable element
+// matches … Take a browser_snapshot and use an exact label from
+// it." — and turn 9, in the SAME session, never mentioned the click
+// or its feedback; it silently re-opened the /ftp page with
+// reasoning copied from an older framing. The failure WAS in the
+// record (the journal lists it, the reasoning row quotes it) but
+// nothing carried it forward as an obligation, so the brain walked
+// past it.
+//
+// This block rebuilds that obligation deterministically from the
+// hunt's own records, refreshed on EVERY turn (the same per-turn
+// discipline as the Lane I briefing refresh and the Lane J leads —
+// a session-start computation would miss failures mid-session,
+// which is exactly the live case):
+//
+//   DETECT  the most recent EXECUTED action whose recorded result
+//           is a clear failure. Only the loop's and tools' own
+//           failure framings count (recordedActionFailure) — never
+//           target content that merely sounds like an error. Gate
+//           blocks are NOT executions and never appear here: they
+//           emit no tool_call event, their reasoning rows carry the
+//           "dedup_block:" label, and Lane P hands them off as
+//           "Do NOT retry" threads — the two mechanisms are
+//           disjoint by construction, so they can never duplicate.
+//   CARRY   while unaddressed, ONE open thread in the screen's
+//           never-trimmed continuity region (beside the left-off
+//           block), quoting the actual action, the actual error
+//           and the tool's own feedback.
+//   CLEAR   a later executed action addresses the failure when it
+//           is in the same tool family (a browser_snapshot after a
+//           failed click; another shell command after a failed one)
+//           OR its detail shares a significant stem token with the
+//           failed detail (the "ftp" stem shared by the failed `ftp`
+//           shell command, the `curl … /ftp` retry and the
+//           browser_open of /ftp). Only the LATEST failure is ever
+//           carried — a newer failure supersedes an older one.
+//   EXPIRE  after 3 later executed actions that do not address it,
+//           the thread drops. The record itself is permanent; only
+//           the nagging stops.
+
+/** Tool families for the clearing rule above. */
+const FOLLOW_TOOL_FAMILY = {
+  shell: 'shell',
+  intercept_replay: 'shell',
+  browser_open: 'browser',
+  browser_snapshot: 'browser',
+  browser_click: 'browser',
+  browser_type: 'browser',
+  screenshot: 'browser',
+  search: 'search',
+  write_file: 'write',
+  proxy_start: 'intercept',
+  intercept_list: 'intercept',
+  intercept_read: 'intercept',
+  recall: 'recall',
+  record_coverage: 'coverage',
+  load_skill: 'skill',
+};
+
+/**
+ * Tools whose executed failures are carried as a follow-through
+ * thread. Deliberately narrow: these are the tools whose reasoning
+ * rows record a result framing this module can judge, and whose
+ * failure leaves a concrete next step behind. Search / recall /
+ * coverage failures are transient or self-evident and have no
+ * follow-through step; claim outcomes are the verifier's verdicts,
+ * not tool errors.
+ */
+const FOLLOW_FAILURE_TOOLS = new Set([
+  'shell',
+  'intercept_replay',
+  'browser_open',
+  'browser_click',
+  'browser_type',
+  'write_file',
+]);
+
+/** Later executed actions an unaddressed failure survives. */
+const FOLLOW_EXPIRE_AFTER = 3;
+
+/**
+ * Significant stem tokens of an action detail, for the clearing
+ * rule: scheme + host are stripped wherever they appear (every
+ * action in a hunt shares the target's host, so host tokens can
+ * never distinguish one action from another), pure numbers and
+ * short fragments are dropped.
+ */
+function followStemTokens(detail) {
+  const s = String(detail || '').toLowerCase().replace(/[a-z][a-z0-9+.-]*:\/\/[^/\s]+/g, ' ');
+  const stop = new Set(['http', 'https', 'www']);
+  const out = new Set();
+  for (const t of s.split(/[^a-z0-9]+/)) {
+    if (t.length >= 3 && !/^\d+$/.test(t) && !stop.has(t)) out.add(t);
+  }
+  return out;
+}
+
+/**
+ * The failure a recorded action result represents, or null.
+ * Conservative by construction: a leading tool-error line from
+ * guiTools, the exec layer's own "Command failed: docker exec …"
+ * error echo, or the trailing "[exit code N]" marker the loop
+ * appends when a command exits non-zero. A successful result never
+ * carries these framings — a 404 inside page text, the word "error"
+ * in output a command printed, or an exit code of 0 do not match.
+ */
+function recordedActionFailure(tool, result) {
+  const res = String(result || '');
+  if (!res) return null;
+  // Gate blocks are not executions (Lane P hands them off as
+  // do-not-retry threads); a bounced claim is a gate verdict.
+  if (res.startsWith('BLOCKED') || res.startsWith('CLAIM NOT RECORDED')) return null;
+  const firstLine = res.split('\n').map((s) => s.trim()).filter(Boolean)[0] || '';
+  const leads = (prefixes) => prefixes.some((p) => res.startsWith(p));
+  switch (tool) {
+    case 'browser_click':
+      return leads(['Click failed', 'browser_click failed', 'Browser control failed']) ? { error: firstLine } : null;
+    case 'browser_type':
+      return leads(['Type failed', 'browser_type failed', 'Browser control failed']) ? { error: firstLine } : null;
+    case 'browser_open':
+      return leads(['browser_open failed', 'Browser control failed']) ? { error: firstLine } : null;
+    case 'write_file':
+      return leads(['write_file failed']) ? { error: firstLine } : null;
+    case 'shell': {
+      const exit = /\[exit code ([1-9]\d*)\]\s*$/.exec(res.trimEnd());
+      if (exit) return { error: firstLine, exitCode: exit[1] };
+      if (res.startsWith('Command failed: docker exec')) return { error: firstLine };
+      if (res.startsWith('Shell action failed to run:')) return { error: firstLine };
+      return null;
+    }
+    case 'intercept_replay': {
+      const exit = /\[curl exit code ([1-9]\d*)\]\s*$/.exec(res.trimEnd());
+      if (exit) return { error: firstLine, exitCode: exit[1] };
+      if (res.startsWith('Replay failed to run:')) return { error: firstLine };
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * The failed-action follow-through thread for the hunter's screen,
+ * or [] when there is nothing to carry. Pure over the hunt's
+ * records: tool_call events are the executed-action timeline
+ * (blocked attempts emit none), reasoning rows carry each action's
+ * recorded result. See the Lane T header above for the detect /
+ * carry / clear / expire rules.
+ */
+export function failedActionThreadLines({ events = [], reasoningRows = [] } = {}) {
+  const steps = [];
+  for (const e of events || []) {
+    if (!e || e.type !== 'tool_call') continue;
+    steps.push({ tool: String(e.tool || '').toLowerCase(), detail: String(e.detail || '') });
+  }
+  const byTool = new Map();
+  steps.forEach((s, i) => {
+    if (!byTool.has(s.tool)) byTool.set(s.tool, []);
+    byTool.get(s.tool).push(i);
+  });
+  // Pair each reasoning row with the executed step it reports on:
+  // same tool, earliest unpaired step whose detail agrees with the
+  // row's (a row's detail is a sliced copy of its step's). A row for
+  // an attempt that never executed (a gate block) finds no agreeing
+  // step and stays unpaired — harmless, since blocks are never
+  // failure candidates anyway.
+  const agrees = (stepDetail, rowDetail) => {
+    const a = String(stepDetail || '').trim();
+    const b = String(rowDetail || '').trim();
+    if (!b) return true; // detail-less rows (browser_type) pair with the next step of their tool
+    if (!a) return false;
+    return a.startsWith(b) || b.startsWith(a);
+  };
+  const used = new Set();
+  let lastPosition = -1;
+  let latest = null;
+  for (const r of reasoningRows || []) {
+    const m = /^([a-z][a-z_]*)(?::\s?(.*))?$/.exec(String((r && r.action) || '').trim());
+    if (!m) continue;
+    const tool = m[1];
+    if (tool === 'dedup_block' || !FOLLOW_FAILURE_TOOLS.has(tool)) continue;
+    const rowDetail = String(m[2] || '');
+    let position = lastPosition;
+    for (const idx of byTool.get(tool) || []) {
+      if (used.has(idx)) continue;
+      if (agrees(steps[idx].detail, rowDetail)) {
+        used.add(idx);
+        position = idx;
+        break;
+      }
+    }
+    if (position > lastPosition) lastPosition = position;
+    const failure = recordedActionFailure(tool, r.result);
+    if (!failure) continue;
+    const detail = (position >= 0 && steps[position] && steps[position].detail) || rowDetail;
+    if (!latest || position >= latest.position) latest = { tool, detail, position, ...failure };
+  }
+  if (!latest) return [];
+  // Clearing + expiry over the actions executed after the failure.
+  const family = FOLLOW_TOOL_FAMILY[latest.tool] || '';
+  const stems = followStemTokens(latest.detail);
+  let unaddressed = 0;
+  for (let i = latest.position + 1; i < steps.length; i++) {
+    const s = steps[i];
+    if (family && FOLLOW_TOOL_FAMILY[s.tool] === family) return []; // addressed
+    if (stems.size) {
+      const toks = followStemTokens(s.detail);
+      let hit = false;
+      for (const t of stems) if (toks.has(t)) { hit = true; break; }
+      if (hit) return []; // addressed
+    }
+    unaddressed++;
+  }
+  if (unaddressed >= FOLLOW_EXPIRE_AFTER) return []; // expired
+  const detail = clipLine(latest.detail, 120);
+  let error = clipLine(latest.error || '', 220);
+  if (latest.exitCode && !error.includes('exit code')) error += ` [exit code ${latest.exitCode}]`;
+  return [
+    '=== OPEN THREAD — YOUR LAST ACTION FAILED (follow through or pivot) ===',
+    `- FAILED: ${latest.tool}${detail ? ` "${detail}"` : ''} — ${error}`,
+    'Follow through on it now — the feedback above says how — or consciously choose a different next step. Do not silently repeat the move you were already making.',
+  ];
+}
+
 /** The detail a log/journal entry carries for one parsed action. */
 function detailForAction(kind, action) {
   switch (kind) {
@@ -1360,7 +1590,7 @@ export function skillCardLines() {
   }
 }
 
-function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [], stateOfMind = [] }) {
+function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [], stateOfMind = [], followThrough = [] }) {
   const confirmed = (findings || []).filter((f) => f.verified);
   const unconfirmed = (findings || []).filter((f) => !f.verified);
   const findLines = [
@@ -1381,6 +1611,12 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     // Lane I: where the hunter left off last session sits beside the
     // explored digest — continuity first, before the long briefing.
     ...(leftOff && leftOff.length ? ['', ...leftOff] : []),
+    // Lane T: the failed-action follow-through thread sits in the
+    // same never-trimmed continuity region as the left-off block —
+    // an unaddressed failure from the hunt's own record, carried on
+    // every screen until a later action addresses it or it expires,
+    // so a failed action's feedback can no longer be walked past.
+    ...(followThrough && followThrough.length ? ['', ...followThrough] : []),
     // Lane F: the already-explored digest sits EARLY — ahead of the
     // (long, capped) memory briefing — so no prompt cap downstream
     // can truncate away the record of what is already done.
@@ -1708,6 +1944,20 @@ export async function humanIteration(huntId, target, opts = {}) {
     try {
       stateOfMind = computeStateOfMind(deps.readMeta(huntId) || meta0) || [];
     } catch { /* state of mind is best-effort perception */ }
+    // Lane T: the failed-action follow-through thread, refreshed
+    // every turn from the hunt's current record (the same discipline
+    // as the leads refresh above) — the live loss happened between
+    // two turns of ONE session, so this is never a session-start
+    // computation.
+    let followThrough = [];
+    try {
+      const ftEvents = deps.readEvents(huntId) || sessionEvents;
+      let ftRows = [];
+      try {
+        ftRows = getAllReasoning(huntId) || [];
+      } catch { /* reasoning rows are best-effort */ }
+      followThrough = failedActionThreadLines({ events: ftEvents, reasoningRows: ftRows });
+    } catch { /* follow-through is best-effort perception */ }
     const screen = buildScreen({
       target,
       parsedScope,
@@ -1728,6 +1978,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       coverage: coverageLines,
       skills: skillLines,
       stateOfMind,
+      followThrough,
     });
 
     // THINK: one brain call. Full reply is recorded verbatim (total
