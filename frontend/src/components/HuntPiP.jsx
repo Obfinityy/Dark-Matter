@@ -10,7 +10,17 @@ import 'xterm/css/xterm.css';
  */
 export default function HuntPiP({ huntId, target, onExpand, onClose }) {
   const termContainerRef = useRef(null);
-  const [position, setPosition] = useState({ x: window.innerWidth - 340, y: window.innerHeight - 240 });
+  // FIX (24 Oct 2026): the terminal PiP used to open at the exact
+  // bottom-right band the Live Machine card occupies (same corner, same
+  // z-index 9000, PiP earlier in the DOM) — so the machine card painted
+  // OVER it and the terminal was invisible despite a LIVE socket, with
+  // its Expand button unclickable ("covered"). The PiP now opens one
+  // machine-card height ABOVE that card: machine card bottom 16px +
+  // tallest observed card ~310px + 16px gap = 342px from the bottom,
+  // minus the PiP's own 220px height. Still draggable afterwards.
+  // Safe under the owner's one-hunt-at-a-time rule: only one machine
+  // card can exist, so "one step above slot 0" never collides.
+  const [position, setPosition] = useState({ x: window.innerWidth - 340, y: window.innerHeight - 562 });
   const [dragging, setDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const termInstanceRef = useRef(null);
