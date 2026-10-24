@@ -28,6 +28,19 @@ test('hinglish status questions route to summary', () => {
   }
 });
 
+test("owner's own phrasings route to summary", () => {
+  for (const q of [
+    'so what is now doing by you and what you thinking now?',
+    'bata',
+    'batao',
+    "what's going on",
+    'what is happening',
+    'what are you thinking now',
+  ]) {
+    assert.equal(detectSteering(q), 'summary', q);
+  }
+});
+
 test('english steering/summary still works', () => {
   assert.equal(detectSteering('what did you find?'), 'summary');
   assert.equal(detectSteering('what is the status'), 'summary');
