@@ -1618,6 +1618,74 @@ export function dedupeGateHit(kind, action, history) {
 }
 
 // ---------------------------------------------------------------------------
+// AUTH-LOOP GATE (Lane AJ, 24 Oct 2026)
+//
+// Observed failure (Infomaniak hunt, live): the hunter saved a vault
+// credential, then typed the username into a page whose snapshot it
+// had itself described as EMPTY ("I have just taken a snapshot of
+// an empty page"), then claimed "I've just logged in" — while its
+// own next observation showed the dashboard redirecting back to the
+// sign-in page. It then re-typed the same username, which the
+// already-done gate blocked only on the 2nd repeat. Two
+// deterministic gaps, both closed here, in the same shape as Lane F
+// (block + event + note + an observation that redirects, never a
+// prompt hint):
+//
+//  1. EMPTY SNAPSHOT: browser_type / browser_click may not run when
+//     the last observation is an empty page snapshot (or there is no
+//     observation yet — the page has never been seen). A human cannot
+//     type into a page they cannot see; the action is blocked with
+//     "take browser_snapshot first".
+//  2. AUTH LOOP: browser_type with text already typed once, while
+//     the current page is still a sign-in / authorize page (the last
+//     observation names a login URL or a sign-in form), is blocked
+//     from the FIRST repeat — typing the same username again changes
+//     nothing, because the page itself proves the login did not
+//     happen. The redirect names the moves that would: finish the
+//     signup (the "Create an account" link), fetch the verification
+//     code from temp mail, or snapshot the form and read its exact
+//     fields. Typing a DIFFERENT text (e.g. the password after the
+//     username) is a different action and is never blocked by this
+//     gate; non-login pages are never gated by it either.
+// ---------------------------------------------------------------------------
+
+const LOGIN_PAGE_RE = /\/login|\/authorize|login\.|sign[\s-]?in/i;
+
+export function authGateHit(kind, action, history, lastObservation) {
+  const k = String(kind || '').toLowerCase();
+  if (k !== 'browser_type' && k !== 'browser_click') return null;
+  const obs = String(lastObservation || '');
+  // 1. Never type/click blind: the last snapshot was empty (or the
+  // page has never been observed at all this session).
+  if (obs.includes('(empty page snapshot)') || obs.trim() === '') {
+    return {
+      reason: 'empty_snapshot',
+      tool: k,
+      detail: String((action && action.text) || '').slice(0, 80),
+      redirect:
+        'The last page snapshot was empty — the page had not loaded, or you have not looked at it yet. Take browser_snapshot first, read the form fields it lists, and only then type or click.',
+    };
+  }
+  // 2. Still on the sign-in page + same credential text as before.
+  if (k === 'browser_type' && LOGIN_PAGE_RE.test(obs)) {
+    const text = String((action && action.text) || '').trim();
+    if (!text) return null;
+    const entry = (history || new Map()).get(actionSignature('browser_type', text.slice(0, 80)));
+    const typedBefore = entry ? (entry.fullCount != null ? entry.fullCount : entry.count) : 0;
+    if (typedBefore >= 1) {
+      return {
+        reason: 'auth_loop',
+        tool: 'browser_type',
+        detail: text.slice(0, 80),
+        redirect:
+          'You are still on the sign-in page — the dashboard sent you back here, so you are NOT logged in, and typing the same username again changes nothing. Do one of these instead: (1) finish the signup first — open the "Create an account" link, complete the form, then fetch_verification_code from your temp mail; (2) snapshot the sign-in form and read its exact fields before typing anything; (3) if the account exists, type the PASSWORD (a different text) — never the username again.',
+      };
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // SETTLED ACTIONS + FAILED-SKILL MEMORY (Lane AD, 24 Oct 2026)
 //
 // The gate above stops repeat TRAFFIC, but the live audit behind
@@ -2494,6 +2562,7 @@ export async function humanIteration(huntId, target, opts = {}) {
     // result — then it must choose a different action. Every other
     // gate below runs exactly as before for actions that pass.
     const gateHit = dedupeGateHit(kind, action, actionHistory);
+    const authHit = authGateHit(kind, action, actionHistory, lastObservation);
     if (gateHit) {
       try { deps.record(huntId, { type: 'dedup_block', tool: gateHit.tool, detail: scrub(gateHit.detail), count: gateHit.count, via: 'human-mode' }); } catch { /* best-effort */ }
       say(`Already-done gate stopped a repeat: ${gateHit.tool} ${gateHit.detail.slice(0, 120)} — already run ×${gateHit.count} in this hunt.`);
@@ -2517,6 +2586,15 @@ export async function humanIteration(huntId, target, opts = {}) {
         observation += settledBlockEvidence({ events: turnEvents, history: actionHistory, tool: gateHit.tool, detail: gateHit.detail, extraBlocks: 1 });
       } catch { /* settled evidence is best-effort */ }
       note({ action: `dedup_block: ${gateHit.tool} ${gateHit.detail.slice(0, 120)}`, why: thinkingText, result: `repeat blocked — already run ×${gateHit.count}`, learned: 'Exact repeats are stopped by the record; vary the action.' });
+    } else if (authHit) {
+      // AUTH-LOOP GATE (Lane AJ): typing/clicking blind, or re-typing
+      // the same credential while still on the sign-in page. Same
+      // shape as Lane F — an auth_block event (countable), a note, and
+      // an observation that redirects instead of merely forbidding.
+      try { deps.record(huntId, { type: 'auth_block', tool: authHit.tool, detail: scrub(authHit.detail), reason: authHit.reason, via: 'human-mode' }); } catch { /* best-effort */ }
+      say(`Auth gate stopped a blind/looped browser action: ${authHit.tool} (${authHit.reason}).`);
+      observation = `BLOCKED — ${authHit.reason === 'empty_snapshot' ? 'YOU CANNOT SEE THE PAGE' : 'STILL ON THE SIGN-IN PAGE'}: ${authHit.redirect} It was NOT executed — choose one of the moves above.`;
+      note({ action: `auth_block: ${authHit.tool} ${authHit.detail.slice(0, 120)}`, why: thinkingText, result: `blocked (${authHit.reason})`, learned: 'Never type into a page you cannot see; a login is only real when the page after it is not the sign-in page.' });
     } else if (kind === 'shell') {
       const command = String(action.command || '').slice(0, COMMAND_CAP);
       if (!command) {
