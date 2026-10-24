@@ -141,7 +141,19 @@ server.on('upgrade', (req, socket, head) => {
 // dropped (defence in depth — ttyd is already read-only without --writable).
 const wssTerm = new WebSocketServer({ noServer: true });
 const TERM_VIEWERS = new Map(); // huntId -> Set<ws>
-const MAX_TERM_VIEWERS = 2;
+// FIX (24 Oct 2026): the cap was 2 and dead viewers leaked slots
+// forever — no heartbeat, so a browser window abandoned with its
+// terminal open (or a crashed check window) held its slot until a
+// backend restart. The 3rd viewer then got 1013 'too many viewers'
+// and the frontend retried into ⚠ ERROR, which is exactly what the
+// 24 Oct evening checks hit (a probe was 1013-rejected while 2 stale
+// check windows still held Infomaniak's slots; closing those windows
+// freed them and a 90s public-path probe then stayed open with
+// output). Cap raised to 8 (owner + admin + a few checks) AND every
+// viewer gets a 30s ping/pong heartbeat — a socket that misses one
+// pong is terminated, so its slot frees within ~60s instead of never.
+const MAX_TERM_VIEWERS = 8;
+const TERM_HEARTBEAT_MS = 30000;
 
 wssTerm.on('connection', async (ws, req, huntId, ticket) => {
   let ttydWs = null;
@@ -167,7 +179,22 @@ wssTerm.on('connection', async (ws, req, huntId, ticket) => {
     }
     viewers.add(ws);
     TERM_VIEWERS.set(huntId, viewers);
-    
+
+    // Heartbeat: browsers answer ping frames automatically, so a
+    // missed pong means a dead/abandoned socket — terminate it so
+    // its viewer slot frees instead of leaking until a restart.
+    let termAlive = true;
+    ws.on('pong', () => { termAlive = true; });
+    const termHeartbeat = setInterval(() => {
+      if (!termAlive) {
+        ws.terminate();
+        return;
+      }
+      termAlive = false;
+      try { ws.ping(); } catch { /* closing already */ }
+    }, TERM_HEARTBEAT_MS);
+    ws.on('close', () => clearInterval(termHeartbeat));
+
     // Connect to THIS hunt's ttyd (loopback only). The port is per-hunt
     // (hash of the hunt ID, see ttydPortForHunt) — dialing a fixed
     // default port reached nothing and left every Live Terminal blank.
