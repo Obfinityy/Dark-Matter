@@ -114,3 +114,42 @@ test('AJ-10 (wire-up): a stubbed session blocks the blind re-type and never call
   assert.match(blocked.observation, /sign-in page|empty/i);
   assert.ok(recorded.some((e) => e.type === 'auth_block'), 'an auth_block event must be recorded');
 });
+
+test('AJ-11 (precedence): when dedupe AND auth both apply, the auth redirect wins', async () => {
+  const recorded = [];
+  const typeCalls = [];
+  const LOGIN_OPEN_OBS =
+    'Opened https://ksuite.infomaniak.com/dashboard in your desktop browser.\n' +
+    'Page: Infomaniak — https://login.infomaniak.com/en/login?client=abc&oa2=1';
+  const replies = [
+    'I will open the dashboard.\n{"action":"browser_open","url":"https://ksuite.infomaniak.com/dashboard"}',
+    'I will type the username again.\n{"action":"browser_type","text":"obfinity-ml5eemlu","submit":true}',
+  ];
+  let n = 0;
+  const priorType = { type: 'tool_call', tool: 'browser_type', detail: 'obfinity-ml5eemlu' };
+  const res = await humanIteration('h_test_aj11', 'https://ksuite.infomaniak.com', {
+    turns: 2,
+    deps: {
+      chat: async () => replies[n++],
+      gui: {
+        open: async () => ({ observation: LOGIN_OPEN_OBS }),
+        snapshot: async () => ({ observation: LOGIN_OPEN_OBS }),
+        click: async () => ({ observation: 'clicked' }),
+        type: async (h, text) => { typeCalls.push(text); return { observation: 'Typed.' }; },
+        screenshot: async () => ({ observation: 'shot' }),
+      },
+      execRaw: async () => ({ stdout: '', stderr: '' }),
+      record: (h, e) => { recorded.push(e); },
+      recordNote: () => {},
+      readMeta: () => ({}),
+      readEvents: () => [priorType, { ...priorType }],
+      buildBriefing: async () => '',
+      assess: null,
+    },
+  });
+  assert.equal(typeCalls.length, 0, 'gui.type must never run for the blocked re-type');
+  const blocked = res.log.find((e) => String(e.observation || '').includes('STILL ON THE SIGN-IN PAGE'));
+  assert.ok(blocked, 'the turn observation must carry the AJ redirect, not the generic dedupe block');
+  assert.ok(recorded.some((e) => e.type === 'auth_block'), 'an auth_block event must be recorded');
+  assert.ok(!recorded.some((e) => e.type === 'dedup_block'), 'no dedup_block for the turn the auth gate took');
+});
