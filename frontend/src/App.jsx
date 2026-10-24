@@ -668,6 +668,7 @@ function AppInner() {
             showShare={false}
             onNavigate={navigate}
             onActivity={() => setActivityOpen(true)}
+            onOpenHunt={openHuntChat}
           />
           <AdminPage />
         </main>
@@ -700,6 +701,7 @@ function AppInner() {
           showShare={page === 'chat' && !!activeChat && (activeChat.messages || []).length > 0}
           onNavigate={navigate}
           onActivity={() => setActivityOpen(true)}
+          onOpenHunt={openHuntChat}
         />
         <ActivityDrawer open={activityOpen} onClose={() => setActivityOpen(false)} />
         {page === 'chat' && (
