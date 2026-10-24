@@ -1883,6 +1883,86 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   display: flex;
   flex-direction: column;
 }
+/* ---- Live machines overview page (all hunts' desktops at once) ---- */
+.machines-page {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.machines-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.machines-sub {
+  color: #888;
+  font-size: 13px;
+  margin: 0 0 20px;
+}
+.machines-empty {
+  color: #777;
+  font-size: 14px;
+  padding: 32px 0;
+}
+.machines-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+.machine-card {
+  background: #0a0a0a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.machine-card:hover {
+  border-color: #555;
+}
+.machine-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
+  font-size: 12px;
+}
+.machine-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #555; flex: none;
+}
+.machine-dot.on { background: #ff4444; }
+.machine-live { font-weight: 600; font-size: 11px; color: #ccc; }
+.machine-target { flex: 1; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.machine-screen {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+.machine-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  /* Read-only surface: the owner watches, never drives. */
+  pointer-events: none;
+}
+.machine-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 24px;
+  color: #777;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .live-machine-overlay-bar {
   display: flex;
   align-items: center;
