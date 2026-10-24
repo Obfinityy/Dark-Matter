@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { getAuthToken } from '../lib/api';
+import { resolveApiBase } from '../config';
 
 /**
  * Hook for live hunt terminal streaming (PiP).
@@ -18,7 +19,15 @@ export function useHuntTerminal(huntId, terminalRef) {
       setStatus(retryRef.current > 0 ? 'reconnecting' : 'connecting');
       
       // Get ticket
-      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      // FIX (24 Oct 2026): the app's backend URL lives in config.js as
+      // VITE_BACKEND_URL with a hardcoded fallback to the hosted API.
+      // This hook read VITE_API_URL (a different name) — unset in the
+      // Cloudflare build, so it baked to "" and the ticket fetch went
+      // to the Pages origin as a relative URL (404/HTML) instead of
+      // ever reaching the backend: nginx logged ZERO browser ticket
+      // requests while the on-box and EC2 probes (absolute URLs)
+      // passed. Use the shared resolver: one source of truth.
+      const apiBase = resolveApiBase();
       // FIX (24 Oct 2026): the auth token lives under 'dm_token' (see
       // api.js TOKEN_KEY); this hook read 'dm.token' (dot), which is
       // always null — so the ticket fetch went out WITHOUT auth, got
