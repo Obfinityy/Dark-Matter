@@ -20,6 +20,14 @@
 //     re-chosen verbatim the very next turn — load_skill is
 //     deliberately ungated, so nothing answered from the record.
 //
+// Lane AH (24 Oct 2026) extends section (1): a settled line for an
+// action WITH requests on record now also names the most recent
+// request (the persistent form of Lane AG's evidence), so the
+// ≤220-char expectation became the ≤420 evidence cap for that line
+// only — the login entry (no requests on record) is asserted
+// byte-for-byte identical to the Lane AD rendering. The full AH
+// suite is test-settled-evidence-persistence.mjs.
+//
 // Run: node backend/scripts/test-repeat-discipline.mjs
 import fs from 'node:fs';
 import os from 'node:os';
@@ -86,7 +94,10 @@ function ezvizEvents() {
   const login = lines.find((l) => l.includes(LOGIN)) || '';
   check('login entry present with its block count (blocked ×38)', login.includes('blocked ×38'));
   check('entries are ordered most-blocked first', text.indexOf(REGISTER) >= 0 && text.indexOf(REGISTER) < text.indexOf(LOGIN));
-  check('every settled entry is ≤ 220 chars', lines.slice(1).every((l) => l.length <= 220));
+  check('register entry names the most recent request sent (Lane AH evidence)', reg.includes('most recent:') && reg.includes('username=probe1'));
+  check('every settled entry is ≤ 420 chars (Lane AH evidence cap)', lines.slice(1).every((l) => l.length <= 420));
+  check('login entry (no requests on record) is byte-for-byte the Lane AD line',
+    login === '- browser_open https://open.ys7.com/rest/user/login — run ×2, blocked ×38. Opening probes nothing (same captured page). To test it, SEND a request: curl with a payload, or type + submit.');
 }
 
 // --- (2) thresholds and bounds ----------------------------------------------

@@ -1636,7 +1636,8 @@ export function dedupeGateHit(kind, action, history) {
 // requests were already SENT to that path, and — for a plain
 // page-open — the redirect to the action families that would
 // actually test the endpoint. Bounded: top SETTLED_LIMIT entries
-// by block count, each line clipped to SETTLED_LINE_CAP chars.
+// by block count, each line clipped to SETTLED_LINE_CAP chars
+// (SETTLED_EVIDENCE_LINE_CAP when Lane AH's evidence rides it).
 //
 // The sibling failure (Juice, same audit): load_skill is
 // deliberately NOT dedupe-gated (re-pulling a real card after the
@@ -1653,7 +1654,10 @@ export function dedupeGateHit(kind, action, history) {
 
 const SETTLED_MIN_BLOCKS = 3; // gate blocks before an action is carried as settled
 const SETTLED_LIMIT = 5; // settled entries on screen, most-blocked first
-const SETTLED_LINE_CAP = 220; // chars per settled entry
+const SETTLED_LINE_CAP = 220; // chars per settled entry without request evidence
+const SETTLED_EVIDENCE_LINE_CAP = 420; // chars per settled entry carrying last-request evidence (Lane AH)
+const SETTLED_EVIDENCE_DETAIL_CAP = 100; // chars of the most-recent request shown (Lane AG evidence + Lane AH settled lines)
+const SETTLED_EVIDENCE_OUTCOME_CAP = 60; // chars of its recorded outcome shown
 
 /**
  * Requests already SENT to a URL's path, from the executed record:
@@ -1703,6 +1707,23 @@ function lastRequestToPath(events, history, detail) {
 }
 
 /**
+ * The compact ", most recent: <request> → <outcome>" suffix naming
+ * the last request SENT to a path — the ONE formatter both Lane
+ * AG's block evidence and Lane AH's settled lines render, so the
+ * within-session channel and the persistent channel can never
+ * phrase the same fact differently. '' when no request to the
+ * path is on record; the outcome arrow appears only when the
+ * record actually holds an outcome (never invented).
+ */
+function lastRequestSnippet(events, history, detail) {
+  const last = lastRequestToPath(events, history, detail);
+  if (!last) return '';
+  let snippet = `, most recent: ${clipLine(last.detail, SETTLED_EVIDENCE_DETAIL_CAP)}`;
+  if (last.outcome) snippet += ` → ${clipLine(last.outcome, SETTLED_EVIDENCE_OUTCOME_CAP)}`;
+  return snippet;
+}
+
+/**
  * dedup_block counts per signature — the block timeline both Lane
  * AD (settled lines) and Lane AG (settled block evidence) read.
  */
@@ -1741,6 +1762,28 @@ function settledFacts({ events = [], history = null } = {}) {
   return rows;
 }
 
+// ---------------------------------------------------------------------------
+// SETTLED-EVIDENCE PERSISTENCE (Lane AH, 24 Oct 2026)
+//
+// Lane AG put the counter-evidence where the brain demonstrably
+// looks — the block observation — but an observation lives for
+// exactly one session: sessions roll every 6 turns and on every
+// generation failure, and Ezviz's first evidence-receiving
+// session died before its next choice, so the following
+// re-choice was made from a fresh screen carrying only Lane AD's
+// counts. AD's settled lines are the one surface that survives
+// every roll, yet a bare count ("requests sent ×7") never
+// falsified the premise the way the named request does. Lane AH
+// therefore carries AG's specifics — the most recent request
+// sent to the path and its recorded outcome, via the shared
+// lastRequestSnippet — on AD's persistent lines. A line for an
+// action with no request on record renders byte-for-byte as
+// Lane AD left it (same text, same SETTLED_LINE_CAP clip); an
+// evidence-carrying line clips at SETTLED_EVIDENCE_LINE_CAP
+// instead. The gate is untouched — this lane changes only how
+// long the evidence LIVES.
+// ---------------------------------------------------------------------------
+
 /**
  * The SETTLED block for the hunter's screen, or [] when nothing
  * has been blocked often enough to settle. Pure over the hunt's
@@ -1754,19 +1797,25 @@ function settledFacts({ events = [], history = null } = {}) {
  * disjoint, as Lane T and Lane P are.
  */
 export function settledActionLines({ events = [], history = null } = {}) {
-  const top = settledFacts({ events, history }).slice(0, SETTLED_LIMIT);
+  const hist = history || buildActionHistory(events);
+  const top = settledFacts({ events, history: hist }).slice(0, SETTLED_LIMIT);
   if (!top.length) return [];
   const lines = ['=== SETTLED — YOUR RECORD HAS ALREADY ANSWERED THESE (stop re-choosing them) ==='];
   for (const r of top) {
     let line = `- ${r.tool} ${r.detail} — run ×${r.count}, blocked ×${r.blockCount}.`;
+    let cap = SETTLED_LINE_CAP;
     if (r.tool === 'browser_open') {
       const sent = requestsSentToPath(events, r.detail);
-      if (sent > 0) line += ` requests sent ×${sent}.`;
+      if (sent > 0) {
+        const snippet = lastRequestSnippet(events, hist, r.detail);
+        line += ` requests sent ×${sent}${snippet}.`;
+        if (snippet) cap = SETTLED_EVIDENCE_LINE_CAP;
+      }
       line += ' Opening probes nothing (same captured page). To test it, SEND a request: curl with a payload, or type + submit.';
     } else {
       line += ' An identical repeat returns the identical result — vary the input or move on.';
     }
-    lines.push(clipLine(line, SETTLED_LINE_CAP));
+    lines.push(clipLine(line, cap));
   }
   return lines;
 }
@@ -1795,8 +1844,9 @@ export function settledActionLines({ events = [], history = null } = {}) {
 // only what the block SAYS.
 // ---------------------------------------------------------------------------
 
-const SETTLED_EVIDENCE_DETAIL_CAP = 100; // chars of the most-recent request shown
-const SETTLED_EVIDENCE_OUTCOME_CAP = 60; // chars of its recorded outcome shown
+// The evidence snippet caps (SETTLED_EVIDENCE_DETAIL_CAP /
+// SETTLED_EVIDENCE_OUTCOME_CAP) live with the settled constants
+// above — Lane AH's settled lines share them via lastRequestSnippet.
 
 /**
  * The Lane AG addition to a dedupe-gate block observation, or ''
@@ -1819,12 +1869,7 @@ export function settledBlockEvidence({ events = [], history = null, tool, detail
   if (entry.tool === 'browser_open') {
     const sent = requestsSentToPath(events, entry.detail);
     if (sent > 0) {
-      const last = lastRequestToPath(events, hist, entry.detail);
-      let text = ` SETTLED: this exact action has now been chosen and blocked ${blockCount} times. The record contradicts "not probed" for this path — ${sent} ${sent === 1 ? 'request' : 'requests'} already SENT to it`;
-      if (last) {
-        text += `, most recent: ${clipLine(last.detail, SETTLED_EVIDENCE_DETAIL_CAP)}`;
-        if (last.outcome) text += ` → ${clipLine(last.outcome, SETTLED_EVIDENCE_OUTCOME_CAP)}`;
-      }
+      const text = ` SETTLED: this exact action has now been chosen and blocked ${blockCount} times. The record contradicts "not probed" for this path — ${sent} ${sent === 1 ? 'request' : 'requests'} already SENT to it${lastRequestSnippet(events, hist, entry.detail)}`;
       return `${text}. Opening cannot probe it. SEND a request: curl with a payload, or type + submit.`;
     }
     return ` SETTLED: this exact action has now been chosen and blocked ${blockCount} times. No request has been sent to this path yet on your record — and opening it cannot send one. To test it, SEND a request: curl with a payload, or type + submit.`;
