@@ -665,6 +665,31 @@ button { font-family: inherit; }
   animation: pulse 0.9s infinite;
 }
 
+/* Thinking bubble (24 Oct 2026): shown in the thread while a chat reply
+   is still being fetched — animated dots + a ticking wait timer, so the
+   user can see the assistant is working even before any text streams. */
+.thinking-bubble .thinking-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dm-faint);
+}
+.thinking-dots { display: inline-flex; gap: 4px; }
+.thinking-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dm-faint);
+  animation: thinking-bounce 1.2s ease-in-out infinite;
+}
+.thinking-dots span:nth-child(2) { animation-delay: 0.15s; }
+.thinking-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes thinking-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+.thinking-time { font-variant-numeric: tabular-nums; }
+
 /* ---------- Hunt card ---------- */
 .hunt-card {
   border: 1px solid var(--dm-border);
@@ -1856,6 +1881,30 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   height: 180px;
   background: #000;
 }
+/* Only the screen itself expands (24 Oct 2026): header/border clicks
+   do nothing, so stray clicks never fullscreen the machine view. */
+.live-machine-screen-clickable { cursor: pointer; }
+/* Minimised chip (24 Oct 2026): what remains after ✕ on the docked
+   card — the live screen stays hidden until this is clicked again. */
+.live-machine-chip {
+  position: fixed;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #0a0a0a;
+  border: 1px solid #333;
+  border-radius: 999px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  z-index: 9000;
+  cursor: pointer;
+  font-size: 12px;
+  color: #ccc;
+  max-width: 320px;
+}
+.live-machine-chip:hover { border-color: #555; color: #fff; }
+.live-machine-chip .live-machine-target { flex: none; max-width: 200px; }
 .live-machine-img {
   width: 100%;
   height: 100%;

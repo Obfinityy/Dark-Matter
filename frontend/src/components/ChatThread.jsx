@@ -1,6 +1,6 @@
 // Chat thread — ChatGPT idiom: user bubbles right, assistant full-width with
 // hover action row (copy, thumbs up/down), hunts as assistant progress cards.
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Markdown from './Markdown';
 import HuntCard from './HuntCard';
 import { toast } from '../lib/toast';
@@ -145,7 +145,24 @@ function formatMsgTime(ts) {
   }
 }
 
-export default function ChatThread({ messages, streaming, onHuntStatusChange, onOpenReports, onEditMessage, onRerunHunt, onTalkWithAI, onGetReport }) {
+export default function ChatThread({ messages, streaming, thinking, onHuntStatusChange, onOpenReports, onEditMessage, onRerunHunt, onTalkWithAI, onGetReport }) {
+  // FIX (24 Oct 2026): while a chat reply is being fetched from the
+  // backend (sendChat can take 10s+ while it consults the hunt brain),
+  // the thread used to show NOTHING — no assistant message exists yet,
+  // so the old typing-caret (which only renders on a streaming
+  // message) never appeared and the user could not tell anything was
+  // happening. Now a Thinking bubble with animated dots + a wait
+  // timer renders at the thread end until the reply starts streaming.
+  const [waitSecs, setWaitSecs] = useState(0);
+  useEffect(() => {
+    if (!thinking) {
+      setWaitSecs(0);
+      return;
+    }
+    const t = setInterval(() => setWaitSecs((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [thinking]);
+
   return (
     <div className="chat-thread">
       {messages.map((msg) => {
@@ -193,6 +210,16 @@ export default function ChatThread({ messages, streaming, onHuntStatusChange, on
           </div>
         );
       })}
+      {thinking && (
+        <div className="message message-assistant thinking-bubble" aria-live="polite">
+          <div className="message-body">
+            <div className="assistant-text thinking-text">
+              <span className="thinking-dots" aria-hidden="true"><span /><span /><span /></span>
+              Thinking<span className="thinking-time"> · {waitSecs}s</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
