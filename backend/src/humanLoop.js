@@ -875,7 +875,7 @@ function systemPromptFor(target, parsedScope) {
     'Each reply: first think briefly like a human (what you notice, what you wonder, what you will try next and why), then give EXACTLY ONE action as a JSON object on the last line:',
     '{"action":"shell","command":"..."} — run any shell command on your machine (curl, nmap, python3, anything installed — or download/install what you need)',
     '{"action":"search","query":"..."} — search the web (techniques, CVEs, docs)',
-    '{"action":"write_file","name":"x.py","content":"..."} — save a file or script in your workspace; run it later with a shell action',
+    '{"action":"write_file","name":"x.py","content":"..."} — save a file or script in your workspace (permanent: it survives container restarts); run it later with a shell action. For anything longer than one reply — a big script, a tool installer — write the first chunk with write_file, then keep appending one chunk per reply with a shell action whose command is APPEND_ARTIFACT: x.py followed by the next chunk on the next line, resuming exactly where the last chunk ended; READ_ARTIFACT: x.py with start:end reads any slice back. Save downloaded tools the same way: keep the installer script as a file and rerun it in a fresh container, never trust a container install to survive a restart.',
     '{"action":"browser_open","url":"..."} — open a page in your desktop browser',
     '{"action":"browser_snapshot"} — see the current page: its text and clickable elements',
     '{"action":"browser_click","text":"visible label OR CSS selector"} — click in the desktop browser',
