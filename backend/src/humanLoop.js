@@ -2563,7 +2563,22 @@ export async function humanIteration(huntId, target, opts = {}) {
     // gate below runs exactly as before for actions that pass.
     const gateHit = dedupeGateHit(kind, action, actionHistory);
     const authHit = authGateHit(kind, action, actionHistory, lastObservation);
-    if (gateHit) {
+    if (authHit) {
+      // AUTH-LOOP GATE (Lane AJ) — checked BEFORE the dedupe gate.
+      // When both apply (a re-type on the sign-in page), the auth
+      // redirect is strictly more useful than the generic repeat
+      // block: it names the move that would change the outcome
+      // (finish signup / fetch the code / read the form) instead of
+      // merely forbidding the repeat. Live evidence 24 Oct: AJ never
+      // fired (0 auth_block) because Lane F always won first, while
+      // the hunt kept re-typing the same username — the dedupe
+      // observation told it to "choose a DIFFERENT action" and it
+      // chose the same login again by another route.
+      try { deps.record(huntId, { type: 'auth_block', tool: authHit.tool, detail: scrub(authHit.detail), reason: authHit.reason, via: 'human-mode' }); } catch { /* best-effort */ }
+      say(`Auth gate stopped a blind/looped browser action: ${authHit.tool} (${authHit.reason}).`);
+      observation = `BLOCKED — ${authHit.reason === 'empty_snapshot' ? 'YOU CANNOT SEE THE PAGE' : 'STILL ON THE SIGN-IN PAGE'}: ${authHit.redirect} It was NOT executed — choose one of the moves above.`;
+      note({ action: `auth_block: ${authHit.tool} ${authHit.detail.slice(0, 120)}`, why: thinkingText, result: `blocked (${authHit.reason})`, learned: 'Never type into a page you cannot see; a login is only real when the page after it is not the sign-in page.' });
+    } else if (gateHit) {
       try { deps.record(huntId, { type: 'dedup_block', tool: gateHit.tool, detail: scrub(gateHit.detail), count: gateHit.count, via: 'human-mode' }); } catch { /* best-effort */ }
       say(`Already-done gate stopped a repeat: ${gateHit.tool} ${gateHit.detail.slice(0, 120)} — already run ×${gateHit.count} in this hunt.`);
       observation =
@@ -2586,15 +2601,6 @@ export async function humanIteration(huntId, target, opts = {}) {
         observation += settledBlockEvidence({ events: turnEvents, history: actionHistory, tool: gateHit.tool, detail: gateHit.detail, extraBlocks: 1 });
       } catch { /* settled evidence is best-effort */ }
       note({ action: `dedup_block: ${gateHit.tool} ${gateHit.detail.slice(0, 120)}`, why: thinkingText, result: `repeat blocked — already run ×${gateHit.count}`, learned: 'Exact repeats are stopped by the record; vary the action.' });
-    } else if (authHit) {
-      // AUTH-LOOP GATE (Lane AJ): typing/clicking blind, or re-typing
-      // the same credential while still on the sign-in page. Same
-      // shape as Lane F — an auth_block event (countable), a note, and
-      // an observation that redirects instead of merely forbidding.
-      try { deps.record(huntId, { type: 'auth_block', tool: authHit.tool, detail: scrub(authHit.detail), reason: authHit.reason, via: 'human-mode' }); } catch { /* best-effort */ }
-      say(`Auth gate stopped a blind/looped browser action: ${authHit.tool} (${authHit.reason}).`);
-      observation = `BLOCKED — ${authHit.reason === 'empty_snapshot' ? 'YOU CANNOT SEE THE PAGE' : 'STILL ON THE SIGN-IN PAGE'}: ${authHit.redirect} It was NOT executed — choose one of the moves above.`;
-      note({ action: `auth_block: ${authHit.tool} ${authHit.detail.slice(0, 120)}`, why: thinkingText, result: `blocked (${authHit.reason})`, learned: 'Never type into a page you cannot see; a login is only real when the page after it is not the sign-in page.' });
     } else if (kind === 'shell') {
       const command = String(action.command || '').slice(0, COMMAND_CAP);
       if (!command) {
