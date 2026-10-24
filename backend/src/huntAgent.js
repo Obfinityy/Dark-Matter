@@ -155,6 +155,7 @@ import { proposePlaybook, formatPlaybookForPrompt } from './playbook.js';
 import { ensurePlanTree, renderPlanTree, recordPlanOutcome } from './planTree.js';
 import { summarizeToolOutput } from './toolOutput.js';
 import { handleArtifactCommand, spillOutput } from './artifacts.js';
+import { notifyFinding } from './notifications.js';
 import { humanIteration } from './humanLoop.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
 
@@ -315,6 +316,16 @@ function finding(huntId, f) {
       recordFact({ huntId, subject: 'vuln', predicate: f.type || f.class || 'unknown', object: 'verified' });
     }
   } catch { /* facts are best-effort */ }
+  // INSTANT NOTIFICATION (24 Oct 2026, full-human vision order): a
+  // verified finding notifies the hunt owner + admins instantly (the
+  // bell + toast read this record); the 15-min poll monitor stays as
+  // backup only. Never breaks the hunt path.
+  try {
+    if (f && f.verified === true) {
+      const ownerId = (() => { try { return (readHuntMeta(huntId) || {}).userId || null; } catch { return null; } })();
+      notifyFinding({ huntId, ownerId, title: f.title, severity: f.severity, target: f.url || null });
+    }
+  } catch { /* notifications are best-effort */ }
   // DEAD-END REGISTRY (Job 6 stage 4): a validator rejection becomes a
   // code-composed lesson in the ruled_out registry, checked by code in
   // the plan filter. Only deterministic verdicts write lessons — never

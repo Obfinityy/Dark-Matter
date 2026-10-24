@@ -154,6 +154,14 @@ export async function getHuntCost(huntId) {
   return get(`/api/v1/hunts/${encodeURIComponent(huntId)}/cost`);
 }
 
+export async function getNotifications() {
+  return get('/api/v1/notifications');
+}
+
+export async function markNotificationRead(id) {
+  return post(`/api/v1/notifications/${encodeURIComponent(id)}/read`, {});
+}
+
 export async function getTotalCosts() {
   return get('/api/v1/hunts/costs');
 }
