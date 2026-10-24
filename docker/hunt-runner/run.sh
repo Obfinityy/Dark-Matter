@@ -49,11 +49,17 @@ emit "{\"type\":\"status\",\"state\":\"ready\",\"huntId\":\"$HUNT_ID\"}"
 
 # --- Live terminal streaming (PiP) ---
 # Start the agent's persistent shell inside tmux (the "screen" users watch).
-# ttyd serves it read-only over WebSocket on loopback only.
+# ttyd serves it read-only over WebSocket. It MUST bind 0.0.0.0 inside the
+# container: docker publishes the port on host loopback only
+# (-p 127.0.0.1:PORT:PORT), but published traffic arrives at the
+# container's eth0 address — a container-loopback-only bind (127.0.0.1)
+# accepts nothing there, so every host-side connection reset and every
+# Live Terminal rendered blank. Host-side exposure is unchanged
+# (loopback-only publish); only the container-side bind widens.
 if command -v tmux >/dev/null 2>&1 && command -v ttyd >/dev/null 2>&1; then
   tmux new-session -d -s huntshell -x 120 -y 32 2>/dev/null || true
   TTYD_PORT="${DM_TTYD_PORT:-17681}"
-  ttyd --port "$TTYD_PORT" --interface 127.0.0.1 tmux attach-session -t huntshell >/dev/null 2>&1 &
+  ttyd --port "$TTYD_PORT" --interface 0.0.0.0 tmux attach-session -t huntshell >/dev/null 2>&1 &
   emit "{\"type\":\"thinking\",\"huntId\":\"$HUNT_ID\",\"text\":\"Live terminal streaming ready\"}"
 fi
 
