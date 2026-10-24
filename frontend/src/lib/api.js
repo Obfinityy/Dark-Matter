@@ -256,6 +256,17 @@ export async function listAdminHunts() {
   return get('/api/v1/admin/hunts');
 }
 
+// Lane AI: agent-created accounts (admin portal only — the
+// user-facing frontend never lists these). The list carries no
+// passwords; one password is revealed only via the per-record call.
+export async function listAgentAccounts() {
+  return get('/api/v1/admin/agent-accounts');
+}
+
+export async function revealAgentAccount(handle) {
+  return post(`/api/v1/admin/agent-accounts/${encodeURIComponent(handle)}/reveal`, {});
+}
+
 export async function createAdminUser({ username, password, control }) {
   return post('/api/v1/admin/users', { username, password, control });
 }
