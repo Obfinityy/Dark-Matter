@@ -76,8 +76,24 @@ export function ttydPortForHunt(huntId) {
 
 export async function spawnHuntContainer(huntId, target, opts = {}) {
   const name = containerName(huntId);
-  // Clean up any stale container with the same name first
-  try { await docker(['rm', '-f', name]); } catch { /* didn't exist */ }
+  // Clean up any stale container with the same name first — and WAIT
+  // until the name is actually free. A bare `rm -f` is not enough:
+  // when the previous backend's shutdown rm raced the boot respawn,
+  // the container sat in "removal in progress" — rm -f then errors
+  // (swallowed here) and the following `docker run` fails with
+  // "Conflict: name already in use" or "marked for removal and cannot
+  // be started". That failed the running Infomaniak hunt on 2 of 3
+  // backend restarts on 24 Oct. Bounded wait (5 x 2s) + a run retry
+  // on those two errors; anything else surfaces immediately.
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  async function freeName() {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try { await docker(['rm', '-f', name]); } catch { /* didn't exist, or removal already in progress */ }
+      try { await docker(['inspect', name]); } catch { return; /* name free */ }
+      await sleep(2000);
+    }
+  }
+  await freeName();
 
   // Live terminal streaming (PiP): ttyd port on loopback only.
   // Per-hunt port from the hunt ID hash — a fixed port causes
@@ -95,7 +111,7 @@ export async function spawnHuntContainer(huntId, target, opts = {}) {
     // only hands (tools). This keeps AWS keys out of the sandbox.
   ];
 
-  await docker([
+  const runArgs = [
     'run', '-d',
     '--name', name,
     '--memory', HUNT_MEMORY,
@@ -105,7 +121,21 @@ export async function spawnHuntContainer(huntId, target, opts = {}) {
     '-p', `127.0.0.1:${TTYD_PORT}:${TTYD_PORT}`,
     ...env,
     HUNT_IMAGE,
-  ]);
+  ];
+  try {
+    await docker(runArgs);
+  } catch (err) {
+    // Last-resort retry: if the name was STILL reserved at run time
+    // (removal completed between freeName's last check and the run),
+    // free it once more and run again. Any other error propagates.
+    const msg = String((err && err.message) || err);
+    if (/already in use|marked for removal/i.test(msg)) {
+      await freeName();
+      await docker(runArgs);
+    } else {
+      throw err;
+    }
+  }
 
   return { container: name, spawnedAt: new Date().toISOString(), ttydPort: TTYD_PORT };
 }
