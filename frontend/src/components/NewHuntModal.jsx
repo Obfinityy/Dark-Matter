@@ -12,7 +12,9 @@ const MODES = [
 export default function NewHuntModal({ open, onClose, onSubmit, launching }) {
   const [target, setTarget] = useState('');
   const [scope, setScope] = useState('');
-  const [mode, setMode] = useState('normal');
+  // Infinity is the running default (owner order, 24 Oct 2026): hunts run
+  // until stopped. All six modes stay selectable in the picker.
+  const [mode, setMode] = useState('infinity');
   const [confirmed, setConfirmed] = useState(false);
 
   if (!open) return null;
