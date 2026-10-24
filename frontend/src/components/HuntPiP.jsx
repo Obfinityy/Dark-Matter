@@ -92,7 +92,7 @@ export default function HuntPiP({ huntId, target, onExpand, onClose }) {
     >
       <div className="pip-header">
         <span className={`pip-live ${status === 'live' ? 'on' : ''}`}>
-          {status === 'live' ? '● LIVE' : status === 'reconnecting' ? '↻...' : status === 'ended' ? '■ ENDED' : '○'}
+          {status === 'live' ? '● LIVE' : status === 'reconnecting' ? '↻...' : status === 'ended' ? '■ ENDED' : status === 'error' ? '⚠ ERROR' : '○'}
         </span>
         <span className="pip-target" title={target}>
           {target ? target.replace(/^https?:\/\//, '').slice(0, 20) : huntId.slice(0, 8)}
