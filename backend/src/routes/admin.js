@@ -1,6 +1,8 @@
 // Admin portal API — invite-only user management.
 //
 //   GET    /api/v1/admin/users        -> list users (no password hashes)
+//   GET    /api/v1/admin/agent-accounts -> list agent-created accounts (no passwords)
+//   POST   /api/v1/admin/agent-accounts/:handle/reveal -> one password, on click
 //   POST   /api/v1/admin/users        {username, password, control} -> create
 //   PUT    /api/v1/admin/users/:id    {control} -> change control level
 //   DELETE /api/v1/admin/users/:id    -> delete user
@@ -109,6 +111,24 @@ router.delete('/queue/:queueId', requireAdmin, async (req, res) => {
   const ok = removeFromQueue(req.params.queueId, null, true);
   if (!ok) return res.status(404).json({ ok: false, error: 'not_found' });
   res.json({ ok: true, message: 'Removed from queue.' });
+});
+
+// ---- Agent-created accounts (Lane AI) ----
+// The agent's OWN accounts, created by itself under the Obfinity
+// persona. These are NOT shown on the user-facing frontend — only
+// here, in the admin portal. The list NEVER includes passwords or
+// temp-mail tokens; one password is revealed only through the
+// explicit per-record endpoint below, on click.
+router.get('/agent-accounts', requireAdmin, async (req, res) => {
+  const { listCredentials } = await import('../credentials.js');
+  res.json({ ok: true, accounts: listCredentials() });
+});
+
+router.post('/agent-accounts/:handle/reveal', requireAdmin, async (req, res) => {
+  const { revealCredential } = await import('../credentials.js');
+  const revealed = revealCredential(decodeURIComponent(req.params.handle));
+  if (!revealed) return res.status(404).json({ ok: false, error: 'not_found' });
+  res.json({ ok: true, account: revealed });
 });
 
 router.post('/users', requireAdmin, (req, res) => {

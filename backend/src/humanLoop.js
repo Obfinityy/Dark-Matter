@@ -45,6 +45,8 @@ import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
 import { getRelevantMemories, formatGlobalMemoryForPrompt, readAllGlobalMemories } from './globalMemory.js';
 import { listSkills, loadSkill } from './skillCards.js';
+import { saveCredential, getCredential, generatePassword, generatePersonaUsername, scrubSecrets, touchCredential, markVerified } from './credentials.js';
+import { createInboxPreferred, pollForCode } from './tempmail.js';
 import {
   loadCoverage,
   saveCoverage,
@@ -887,6 +889,7 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"recall","query":"..."} — search YOUR OWN memory: this hunt\'s full record and the lessons of every past hunt. Use it whenever your briefing mentions something you need in detail — an exact result, a payload you tried, a lesson — instead of re-doing the work; remembering is free and instant.',
     '{"action":"record_coverage","surface":"the page/endpoint/feature","class":"the vuln class","outcome":"probed_clean|confirmed|ruled_out|not_applicable|open_gap","evidence":"what you observed"} — account for a surface × class in your coverage ledger. Each pair is recorded exactly once; closing as ruled_out or not_applicable REQUIRES the evidence to name the control that stops the class. Add "update":true to change an existing row. Researched-but-unprobed classes are carried as open gaps automatically — closing them is how they leave your screen.',
     '{"action":"load_skill","skill":"sqli"} — pull one of your SKILL CARDS: a compact procedure for a vuln class (attack surface, detection channels, numbered testing steps, and the proof bar a claim must clear). Pull one when you OPEN a class, instead of searching the web — the card\'s steps end in a probe. The card index is on every screen; one card at a time.',
+    'ACCOUNTS — you are the Obfinity persona, a person with your own accounts. When a target needs an account, create it YOURSELF — never the owner\'s identity, never another user\'s data, only in-scope targets. {"action":"save_credential","site":"https://target.example","username":"obfinity-xxxx"} — vault a credential for a site (omit "password" and the server generates a random 20-char one and shows it to you ONCE, this turn only — type it immediately with browser_type, then submit; it is never written to the permanent record, and neither is any password you invent: keep passwords OUT of your thinking and notes, the record keeps the handle only, e.g. cred:target.example:ab12cd34ef56). Saving also provisions your own temp-mail inbox for that site. {"action":"use_saved_credential","handle":"cred:...","usernameField":"Email","passwordField":"Password"} — fill a login form from the vault without the password ever appearing in text (give the two fields\' visible labels from a snapshot; omit them and you get the handle + username back to snapshot first). {"action":"fetch_verification_code","handle":"cred:..."} — poll your temp-mail inbox for that site\'s verification code (one-turn observation — type it immediately; if no mail arrives the observation says the domain may be blocked, so record that as a blocker and move on, never retry forever). If a signup demands a phone/SMS code or an interactive captcha your clicks cannot solve, that path is blocked — say so and move on; never use a third-party captcha solver.',
     '{"action":"claim_finding","title":"...","class":"sqli","evidence":"the exact output that proves it","command":"the exact command that produced that evidence","counterevidence":"the control/baseline result that could have disproved it","confidence":"high|medium|low","confidence_rationale":"required when confidence is not high"} — claim a vulnerability. The filing is complete-the-proof gated: a claim missing any of title, class, a runnable reproduction ("command", or "poc" naming a proof script saved in this hunt), evidence, counterevidence, or confidence is bounced back UNRECORDED with the missing pieces named — complete the package and claim again. A complete claim goes to an independent verifier, which re-runs your command and checks the evidence; ONLY verified findings count. Never claim without reproduced evidence.',
     'Act like a person: if you need a tool, download it; if you don\'t know something, search; if output is interesting, dig; one step at a time — you will see the result on the next screen.',
     `Programme rules you must obey: ${rules.join('; ')}.`,
@@ -1110,6 +1113,9 @@ const FOLLOW_TOOL_FAMILY = {
   recall: 'recall',
   record_coverage: 'coverage',
   load_skill: 'skill',
+  save_credential: 'vault',
+  use_saved_credential: 'vault',
+  fetch_verification_code: 'vault',
 };
 
 /**
@@ -1291,6 +1297,9 @@ function detailForAction(kind, action) {
     case 'recall': return String(action.query || '').slice(0, 160);
     case 'record_coverage': return `${String(action.surface || '').slice(0, 100)} ${String(action.class || '').slice(0, 40)} ${String(action.outcome || '').slice(0, 30)}`.trim().slice(0, 160);
     case 'load_skill': return String(action.skill || '').slice(0, 120);
+    case 'save_credential': return String(action.site || '').slice(0, 120);
+    case 'use_saved_credential': return String(action.handle || '').slice(0, 120);
+    case 'fetch_verification_code': return String(action.handle || '').slice(0, 120);
     case 'proxy_start': return '';
     case 'intercept_list': return '';
     case 'intercept_read': return `#${String(action.index ?? '').slice(0, 12)}`;
@@ -2103,6 +2112,11 @@ export async function humanIteration(huntId, target, opts = {}) {
     now: d.now || (() => Date.now()),
     buildBriefing: d.buildBriefing || buildMemoryBriefing,
     recall: d.recall || defaultRecallMemory,
+    // Lane AI: temp-mail seam (tests inject fakes; production uses
+    // the real providers). Credentials module functions are used
+    // directly — they honour config.dataDir (DATA_DIR in tests).
+    createInbox: d.createInbox || createInboxPreferred,
+    pollCode: d.pollCode || pollForCode,
   };
   // Lane O: the state-of-mind computer. Production path loads the
   // hunt's complete memory through huntMemory (the single read
@@ -2132,11 +2146,29 @@ export async function humanIteration(huntId, target, opts = {}) {
   const maxRpm = parsedScope && parsedScope.rules ? Number(parsedScope.rules.maxRequestsPerMin) || 0 : 0;
   const minShellGapMs = maxRpm > 0 ? Math.ceil(60000 / maxRpm) : 0;
 
+  // Lane AI: session secrets. A password the brain invents or is
+  // shown (a generated credential, a verification code) is added
+  // here the moment it exists, and EVERY recorded surface is
+  // scrubbed against the set before writing — the thinking event,
+  // the tool_call detail, the reasoning note, the session log.
+  // The in-memory screen (lastObservation) is deliberately NOT
+  // scrubbed: that is exactly how a one-turn secret reaches the
+  // brain for its next action, and the screen is never written
+  // to disk. The vault file is the only place secrets persist.
+  const sessionSecrets = new Set();
+  const scrub = (s) => scrubSecrets(String(s ?? ''), sessionSecrets);
+  const scrubEntry = (entry) => {
+    if (!entry || typeof entry !== 'object') return entry;
+    const out = {};
+    for (const [k, v] of Object.entries(entry)) out[k] = typeof v === 'string' ? scrub(v) : v;
+    return out;
+  };
+
   const say = (text) => {
-    try { deps.record(huntId, { type: 'thinking', text: String(text), via: 'human-mode' }); } catch { /* recording is best-effort */ }
+    try { deps.record(huntId, { type: 'thinking', text: scrub(text), via: 'human-mode' }); } catch { /* recording is best-effort */ }
   };
   const toolCall = (tool, detail) => {
-    try { deps.record(huntId, { type: 'tool_call', tool, detail: String(detail || '').slice(0, 300), via: 'human-mode' }); } catch { /* best-effort */ }
+    try { deps.record(huntId, { type: 'tool_call', tool, detail: scrub(String(detail || '')).slice(0, 300), via: 'human-mode' }); } catch { /* best-effort */ }
     // Lane F: every executed action joins the already-done history
     // the moment it is dispatched, so the gate sees this session's
     // own actions too — not just past sessions' records.
@@ -2165,7 +2197,7 @@ export async function humanIteration(huntId, target, opts = {}) {
     } catch { /* gate bookkeeping is best-effort */ }
   };
   const note = (entry) => {
-    try { deps.recordNote(huntId, entry); } catch { /* best-effort */ }
+    try { deps.recordNote(huntId, scrubEntry(entry)); } catch { /* best-effort */ }
   };
 
   const getGui = () => {
@@ -2427,9 +2459,18 @@ export async function humanIteration(huntId, target, opts = {}) {
     }
     aiOk = true;
     const replyText = String(reply);
-    try { deps.record(huntId, { type: 'thinking', text: replyText, via: 'human-mode', turn }); } catch { /* best-effort */ }
-
+    // Lane AI: parse BEFORE recording the reply. Total permanent
+    // memory still holds the whole reply — except a secret it
+    // carries: a save_credential password joins the session secret
+    // set first, so the recorded thinking text is scrubbed of it
+    // and the secret lives only in the vault. Anything else stays
+    // verbatim.
     const parsed = parseHumanAction(replyText);
+    if (parsed && String(parsed.action.action).toLowerCase() === 'save_credential' && parsed.action.password) {
+      sessionSecrets.add(String(parsed.action.password));
+    }
+    try { deps.record(huntId, { type: 'thinking', text: scrub(replyText), via: 'human-mode', turn }); } catch { /* best-effort */ }
+
     if (!parsed) {
       sessionLastThinking = replyText.trim().slice(0, 400);
       lastObservation =
@@ -2454,7 +2495,7 @@ export async function humanIteration(huntId, target, opts = {}) {
     // gate below runs exactly as before for actions that pass.
     const gateHit = dedupeGateHit(kind, action, actionHistory);
     if (gateHit) {
-      try { deps.record(huntId, { type: 'dedup_block', tool: gateHit.tool, detail: gateHit.detail, count: gateHit.count, via: 'human-mode' }); } catch { /* best-effort */ }
+      try { deps.record(huntId, { type: 'dedup_block', tool: gateHit.tool, detail: scrub(gateHit.detail), count: gateHit.count, via: 'human-mode' }); } catch { /* best-effort */ }
       say(`Already-done gate stopped a repeat: ${gateHit.tool} ${gateHit.detail.slice(0, 120)} — already run ×${gateHit.count} in this hunt.`);
       observation =
         `BLOCKED — ALREADY DONE: you have already performed this exact action ${gateHit.count} times in this hunt (${gateHit.tool}: ${gateHit.detail}).` +
@@ -2728,6 +2769,88 @@ export async function humanIteration(huntId, target, opts = {}) {
         }
       }
       note({ action: `intercept_replay: #${action.index ?? ''}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'save_credential') {
+      // Lane AI: vault seam. The brain creates accounts itself under
+      // the Obfinity persona; the password is vaulted server-side
+      // and NEVER written to the record — only the handle is. Two
+      // modes: password supplied (vaulted + scrubbed from every
+      // recorded surface via sessionSecrets) or omitted (the server
+      // generates one and shows it as a ONE-TURN observation — the
+      // brain types it immediately; the observation rides the
+      // in-memory screen only and is scrubbed out of the log push
+      // below). A temp-mail inbox is provisioned best-effort for
+      // verification mail. NOT dedupe-gated (a vault write, not
+      // traffic) and NOT scope-gated beyond the site itself.
+      const site = String(action.site || target);
+      const username = String(action.username || generatePersonaUsername());
+      let password = String(action.password || '');
+      let generated = false;
+      if (!password) { password = generatePassword(20); generated = true; }
+      sessionSecrets.add(password);
+      let inbox = null;
+      try {
+        const ib = await deps.createInbox();
+        inbox = { provider: ib.provider, address: ib.address, token: ib.token || null };
+      } catch { inbox = null; }
+      const rec = saveCredential({ site, username, password, huntId, inbox });
+      toolCall('save_credential', rec.handle);
+      observation = generated
+        ? `Saved credential ${rec.handle} for ${site} as ${username}. One-time password for THIS turn only (it will never be shown again and is never written to the record): ${password} — type it now with browser_type, then submit. Your temp-mail inbox for verification mail is ${inbox ? inbox.address : '(none — mail provider unreachable)'}; poll it with fetch_verification_code and this handle.`
+        : `Saved credential ${rec.handle} for ${site} as ${username}. It is vaulted; the record keeps the handle only. Temp-mail inbox: ${inbox ? inbox.address : '(none — mail provider unreachable)'}.`;
+      note({ action: `save_credential: ${rec.handle}`, why: thinkingText, result: `credential vaulted for ${site} as ${username}`, learned: '' });
+    } else if (kind === 'use_saved_credential') {
+      // Lane AI: fill a login form from the vault WITHOUT the
+      // password ever appearing in text. The server performs the
+      // clicks + types itself via guiTools — those inner calls are
+      // not loop actions, so no value touches toolCall/note; only
+      // the handle is recorded. Without field labels the brain is
+      // sent back to snapshot first.
+      const handle = String(action.handle || '');
+      const rec = handle ? getCredential(handle) : null;
+      if (!rec) {
+        observation = `No saved credential ${handle || '(empty)'} — save one first with save_credential, then use its handle.`;
+      } else {
+        touchCredential(handle);
+        const uField = String(action.usernameField || '');
+        const pField = String(action.passwordField || '');
+        if (!uField || !pField) {
+          observation = `Credential ${handle} is ready for ${rec.site} (username ${rec.username}). Snapshot the login page and call use_saved_credential again with "usernameField" and "passwordField" as the visible labels of the two fields — the server will fill them from the vault without ever showing the password in text.`;
+        } else {
+          const gui = getGui();
+          await gui.click(huntId, uField);
+          await gui.type(huntId, rec.username, false);
+          await gui.click(huntId, pField);
+          await gui.type(huntId, rec.password, false);
+          toolCall('use_saved_credential', handle);
+          observation = `Filled the login fields for ${rec.site} from vaulted credential ${handle} (username ${rec.username}). Submit with browser_click when ready.`;
+        }
+      }
+      note({ action: `use_saved_credential: ${handle}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'fetch_verification_code') {
+      // Lane AI: poll the credential's temp-mail inbox for a
+      // verification code. The code is a ONE-TURN observation: it
+      // rides the in-memory screen, joins the session secret set
+      // (so any later typing or quoting of it is scrubbed from the
+      // record), and is never written to events, reasoning rows,
+      // or the vault. Timeout is a reportable blocker, not a loop.
+      const handle = String(action.handle || '');
+      const rec = handle ? getCredential(handle) : null;
+      if (!rec || !rec.inbox || !rec.inbox.address) {
+        observation = `No temp-mail inbox on credential ${handle || '(empty)'} — the inbox may have failed to provision when the credential was saved. Note it and move on.`;
+      } else {
+        toolCall('fetch_verification_code', handle);
+        const res = await deps.pollCode(rec.inbox, { sleep: deps.sleep });
+        if (res.ok) {
+          sessionSecrets.add(res.code);
+          observation = `Verification code for ${rec.site} (one-turn only — type it now with browser_type; it will not be shown again and is never written to the record): ${res.code} (from ${res.from || 'inbox'}${res.subject ? `, subject: ${res.subject}` : ''})`;
+          markVerified(handle);
+        } else if (res.reason === 'timeout') {
+          observation = `No verification mail arrived for ${rec.site} after ${res.polls} polls — the site may block this temp-mail domain (${String(rec.inbox.address).split('@')[1] || 'unknown'}). Record this as a blocker: do not retry forever; note the domain and move on.`;
+        } else {
+          observation = `Could not poll the inbox for ${rec.site}: ${res.reason || 'provider error'}. Note it and move on.`;
+        }
+      }
+      note({ action: `fetch_verification_code: ${handle}`, why: thinkingText, result: 'verification-code poll completed (code itself never recorded)', learned: '' });
     } else if (kind === 'browser_open') {
       const url = String(action.url || '');
       const bad = scopeViolation(url, target, parsedScope);
@@ -2851,7 +2974,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       note({ action: `claim_finding: ${title}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
       }
     } else {
-      observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, record_coverage, load_skill, proxy_start, intercept_list, intercept_read, intercept_replay, browser_open, browser_snapshot, browser_click, browser_type, screenshot, claim_finding. Pick exactly one, as JSON on the last line.`;
+      observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, record_coverage, load_skill, proxy_start, intercept_list, intercept_read, intercept_replay, browser_open, browser_snapshot, browser_click, browser_type, screenshot, claim_finding, save_credential, use_saved_credential, fetch_verification_code. Pick exactly one, as JSON on the last line.`;
     }
 
     // Lane F: remember what the executed action returned, so a later
@@ -2877,7 +3000,11 @@ export async function humanIteration(huntId, target, opts = {}) {
       pendingDegraded = false;
     }
 
-    log.push({ turn, action: kind, detail: detailForAction(kind, action), observation: String(observation).slice(0, 300) });
+    // Lane AI: the session log is scrubbed like every other
+    // recorded surface — a one-turn secret (generated password,
+    // verification code) rides lastObservation to the next screen
+    // in memory, but never lands in this log.
+    log.push({ turn, action: kind, detail: scrub(detailForAction(kind, action)), observation: scrub(String(observation)).slice(0, 300) });
     lastObservation = observation;
 
     // PROGRESS CHECKPOINT (Lane P, 23 Oct 2026): the hunt's totals
