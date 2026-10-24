@@ -16,7 +16,7 @@ import {
 import { recordEngineEvent, getCachedEvents } from './routes/hunts.js';
 import huntsRouter from './routes/hunts.js';
 import authRouter from './routes/auth.js';
-import { ensureAdmin } from './routes/auth.js';
+import { ensureAdmin, verifyTerminalTicket } from './routes/auth.js';
 import adminRouter from './routes/admin.js';
 import chatRouter from './routes/chat.js';
 import chatsRouter from './routes/chats.js';
@@ -144,12 +144,9 @@ const MAX_TERM_VIEWERS = 2;
 wssTerm.on('connection', async (ws, req, huntId, ticket) => {
   let ttydWs = null;
   try {
-    // Validate ticket
-    const jwt = await import('jsonwebtoken').catch(() => null);
-    if (!jwt) throw new Error('jwt not available');
-    const secret = process.env.JWT_SECRET || 'darkmatter-terminal-secret';
-    const payload = jwt.default.verify(ticket, secret);
-    if (payload.type !== 'terminal' || payload.huntId !== huntId) {
+    // Validate ticket (same HS256 secret as login tokens)
+    const payload = verifyTerminalTicket(ticket);
+    if (!payload || payload.huntId !== huntId) {
       throw new Error('invalid ticket');
     }
     

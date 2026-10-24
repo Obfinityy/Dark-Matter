@@ -36,7 +36,7 @@ import {
   readHuntMeta,
   listHuntMetas,
 } from '../store.js';
-import { requireAuth } from './auth.js';
+import { requireAuth, issueTerminalTicket } from './auth.js';
 import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience, getMode, HUNT_MODES, MODE_ORDER, TIERS } from '../hunt-intel/index.js';
 import { getHuntCost, getUserCosts } from '../costTracker.js';
 import { loadHuntMemory, panelFindings } from '../huntMemory.js';
@@ -458,17 +458,9 @@ router.get('/:id/terminal/ticket', requireAuth, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'hunt_not_active' });
     }
     
-    // Issue ticket (simple signed token - 60s expiry)
-    const jwt = await import('jsonwebtoken').catch(() => null);
-    if (!jwt) {
-      return res.status(500).json({ ok: false, error: 'jwt_not_available' });
-    }
-    const secret = process.env.JWT_SECRET || 'darkmatter-terminal-secret';
-    const ticket = jwt.default.sign(
-      { userId: req.user.id, huntId, type: 'terminal' },
-      secret,
-      { expiresIn: '60s' }
-    );
+    // Issue ticket (short-lived signed token, same HS256 secret as login
+    // tokens — see issueTerminalTicket in auth.js).
+    const ticket = issueTerminalTicket(req.user.id || req.user.sub, req.user.username, huntId);
     
     res.json({ ok: true, ticket });
   } catch (err) {
