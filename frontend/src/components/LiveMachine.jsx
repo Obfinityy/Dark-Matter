@@ -14,14 +14,52 @@ import { fetchHuntDesktopFrame } from '../lib/api';
  * When the desktop is not available yet (older hunt image, or the hunter
  * has not started its desktop), the card shows a placeholder instead of
  * a broken image.
+ *
+ * STACKING: every active hunt card renders its own LiveMachine, and all
+ * of them are position:fixed bottom-right. Without an offset they land
+ * on the exact same spot, so with N active hunts only the topmost card
+ * is visible and the rest look missing. Each mounted card therefore
+ * claims a slot from a shared registry (freed slots are reused, so
+ * remaining cards never shift and two cards never share a slot) and
+ * stacks upward from the bottom-right corner, one card height apart.
  */
 const REFRESH_MS = 3000;
+const STACK_STEP_PX = 224;
+
+// Shared across all mounted LiveMachine cards in this page session.
+// Entry = mount token, null = freed slot waiting for reuse.
+const liveMachineSlots = [];
+let liveMachineToken = 0;
+
+function claimLiveSlot() {
+  const token = ++liveMachineToken;
+  let slot = liveMachineSlots.indexOf(null);
+  if (slot === -1) {
+    slot = liveMachineSlots.length;
+    liveMachineSlots.push(token);
+  } else {
+    liveMachineSlots[slot] = token;
+  }
+  return { slot, token };
+}
+
+function releaseLiveSlot(token) {
+  const idx = liveMachineSlots.indexOf(token);
+  if (idx !== -1) liveMachineSlots[idx] = null;
+}
 
 export default function LiveMachine({ huntId, target }) {
   const [frameUrl, setFrameUrl] = useState('');
   const [available, setAvailable] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [slot, setSlot] = useState(0);
   const frameUrlRef = useRef('');
+
+  useEffect(() => {
+    const claimed = claimLiveSlot();
+    setSlot(claimed.slot);
+    return () => releaseLiveSlot(claimed.token);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,7 +108,11 @@ export default function LiveMachine({ huntId, target }) {
 
   return (
     <>
-      <div className="live-machine" aria-label="Live machine view">
+      <div
+        className="live-machine"
+        aria-label="Live machine view"
+        style={{ bottom: 16 + slot * STACK_STEP_PX }}
+      >
         <div className="live-machine-header">
           <span className={`live-machine-dot${available ? ' on' : ''}`} aria-hidden="true" />
           <span className="live-machine-live">LIVE</span>
