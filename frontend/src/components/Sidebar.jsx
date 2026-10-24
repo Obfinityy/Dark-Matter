@@ -297,6 +297,9 @@ export default function Sidebar({
         <button className={`nav-item${activePage === 'reports' ? ' active' : ''}`} onClick={() => go('reports')}>
           <IconChart /> Reports
         </button>
+        <button className={`nav-item${activePage === 'machines' ? ' active' : ''}`} onClick={() => go('machines')}>
+          <IconHexagon /> Live machines
+        </button>
         <button className={`nav-item${activePage === 'topup' ? ' active' : ''}`} onClick={() => go('topup')}>
           <IconHexagon /> Top up{balanceText ? ` · ${balanceText}` : ''}
         </button>

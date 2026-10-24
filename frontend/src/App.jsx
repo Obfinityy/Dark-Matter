@@ -7,6 +7,7 @@ import AdminPage from './pages/AdminPage';
 import ChatPage from './pages/ChatPage';
 import PluginsPage from './pages/PluginsPage';
 import ReportsPage from './pages/ReportsPage';
+import LiveMachinesPage from './pages/LiveMachinesPage';
 import SettingsPage from './pages/SettingsPage';
 import AuthPage from './pages/AuthPage';
 import AuthModal from './components/AuthModal';
@@ -582,6 +583,27 @@ function AppInner() {
     setPage('reports');
   }
 
+  // Find the chat containing this hunt and navigate to it — and bring it
+  // to the TOP of the history. One hunt = one chat, for life: re-hunting
+  // a target re-opens its existing chat (never a duplicate), and that
+  // chat rises to first place. Shared by the hunt cards and the Live
+  // machines overview page.
+  function openHuntChat(huntId) {
+    const found = chats.find((c) =>
+      (c.messages || []).some((m) => m.role === 'hunt' && m.hunt && m.hunt.huntId === huntId)
+    );
+    if (found) {
+      setActiveChatId(found.id);
+      setChats((prev) => {
+        const target = prev.find((c) => c.id === found.id);
+        if (!target) return prev;
+        const bumped = { ...target, updatedAt: new Date().toISOString() };
+        return [bumped, ...prev.filter((c) => c.id !== found.id)];
+      });
+    }
+    setPage('chat');
+  }
+
   function navigate(p) {
     setPage(p);
     try {
@@ -689,29 +711,13 @@ function AppInner() {
             onRecordHunt={recordHunt}
             onUpdateHunt={updateHunt}
             onOpenReports={openReports}
-            onOpenHuntChat={(huntId) => {
-              // Find the chat containing this hunt and navigate to it — and
-              // bring it to the TOP of the history. One hunt = one chat, for
-              // life: re-hunting a target re-opens its existing chat (never
-              // a duplicate), and that chat rises to first place.
-              const found = chats.find((c) =>
-                (c.messages || []).some((m) => m.role === 'hunt' && m.hunt && m.hunt.huntId === huntId)
-              );
-              if (found) {
-                setActiveChatId(found.id);
-                setChats((prev) => {
-                  const target = prev.find((c) => c.id === found.id);
-                  if (!target) return prev;
-                  const bumped = { ...target, updatedAt: new Date().toISOString() };
-                  return [bumped, ...prev.filter((c) => c.id !== found.id)];
-                });
-              }
-            }}
+            onOpenHuntChat={openHuntChat}
             huntModalTrigger={huntModalTrigger}
           />
         )}
         {page === 'plugins' && <PluginsPage />}
         {page === 'reports' && <ReportsPage preselectedHuntId={reportHuntId} />}
+        {page === 'machines' && <LiveMachinesPage onOpenHunt={openHuntChat} />}
         {page === 'topup' && <TopUpPage />}
         {page === 'settings' && <SettingsPage />}
       </main>
