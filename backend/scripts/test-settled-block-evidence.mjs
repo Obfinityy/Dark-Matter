@@ -79,10 +79,14 @@ const ts = (i) => new Date(T0 + i * 60000).toISOString();
   check('(a) carries the redirect: opening cannot probe, SEND a request', text.includes('Opening cannot probe it') && text.includes('SEND a request') && text.includes('curl with a payload'));
   check('(a) the whole addition stays within the ~420-char bound', text.length <= 420);
 
-  // (f) the shared refactor leaves Lane AD's rendered lines unchanged
+  // (f) the shared facts still render in Lane AD's settled lines;
+  // Lane AH additionally carries the most-recent request there
+  // (full AH coverage: test-settled-evidence-persistence.mjs)
   const adText = settledActionLines({ events, history }).join('\n');
-  check('(f) AD settled lines unchanged on the same record (blocked ×64, requests sent ×7)',
+  check('(f) AD settled lines still carry the shared facts (blocked ×64, requests sent ×7)',
     adText.includes('blocked ×64') && adText.includes('requests sent ×7'));
+  check('(f) the settled line now names the most recent request too (Lane AH)',
+    adText.includes('most recent:') && adText.includes("OR '1'='1"));
 }
 
 // --- (b) settled open with ZERO requests on record: the truthful
