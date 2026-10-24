@@ -25,6 +25,7 @@ import modelsRouter from './routes/models.js';
 import voiceRouter from './routes/voice.js';
 import billingRouter from './routes/billing.js';
 import { backfillAllHunts, episodeLedgerEnabled, runEmbeddingBackfill, backfillRuledOutFromEpisodes } from './episodeStore.js';
+import { ttydPortForHunt } from './huntRunner.js';
 import { maybeConsolidateAll } from './consolidation.js';
 import { evaluatePromotions } from './playbook.js';
 
@@ -168,8 +169,10 @@ wssTerm.on('connection', async (ws, req, huntId, ticket) => {
     viewers.add(ws);
     TERM_VIEWERS.set(huntId, viewers);
     
-    // Connect to ttyd (loopback only)
-    const TTYD_PORT = process.env.HUNT_TTYD_PORT || '17681';
+    // Connect to THIS hunt's ttyd (loopback only). The port is per-hunt
+    // (hash of the hunt ID, see ttydPortForHunt) — dialing a fixed
+    // default port reached nothing and left every Live Terminal blank.
+    const TTYD_PORT = ttydPortForHunt(huntId);
     const WebSocket = (await import('ws')).default;
     ttydWs = new WebSocket(`ws://127.0.0.1:${TTYD_PORT}/ws`);
     

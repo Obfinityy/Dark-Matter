@@ -59,21 +59,31 @@ export async function dockerAvailable() {
  * @param {{mode?: string, bedrockEnv?: object}} opts
  * @returns {{container: string}} — throws if Docker unavailable
  */
+/**
+ * The ttyd port a hunt's container publishes on host loopback.
+ * SINGLE SOURCE OF TRUTH: spawnHuntContainer publishes exactly this
+ * port, and the terminal WS proxy dials exactly this port. The Live
+ * Terminal went blank for every hunt when the proxy dialed a fixed
+ * default port (17681) while containers actually listened on per-hunt
+ * hash ports (e.g. 17733 / 17745 / 17685). Range 17681-17780 (100 ports).
+ */
+export function ttydPortForHunt(huntId) {
+  if (process.env.HUNT_TTYD_PORT) return process.env.HUNT_TTYD_PORT;
+  let hash = 0;
+  for (let i = 0; i < huntId.length; i++) hash = (hash * 31 + huntId.charCodeAt(i)) >>> 0;
+  return String(17681 + (hash % 100));
+}
+
 export async function spawnHuntContainer(huntId, target, opts = {}) {
   const name = containerName(huntId);
   // Clean up any stale container with the same name first
   try { await docker(['rm', '-f', name]); } catch { /* didn't exist */ }
 
   // Live terminal streaming (PiP): ttyd port on loopback only.
-  // FIX: derive a per-hunt port from the hunt ID hash — a fixed port causes
+  // Per-hunt port from the hunt ID hash — a fixed port causes
   // "already allocated" failures when multiple hunts (or stale containers)
-  // exist. Range 17681-17780 (100 ports).
-  let TTYD_PORT = process.env.HUNT_TTYD_PORT;
-  if (!TTYD_PORT) {
-    let hash = 0;
-    for (let i = 0; i < huntId.length; i++) hash = (hash * 31 + huntId.charCodeAt(i)) >>> 0;
-    TTYD_PORT = String(17681 + (hash % 100));
-  }
+  // exist. See ttydPortForHunt (single source of truth).
+  const TTYD_PORT = ttydPortForHunt(huntId);
 
   const env = [
     '-e', `DM_HUNT_ID=${huntId}`,
