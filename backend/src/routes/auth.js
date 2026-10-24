@@ -86,6 +86,29 @@ export function issueToken(user) {
   });
 }
 
+// ---- Terminal tickets (Live Terminal PiP) --------------------------------
+// Short-lived (60s) tickets bound to (user, hunt), signed with the same
+// HS256 secret as login tokens. This deliberately uses NO jsonwebtoken
+// dependency: it was never installed, so the old ticket route always
+// 500'd with 'jwt_not_available' and every Live Terminal rendered blank.
+export function issueTerminalTicket(userId, username, huntId) {
+  const now = Math.floor(Date.now() / 1000);
+  return signToken({
+    sub: userId,
+    username,
+    type: 'terminal',
+    huntId,
+    iat: now,
+    exp: now + 60,
+  });
+}
+
+export function verifyTerminalTicket(token) {
+  const payload = verifyToken(token);
+  if (!payload || payload.type !== 'terminal' || !payload.huntId) return null;
+  return payload;
+}
+
 // ---- Password hashing (scrypt) ----------------------------------------------
 
 export function hashPassword(password) {
