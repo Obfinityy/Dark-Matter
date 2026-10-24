@@ -171,10 +171,22 @@ wssTerm.on('connection', async (ws, req, huntId, ticket) => {
     // default port reached nothing and left every Live Terminal blank.
     const TTYD_PORT = ttydPortForHunt(huntId);
     const WebSocket = (await import('ws')).default;
-    ttydWs = new WebSocket(`ws://127.0.0.1:${TTYD_PORT}/ws`);
-    
+    // ttyd 1.7.7 creates NO terminal session for a bare WS connection:
+    // it only spawns the command once a client negotiates the "tty"
+    // subprotocol AND sends the open message its own web client sends
+    // ({AuthToken, columns, rows}). Without both, the socket stays open
+    // serving only pings and every Live Terminal renders blank — the
+    // fourth layer of that bug. The `ws` package answers pings
+    // automatically, so no ping handling is needed here.
+    ttydWs = new WebSocket(`ws://127.0.0.1:${TTYD_PORT}/ws`, 'tty');
+
     ttydWs.on('open', () => {
-      // ttyd connected — start proxying
+      // Same open message ttyd's web client sends: no credential is
+      // configured, so the token is empty — but the message itself is
+      // what creates the session. Geometry matches the tmux session
+      // (120x32, see docker/hunt-runner/run.sh) so the attached tmux
+      // client renders at full width.
+      ttydWs.send(JSON.stringify({ AuthToken: '', columns: 120, rows: 32 }));
     });
     
     ttydWs.on('message', (data) => {
