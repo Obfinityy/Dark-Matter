@@ -326,6 +326,18 @@ export function detectSteering(message) {
   // slow answer).
   if (/\b(kitni mili|kitne mile|kitne mili|kya mila|kuch mila|ab tak kya|kahan tak|kya chal raha|kya ho raha|kya kar raha|kya kiya|kya try kiya)\b/.test(m))
     return 'summary';
+  // Owner's own phrasings (24 Oct 2026, live evidence): "so what is
+  // now doing by you and what you thinking now?" and "bata" both went
+  // to the LLM path and died after ~5 min with the backend-unreachable
+  // error (nginx 300s) — the first because "what is now doing by you"
+  // matches neither "what are you doing" nor the Hinglish list, the
+  // second because a bare "bata" ("tell me") matched nothing at all.
+  // In a hunt chat both mean "tell me the status". The nginx timeout
+  // is raised alongside (300s -> 1800s) so a genuinely open question
+  // still gets its answer instead of the false backend error — but a
+  // status question must never wait for the brain at all.
+  if (/\b(what (is|are) (now|currently) doing|what (are )?you thinking|what('s| is) (going on|happening)|bata|batao|kya chal raha hai)\b/.test(m))
+    return 'summary';
   return null;
 }
 
