@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { getAuthToken } from '../lib/api';
 
 /**
  * Hook for live hunt terminal streaming (PiP).
@@ -18,7 +19,13 @@ export function useHuntTerminal(huntId, terminalRef) {
       
       // Get ticket
       const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-      const token = localStorage.getItem('dm.token') || sessionStorage.getItem('dm.token');
+      // FIX (24 Oct 2026): the auth token lives under 'dm_token' (see
+      // api.js TOKEN_KEY); this hook read 'dm.token' (dot), which is
+      // always null — so the ticket fetch went out WITHOUT auth, got
+      // 401, and the panel sat on "Connecting..." forever on every
+      // hunt while the on-box probe (which minted its own JWT) passed.
+      // Use the shared getter: one source of truth for the token key.
+      const token = getAuthToken();
       const ticketRes = await fetch(`${apiBase}/api/v1/hunts/${huntId}/terminal/ticket`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
