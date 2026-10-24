@@ -136,7 +136,7 @@ export function resolveClickTarget(requested, labels) {
 // global fetch + WebSocket. Params arrive base64-encoded in DMGUI_P64 so
 // shell quoting can never corrupt them.
 // ---------------------------------------------------------------------------
-const CDP_SCRIPT = `
+export const CDP_SCRIPT = `
 const act = process.argv[2];
 const params = JSON.parse(Buffer.from(process.env.DMGUI_P64 || 'e30=', 'base64').toString('utf8'));
 const BASE = 'http://127.0.0.1:${CDP_PORT}';
@@ -198,7 +198,19 @@ if (act === 'navigate') {
 } else if (act === 'snapshot') {
   out = await evaluate(SNAP);
 } else if (act === 'click') {
+  // Lane AK (24 Oct 2026): resolveClickTarget MUST be defined inside
+  // the page. The function is injected into this Node script (see the
+  // CDP_SCRIPT header), but the click expression runs in the PAGE via
+  // Runtime.evaluate — where the Node-side declaration does not exist.
+  // Every label click ("Login", …) therefore died with
+  // "ReferenceError: resolveClickTarget is not defined" (the 16:22Z
+  // "Browser control failed: cdp.mjs:95" that stalled the Infomaniak
+  // login). The function's source is interpolated into the evaluated
+  // expression itself, so the page defines it before calling it. The
+  // function is pure and self-contained by design, so its source is
+  // safe to run in the page (see the comment above its definition).
   const expr = \`(() => {
+    \${resolveClickTarget.toString()}
     const raw = \${JSON.stringify(params.text)};
     let el = null;
     if (/^[#.\\[]/.test(raw)) { try { el = document.querySelector(raw); } catch {} }
