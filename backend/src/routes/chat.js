@@ -305,12 +305,26 @@ async function stopHuntResilient(huntId) {
   }
 }
 
-function detectSteering(message) {
+export function detectSteering(message) {
   const m = String(message || '').toLowerCase();
   if (/\b(pause|hold|freeze)\b/.test(m) && /\b(hunt|it|scan)\b|\bpause\b/.test(m)) return 'pause';
   if (/\b(resume|continue|carry on)\b/.test(m)) return 'resume';
   if (/\b(stop|abort|cancel|kill)\b/.test(m) && /\b(hunt|scan|it)\b/.test(m)) return 'stop';
   if (/\b(what did you find|findings?|what('s| is) the status|status|progress|what are you (doing|up to)|summary)\b/.test(m))
+    return 'summary';
+  // Hinglish status questions (Lane S follow-up, 24 Oct 2026): the
+  // owner's mid-hunt question is "kitni mili ab tak?" — "how many
+  // found so far?" — and the English-only patterns above missed it,
+  // so it fell to the LLM path, which shares the one 8B model with
+  // the running hunt and queued behind its turns: no reply in 147s
+  // in the live browser check, and the earlier 9:26 PM question died
+  // after ~5 min with the backend-unreachable error (nginx 300s).
+  // A status question must never queue behind the brain; these
+  // patterns route it to the instant deterministic summary instead.
+  // Kept tight to status phrasings so open questions still reach
+  // the LLM (a false summary of a real question is worse than a
+  // slow answer).
+  if (/\b(kitni mili|kitne mile|kitne mili|kya mila|kuch mila|ab tak kya|kahan tak|kya chal raha|kya ho raha|kya kar raha|kya kiya|kya try kiya)\b/.test(m))
     return 'summary';
   return null;
 }
