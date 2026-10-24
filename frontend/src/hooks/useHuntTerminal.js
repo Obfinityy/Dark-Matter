@@ -34,25 +34,41 @@ export function useHuntTerminal(huntId, terminalRef) {
       const wsHost = apiBase ? new URL(apiBase).host : window.location.host;
       const ws = new WebSocket(`${wsProto}//${wsHost}/api/v1/hunts/${huntId}/terminal?ticket=${ticket}`);
       wsRef.current = ws;
-      
+      // ttyd speaks binary: frames carry a one-byte type prefix, so the
+      // terminal must receive ArrayBuffers, not Blobs.
+      ws.binaryType = 'arraybuffer';
+
       ws.onopen = () => {
         retryRef.current = 0;
         setStatus('live');
       };
-      
-      ws.onmessage = (event) => {
-        // ttyd protocol: JSON messages with base64 or raw data
+
+      ws.onmessage = async (event) => {
+        let data = event.data;
+        if (data instanceof Blob) data = await data.arrayBuffer();
+        if (data instanceof ArrayBuffer) {
+          // ttyd binary protocol (live-verified): first byte is the
+          // message type — '0' is terminal output, '1' is session info
+          // (command + session id), '2' is settings. Only output goes
+          // to the terminal; writing the session/settings frames would
+          // print protocol chatter into the prompt.
+          const bytes = new Uint8Array(data);
+          if (bytes.length > 0 && bytes[0] === 48 /* '0' */ && termRef.current) {
+            termRef.current.write(bytes.slice(1));
+          }
+          return;
+        }
+        // Text frames: legacy/JSON handling (unchanged behavior).
         try {
-          const msg = JSON.parse(event.data);
-          // ttyd sends {type: 'output', data: '...'} or similar
+          const msg = JSON.parse(data);
           if (termRef.current && msg.data) {
             termRef.current.write(msg.data);
-          } else if (termRef.current && typeof event.data === 'string' && !event.data.startsWith('{')) {
-            termRef.current.write(event.data);
+          } else if (termRef.current && typeof data === 'string' && !data.startsWith('{')) {
+            termRef.current.write(data);
           }
         } catch {
           // Raw terminal data
-          if (termRef.current) termRef.current.write(event.data);
+          if (termRef.current) termRef.current.write(data);
         }
       };
       
