@@ -335,6 +335,7 @@ export default function ChatPage({
             <ChatThread
               messages={messages}
               streaming={streamingId}
+              thinking={sending && streamingId === null}
               onHuntStatusChange={handleHuntStatusChange}
               onOpenReports={onOpenReports}
               onEditMessage={(msg) => setEditText(msg.text)}

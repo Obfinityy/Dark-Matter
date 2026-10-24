@@ -53,6 +53,21 @@ export default function LiveMachine({ huntId, target }) {
   const [available, setAvailable] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [slot, setSlot] = useState(0);
+  // FIX (24 Oct 2026, owner report): the machine view used to go
+  // fullscreen on stray clicks, and once closed there was no way back
+  // except reopening the hunt. Now: ONLY a click on the screen itself
+  // (or the ⛶ button) expands; the header/border do nothing. ✕ on the
+  // docked card minimises it to a small chip in the same corner — the
+  // live screen stays hidden until the chip is clicked again.
+  const [minimized, setMinimized] = useState(false);
+
+  // Escape exits the fullscreen overlay back to the docked card.
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e) => { if (e.key === 'Escape') setExpanded(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [expanded]);
   const frameUrlRef = useRef('');
 
   useEffect(() => {
@@ -106,6 +121,24 @@ export default function LiveMachine({ huntId, target }) {
     </div>
   );
 
+  if (minimized) {
+    return (
+      <button
+        type="button"
+        className="live-machine-chip"
+        style={{ bottom: 16 + slot * STACK_STEP_PX }}
+        onClick={() => setMinimized(false)}
+        title={`Show live machine view — ${shortTarget}`}
+        aria-label="Show live machine view"
+      >
+        <span className={`live-machine-dot${available ? ' on' : ''}`} aria-hidden="true" />
+        <span className="live-machine-live">LIVE</span>
+        <span className="live-machine-target">{shortTarget}</span>
+        <span aria-hidden="true">▸</span>
+      </button>
+    );
+  }
+
   return (
     <>
       <div
@@ -125,8 +158,24 @@ export default function LiveMachine({ huntId, target }) {
           >
             ⛶
           </button>
+          <button
+            type="button"
+            className="live-machine-expand"
+            onClick={() => setMinimized(true)}
+            title="Minimize to a small chip"
+          >
+            ✕
+          </button>
         </div>
-        <div className="live-machine-screen">{frame}</div>
+        <div
+          className="live-machine-screen live-machine-screen-clickable"
+          onClick={() => setExpanded(true)}
+          title="Click to expand fullscreen"
+          role="button"
+          aria-label="Expand machine view fullscreen"
+        >
+          {frame}
+        </div>
       </div>
 
       {expanded && (
