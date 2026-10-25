@@ -140,9 +140,9 @@ export default function UpiPayPage() {
 
   return (
     <div className="page">
-      <h2>Activate with UPI</h2>
+      <h2>Premium</h2>
       <p className="page-sub">
-        Pay ₹10,000 to <strong>Obfinity</strong> — 1 day of Dark Matter access. No OTP, no gateway:
+        1 day of Dark Matter access. Pay via UPI (no OTP, no gateway):
         pay from any UPI app, then tell us your payment details below.
       </p>
 
@@ -152,7 +152,7 @@ export default function UpiPayPage() {
           {accessActive ? (
             <div className="msg-ok">Access active until {fmtDate(status.accessUntil)}</div>
           ) : (
-            <div className="muted">No active access{status && status.accessUntil ? ` — last access ended ${fmtDate(status.accessUntil)}` : ''}. Pay below to activate for 1 day.</div>
+            <div className="muted">No active access{status && status.accessUntil ? ` — last access ended ${fmtDate(status.accessUntil)}` : ''}. Activate below for 1 day.</div>
           )}
           {typeof status?.balanceUsd === 'number' && status.balanceUsd > 0 && (
             <div className="muted" style={{ marginTop: 6 }}>Credit balance: ${Number(status.balanceUsd).toFixed(2)}</div>

@@ -309,7 +309,7 @@ export default function Sidebar({
           <IconHexagon /> Live machines
         </button>
         <button className={`nav-item${activePage === 'pay' ? ' active' : ''}`} onClick={() => go('pay')}>
-          <IconHexagon /> Pay · ₹10,000{balanceText ? ` · ${balanceText}` : ''}
+          <IconHexagon /> Premium{balanceText ? ` · ${balanceText}` : ''}
         </button>
         <button className={`nav-item${activePage === 'settings' ? ' active' : ''}`} onClick={() => go('settings')}>
           <IconGear /> Settings
