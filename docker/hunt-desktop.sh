@@ -18,7 +18,9 @@
 # Components (all bound to the container's loopback — NOTHING is published
 # to the host or the network):
 #   Xvfb          virtual display :99 (1280x800x24)
-#   fluxbox       minimal window manager
+#   xfce4         FULL desktop — xfce4-session + xfwm4 + xfce4-panel +
+#                 xfdesktop + thunar + xfce4-terminal (owner order
+#                 25 Oct 2026: a complete OS, not a bare window manager)
 #   Chromium      --remote-debugging-port=9222 on 127.0.0.1 (agent drives
 #                 it via CDP from inside its own sandbox; the hacking brain
 #                 on the host remains the sole decision-maker)
@@ -75,12 +77,19 @@ chromium_healthy() {
   fi
 }
 
-if [ -f "$READY_FILE" ] && pgrep -x Xvfb >/dev/null 2>&1 && chromium_healthy; then
+# XFCE session liveness — the desktop is only "already running" when
+# the session manager is up too (a dead panel with a live Xvfb is not
+# a desktop; the script then falls through and restarts the session).
+xfce_alive() {
+  pgrep -x xfce4-session >/dev/null 2>&1
+}
+
+if [ -f "$READY_FILE" ] && pgrep -x Xvfb >/dev/null 2>&1 && chromium_healthy && xfce_alive; then
   echo "desktop already running"
   exit 0
 fi
 
-for bin in Xvfb fluxbox chromium x11vnc websockify xdotool scrot; do
+for bin in Xvfb startxfce4 xfce4-terminal chromium x11vnc websockify xdotool scrot; do
   if ! command -v "$bin" >/dev/null 2>&1; then
     echo "desktop tool missing from image: $bin" >&2
     exit 127
@@ -103,40 +112,35 @@ if ! xdotool getdisplaygeometry >/dev/null 2>&1; then
   exit 1
 fi
 
-# --- Window manager ---------------------------------------------------------
-# Terminal launcher: the image ships no terminal emulator by default, so
-# Ctrl+Alt+T did nothing and the right-click menu had no terminal entry
-# (verified live 25 Oct 2026). fluxbox reads ~/.fluxbox/keys and
-# ~/.fluxbox/menu at startup, so write them BEFORE it first starts.
-# Only created when missing — never clobber an existing config. The keys
-# file intentionally holds just the one binding (window switching still
-# works by mouse: click to focus, titlebar buttons to close); the menu is
-# the minimal hunt set (Terminal, Chromium, Exit). No desktop icon:
-# fluxbox has no desktop-icon support (that needs idesk or similar).
-FLUXBOX_DIR="${HOME:-/root}/.fluxbox"
-mkdir -p "$FLUXBOX_DIR"
-if [ ! -f "$FLUXBOX_DIR/keys" ]; then
-  cat > "$FLUXBOX_DIR/keys" <<'EOF'
-Control Mod1 T :Exec xterm
+# --- Window manager: XFCE full desktop --------------------------------------
+# Owner order 25 Oct 2026: a complete operating system — applications
+# menu, panel, desktop icons, file manager — not a bare window manager
+# with a thin taskbar. startxfce4 starts the session (xfce4-session +
+# xfwm4 + xfce4-panel + xfdesktop).
+# Ctrl+Alt+T: XFCE reads ~/.config/xfce4/xfconf/xfce-perchannel-xml/
+# xfce4-keyboard-shortcuts.xml at session start, so write the binding
+# BEFORE the session first starts. Only created when missing — never
+# clobber an existing config.
+XFCONF_DIR="${HOME:-/root}/.config/xfce4/xfconf/xfce-perchannel-xml"
+mkdir -p "$XFCONF_DIR"
+if [ ! -f "$XFCONF_DIR/xfce4-keyboard-shortcuts.xml" ]; then
+  cat > "$XFCONF_DIR/xfce4-keyboard-shortcuts.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-keyboard-shortcuts" version="1.0">
+  <property name="commands" type="empty">
+    <property name="custom" type="empty">
+      <property name="&lt;Primary&gt;&lt;Alt&gt;t" type="string" value="xfce4-terminal"/>
+    </property>
+  </property>
+</channel>
 EOF
-  log "fluxbox keys: Ctrl+Alt+T -> xterm"
-fi
-if [ ! -f "$FLUXBOX_DIR/menu" ]; then
-  cat > "$FLUXBOX_DIR/menu" <<'EOF'
-[begin] (fluxbox)
-[exec] (Terminal) {xterm}
-[exec] (Chromium) {chromium}
-[separator]
-[exit] (Exit)
-[end]
-EOF
-  log "fluxbox menu: Terminal entry added"
+  log "xfce shortcut: Ctrl+Alt+T -> xfce4-terminal"
 fi
 
-if ! pgrep -x fluxbox >/dev/null 2>&1; then
-  log "starting fluxbox"
-  fluxbox >>"$LOG_FILE" 2>&1 &
-  sleep 1
+if ! xfce_alive; then
+  log "starting xfce (startxfce4)"
+  startxfce4 >>"$LOG_FILE" 2>&1 &
+  sleep 2
 fi
 
 # --- Chromium (the agent's browser) -----------------------------------------

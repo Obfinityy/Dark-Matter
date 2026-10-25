@@ -218,7 +218,7 @@ export async function copyFileFromHuntContainer(huntId, containerPath, hostPath)
 // ---------------------------------------------------------------------------
 // Live Machine desktop (GUI the agent drives; the owner watches).
 //
-// The desktop stack (Xvfb + fluxbox + Chromium + view-only x11vnc +
+// The desktop stack (Xvfb + XFCE + Chromium + view-only x11vnc +
 // websockify/noVNC) lives in the hunt image and is started ON DEMAND via
 // docker/hunt-desktop.sh — never at container boot. v1 transport to the
 // frontend is screenshot polling (the owner's original LiveScreenViewer

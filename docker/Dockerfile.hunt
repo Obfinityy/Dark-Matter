@@ -26,12 +26,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dnsutils net-tools iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
-# Nuclei — vulnerability scanner with templates
-RUN curl -sL https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_Linux_x86_64.zip -o /tmp/nuclei.zip \
-    && unzip -o /tmp/nuclei.zip -d /usr/local/bin/ \
-    && rm /tmp/nuclei.zip \
-    && chmod +x /usr/local/bin/nuclei || true
-
 # Python hacking libs
 RUN pip3 install --no-cache-dir --break-system-packages \
     requests beautifulsoup4 selenium webdriver-manager \
@@ -46,12 +40,18 @@ RUN curl -sL https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
 RUN apt-get update && apt-get install -y --no-install-recommends tmux \
     && rm -rf /var/lib/apt/lists/* || true
 
-# --- Live GUI desktop ("Live Machine") ---
-# A real desktop the agent can drive and the owner can watch:
+# --- Live GUI desktop ("Live Machine") — FULL XFCE desktop -------------------
+# A real desktop the agent can drive and the owner can watch AND use:
 #   xvfb      virtual display :99 (no physical screen on the host)
-#   fluxbox   window manager — chosen over XFCE: a single small binary
-#             (~5 MB) instead of 100 MB+ of panel/desktop/settings
-#             daemons; hunt containers are capped at 4 GB / 1.5 CPU.
+#   xfce4     FULL desktop — panel, applications menu, desktop icons,
+#             file manager (thunar), terminal (xfce4-terminal). Owner
+#             order 25 Oct 2026: "terminal nahi, poora GUI chahiye" —
+#             fluxbox (a bare window manager + thin taskbar) was
+#             replaced because the live check showed a black screen
+#             with no wallpaper, no icons, no menu, nothing clickable.
+#             XFCE core only (xfce4 + panel + desktop + thunar +
+#             terminal); NOT the kali-desktop-xfce metapackage, NOT
+#             GNOME/KDE.
 #   x11vnc    VNC server, always started -viewonly + loopback-only by
 #             docker/hunt-desktop.sh (viewing never grants control).
 #   websockify + novnc   browser VNC client plumbing for the v2 streaming
@@ -59,23 +59,62 @@ RUN apt-get update && apt-get install -y --no-install-recommends tmux \
 #   xdotool   the agent's GUI hands (mouse/keyboard) inside its sandbox.
 #   scrot     screenshot capture for GET /api/v1/hunts/:id/desktop.jpg.
 #   dbus-x11 + x11-xserver-utils: Chromium-under-Xvfb plumbing.
-#   xterm     lightweight terminal emulator — the owner can open a real
-#             terminal on the desktop (fluxbox menu entry + Ctrl+Alt+T,
-#             wired in hunt-desktop.sh). Without it Ctrl+Alt+T did nothing
-#             and the menu had no terminal (verified live 25 Oct 2026).
+#   xterm     lightweight terminal emulator, kept alongside
+#             xfce4-terminal (the agent/owner terminal; Ctrl+Alt+T is
+#             wired to xfce4-terminal in hunt-desktop.sh).
 #   xfonts-base  xterm's default bitmap font (misc-fixed) — with
 #             --no-install-recommends it is NOT pulled in, and xterm then
 #             fails to open with "cannot load font" (verified in a test
 #             container 25 Oct 2026).
+#   fonts-dejavu-core + adwaita-icon-theme + hicolor-icon-theme:
+#             GTK text + menu/panel icons — without them the XFCE panel
+#             and applications menu render blank.
 # The stack is started ON DEMAND by huntRunner.startHuntDesktop (docker
 # exec of hunt-desktop.sh) — nothing here runs at container boot, so
-# ordinary hunts are not slowed. Estimated image growth: ~+80 MB on a
-# multi-GB Kali image.
+# ordinary hunts are not slowed. Estimated image growth: XFCE ~+250 MB.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    xvfb fluxbox x11vnc websockify novnc \
+    xvfb x11vnc websockify novnc \
+    xfce4 xfce4-panel xfdesktop4 thunar xfce4-terminal xfconf xfce4-settings \
     xdotool scrot dbus-x11 x11-xserver-utils \
-    xterm xfonts-base \
+    xterm xfonts-base fonts-dejavu-core adwaita-icon-theme hicolor-icon-theme \
     && rm -rf /var/lib/apt/lists/*
+
+# --- Hacking tools with a GUI (owner order 25 Oct 2026) --------------------
+# Burp Suite (Community) + Wireshark — the two tools the owner named.
+# They were missing from the image (verified live 25 Oct 2026: only
+# nmap/nikto/sqlmap/mitmproxy were present). Both ship their own
+# .desktop entries, so they appear in the XFCE applications menu.
+# Burp pulls a JRE (the big cost here); Wireshark pulls Qt. Metasploit
+# (msfconsole, ~1 GB+) is deliberately NOT installed — the EC2 disk
+# (48 GB, ~5 GB free) cannot afford it; say so, do not silently add it.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    burpsuite wireshark \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- Extra CLI hacking tools (late layer — keep early layers cached) -----
+# nuclei/gobuster/hydra live in their OWN late RUN on purpose: adding
+# them to the first apt block would invalidate every layer after it
+# and force a ~3.5 GB rebuild on a disk with ~5 GB free (the first
+# XFCE build attempt died exactly that way — disk-full at 100%).
+# A late layer keeps future rebuilds cheap.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nuclei gobuster hydra \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- Applications-menu entries for the CLI tools ---------------------------
+# nmap/nikto/sqlmap/nuclei/gobuster/hydra have no GUI and ship no
+# .desktop file, so the XFCE menu would hide them. These entries open
+# each tool in a terminal that stays open afterwards (bash re-execs
+# after the tool exits, so a no-args help dump does not flash away).
+RUN for t in nmap nikto sqlmap nuclei gobuster hydra; do \
+      printf '[Desktop Entry]\nType=Application\nName=%s\nComment=Hacking tool (terminal)\nExec=bash -c "%s; exec bash"\nTerminal=true\nIcon=utilities-terminal\nCategories=System;\n' "$t" "$t" > "/usr/share/applications/$t.desktop"; \
+    done; \
+    printf '[Desktop Entry]\nType=Application\nName=Burp Suite\nComment=Web application security testing (Community Edition)\nExec=burpsuite\nTerminal=false\nCategories=Network;Security;\n' > /usr/share/applications/burpsuite.desktop
+# NOTE: Kali's burpsuite package ships NO .desktop file (verified:
+# dpkg -L burpsuite lists only /usr/bin/burpsuite + the jar), so the
+# entry above is written by hand — without it Burp Suite would not
+# appear in the XFCE applications menu at all. Wireshark DOES ship
+# org.wireshark.Wireshark.desktop, so it needs no hand-written entry.
 COPY docker/hunt-desktop.sh /usr/local/bin/hunt-desktop.sh
 RUN chmod +x /usr/local/bin/hunt-desktop.sh
 
