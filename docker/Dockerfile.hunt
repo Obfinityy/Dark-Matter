@@ -85,8 +85,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # nmap/nikto/sqlmap/mitmproxy were present). Both ship their own
 # .desktop entries, so they appear in the XFCE applications menu.
 # Burp pulls a JRE (the big cost here); Wireshark pulls Qt. Metasploit
-# (msfconsole, ~1 GB+) is deliberately NOT installed — the EC2 disk
-# (48 GB, ~5 GB free) cannot afford it; say so, do not silently add it.
+# (msfconsole) lives in the FULL-toolset late layer below (owner order
+# 25 Oct 2026) — it was deliberately NOT here because the EC2 disk
+# (48 GB, ~5 GB free) is tight; the late layer measures it first.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     burpsuite wireshark \
     && rm -rf /var/lib/apt/lists/*
@@ -101,14 +102,63 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nuclei gobuster hydra \
     && rm -rf /var/lib/apt/lists/*
 
+# --- FULL Kali toolset (owner order 25 Oct 2026, ~21:50 IST) ---------------
+# The owner tested the desktop himself: "Kali jaisa nahi lag raha" — this
+# was a minimal Kali, not real Kali. This lane installs the standard Kali
+# arsenal. Disk is the constraint (EC2 48G, ~5.3G free, floor >=1.5G free
+# after install), so metapackages are NOT installed whole — measured
+# 25 Oct 2026 (apt -s + Installed-Size sums, inside a throwaway container
+# from this image; this apt prints no size summary in -s mode):
+#   kali-tools-top10                  1,894 MB installed (mostly metasploit 1,750 MB)
+#   kali-tools-web                    4,309 MB (apache2 + mysql-server + php + beef-xss + maltego — kitchen sink, does NOT fit)
+#   kali-tools-information-gathering  2,859 MB (does NOT fit whole)
+#   kali-tools-passwords              2,718 MB (incl. kali-tools-gpu + seclists/wordlists 1,896 MB — does NOT fit whole)
+#   kali-tools-vulnerability          2,523 MB (incl. gvm/OpenVAS + afl++/llvm — does NOT fit whole)
+#   all four metapackages             6,610 MB (does NOT fit)
+#   the individual missing-list packages (these layers) ~2,974 MB
+# So: kali-tools-top10 as the metapackage (it IS the canonical top-10 and
+# its new content is exactly aircrack-ng + metasploit-framework + netexec
+# + responder), everything else as individual packages. seclists/wordlists
+# (1,896 MB) and the metapackages' extra breadth are deliberately skipped
+# — reported, not silently dropped. man-db is non-negotiable (owner typed
+# `man` in the terminal and got "man: not found" — man pages exist under
+# /usr/share/man but the binary was missing).
+# Each RUN ends with apt-get clean + rm of lists/archives so .debs never
+# bloat the layer. Split into two RUNs so a disk failure in the second
+# still leaves a usable image with Metasploit in it.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    man-db kali-tools-top10 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tshark ffuf dirb enum4linux smbmap impacket-scripts ncrack zaproxy \
+    sqlninja wpscan theharvester recon-ng httpx-toolkit katana dalfox \
+    xsstrike commix bloodhound neo4j \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+
+# ysoserial is NOT in Kali apt — GitHub release jar (v0.0.6, ~57MB) + a
+# wrapper on PATH. Best-effort (|| true): if the download fails the build
+# still succeeds and ysoserial is reported MISS.
+RUN mkdir -p /usr/local/share && curl -sL https://github.com/frohoff/ysoserial/releases/download/v0.0.6/ysoserial-all.jar \
+    -o /usr/local/share/ysoserial-all.jar \
+    && printf '#!/bin/sh\nexec java -jar /usr/local/share/ysoserial-all.jar "$@"\n' > /usr/local/bin/ysoserial \
+    && chmod +x /usr/local/bin/ysoserial || true
+
 # --- Applications-menu entries for the CLI tools ---------------------------
-# nmap/nikto/sqlmap/nuclei/gobuster/hydra have no GUI and ship no
-# .desktop file, so the XFCE menu would hide them. These entries open
-# each tool in a terminal that stays open afterwards (bash re-execs
-# after the tool exits, so a no-args help dump does not flash away).
-RUN for t in nmap nikto sqlmap nuclei gobuster hydra; do \
+# nmap/nikto/sqlmap/nuclei/gobuster/hydra + the FULL-toolset CLI tools have
+# no GUI and ship no .desktop file, so the XFCE menu would hide them. These
+# entries open each tool in a terminal that stays open afterwards (bash
+# re-execs after the tool exits, so a no-args help dump does not flash away).
+# Notes: httpx-toolkit installs the binary as `httpx`; impacket-scripts is
+# a suite (secretsdump.py, psexec.py, GetUserSPNs.py...) so it gets one entry
+# that opens a terminal; neo4j is a service (`neo4j console`) with no menu
+# entry by design; zaproxy gets an entry ONLY if the package ships none.
+RUN for t in nmap nikto sqlmap nuclei gobuster hydra ffuf dirb enum4linux smbmap netexec responder ncrack sqlninja wpscan theharvester recon-ng httpx katana dalfox xsstrike commix aircrack-ng tshark msfconsole bloodhound ysoserial; do \
       printf '[Desktop Entry]\nType=Application\nName=%s\nComment=Hacking tool (terminal)\nExec=bash -c "%s; exec bash"\nTerminal=true\nIcon=utilities-terminal\nCategories=System;\n' "$t" "$t" > "/usr/share/applications/$t.desktop"; \
     done; \
+    printf '[Desktop Entry]\nType=Application\nName=Impacket\nComment=Network protocol toolkit (secretsdump.py, psexec.py, GetUserSPNs.py)\nExec=bash\nTerminal=true\nIcon=utilities-terminal\nCategories=System;\n' > /usr/share/applications/impacket.desktop; \
+    if ! ls /usr/share/applications/*zap* /usr/share/applications/*zaproxy* >/dev/null 2>&1; then \
+      printf '[Desktop Entry]\nType=Application\nName=OWASP ZAP\nComment=Web application security scanner (ZAP)\nExec=zaproxy\nTerminal=false\nCategories=Network;Security;\n' > /usr/share/applications/zaproxy.desktop; \
+    fi; \
     printf '[Desktop Entry]\nType=Application\nName=Burp Suite\nComment=Web application security testing (Community Edition)\nExec=burpsuite\nTerminal=false\nCategories=Network;Security;\n' > /usr/share/applications/burpsuite.desktop
 # NOTE: Kali's burpsuite package ships NO .desktop file (verified:
 # dpkg -L burpsuite lists only /usr/bin/burpsuite + the jar), so the
