@@ -19,7 +19,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip nodejs npm curl wget git jq \
-    nmap nikto sqlmap nuclei gobuster hydra \
+    nmap nikto sqlmap \
     subfinder amass \
     chromium chromium-driver \
     john hashcat \
@@ -89,6 +89,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # (48 GB, ~5 GB free) cannot afford it; say so, do not silently add it.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     burpsuite wireshark \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- Extra CLI hacking tools (late layer — keep early layers cached) -----
+# nuclei/gobuster/hydra live in their OWN late RUN on purpose: adding
+# them to the first apt block would invalidate every layer after it
+# and force a ~3.5 GB rebuild on a disk with ~5 GB free (the first
+# XFCE build attempt died exactly that way — disk-full at 100%).
+# A late layer keeps future rebuilds cheap.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nuclei gobuster hydra \
     && rm -rf /var/lib/apt/lists/*
 
 # --- Applications-menu entries for the CLI tools ---------------------------
