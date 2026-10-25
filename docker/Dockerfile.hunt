@@ -108,7 +108,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # after the tool exits, so a no-args help dump does not flash away).
 RUN for t in nmap nikto sqlmap nuclei gobuster hydra; do \
       printf '[Desktop Entry]\nType=Application\nName=%s\nComment=Hacking tool (terminal)\nExec=bash -c "%s; exec bash"\nTerminal=true\nIcon=utilities-terminal\nCategories=System;\n' "$t" "$t" > "/usr/share/applications/$t.desktop"; \
-    done
+    done; \
+    printf '[Desktop Entry]\nType=Application\nName=Burp Suite\nComment=Web application security testing (Community Edition)\nExec=burpsuite\nTerminal=false\nCategories=Network;Security;\n' > /usr/share/applications/burpsuite.desktop
+# NOTE: Kali's burpsuite package ships NO .desktop file (verified:
+# dpkg -L burpsuite lists only /usr/bin/burpsuite + the jar), so the
+# entry above is written by hand — without it Burp Suite would not
+# appear in the XFCE applications menu at all. Wireshark DOES ship
+# org.wireshark.Wireshark.desktop, so it needs no hand-written entry.
 COPY docker/hunt-desktop.sh /usr/local/bin/hunt-desktop.sh
 RUN chmod +x /usr/local/bin/hunt-desktop.sh
 
