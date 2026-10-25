@@ -37,6 +37,36 @@ import { summarizeToolOutput } from './toolOutput.js';
 export const ARTIFACT_MAX_BYTES = 16 * 1024 * 1024;
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$/;
 
+// Lane AL (25 Oct 2026) — the container-local path an artifact is copied
+// to when RUN_ARTIFACT executes it. The write_file observation names this
+// path so the hunter never mistakes its own script for a target URL.
+export const CONTAINER_ARTIFACT_DIR = '/tmp/dm-artifacts';
+
+/**
+ * Lane AL (25 Oct 2026) — the not-on-target line every write observation
+ * carries. Observed failure (Infomaniak hunt, live): the hunter kept
+ * trying to download its own write_file script FROM the target website
+ * (curl -O https://ksuite.infomaniak.com/login_curl.sh, wget, browser_open
+ * — dedupe-blocked 28x overnight) because the old observation said only
+ * "saved in your hunt workspace" and never said where the file lives or
+ * that it is not on the target.
+ */
+export function artifactNotOnTargetNote() {
+  return `This file exists ONLY inside your hunt container — NOT on the target website, NOT served at any target URL. NEVER download it from the target with curl, wget, or browser_open.`;
+}
+
+/**
+ * Lane AL — the write_file action observation. Names the exact
+ * container-local path, states the file is not on the target, and points
+ * at the local RUN_ARTIFACT route instead. Front-loaded: the persisted
+ * reasoning note truncates observations to 300 chars, so the path and the
+ * prohibition both sit inside the first ~270.
+ */
+export function writeFileObservation(name, chars) {
+  const n = String(name || '');
+  return `Saved ${n} (${chars} chars, permanent) at container path ${CONTAINER_ARTIFACT_DIR}/${n}. ${artifactNotOnTargetNote()} Run it locally: {"action":"shell","command":"RUN_ARTIFACT: ${n}"} — RUN_ARTIFACT copies it into the container and runs it; you see the output next turn.`;
+}
+
 export function artifactsDir(huntId) {
   const dir = path.join(huntDir(huntId), 'artifacts');
   fs.mkdirSync(dir, { recursive: true });
@@ -143,7 +173,7 @@ async function defaultRunInContainer(huntId, name) {
   const { execInHuntContainer, copyFileToHuntContainer } = await import('./huntRunner.js');
   const info = artifactInfo(huntId, name);
   if (!info) return { stdout: '', stderr: `artifact ${name} not found`, code: 1 };
-  const destDir = '/tmp/dm-artifacts';
+  const destDir = CONTAINER_ARTIFACT_DIR;
   const dest = `${destDir}/${name}`;
   const copied = await copyFileToHuntContainer(huntId, info.path, dest);
   if (!copied.ok) return { stdout: '', stderr: copied.error || 'copy into container failed', code: 1 };
@@ -171,7 +201,7 @@ export async function handleArtifactCommand(huntId, command, deps = {}) {
         ? writeArtifact(huntId, name, content)
         : appendArtifact(huntId, name, content);
       return {
-        stdout: `Artifact ${r.name} saved in full: ${r.chars} chars (sha256 ${r.sha256.slice(0, 12)}). It is stored permanently in your hunt workspace. RUN_ARTIFACT: ${r.name} executes it; READ_ARTIFACT: ${r.name} reads it back.`,
+        stdout: `Artifact ${r.name} saved in full: ${r.chars} chars (sha256 ${r.sha256.slice(0, 12)}). Container path ${CONTAINER_ARTIFACT_DIR}/${r.name}. ${artifactNotOnTargetNote()} RUN_ARTIFACT: ${r.name} executes it; READ_ARTIFACT: ${r.name} reads it back.`,
         stderr: '',
         exitCode: 0,
       };

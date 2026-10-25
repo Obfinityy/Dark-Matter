@@ -39,7 +39,7 @@
 import { execInHuntContainerWithRespawn } from './huntRunner.js';
 import { chatWithAI } from './llm.js';
 import { webSearch } from './webSearch.js';
-import { writeArtifact, spillOutput, artifactInfo } from './artifacts.js';
+import { writeArtifact, spillOutput, artifactInfo, writeFileObservation } from './artifacts.js';
 import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents } from './store.js';
 import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
@@ -2667,7 +2667,11 @@ export async function humanIteration(huntId, target, opts = {}) {
       toolCall('write_file', name);
       try {
         const w = await deps.writeFile(huntId, name, content);
-        observation = `Saved ${w.name || name} in your hunt workspace (${(w.chars ?? content.length)} chars, permanent). Run it any time with a shell action: {"action":"shell","command":"RUN_ARTIFACT: ${w.name || name}"} — it executes inside your container and you see the output next turn.`;
+        // Lane AL: the observation names the container-local path and
+        // states the file is NOT on the target — the old "saved in your
+        // hunt workspace" left the hunter downloading its own script
+        // from the target URL (28 dedupe blocks, Infomaniak, Oct 2026).
+        observation = writeFileObservation(w.name || name, w.chars ?? content.length);
       } catch (err) {
         observation = `write_file failed: ${err.message || err}`;
       }
