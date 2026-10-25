@@ -27,7 +27,7 @@ function stubScript(name, body) {
   return `#!/bin/sh\n${body}\n`;
 }
 
-async function makeHarness(t, initialState, { withCurl = true, minimalPath = false, withXfconf = false } = {}) {
+async function makeHarness(t, initialState, { withCurl = true, minimalPath = false, withXfconf = false, withXrandr = true, xrandrOutput = 'screen connected 1280x800+0+0 0mm x 0mm' } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'dm-desktop-test-'));
   t.after(async () => {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
@@ -113,7 +113,7 @@ case "$*" in
     esac;;
 esac
 case "$*" in
-  *"/backdrop/screen0/monitor0/image-path"*)
+  *"/workspace0/image-path"*)
     case "$*" in
       *" -s "*) echo "$*" | sed 's/.* -s //' > "$STUB_STATE_DIR/xfconf-wallpaper"; exit 0;;
       *) cat "$STUB_STATE_DIR/xfconf-wallpaper"; exit 0;;
@@ -132,9 +132,16 @@ esac
 exit 0`,
     );
     await writeStub('xfce4-panel', `echo "xfce4-panel $*" >> "$STUB_LOG"\nexit 0`);
+    // xrandr stub: reports the RandR output name xfdesktop 4.20 keys the
+    // backdrop to (Xvfb: "screen"). withXrandr=false omits it; an empty
+    // xrandrOutput reports no connected output — both make the script
+    // fall back to the numeric monitor0 path.
+    if (withXrandr) {
+      await writeStub('xrandr', `echo "xrandr $*" >> "$STUB_LOG"\necho "${xrandrOutput}"\nexit 0`);
+    }
   }
   // Recording stubs for everything the script launches or probes.
-  for (const name of ['chromium', 'Xvfb', 'startxfce4', 'xfce4-terminal', 'x11vnc', 'websockify', 'xdotool', 'scrot', 'xfdesktop']) {
+  for (const name of ['chromium', 'Xvfb', 'startxfce4', 'xfce4-terminal', 'x11vnc', 'websockify', 'xdotool', 'scrot']) {
     await writeStub(name, `echo "${name} $*" >> "$STUB_LOG"\nexit 0`);
   }
 
@@ -320,16 +327,17 @@ test('KT-1: cold start with the Kali theme installed applies it (theme, icons, w
     'xfconf-query -c xsettings -p /Net/IconThemeName -n -t string -s Flat-Remix-Blue-Dark',
     'xfconf-query -c xsettings -p /Gtk/FontName -n -t string -s Cantarell 11',
     'xfconf-query -c xfwm4 -p /general/theme -n -t string -s Kali-Dark',
+    `xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorscreen/workspace0/image-path -n -t string -s ${wallpaper}`,
+    `xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorscreen/workspace0/image-style -n -t int -s 5`,
+    `xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/image-path -n -t string -s ${wallpaper}`,
     `xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-path -n -t string -s ${wallpaper}`,
-    `xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-style -n -t int -s 5`,
     'xfconf-query -c xfce4-panel -p /plugins/plugin-1 -t string -s whiskermenu',
     'xfconf-query -c xfce4-panel -p /plugins/plugin-1/button-icon -n -t string -s kali-panel-menu',
     'xfce4-panel -r',
-    'xfdesktop --reload',
   ]) {
     assert.ok(log.includes(want), `missing call: ${want}`);
   }
-  assert.equal(log.includes('workspace0'), false, 'the workspace0 path is inert on this xfdesktop and must never be written');
+  assert.equal(log.includes('xfdesktop '), false, 'xfdesktop --reload cannot reach the running instance (no session bus) and must not be called');
   assert.match(await h.scriptLog(), /kali theme applied/);
   await readFile(h.readyPath, 'utf8'); // throws if the ready file was not created
 });
@@ -357,7 +365,6 @@ test('KT-3: theme already Kali-Dark AND wallpaper already set — the apply is a
   assert.equal(log.includes(' -s Kali-Dark'), false, 'no set calls when already Kali-Dark');
   assert.equal(log.includes('whiskermenu'), false, 'no panel swap when already Kali-Dark');
   assert.equal(await h.hasCall('xfce4-panel '), false, 'no panel restart when already Kali-Dark');
-  assert.equal(await h.hasCall('xfdesktop '), false, 'no backdrop reload when already applied');
 });
 
 test('KT-4: xfconf unreachable — the desktop still starts and the theme is skipped, never fatal', async (t) => {
@@ -374,11 +381,16 @@ test('KT-4: xfconf unreachable — the desktop still starts and the theme is ski
 // The first proof run showed a black desktop: the fast path returned
 // early when the theme was already Kali-Dark (a fresh session comes up
 // Kali-Dark from the /etc/xdg defaults), so the wallpaper was never
-// set — and the path it would have used (workspace0) is one this
-// xfdesktop never reads. The fast path must check the wallpaper too,
-// and the wallpaper goes to the per-monitor properties.
+// set. The second proof run set the wallpaper at the numeric monitor
+// paths and still showed black: xfdesktop 4.20 reads the backdrop from
+// PER-MONITOR-NAME properties (/backdrop/screen0/monitor<NAME>/workspace0/,
+// Xvfb reports "screen"), not the numeric monitor0 paths — and
+// `xfdesktop --reload` cannot reach the running instance without a
+// session bus, so the change must arrive via the xfconf notification
+// (proven live: blue -> purple with no restart). The fast path must
+// check the wallpaper too, at the monitor-name path.
 
-test('KT-5: theme already Kali-Dark but wallpaper unset — the apply runs and sets the wallpaper at the monitor path (never workspace0)', async (t) => {
+test('KT-5: theme already Kali-Dark but wallpaper unset — the apply runs and sets the wallpaper at the monitor-name path', async (t) => {
   const h = await makeHarness(t, { 'xfconf-theme': 'Kali-Dark' }, { withXfconf: true });
   const themeDir = join(h.dir, 'Kali-Dark');
   const wallpaper = join(h.dir, 'kali-wallpaper.jpg');
@@ -387,11 +399,9 @@ test('KT-5: theme already Kali-Dark but wallpaper unset — the apply runs and s
   const res = await h.run({ DM_KALI_THEME_DIR: themeDir, DM_KALI_WALLPAPER: wallpaper });
   assert.equal(res.code, 0);
   const log = await h.calls();
-  assert.ok(log.includes(`xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-path -n -t string -s ${wallpaper}`), 'wallpaper must be set at the monitor path');
-  assert.ok(log.includes(`xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor1/image-path -n -t string -s ${wallpaper}`), 'other monitors get the wallpaper too');
-  assert.ok(log.includes(`xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-style -n -t int -s 5`), 'zoomed style must be set');
-  assert.equal(log.includes('workspace0'), false, 'the workspace0 path is inert on this xfdesktop and must never be written');
-  assert.equal(await h.hasCall('xfdesktop '), true, 'xfdesktop must be reloaded so the backdrop redraws');
+  assert.ok(log.includes(`xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorscreen/workspace0/image-path -n -t string -s ${wallpaper}`), 'wallpaper must be set at the monitor-name path xfdesktop 4.20 reads');
+  assert.ok(log.includes(`xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/image-path -n -t string -s ${wallpaper}`), 'the numeric monitor path is set too as a fallback');
+  assert.ok(log.includes(`xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorscreen/workspace0/image-style -n -t int -s 5`), 'zoomed style must be set');
   assert.match(await h.scriptLog(), /kali theme applied/);
   await readFile(h.readyPath, 'utf8');
 });
@@ -403,8 +413,22 @@ test('KT-6: wallpaper file missing — the theme-only fast path still applies (n
   const res = await h.run({ DM_KALI_THEME_DIR: themeDir, DM_KALI_WALLPAPER: join(h.dir, 'no-such-wallpaper.jpg') });
   assert.equal(res.code, 0);
   const log = await h.calls();
-  assert.equal(log.includes('/backdrop/screen0/monitor0/image-path -n'), false, 'no wallpaper set when the file is missing');
-  assert.equal(await h.hasCall('xfdesktop '), false, 'no backdrop reload when there is no wallpaper');
+  assert.equal(log.includes('image-path -n'), false, 'no wallpaper set when the file is missing');
   assert.equal(log.includes(' -s Kali-Dark'), false, 'no set calls when already Kali-Dark');
+  await readFile(h.readyPath, 'utf8');
+});
+
+test('KT-7: xrandr reports no connected output — the wallpaper falls back to the numeric monitor0 path', async (t) => {
+  const h = await makeHarness(t, {}, { withXfconf: true, xrandrOutput: '' });
+  const themeDir = join(h.dir, 'Kali-Dark');
+  const wallpaper = join(h.dir, 'kali-wallpaper.jpg');
+  await mkdir(themeDir);
+  await writeFile(wallpaper, 'fake wallpaper');
+  const res = await h.run({ DM_KALI_THEME_DIR: themeDir, DM_KALI_WALLPAPER: wallpaper });
+  assert.equal(res.code, 0);
+  const log = await h.calls();
+  assert.equal(log.includes('monitorscreen'), false, 'no monitor-name path when xrandr reports nothing');
+  assert.ok(log.includes(`xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/image-path -n -t string -s ${wallpaper}`), 'fallback sets the numeric monitor path');
+  assert.match(await h.scriptLog(), /kali theme applied/);
   await readFile(h.readyPath, 'utf8');
 });
