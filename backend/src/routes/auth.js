@@ -109,6 +109,29 @@ export function verifyTerminalTicket(token) {
   return payload;
 }
 
+// ---- Machine-control tickets (Take Control of This Machine) ------------
+// Short-lived (60s) tickets bound to (user, hunt), same HS256 secret
+// as login tokens, type 'control' so a terminal ticket can never open
+// a control channel (and vice versa). Only issuable while the caller
+// holds the control lock for the hunt (see routes/hunts.js).
+export function issueControlTicket(userId, username, huntId) {
+  const now = Math.floor(Date.now() / 1000);
+  return signToken({
+    sub: userId,
+    username,
+    type: 'control',
+    huntId,
+    iat: now,
+    exp: now + 60,
+  });
+}
+
+export function verifyControlTicket(token) {
+  const payload = verifyToken(token);
+  if (!payload || payload.type !== 'control' || !payload.huntId) return null;
+  return payload;
+}
+
 // ---- Password hashing (scrypt) ----------------------------------------------
 
 export function hashPassword(password) {

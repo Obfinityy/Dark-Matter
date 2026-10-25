@@ -16,7 +16,14 @@ import {
 import { recordEngineEvent, getCachedEvents } from './routes/hunts.js';
 import huntsRouter from './routes/hunts.js';
 import authRouter from './routes/auth.js';
-import { ensureAdmin, verifyTerminalTicket } from './routes/auth.js';
+import { ensureAdmin, verifyTerminalTicket, verifyControlTicket } from './routes/auth.js';
+import {
+  getControl,
+  releaseControl,
+  spawnControlTunnel,
+  stopControlDesktop,
+  CONTROL_TTL_MS,
+} from './machineControl.js';
 import adminRouter from './routes/admin.js';
 import chatRouter from './routes/chat.js';
 import chatsRouter from './routes/chats.js';
@@ -127,6 +134,21 @@ server.on('upgrade', (req, socket, head) => {
     }
     wssTerm.handleUpgrade(req, socket, head, (ws) => {
       wssTerm.emit('connection', ws, req, decodeURIComponent(termMatch[1]), ticket);
+    });
+    return;
+  }
+  const controlMatch = /^\/api\/v1\/hunts\/([^/]+)\/control$/.exec(req.url.split('?')[0] || '');
+  if (controlMatch) {
+    // Machine-control WS: validate ticket from query param
+    const url = new URL(req.url, 'http://localhost');
+    const ticket = url.searchParams.get('ticket');
+    if (!ticket) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+    wssControl.handleUpgrade(req, socket, head, (ws) => {
+      wssControl.emit('connection', ws, req, decodeURIComponent(controlMatch[1]), ticket);
     });
     return;
   }
@@ -250,6 +272,130 @@ wssTerm.on('connection', async (ws, req, huntId, ticket) => {
   } catch (err) {
     if (ws.readyState === ws.OPEN) ws.close(1008, 'auth failed');
     if (ttydWs) ttydWs.close();
+  }
+});
+
+// ---- WebSocket: WS /api/v1/hunts/:id/control?ticket=... --------------------
+// Take Control of This Machine: the owner drives the hunt container's
+// Kali desktop (full mouse + keyboard) through the noVNC client in the
+// frontend. The backend is a dumb byte pipe: browser WS frames (raw RFB
+// bytes) <-> `docker exec -i` stdio of the python forwarder that talks
+// to the interactive VNC on the container loopback (see
+// machineControl.spawnControlTunnel). No TCP port to the container is
+// ever opened, and the interactive VNC exists only while the lock is
+// held. Ticket is a 60s JWT bound to (userId, huntId), type 'control'.
+// Exactly ONE viewer: the lock holder. Closing the socket releases the
+// lock and kills the interactive VNC, so Done / Cancel / a crashed tab
+// all hand the machine back to the AI.
+const wssControl = new WebSocketServer({ noServer: true });
+const CONTROL_VIEWERS = new Map(); // huntId -> ws (single holder)
+const CONTROL_HEARTBEAT_MS = 30000;
+
+wssControl.on('connection', async (ws, req, huntId, ticket) => {
+  let tunnel = null;
+  let released = false;
+  const release = async () => {
+    if (released) return;
+    released = true;
+    try {
+      const payload = verifyControlTicket(ticket);
+      if (payload) {
+        releaseControl(huntId, { id: payload.sub, role: 'user' });
+      }
+    } catch { /* lock already gone is fine */ }
+    try { await stopControlDesktop(huntId); } catch { /* best-effort */ }
+  };
+  try {
+    const payload = verifyControlTicket(ticket);
+    if (!payload || payload.huntId !== huntId) {
+      throw new Error('invalid ticket');
+    }
+
+    const { readHuntMeta } = await import('./store.js');
+    const meta = readHuntMeta(huntId);
+    if (!meta || !['running', 'paused'].includes(meta.state)) {
+      throw new Error('hunt not active');
+    }
+
+    // Only the lock holder may open the channel — a ticket alone is
+    // not enough (it outlives a release by up to 60s).
+    const lock = getControl(huntId);
+    if (!lock || lock.userId !== String(payload.sub)) {
+      throw new Error('control not held');
+    }
+
+    // One viewer: the holder. A second socket for the same hunt is a
+    // stale tab, not a second driver.
+    if (CONTROL_VIEWERS.has(huntId)) {
+      ws.close(1013, 'already controlling');
+      return;
+    }
+    CONTROL_VIEWERS.set(huntId, ws);
+
+    // Heartbeat (same discipline as the terminal proxy): a missed pong
+    // means a dead tab — terminate it so the lock frees instead of
+    // leaking until its TTL.
+    let controlAlive = true;
+    ws.on('pong', () => { controlAlive = true; });
+    const controlHeartbeat = setInterval(() => {
+      if (!controlAlive) {
+        ws.terminate();
+        return;
+      }
+      controlAlive = false;
+      try { ws.ping(); } catch { /* closing already */ }
+    }, CONTROL_HEARTBEAT_MS);
+    ws.on('close', () => clearInterval(controlHeartbeat));
+
+    // Open the RFB tunnel to the container-loopback VNC. A spawn
+    // failure (docker missing) or an immediate child exit (python
+    // could not connect to 5901) closes the socket honestly — the
+    // frontend shows the reason instead of a fake desktop.
+    try {
+      tunnel = spawnControlTunnel(huntId);
+    } catch (err) {
+      ws.close(1011, 'control unreachable');
+      return;
+    }
+    tunnel.on('error', () => {
+      if (ws.readyState === ws.OPEN) ws.close(1011, 'control unreachable');
+    });
+    tunnel.on('close', () => {
+      if (ws.readyState === ws.OPEN) ws.close(1011, 'control closed');
+    });
+
+    // Browser -> container (RFB input: mouse, keyboard, clipboard).
+    ws.on('message', (data) => {
+      try {
+        if (tunnel && tunnel.stdin && !tunnel.stdin.destroyed) tunnel.stdin.write(data);
+      } catch { /* tunnel already gone */ }
+    });
+    // Container -> browser (RFB framebuffer updates). Binary frames.
+    tunnel.stdout.on('data', (chunk) => {
+      if (ws.readyState === ws.OPEN) ws.send(chunk);
+    });
+
+    ws.on('close', async () => {
+      CONTROL_VIEWERS.delete(huntId);
+      if (tunnel) {
+        try { tunnel.kill('SIGTERM'); } catch { /* already dead */ }
+      }
+      await release();
+    });
+
+    // Idle timeout: the lock TTL. A held-but-silent socket is closed
+    // so the machine returns to the AI instead of sitting locked.
+    const idleTimer = setTimeout(() => {
+      if (ws.readyState === ws.OPEN) ws.close(1000, 'control idle timeout');
+    }, CONTROL_TTL_MS);
+    ws.on('close', () => clearTimeout(idleTimer));
+
+  } catch (err) {
+    if (ws.readyState === ws.OPEN) ws.close(1008, 'auth failed');
+    if (tunnel) {
+      try { tunnel.kill('SIGTERM'); } catch { /* already dead */ }
+    }
+    await release();
   }
 });
 

@@ -40,6 +40,7 @@ import { execInHuntContainerWithRespawn } from './huntRunner.js';
 import { chatWithAI } from './llm.js';
 import { webSearch } from './webSearch.js';
 import { writeArtifact, spillOutput, artifactInfo, writeFileObservation } from './artifacts.js';
+import { isMachineControlled, getControl } from './machineControl.js';
 import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents } from './store.js';
 import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
@@ -1606,6 +1607,21 @@ function gatedCandidate(kind, action) {
  * the figure the block observation, the dedup_block event and
  * Lane AD's settled lines have always carried.
  */
+// Take Control of This Machine — the action kinds that DRIVE the
+// desktop (CDP browser actions + the vault fill that clicks/types).
+// While the owner holds the control lock these are skipped, never
+// executed, so the agent's clicks can never fight the owner's input.
+// Everything else (shell, search, recall, planning, coverage) keeps
+// running — the hunt itself is never paused by a takeover.
+export const GUI_CONTROL_KINDS = new Set([
+  'browser_open',
+  'browser_snapshot',
+  'browser_click',
+  'browser_type',
+  'screenshot',
+  'use_saved_credential',
+]);
+
 export function dedupeGateHit(kind, action, history) {
   const cand = gatedCandidate(String(kind || '').toLowerCase(), action || {});
   if (!cand || !cand.detail.trim()) return null;
@@ -2175,6 +2191,10 @@ export async function humanIteration(huntId, target, opts = {}) {
     pocExists: d.pocExists || ((h, name) => Boolean(artifactInfo(h, name))),
     assess: 'assess' in d ? d.assess : (opts.assess || undefined), // undefined -> lazy pipeline assessResult; null -> disabled
     gui: d.gui || null, // lazy: guiTools bound to execRaw
+    // Take Control of This Machine: while the owner holds the control
+    // lock, the agent's GUI/browser actions are skipped (see the
+    // control gate in the ACT section). Tests inject a stub here.
+    machineControlled: d.machineControlled || ((h) => isMachineControlled(h)),
     intercept: d.intercept || null, // lazy: proxyIntercept bound to execRaw (Lane U)
     sleep: d.sleep || ((ms) => new Promise((r) => setTimeout(r, ms))),
     now: d.now || (() => Date.now()),
@@ -2563,7 +2583,22 @@ export async function humanIteration(huntId, target, opts = {}) {
     // gate below runs exactly as before for actions that pass.
     const gateHit = dedupeGateHit(kind, action, actionHistory);
     const authHit = authGateHit(kind, action, actionHistory, lastObservation);
-    if (authHit) {
+    const controlHit = GUI_CONTROL_KINDS.has(kind) && deps.machineControlled(huntId);
+    if (controlHit) {
+      // TAKE-CONTROL GATE — checked FIRST, before the auth and dedupe
+      // gates: while the owner drives the desktop by hand, ANY agent
+      // GUI action would fight their mouse and keyboard. The action
+      // is skipped cleanly (a countable control_pause event, like
+      // auth_block / dedup_block) and the brain is told to spend the
+      // turn on non-GUI work instead — shell, search, recall, or
+      // planning — and to try GUI actions again on a later turn, when
+      // the owner has pressed Done or Cancel.
+      const holder = (() => { try { return getControl(huntId); } catch { return null; } })();
+      try { deps.record(huntId, { type: 'control_pause', tool: kind, detail: detailForAction(kind, action), via: 'human-mode' }); } catch { /* best-effort */ }
+      say(`Owner is controlling the machine — GUI action ${kind} paused.`);
+      observation = `PAUSED — THE OWNER IS CONTROLLING THE MACHINE${holder ? ` (${holder.username})` : ''}: your ${kind} action was NOT executed. The owner is driving the desktop by hand right now; any click or keystroke you send would fight their input. Do NOT retry a GUI action — use this turn for shell, search, recall, or planning instead, and try GUI actions again on a later turn. Control ends when the owner presses Done or Cancel.`;
+      note({ action: `control_pause: ${kind} ${detailForAction(kind, action).slice(0, 120)}`, why: thinkingText, result: 'paused — owner in control', learned: 'While the owner controls the machine, GUI actions are skipped; work without the desktop.' });
+    } else if (authHit) {
       // AUTH-LOOP GATE (Lane AJ) — checked BEFORE the dedupe gate.
       // When both apply (a re-type on the sign-in page), the auth
       // redirect is strictly more useful than the generic repeat
