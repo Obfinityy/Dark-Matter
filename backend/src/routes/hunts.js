@@ -737,15 +737,18 @@ router.post('/:id/control/take', requireAuth, async (req, res) => {
   const user = { id: req.user.id || req.user.sub, username: req.user.username, role: req.user.role };
   const taken = takeControl(req.params.id, user);
   if (!taken.ok) {
+    console.warn(`[control] take DENIED hunt=${req.params.id} user=${user.username} error=already_controlled holder=${taken.holder}`);
     return res.status(409).json({ ok: false, error: 'already_controlled', holder: taken.holder });
   }
   const started = await startControlDesktop(req.params.id);
   if (!started.ok) {
     // Honest failure: the lock is freed again so a retry is possible,
     // and the frontend shows the real reason instead of a fake control.
+    console.warn(`[control] take FAILED hunt=${req.params.id} user=${user.username} error=${started.error} (lock freed)`);
     releaseControl(req.params.id, user);
     return res.status(503).json({ ok: false, error: 'control_unavailable', detail: started.error });
   }
+  console.log(`[control] take OK hunt=${req.params.id} user=${user.username} vncAlreadyRunning=${Boolean(started.alreadyRunning)}`);
   return res.json({
     ok: true,
     controlled: true,
@@ -760,9 +763,11 @@ router.post('/:id/control/release', requireAuth, async (req, res) => {
   const user = { id: req.user.id || req.user.sub, username: req.user.username, role: req.user.role };
   const rel = releaseControl(req.params.id, user);
   if (!rel.ok) {
+    console.warn(`[control] release DENIED hunt=${req.params.id} user=${user.username} error=${rel.error}`);
     const status = rel.error === 'not_controlled' ? 409 : 403;
     return res.status(status).json({ ok: false, error: rel.error });
   }
+  console.log(`[control] release OK hunt=${req.params.id} user=${user.username}`);
   // Best-effort: the interactive VNC dies with the release even if
   // the container is already gone.
   await stopControlDesktop(req.params.id);
@@ -791,6 +796,12 @@ router.get('/:id/control/ticket', requireAuth, (req, res) => {
   const lock = getControl(req.params.id);
   const userId = String(req.user.id || req.user.sub || '');
   if (!lock || (lock.userId !== userId && req.user.role !== 'admin')) {
+    // LANE AN (25 Oct 2026): this denial is the signature of the
+    // take/ticket race — the frontend used to fetch the ticket while
+    // the take POST was still in flight, so the lock was not held yet
+    // and the first attempt failed with "Could not open the control
+    // channel". Log it so a recurrence is visible in the journal.
+    console.warn(`[control] ticket DENIED hunt=${req.params.id} user=${req.user.username} lockHeld=${Boolean(lock)}`);
     return res.status(403).json({ ok: false, error: 'not_controlling' });
   }
   const ticket = issueControlTicket(req.user.id || req.user.sub, req.user.username, req.params.id);

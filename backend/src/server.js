@@ -327,6 +327,7 @@ wssControl.on('connection', async (ws, req, huntId, ticket) => {
     // One viewer: the holder. A second socket for the same hunt is a
     // stale tab, not a second driver.
     if (CONTROL_VIEWERS.has(huntId)) {
+      console.warn(`[control] WS DENIED hunt=${huntId} user=${payload.username || payload.sub} error=already_controlling`);
       ws.close(1013, 'already controlling');
       return;
     }
@@ -354,13 +355,17 @@ wssControl.on('connection', async (ws, req, huntId, ticket) => {
     try {
       tunnel = spawnControlTunnel(huntId);
     } catch (err) {
+      console.error(`[control] tunnel spawn FAILED hunt=${huntId} error=${err.message || err}`);
       ws.close(1011, 'control unreachable');
       return;
     }
-    tunnel.on('error', () => {
+    console.log(`[control] WS open hunt=${huntId} user=${payload.username || payload.sub}`);
+    tunnel.on('error', (err) => {
+      console.error(`[control] tunnel error hunt=${huntId} error=${err && err.message ? err.message : err}`);
       if (ws.readyState === ws.OPEN) ws.close(1011, 'control unreachable');
     });
-    tunnel.on('close', () => {
+    tunnel.on('close', (code, signal) => {
+      console.warn(`[control] tunnel exit hunt=${huntId} code=${code} signal=${signal || '-'}`);
       if (ws.readyState === ws.OPEN) ws.close(1011, 'control closed');
     });
 
@@ -375,7 +380,8 @@ wssControl.on('connection', async (ws, req, huntId, ticket) => {
       if (ws.readyState === ws.OPEN) ws.send(chunk);
     });
 
-    ws.on('close', async () => {
+    ws.on('close', async (code, reason) => {
+      console.log(`[control] WS close hunt=${huntId} code=${code} reason=${String(reason || '')}`);
       CONTROL_VIEWERS.delete(huntId);
       if (tunnel) {
         try { tunnel.kill('SIGTERM'); } catch { /* already dead */ }
@@ -386,11 +392,15 @@ wssControl.on('connection', async (ws, req, huntId, ticket) => {
     // Idle timeout: the lock TTL. A held-but-silent socket is closed
     // so the machine returns to the AI instead of sitting locked.
     const idleTimer = setTimeout(() => {
-      if (ws.readyState === ws.OPEN) ws.close(1000, 'control idle timeout');
+      if (ws.readyState === ws.OPEN) {
+        console.warn(`[control] WS idle timeout hunt=${huntId}`);
+        ws.close(1000, 'control idle timeout');
+      }
     }, CONTROL_TTL_MS);
     ws.on('close', () => clearTimeout(idleTimer));
 
   } catch (err) {
+    console.warn(`[control] WS auth FAILED hunt=${huntId} error=${err.message || err}`);
     if (ws.readyState === ws.OPEN) ws.close(1008, 'auth failed');
     if (tunnel) {
       try { tunnel.kill('SIGTERM'); } catch { /* already dead */ }

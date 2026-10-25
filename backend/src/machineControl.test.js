@@ -6,6 +6,8 @@
 // is tested against injected exec fakes (no docker, no container).
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import net from 'node:net';
 import {
   takeControl,
   releaseControl,
@@ -179,4 +181,120 @@ test('MC-15: the forwarder connects to the loopback control VNC only', () => {
   assert.match(CONTROL_FORWARDER_CODE, new RegExp(`127\\.0\\.0\\.1', ${CONTROL_VNC_PORT}`));
   assert.doesNotMatch(CONTROL_FORWARDER_CODE, /0\.0\.0\.0/);
   assert.doesNotMatch(CONTROL_FORWARDER_CODE, /websockify|6080|5900/);
+});
+
+// ---------------------------------------------------------------------------
+// Lane AN — forwarder liveness (live bug, 25 Oct 2026): the forwarder read
+// stdin with `sys.stdin.buffer.read(65536)`, and BufferedReader.read(n)
+// waits for EXACTLY n bytes or EOF — so the browser's 12-byte RFB
+// version reply sat in the forwarder forever while the 5901 VNC waited
+// for the client's protocol version and then dropped the connection
+// ("rfbProcessClientProtocolVersion: client gone"). These tests run the
+// REAL forwarder code (`python3 -c CONTROL_FORWARDER_CODE`) against a
+// throwaway TCP server standing in for the control VNC on 127.0.0.1:5901
+// (docker is not needed: the forwarder only ever talks TCP + stdio).
+// MC-16 FAILS against the old code (12 bytes never arrive within the
+// timeout) and PASSES with the fix; MC-17 guards the reverse direction,
+// which was already live (s.recv returns as soon as data is available).
+// ---------------------------------------------------------------------------
+
+// The browser's RFB protocol-version reply: exactly 12 bytes.
+const RFB_VERSION = 'RFB 003.008\n';
+const FORWARD_TIMEOUT_MS = 1500;
+
+function failAfter(ms, what) {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(`${what} did not arrive within ${ms}ms`)), ms);
+  });
+}
+
+// Collect exactly `n` bytes from an EventEmitter stream, then resolve
+// with them as a string. Rejects with the forwarder's stderr if the
+// child dies before delivering (a python error must not surface as a
+// bare timeout).
+function collectN(stream, n, child) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let got = 0;
+    let err = '';
+    const onData = (c) => {
+      chunks.push(c);
+      got += c.length;
+      if (got >= n) finish();
+    };
+    const finish = () => {
+      cleanup();
+      resolve(Buffer.concat(chunks).subarray(0, n).toString());
+    };
+    const onErr = (c) => { err += String(c); };
+    const onExit = () => {
+      cleanup();
+      reject(new Error(`forwarder exited early; stderr: ${err.trim() || '(empty)'}`));
+    };
+    const cleanup = () => {
+      stream.off('data', onData);
+      if (child) {
+        child.stderr.off('data', onErr);
+        child.off('exit', onExit);
+      }
+    };
+    stream.on('data', onData);
+    if (child) {
+      child.stderr.on('data', onErr);
+      child.on('exit', onExit);
+    }
+  });
+}
+
+test('MC-16: a 12-byte stdin chunk reaches the VNC peer immediately', async (t) => {
+  const server = net.createServer();
+  try {
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(CONTROL_VNC_PORT, '127.0.0.1', resolve);
+    });
+  } catch (err) {
+    if (err && err.code === 'EADDRINUSE') { t.skip(`port ${CONTROL_VNC_PORT} busy`); return; }
+    throw err;
+  }
+  let peer = null;
+  const peerConnected = new Promise((resolve) => server.once('connection', (s) => { peer = s; resolve(); }));
+  const child = spawn('python3', ['-c', CONTROL_FORWARDER_CODE], { stdio: ['pipe', 'pipe', 'pipe'] });
+  try {
+    await Promise.race([peerConnected, failAfter(3000, 'forwarder TCP connect')]);
+    const received = collectN(peer, RFB_VERSION.length, child);
+    child.stdin.write(Buffer.from(RFB_VERSION));
+    const got = await Promise.race([received, failAfter(FORWARD_TIMEOUT_MS, '12-byte stdin chunk')]);
+    assert.equal(got, RFB_VERSION);
+  } finally {
+    try { child.kill('SIGKILL'); } catch { /* already dead */ }
+    if (peer) try { peer.destroy(); } catch { /* already closed */ }
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('MC-17: a 12-byte VNC reply reaches the forwarder stdout immediately', async (t) => {
+  const server = net.createServer((socket) => {
+    socket.write(Buffer.from(RFB_VERSION));
+  });
+  try {
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(CONTROL_VNC_PORT, '127.0.0.1', resolve);
+    });
+  } catch (err) {
+    if (err && err.code === 'EADDRINUSE') { t.skip(`port ${CONTROL_VNC_PORT} busy`); return; }
+    throw err;
+  }
+  const child = spawn('python3', ['-c', CONTROL_FORWARDER_CODE], { stdio: ['pipe', 'pipe', 'pipe'] });
+  try {
+    const got = await Promise.race([
+      collectN(child.stdout, RFB_VERSION.length, child),
+      failAfter(FORWARD_TIMEOUT_MS, '12-byte VNC reply'),
+    ]);
+    assert.equal(got, RFB_VERSION);
+  } finally {
+    try { child.kill('SIGKILL'); } catch { /* already dead */ }
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
