@@ -65,7 +65,9 @@ function lockPidAlive(pid) {
   }
 }
 // Returns { ok:true } when we hold the lock, { ok:false, reason } otherwise.
-function tryAcquireDriverLock(huntId) {
+// Exported for the driver-lock tests (huntAgent.driverLock.test.js) —
+// production callers go through runAutonomousHunt.
+export function tryAcquireDriverLock(huntId) {
   const lp = driverLockPath(huntId);
   const now = Date.now();
   const claim = { pid: process.pid, startedAt: new Date(now).toISOString(), heartbeatAt: now };
@@ -84,6 +86,20 @@ function tryAcquireDriverLock(huntId) {
     /* no lock file or corrupt — treat as free */
   }
   if (!existing || typeof existing !== 'object') {
+    // FIX (25 Oct 2026 — Infomaniak hunt stalled ~2h at iter 74): a
+    // 0-byte / corrupt driver.lock is a PERMANENT poison pill without
+    // this unlink. The comment above says "treat as free", but
+    // writeExclusive() uses flag 'wx', which FAILS with EEXIST when the
+    // file already exists — even an empty one. So the acquire always
+    // lost with 'lost race for fresh lock' (125 refusals live, through
+    // every backend restart) while no driver was actually running.
+    // Unlink first, exactly like the steal path below; if a rival
+    // wins the create race in between, 'wx' still refuses honestly.
+    try {
+      fs.unlinkSync(lp);
+    } catch {
+      /* already gone */
+    }
     return writeExclusive() ? { ok: true } : { ok: false, reason: 'lost race for fresh lock' };
   }
   const alive = Number.isInteger(existing.pid) && lockPidAlive(existing.pid);
@@ -101,7 +117,7 @@ function tryAcquireDriverLock(huntId) {
   }
   return writeExclusive() ? { ok: true, stole: true } : { ok: false, reason: 'lost race stealing stale lock' };
 }
-function releaseDriverLock(huntId) {
+export function releaseDriverLock(huntId) {
   const lp = driverLockPath(huntId);
   try {
     const existing = JSON.parse(fs.readFileSync(lp, 'utf8'));
