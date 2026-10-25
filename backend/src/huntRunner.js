@@ -257,11 +257,63 @@ export function resetDesktopStartFailures() {
   desktopStartFailures.clear();
 }
 
+// One exec answers both questions the starter needs: is the ready
+// file there, and is Chromium's CDP endpoint answering? The marker is
+// a distinct word (the CDP version JSON never contains "ready").
+const DESKTOP_PROBE_CMD = `test -f ${DESKTOP_READY_FILE} && echo DESKTOP_READY; curl -s --max-time 2 http://127.0.0.1:9222/json/version 2>/dev/null | head -c 300`;
+
+/**
+ * Parse one combined desktop probe (ready file + CDP) — the pure
+ * decision core of the Chromium supervisor, exported for tests.
+ * Same CDP marker as guiTools' probeGui (webSocketDebuggerUrl or the
+ * "Browser" field of the /json/version document).
+ */
+export function parseDesktopProbe(stdout) {
+  const out = String(stdout || '');
+  return {
+    ready: out.includes('DESKTOP_READY'),
+    cdp: /webSocketDebuggerUrl|"Browser"\s*:/.test(out),
+  };
+}
+
+// Cold-start wait: a cold Chromium on this loaded box needs seconds
+// before CDP answers (Lane AB's ~25s recovery window for the same
+// reason). Attempts/interval are injectable through the deps seam so
+// tests run instantly.
+const START_WAIT_ATTEMPTS = 32;
+const START_WAIT_INTERVAL_MS = 750;
+
+function startWaitConfig(deps) {
+  const attempts =
+    deps && Number.isInteger(deps.startWaitAttempts) && deps.startWaitAttempts > 0
+      ? deps.startWaitAttempts
+      : START_WAIT_ATTEMPTS;
+  const intervalMs =
+    deps && Number.isFinite(deps.startWaitIntervalMs) && deps.startWaitIntervalMs >= 0
+      ? deps.startWaitIntervalMs
+      : START_WAIT_INTERVAL_MS;
+  return { attempts, intervalMs };
+}
+
 /**
  * Start the hunt machine's GUI desktop inside its container (idempotent).
+ *
+ * Chromium supervisor (25 Oct 2026): the starter is also the liveness
+ * check — it probes the ready file AND Chromium's CDP endpoint, and a
+ * desktop whose Chromium died is revived here instead of being trusted
+ * on the ready file alone (Chromium died 11:35:11Z while Xvfb and the
+ * ready file lived on; the Live Machine showed a black desktop for
+ * ~35 min because every consumer trusted the ready file, and Lane Z/AB
+ * recovery only fires on browser actions, which were dedup-blocked at
+ * the time). The screenshot poller calls this starter every ~3s while
+ * the owner watches (GET /:id/desktop.jpg), so a dead Chromium is
+ * revived within one poll cycle — no browser action, no new timer, no
+ * background loop. The script itself guards against duplicate
+ * Chromiums (pgrep check, bracket trick), and a failed revive is
+ * throttled by the shared 30s failure cache.
  * @returns {{ok: true, alreadyRunning?: boolean} | {ok: false, error: string}}
  */
-export async function startHuntDesktop(huntId) {
+export async function startHuntDesktop(huntId, deps = {}) {
   if (desktopStartRecentlyFailed(huntId)) {
     return { ok: false, error: 'desktop_unavailable' };
   }
@@ -269,11 +321,10 @@ export async function startHuntDesktop(huntId) {
     noteDesktopStartFailure(huntId);
     return { ok: false, error };
   };
+  const exec = (deps && deps.exec) || execInHuntContainer;
 
-  let ready = await execInHuntContainer(
-    huntId, `test -f ${DESKTOP_READY_FILE} && echo ready`, 10000, { bypassTmux: true },
-  );
-  if (ready.containerMissing) {
+  let probe = await exec(huntId, DESKTOP_PROBE_CMD, 10000, { bypassTmux: true });
+  if (probe.containerMissing) {
     // Lane E self-heal: a RUNNING hunt whose container died (image swap,
     // crash) respawns here too — the owner's live view is a first-class
     // consumer, not a passive victim of the missing container. Hunts in
@@ -284,14 +335,19 @@ export async function startHuntDesktop(huntId) {
       ? await ensureHuntContainer(huntId, { target: meta.target, mode: meta.mode })
       : { ok: false };
     if (!healed.ok) return fail('container_not_running');
-    ready = await execInHuntContainer(
-      huntId, `test -f ${DESKTOP_READY_FILE} && echo ready`, 10000, { bypassTmux: true },
-    );
-    if (ready.containerMissing) return fail('container_not_running');
+    probe = await exec(huntId, DESKTOP_PROBE_CMD, 10000, { bypassTmux: true });
+    if (probe.containerMissing) return fail('container_not_running');
   }
-  if (String(ready.stdout || '').includes('ready')) return { ok: true, alreadyRunning: true };
+  const state = parseDesktopProbe(probe.stdout);
+  if (state.ready && state.cdp) return { ok: true, alreadyRunning: true };
+  if (state.ready && !state.cdp) {
+    // Chromium died while the desktop is up — log the signature the
+    // 11:35Z death never left, then fall through to the script, which
+    // relaunches it.
+    console.warn(`[desktop] hunt ${huntId}: chromium down (ready file present, CDP 9222 silent) — reviving via hunt-desktop.sh`);
+  }
 
-  const started = await execInHuntContainer(
+  const started = await exec(
     huntId,
     'nohup /usr/local/bin/hunt-desktop.sh >/tmp/dm-desktop-start.log 2>&1 & echo launched',
     15000,
@@ -302,14 +358,18 @@ export async function startHuntDesktop(huntId) {
     return fail('desktop_not_installed');
   }
 
-  // Wait for the start script to signal readiness (it brings up Xvfb,
-  // fluxbox, Chromium, x11vnc, websockify — a few seconds on first run).
-  for (let i = 0; i < 20; i++) {
-    await new Promise((r) => setTimeout(r, 750));
-    const probe = await execInHuntContainer(
-      huntId, `test -f ${DESKTOP_READY_FILE} && echo ready`, 10000, { bypassTmux: true },
-    );
-    if (String(probe.stdout || '').includes('ready')) {
+  // Wait for Chromium's CDP endpoint, not just the ready file: the
+  // script touches the ready file after launching, but a cold Chromium
+  // on this loaded box needs seconds before CDP answers (Lane AB's
+  // ~25s recovery window for the same reason). A desktop whose
+  // Chromium never answers is reported as a failed start (honest
+  // black-screen avoidance) and throttled by the shared cache.
+  const { attempts, intervalMs } = startWaitConfig(deps);
+  for (let i = 0; i < attempts; i++) {
+    await new Promise((r) => setTimeout(r, intervalMs));
+    const p = await exec(huntId, DESKTOP_PROBE_CMD, 10000, { bypassTmux: true });
+    if (p.containerMissing) return fail('container_not_running');
+    if (parseDesktopProbe(p.stdout).cdp) {
       desktopStartFailures.delete(huntId);
       return { ok: true };
     }
