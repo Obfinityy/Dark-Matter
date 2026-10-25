@@ -272,8 +272,8 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
     getHuntCost(hunt.huntId).then((res) => {
       if (!cancelled && res.ok) setCost(res);
     }).catch(() => {});
-    import('../lib/api').then(({ billingStatus }) =>
-      billingStatus().then((res) => {
+    import('../lib/api').then(({ getPaymentStatus }) =>
+      getPaymentStatus().then((res) => {
         if (!cancelled && res.ok && res.data) setBalance(res.data.balanceUsd);
       }).catch(() => {})
     );
@@ -281,8 +281,8 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
       getHuntCost(hunt.huntId).then((res) => {
         if (!cancelled && res.ok) setCost(res);
       }).catch(() => {});
-      import('../lib/api').then(({ billingStatus }) =>
-        billingStatus().then((res) => {
+      import('../lib/api').then(({ getPaymentStatus }) =>
+        getPaymentStatus().then((res) => {
           if (!cancelled && res.ok && res.data) setBalance(res.data.balanceUsd);
         }).catch(() => {})
       );

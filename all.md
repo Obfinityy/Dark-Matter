@@ -108,12 +108,12 @@ This file documents EVERYTHING built in this project. Nothing omitted.
 - **Per-user storage:** `dm.chats.<userId>` localStorage keys, backend per-user files
 - **Logout isolation:** logout wipes in-memory data, shows nothing
 
-### 3.7 Billing (`src/routes/billing.js`, Razorpay)
-- Top-up credits via Razorpay (test mode)
-- Per-iteration charging based on mode intensity
-- Out-of-credits → hunt pauses (not stops), resumes after top-up
+### 3.7 Payments (`src/routes/payments.js`, UPI — replaces Razorpay 25 Oct 2026)
+- Activate with UPI: user pays Rs 10,000 to Obfinity (6376411796@ibl) from any UPI app, submits a claim (phone, WhatsApp, account details, UTR); admin verifies the money arrived and activates the account for 1 day from activation — no gateway, no OTP; a claim never auto-activates
+- Per-iteration charging based on mode intensity (credits ledger kept); a paid access window bypasses credit deduction while active
+- Out-of-credits → hunt pauses (not stops), resumes after top-up / activation
 - Admin hunts free (owner exemption)
-- Balance visible in sidebar
+- Access state visible in sidebar
 
 ### 3.8 Reports (`src/routes/hunts.js` → `GET /:id/report`)
 - Generate anytime: running, paused, stopped, finished, failed
@@ -163,7 +163,7 @@ WS   /api/v1/hunts/:id/stream              # live events
 ### 4.1 Pages
 - **ChatPage** — main chat interface (ChatGPT-style)
 - **AdminPage** — user management + hunt monitoring + memory download
-- **TopUpPage** — credit top-up via Razorpay (login gate when signed out)
+- **UpiPayPage** — pay Rs 10,000 via UPI QR/deep link + "I have paid" claim form (login gate when signed out — pending users submit with username+password)
 - **ReportsPage** — all hunt reports (backend + local merged)
 - **PluginsPage** — API integrations (Shodan-style recon keys)
 - **SettingsPage** — voice settings, preferences
@@ -250,7 +250,7 @@ WS   /api/v1/hunts/:id/stream              # live events
 
 - [ ] Bedrock account-blocked (support case 179198761900860) — Ollama is the working brain
 - [ ] 2vCPU Ollama is slow — 32B via SageMaker async is the upgrade path (~$4-5/session)
-- [ ] Razorpay test keys in chat history — rotate after testing
+- [ ] Razorpay removed 25 Oct 2026 (replaced by UPI claims) — the old test keys in chat history are now dead; no rotation needed
 - [ ] PLUGIN_MASTER_KEY not set — plugin keys ephemeral across restarts
 - [ ] Two mystery hunts appeared on thebhavesh.online (user didn't create) — investigate
 

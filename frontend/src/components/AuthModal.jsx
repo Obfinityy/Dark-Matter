@@ -49,7 +49,8 @@ export function AuthCard({ onDone }) {
     }
   }
 
-  // Waiting-for-approval screen
+  // Waiting-for-approval screen — two paths: wait for free admin
+  // verification, or pay Rs 10,000 via UPI to activate for 1 day.
   if (mode === 'pending') {
     return (
       <div className="auth-card" role="dialog" aria-modal="true" aria-label="Waiting for approval">
@@ -62,6 +63,18 @@ export function AuthCard({ onDone }) {
           An admin needs to approve your account before you can use Dark Matter.
           Please check back later.
         </p>
+        <div style={{ borderTop: '1px solid #eee', margin: '16px 0', paddingTop: 16 }}>
+          <p className="auth-sub" style={{ marginBottom: 8 }}>
+            Or activate now — pay <strong>₹10,000</strong> via UPI for 1 day of access.
+          </p>
+          <button
+            className="auth-submit"
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('dm:go-pay'))}
+          >
+            Pay ₹10,000 to activate
+          </button>
+        </div>
         <button className="auth-submit" onClick={() => { setMode('login'); setUsername(''); setPassword(''); setError(''); }}>
           Back to login
         </button>

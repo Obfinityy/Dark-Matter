@@ -35,6 +35,7 @@ function publicUser(u) {
     blockedAt: u.blockedAt || null,
     approved: u.approved !== false,
     approvedAt: u.approvedAt || null,
+    accessUntil: u.accessUntil || null, // paid access window (UPI activation); null = none
   };
 }
 

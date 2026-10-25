@@ -184,7 +184,7 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onA
                         setNotes((prev) => prev.map((x) => (x.id === n.id ? { ...x, readBy: [...(x.readBy || []), user.id] } : x)));
                         setUnread((u) => Math.max(0, u - (isUnread ? 1 : 0)));
                         setBellOpen(false);
-                        if (onOpenHunt) onOpenHunt(n.huntId);
+                        if (n.huntId && onOpenHunt) onOpenHunt(n.huntId);
                       }}
                     >
                       <div>

@@ -45,7 +45,7 @@ export function getBalanceUsd(userId) {
   return e ? e.balanceCents / 100 : 0;
 }
 
-/** Add credits after a verified Razorpay payment. Returns new balance (USD). */
+/** Add credits. Returns new balance (USD). */
 export function addCreditsUsd(userId, amountCents, meta = {}) {
   const cents = Math.round(amountCents);
   if (!userId || !Number.isFinite(cents) || cents <= 0) throw new Error('Invalid credit amount.');

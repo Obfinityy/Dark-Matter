@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import ActivityDrawer from './components/ActivityDrawer';
-import TopUpPage from './pages/TopUpPage';
+import UpiPayPage from './pages/UpiPayPage';
 import AdminPage from './pages/AdminPage';
 import ChatPage from './pages/ChatPage';
 import PluginsPage from './pages/PluginsPage';
@@ -407,6 +407,17 @@ function AppInner() {
     return () => window.removeEventListener('dm:open-auth', onOpenAuth);
   }, []);
 
+  // Deep components can send the user to the UPI pay screen (e.g. the
+  // signup "waiting for approval" screen's pay-to-activate path).
+  useEffect(() => {
+    function onGoPay() {
+      setAuthModal(null);
+      navigate('pay');
+    }
+    window.addEventListener('dm:go-pay', onGoPay);
+    return () => window.removeEventListener('dm:go-pay', onGoPay);
+  }, []);
+
   // Back/forward button support for /login and /admin.
   useEffect(() => {
     function onPop() {
@@ -720,7 +731,7 @@ function AppInner() {
         {page === 'plugins' && <PluginsPage />}
         {page === 'reports' && <ReportsPage preselectedHuntId={reportHuntId} />}
         {page === 'machines' && <LiveMachinesPage onOpenHunt={openHuntChat} />}
-        {page === 'topup' && <TopUpPage />}
+        {page === 'pay' && <UpiPayPage />}
         {page === 'settings' && <SettingsPage />}
       </main>
       {authModal && (
