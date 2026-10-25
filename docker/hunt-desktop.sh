@@ -93,8 +93,8 @@ xfce_alive() {
 # fresh session already looks like Kali. This function enforces the same
 # look on the LIVE session via xfconf-query: it heals a session that
 # started with the stock XFCE values, and it is idempotent (fast-path
-# return when the theme is already Kali-Dark), so the supervisor re-runs
-# cost two xfconf reads. Guarded throughout: a missing theme, a missing
+# return when theme and wallpaper are already Kali), so the supervisor
+# re-runs cost two xfconf reads. Guarded throughout: a missing theme, a missing
 # xfconf-query, or an unreachable xfconfd logs once and moves on — the
 # desktop must never fail because of a theme. Paths are overridable for
 # tests (DM_KALI_THEME_DIR / DM_KALI_WALLPAPER); production leaves them
@@ -118,10 +118,16 @@ apply_kali_theme() {
     log "kali theme: xfconf not reachable after 5s — skipping live apply (file defaults still apply at next session start)"
     return 0
   fi
-  # Fast path: already the Kali look.
-  local current
+  # Fast path: already the Kali look — theme AND wallpaper both set.
+  # (26 Oct 2026: a theme-only check skipped the wallpaper entirely on
+  # a fresh session, whose theme already comes up Kali-Dark from the
+  # /etc/xdg defaults — the desktop stayed black.)
+  local current wallpaper_now
   current=$(xfconf-query -c xsettings -p /Net/ThemeName 2>/dev/null) || current=""
-  if [ "$current" = "Kali-Dark" ]; then return 0; fi
+  wallpaper_now=$(xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-path 2>/dev/null) || wallpaper_now=""
+  # No wallpaper file in this image: nothing to check for it, the theme
+  # alone decides.
+  if [ "$current" = "Kali-Dark" ] && { [ ! -e "$KALI_WALLPAPER" ] || [ "$wallpaper_now" = "$KALI_WALLPAPER" ]; }; then return 0; fi
   # GTK + icons + fonts (Kali defaults, kali-themes' xsettings.xml).
   xfconf-query -c xsettings -p /Net/ThemeName -n -t string -s Kali-Dark
   xfconf-query -c xsettings -p /Net/IconThemeName -n -t string -s Flat-Remix-Blue-Dark
@@ -131,13 +137,27 @@ apply_kali_theme() {
   xfconf-query -c xfwm4 -p /general/theme -n -t string -s Kali-Dark
   xfconf-query -c xfwm4 -p /general/title_font -n -t string -s 'Cantarell Bold 9'
   # Dragon wallpaper (Kali default: the path is a symlink to kali-cubes.jpg;
-  # image-style 5 = zoomed). xfdesktop 4.18+ reads image-path; older reads
-  # last-image — set both, the unused one is inert.
+  # image-style 5 = zoomed). xfdesktop reads PER-MONITOR backdrop
+  # properties — /backdrop/screen0/monitor0/image-path — NOT the
+  # workspace0 path (an older XFCE layout; writing there is inert).
+  # The session's user config can carry empty image-path values that
+  # override the /etc/xdg default, so set it explicitly on the live
+  # session every apply. last-image is for older xfdesktop; the unused
+  # one is inert.
   if [ -e "$KALI_WALLPAPER" ]; then
-    xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/image-path -n -t string -s "$KALI_WALLPAPER"
-    xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/last-image -n -t string -s "$KALI_WALLPAPER"
-    xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/image-style -n -t int -s 5
-    xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/image-show -n -t bool -s true
+    local m
+    for m in 0 1 2 3 4; do
+      xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor$m/image-path" -n -t string -s "$KALI_WALLPAPER"
+      xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor$m/last-image" -n -t string -s "$KALI_WALLPAPER"
+      xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor$m/image-style" -n -t int -s 5
+      xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor$m/image-show" -n -t bool -s true
+    done
+    # Force the backdrop to redraw — xfconf notify normally does it, but
+    # a missed notify leaves a black desktop (seen 26 Oct 2026).
+    # Bounded and never fatal.
+    if command -v xfdesktop >/dev/null 2>&1; then
+      xfdesktop --reload >>"$LOG_FILE" 2>&1 || true
+    fi
   fi
   # Menu button: a fresh session already gets whiskermenu first with
   # button-icon=kali-panel-menu (the dragon) from Kali's panel default.
