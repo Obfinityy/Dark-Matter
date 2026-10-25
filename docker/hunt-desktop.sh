@@ -84,7 +84,173 @@ xfce_alive() {
   pgrep -x xfce4-session >/dev/null 2>&1
 }
 
+# A LIVE (non-zombie) xfdesktop. pgrep alone is not enough: a killed
+# xfdesktop lingers as a defunct PID because the container init never
+# reaps it, and pgrep matches defunct PIDs.
+xfdesktop_alive() {
+  ps -eo stat,comm 2>/dev/null | awk '$2 == "xfdesktop" && $1 !~ /^Z/ { found=1 } END { exit !found }'
+}
+
+# Restart the backdrop manager so it re-reads the xfconf wallpaper.
+# xfdesktop 4.20 reads the backdrop once at its own startup: a session
+# that started with an empty image-path shows black and never picks up
+# later xfconf changes (the notification only fires value -> value,
+# proven live 26 Oct 2026: blue -> purple redrew, null -> blue did
+# not). The session does NOT respawn it — start the replacement
+# ourselves. CRITICAL: wait for the old instance to actually exit
+# before starting the replacement — a fixed sleep 1 was NOT enough
+# (the old one was still shutting down, so the new one died at once
+# with "Another desktop manager is already running on screen 0" and
+# the script logged a false success because the old one still
+# answered the liveness check). Both waits are bounded, never fatal:
+# if the new instance fails to come up the desktop still works, just
+# with a black backdrop.
+restart_xfdesktop() {
+  command -v xfdesktop >/dev/null 2>&1 || return 0
+  command -v pkill >/dev/null 2>&1 || return 0
+  pkill -x xfdesktop 2>/dev/null || true
+  local i
+  for i in $(seq 1 50); do
+    xfdesktop_alive || break
+    sleep 0.2
+  done
+  DISPLAY=:99 xfdesktop >>"$LOG_FILE" 2>&1 &
+  for i in $(seq 1 25); do
+    if xfdesktop_alive; then
+      log "kali theme: xfdesktop restarted — wallpaper should now render"
+      return 0
+    fi
+    sleep 0.2
+  done
+  log "kali theme: WARNING xfdesktop did not come back after restart — desktop backdrop may stay black"
+  return 0
+}
+
+# --- Real Kali look (25 Oct 2026) -------------------------------------------
+# The image ships the Kali XFCE theme (kali-themes): Kali-Dark GTK + xfwm4
+# theme, Flat-Remix-Blue-Dark icons (incl. the kali-panel-menu dragon),
+# the kali-cubes dragon wallpaper, the Kali whisker menu + panel layout
+# and the Kali menu categories. Installing the packages makes them the
+# SYSTEM defaults — kali-themes' postinst copies them to /etc/xdg — so a
+# fresh session already looks like Kali. This function enforces the same
+# look on the LIVE session via xfconf-query: it heals a session that
+# started with the stock XFCE values, and it is idempotent (fast-path
+# return when theme and wallpaper are already Kali), so the supervisor
+# re-runs cost two xfconf reads. Guarded throughout: a missing theme, a missing
+# xfconf-query, or an unreachable xfconfd logs once and moves on — the
+# desktop must never fail because of a theme. Paths are overridable for
+# tests (DM_KALI_THEME_DIR / DM_KALI_WALLPAPER); production leaves them
+# unset and gets /usr/share/....
+KALI_THEME_DIR="${DM_KALI_THEME_DIR:-/usr/share/themes/Kali-Dark}"
+KALI_WALLPAPER="${DM_KALI_WALLPAPER:-/usr/share/backgrounds/kali-16x9/default}"
+
+apply_kali_theme() {
+  [ -d "$KALI_THEME_DIR" ] || return 0
+  command -v xfconf-query >/dev/null 2>&1 || return 0
+  # Wait for xfconfd (started with the session) — bounded, never fatal.
+  # 5s is ample (the session already had 2s before this runs) and the
+  # screenshot poller re-runs this script every ~3s while the owner
+  # watches, so a missed apply is retried on the next poll.
+  local i
+  for i in $(seq 1 25); do
+    if xfconf-query -c xsettings -l >/dev/null 2>&1; then break; fi
+    sleep 0.2
+  done
+  if ! xfconf-query -c xsettings -l >/dev/null 2>&1; then
+    log "kali theme: xfconf not reachable after 5s — skipping live apply (file defaults still apply at next session start)"
+    return 0
+  fi
+  # Which monitor xfdesktop 4.20 keys the backdrop to: the RandR output
+  # name (Xvfb reports "screen"), NOT the numeric monitor0. xrandr may
+  # be absent — then fall back to monitor0.
+  local current wallpaper_now monitor_name
+  current=$(xfconf-query -c xsettings -p /Net/ThemeName 2>/dev/null) || current=""
+  monitor_name=$(xrandr --query 2>/dev/null | awk '$2 == "connected" {print $1; exit}') || monitor_name=""
+  [ -n "$monitor_name" ] || monitor_name="0"
+  wallpaper_now=$(xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor${monitor_name}/workspace0/image-path" 2>/dev/null) || wallpaper_now=""
+  # Fast path: already the Kali look — theme AND wallpaper both set.
+  # (26 Oct 2026: a theme-only check skipped the wallpaper entirely on
+  # a fresh session, whose theme already comes up Kali-Dark from the
+  # /etc/xdg defaults — the desktop stayed black.) No wallpaper file in
+  # this image: nothing to check for it, the theme alone decides.
+  if [ "$current" = "Kali-Dark" ] && { [ ! -e "$KALI_WALLPAPER" ] || [ "$wallpaper_now" = "$KALI_WALLPAPER" ]; }; then return 0; fi
+  # GTK + icons + fonts (Kali defaults, kali-themes' xsettings.xml).
+  xfconf-query -c xsettings -p /Net/ThemeName -n -t string -s Kali-Dark
+  xfconf-query -c xsettings -p /Net/IconThemeName -n -t string -s Flat-Remix-Blue-Dark
+  xfconf-query -c xsettings -p /Gtk/FontName -n -t string -s 'Cantarell 11'
+  xfconf-query -c xsettings -p /Gtk/MonospaceFontName -n -t string -s 'Fira Code Medium 10'
+  # Window-manager theme + title font (kali-themes' xfwm4.xml).
+  xfconf-query -c xfwm4 -p /general/theme -n -t string -s Kali-Dark
+  xfconf-query -c xfwm4 -p /general/title_font -n -t string -s 'Cantarell Bold 9'
+  # Dragon wallpaper (Kali default: the path is a symlink to kali-cubes.jpg;
+  # image-style 5 = zoomed). xfdesktop 4.20 reads the backdrop from the
+  # PER-MONITOR-NAME properties — /backdrop/screen0/monitor<NAME>/workspace0/
+  # — where <NAME> is the RandR output name (Xvfb: "screen"). The numeric
+  # monitor0 paths and the monitor-level path are legacy locations this
+  # xfdesktop migrates away from and never reads; they are still set below
+  # so older xfdesktop versions and the /etc/xdg default stay in agreement.
+  # The session's user config can carry empty image-path values that
+  # override the /etc/xdg default, so set it explicitly on the live
+  # session every apply. last-image is for older xfdesktop; the unused
+  # one is inert. NOTE: setting the properties is NOT enough on its own —
+  # xfdesktop reads the backdrop once at its own startup, and a session
+  # that started with an empty image-path never picks up later xfconf
+  # changes (the notification only fires value -> value: blue -> purple
+  # redrew live, null -> blue did not). So after (re)setting the
+  # wallpaper, restart xfdesktop (see restart_xfdesktop) so the new
+  # instance reads the values at startup. `xfdesktop --reload` cannot
+  # reach the running instance here (no session bus: it exits
+  # "xfdesktop is not running"), so there is no reload call.
+  local wallpaper_changed=0
+  if [ -e "$KALI_WALLPAPER" ]; then
+    [ "$wallpaper_now" = "$KALI_WALLPAPER" ] || wallpaper_changed=1
+    local m
+    for m in "monitor${monitor_name}" monitor0; do
+      xfconf-query -c xfce4-desktop -p "/backdrop/screen0/${m}/workspace0/image-path" -n -t string -s "$KALI_WALLPAPER"
+      xfconf-query -c xfce4-desktop -p "/backdrop/screen0/${m}/workspace0/last-image" -n -t string -s "$KALI_WALLPAPER"
+      xfconf-query -c xfce4-desktop -p "/backdrop/screen0/${m}/workspace0/image-style" -n -t int -s 5
+      xfconf-query -c xfce4-desktop -p "/backdrop/screen0/${m}/workspace0/image-show" -n -t bool -s true
+    done
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-path -n -t string -s "$KALI_WALLPAPER"
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-style -n -t int -s 5
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-show -n -t bool -s true
+  fi
+  # The backdrop only renders if xfdesktop itself started with these
+  # values — restart it when the wallpaper actually changed (a fresh
+  # session's null -> kali-cubes). Supervisor re-runs hit the fast path
+  # and never restart it.
+  if [ "$wallpaper_changed" = 1 ]; then
+    restart_xfdesktop
+  fi
+  # Menu button: a fresh session already gets whiskermenu first with
+  # button-icon=kali-panel-menu (the dragon) from Kali's panel default.
+  # If this session's panel still has the stock applicationsmenu (an older
+  # ~/.config), swap that one plugin to whiskermenu. The panel is restarted
+  # only if the restart answers (timeout-bounded; the container has no
+  # reliable D-Bus session bus, so a failed restart just means the dragon
+  # appears at the next panel start — the config is already correct).
+  if command -v xfce4-panel >/dev/null 2>&1; then
+    local j val
+    for j in $(seq 1 30); do
+      val=$(xfconf-query -c xfce4-panel -p "/plugins/plugin-$j" 2>/dev/null) || continue
+      if [ "$val" = "applicationsmenu" ]; then
+        xfconf-query -c xfce4-panel -p "/plugins/plugin-$j" -t string -s whiskermenu
+        xfconf-query -c xfce4-panel -p "/plugins/plugin-$j/button-icon" -n -t string -s kali-panel-menu
+        log "kali theme: panel plugin-$j applicationsmenu -> whiskermenu (dragon menu button)"
+        if command -v timeout >/dev/null 2>&1; then
+          timeout 5 xfce4-panel -r >>"$LOG_FILE" 2>&1 || log "kali theme: panel restart not available — dragon menu appears at next panel start"
+        else
+          xfce4-panel -r >>"$LOG_FILE" 2>&1 || log "kali theme: panel restart not available — dragon menu appears at next panel start"
+        fi
+        break
+      fi
+    done
+  fi
+  log "kali theme applied (Kali-Dark + Flat-Remix-Blue-Dark + kali-cubes wallpaper)"
+}
+
 if [ -f "$READY_FILE" ] && pgrep -x Xvfb >/dev/null 2>&1 && chromium_healthy && xfce_alive; then
+  apply_kali_theme
   echo "desktop already running"
   exit 0
 fi
@@ -142,6 +308,11 @@ if ! xfce_alive; then
   startxfce4 >>"$LOG_FILE" 2>&1 &
   sleep 2
 fi
+
+# Real Kali look: enforce Kali-Dark + dragon wallpaper + dragon menu on the
+# live session (file defaults in /etc/xdg already do this for a fresh
+# session; this heals one that started with stock values). Idempotent.
+apply_kali_theme
 
 # --- Chromium (the agent's browser) -----------------------------------------
 # Lane U: when the intercept proxy has been started for this hunt
