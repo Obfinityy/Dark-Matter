@@ -36,7 +36,14 @@ import {
   readHuntMeta,
   listHuntMetas,
 } from '../store.js';
-import { requireAuth, issueTerminalTicket } from './auth.js';
+import { requireAuth, issueTerminalTicket, issueControlTicket } from './auth.js';
+import {
+  takeControl,
+  releaseControl,
+  getControl,
+  startControlDesktop,
+  stopControlDesktop,
+} from '../machineControl.js';
 import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience, getMode, HUNT_MODES, MODE_ORDER, TIERS } from '../hunt-intel/index.js';
 import { getHuntCost, getUserCosts } from '../costTracker.js';
 import { loadHuntMemory, panelFindings } from '../huntMemory.js';
@@ -703,6 +710,91 @@ router.get('/:id/desktop.jpg', requireAuth, async (req, res) => {
   } catch (err) {
     return res.status(500).json({ ok: false, error: 'desktop_capture_failed' });
   }
+});
+
+// ---- Take Control of This Machine: owner drives the hunt desktop -----
+// The owner takes over the hunt container's Kali desktop himself
+// (full mouse + keyboard via the noVNC channel), while the agent's
+// GUI/browser actions pause for the duration so the two drivers never
+// fight over the same screen. The hunt itself is NOT paused or
+// stopped. Done / Cancel / WS close / expiry all release the lock and
+// the agent's GUI actions resume on its next turn.
+//
+//   POST /api/v1/hunts/:id/control/take    -> take the lock + start the
+//        interactive VNC (409 already_controlled, 503 control_unavailable)
+//   POST /api/v1/hunts/:id/control/release -> release the lock + stop the
+//        interactive VNC (409 not_controlled, 403 not_holder)
+//   GET  /api/v1/hunts/:id/control         -> current lock state
+//   GET  /api/v1/hunts/:id/control/ticket  -> 60s WS ticket, only while
+//        the caller holds the lock
+// Auth: JWT (requireAuth) + hunt ownership (requireHuntOwner).
+router.post('/:id/control/take', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  if (!['running', 'paused'].includes(meta.state)) {
+    return res.status(400).json({ ok: false, error: 'hunt_not_active' });
+  }
+  const user = { id: req.user.id || req.user.sub, username: req.user.username, role: req.user.role };
+  const taken = takeControl(req.params.id, user);
+  if (!taken.ok) {
+    return res.status(409).json({ ok: false, error: 'already_controlled', holder: taken.holder });
+  }
+  const started = await startControlDesktop(req.params.id);
+  if (!started.ok) {
+    // Honest failure: the lock is freed again so a retry is possible,
+    // and the frontend shows the real reason instead of a fake control.
+    releaseControl(req.params.id, user);
+    return res.status(503).json({ ok: false, error: 'control_unavailable', detail: started.error });
+  }
+  return res.json({
+    ok: true,
+    controlled: true,
+    holder: taken.lock.username,
+    takenAt: taken.lock.takenAt,
+  });
+});
+
+router.post('/:id/control/release', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const user = { id: req.user.id || req.user.sub, username: req.user.username, role: req.user.role };
+  const rel = releaseControl(req.params.id, user);
+  if (!rel.ok) {
+    const status = rel.error === 'not_controlled' ? 409 : 403;
+    return res.status(status).json({ ok: false, error: rel.error });
+  }
+  // Best-effort: the interactive VNC dies with the release even if
+  // the container is already gone.
+  await stopControlDesktop(req.params.id);
+  return res.json({ ok: true, controlled: false });
+});
+
+router.get('/:id/control', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const lock = getControl(req.params.id);
+  if (!lock) return res.json({ ok: true, controlled: false });
+  return res.json({
+    ok: true,
+    controlled: true,
+    holder: lock.username,
+    takenAt: lock.takenAt,
+  });
+});
+
+router.get('/:id/control/ticket', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  if (!['running', 'paused'].includes(meta.state)) {
+    return res.status(400).json({ ok: false, error: 'hunt_not_active' });
+  }
+  const lock = getControl(req.params.id);
+  const userId = String(req.user.id || req.user.sub || '');
+  if (!lock || (lock.userId !== userId && req.user.role !== 'admin')) {
+    return res.status(403).json({ ok: false, error: 'not_controlling' });
+  }
+  const ticket = issueControlTicket(req.user.id || req.user.sub, req.user.username, req.params.id);
+  return res.json({ ok: true, ticket });
 });
 
 // ---- Agent activity log: whatever the agent did, when --------------------------------

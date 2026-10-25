@@ -2028,3 +2028,95 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   height: auto;
   min-height: 0;
 }
+/* ---- Take Control of This Machine ---- */
+/* The takeover button sits at the top of the Live Machine view (docked
+   card header + expanded overlay bar). While held it is disabled —
+   the owner is already driving. */
+.live-machine-control-btn {
+  flex: none;
+  background: #1d4ed8;
+  border: 1px solid #3b82f6;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.live-machine-control-btn:hover:not(:disabled) { background: #2563eb; }
+.live-machine-control-btn:disabled {
+  background: #2a2a2a;
+  border-color: #444;
+  color: #888;
+  cursor: not-allowed;
+}
+/* "YOU ARE IN CONTROL" — unmissable while the owner drives, in the
+   docked card and in the overlay bar. */
+.live-machine-control-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #14532d;
+  border: 1px solid #22c55e;
+  color: #bbf7d0;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.live-machine-control-banner span { color: #4ade80; }
+/* Honest failure: the reason control did not start, shown in place of
+   a fake desktop — never a silent dead button. */
+.live-machine-control-error {
+  background: #450a0a;
+  border-bottom: 1px solid #7f1d1d;
+  color: #fecaca;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 8px 12px;
+}
+/* The interactive desktop: noVNC mounts its own canvas here. Pointer
+   events MUST reach the canvas (unlike the read-only screenshot img). */
+.live-machine-control-screen {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  background: #000;
+  cursor: crosshair;
+  user-select: none;
+}
+.live-machine-control-screen canvas {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  max-height: 100%;
+}
+/* Done hands the machine back to the AI; Cancel exits control mode.
+   Both release the lock — the hunt itself is never paused. */
+.live-machine-done {
+  flex: none;
+  background: #16a34a;
+  border: 1px solid #22c55e;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.live-machine-done:hover { background: #22c55e; }
+.live-machine-cancel {
+  flex: none;
+  background: none;
+  border: 1px solid #555;
+  color: #ccc;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.live-machine-cancel:hover { border-color: #888; color: #fff; }

@@ -228,6 +228,39 @@ export async function fetchHuntDesktopFrame(huntId) {
   }
 }
 
+// --- Take Control of This Machine ----------------------------------------
+// The owner drives the hunt container's Kali desktop himself (full mouse
+// + keyboard via noVNC over the backend's control WebSocket), while the
+// agent's GUI actions pause. The hunt itself is never paused. Take
+// returns 409 already_controlled when someone else holds the lock, and
+// 503 control_unavailable with the real reason when the interactive
+// channel cannot start — callers must show that reason, never pretend
+// control works. The ticket is a 60s JWT for the WS handshake.
+export async function getMachineControl(huntId) {
+  return get(`/api/v1/hunts/${encodeURIComponent(huntId)}/control`);
+}
+
+export async function takeMachineControl(huntId) {
+  return post(`/api/v1/hunts/${encodeURIComponent(huntId)}/control/take`, {});
+}
+
+export async function releaseMachineControl(huntId) {
+  return post(`/api/v1/hunts/${encodeURIComponent(huntId)}/control/release`, {});
+}
+
+export async function getControlTicket(huntId) {
+  const res = await get(`/api/v1/hunts/${encodeURIComponent(huntId)}/control/ticket`);
+  if (!res.ok) return res;
+  return { ok: true, data: { ticket: res.data && res.data.ticket } };
+}
+
+export function controlWsUrl(huntId, ticket) {
+  const base = resolveApiBase();
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = base ? new URL(base).host : window.location.host;
+  return `${proto}//${host}/api/v1/hunts/${encodeURIComponent(huntId)}/control?ticket=${encodeURIComponent(ticket)}`;
+}
+
 export async function fetchReportMarkdown(id) {
   const res = await get(`/api/v1/hunts/${encodeURIComponent(id)}/report?format=md`);
   if (!res.ok) return res;

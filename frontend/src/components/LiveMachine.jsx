@@ -1,15 +1,31 @@
-import { useEffect, useRef, useState } from 'react';
-import { fetchHuntDesktopFrame } from '../lib/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  fetchHuntDesktopFrame,
+  getMachineControl,
+  takeMachineControl,
+  releaseMachineControl,
+  getControlTicket,
+  controlWsUrl,
+} from '../lib/api';
 
 /**
  * LiveMachine — picture-in-picture view of the hunt machine's GUI desktop.
  *
  * Fixed bottom-right card (~320x180) that refreshes the desktop frame
  * every 3 seconds via GET /api/v1/hunts/:id/desktop.jpg (JWT-authenticated
- * fetch, blob URL). STRICTLY READ-ONLY: the image has pointer-events
- * disabled and there is no input path to the machine from here — the
- * owner controls the hunt only through the hunt card's pause/stop
- * controls. The expand button opens the same stream full-screen.
+ * fetch, blob URL). The expand button opens the same stream full-screen.
+ *
+ * TAKE CONTROL OF THIS MACHINE: the header (and the expanded overlay
+ * bar) carry a "Take Control of This Machine" button. Clicking it takes
+ * the per-hunt control lock, starts the interactive VNC inside the
+ * container, and mounts a noVNC client on the live desktop — the owner
+ * drives the whole Kali machine himself (mouse + keyboard, any tool)
+ * while the agent's GUI/browser actions pause so the two drivers never
+ * fight over the same screen. The hunt itself is never paused. Done
+ * hands the machine back to the AI; Cancel exits control mode — both
+ * release the lock and the agent's GUI actions resume. If the
+ * interactive channel cannot start, the button shows the honest reason
+ * and control is never pretended.
  *
  * When the desktop is not available yet (older hunt image, or the hunter
  * has not started its desktop), the card shows a placeholder instead of
@@ -48,6 +64,25 @@ function releaseLiveSlot(token) {
   if (idx !== -1) liveMachineSlots[idx] = null;
 }
 
+// Friendly wording for a failed take — the raw error code is never
+// shown on its own, and control is never pretended.
+function controlErrorText(res) {
+  if (!res) return 'Control failed — please try again.';
+  if (res.status === 409) {
+    const holder = res.data && res.data.holder;
+    return holder
+      ? `Already controlled by ${holder} — only one person can drive this machine at a time.`
+      : 'Already controlled — only one person can drive this machine at a time.';
+  }
+  if (res.status === 503) {
+    const detail = res.data && res.data.detail;
+    return `Control unavailable${detail ? `: ${detail}` : ' — the interactive desktop could not start.'}`;
+  }
+  if (res.status === 400) return 'This hunt is not running — control needs an active hunt.';
+  if (res.status === 401 || res.status === 403) return 'You do not have access to control this machine.';
+  return res.error || 'Control failed — please try again.';
+}
+
 export default function LiveMachine({ huntId, target }) {
   const [frameUrl, setFrameUrl] = useState('');
   const [available, setAvailable] = useState(false);
@@ -60,11 +95,29 @@ export default function LiveMachine({ huntId, target }) {
   // docked card minimises it to a small chip in the same corner — the
   // live screen stays hidden until the chip is clicked again.
   const [minimized, setMinimized] = useState(false);
+  // Take Control state: off | taking | on | error. 'taking' covers the
+  // lock + ticket + RFB connect; 'on' means the owner is driving.
+  const [control, setControl] = useState('off');
+  const [controlError, setControlError] = useState('');
+  const [controlHolder, setControlHolder] = useState('');
+  const controlScreenRef = useRef(null);
+  const rfbRef = useRef(null);
+  const controlRef = useRef('off');
+  const intentionalDisconnectRef = useRef(false);
 
-  // Escape exits the fullscreen overlay back to the docked card.
+  const setControlState = useCallback((next) => {
+    controlRef.current = next;
+    setControl(next);
+  }, []);
+
+  // Escape exits the fullscreen overlay back to the docked card —
+  // EXCEPT while the owner is driving: then Escape belongs to the
+  // guest (e.g. closing a menu inside Metasploit), not to us.
   useEffect(() => {
     if (!expanded) return;
-    const onKey = (e) => { if (e.key === 'Escape') setExpanded(false); };
+    const onKey = (e) => {
+      if (e.key === 'Escape' && controlRef.current !== 'on') setExpanded(false);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [expanded]);
@@ -76,7 +129,24 @@ export default function LiveMachine({ huntId, target }) {
     return () => releaseLiveSlot(claimed.token);
   }, []);
 
+  // Who holds the control lock right now (if anyone) — so the button
+  // can say so honestly instead of letting the owner discover it by
+  // clicking. Best-effort: a failed status fetch just leaves the
+  // button enabled and the take call reports the truth.
   useEffect(() => {
+    let cancelled = false;
+    getMachineControl(huntId).then((res) => {
+      if (cancelled || !res.ok || !res.data) return;
+      if (res.data.controlled) setControlHolder(res.data.holder || '');
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [huntId]);
+
+  useEffect(() => {
+    // While the owner drives (or is connecting), the noVNC canvas is
+    // the view — the screenshot poller stands down and resumes when
+    // control ends.
+    if (control === 'on' || control === 'taking') return;
     let cancelled = false;
     let timer = null;
 
@@ -104,9 +174,165 @@ export default function LiveMachine({ huntId, target }) {
         frameUrlRef.current = '';
       }
     };
+  }, [huntId, control]);
+
+  // Mount the noVNC client once the overlay screen exists and a take
+  // is in flight. The effect runs on [control, expanded] so the RFB
+  // instance is created exactly once per takeover. The noVNC client is
+  // lazy-loaded (dynamic import) so its ~200 kB stays out of the main
+  // bundle until someone actually takes control.
+  useEffect(() => {
+    if (control !== 'taking' || !expanded || !controlScreenRef.current || rfbRef.current) return;
+    let dead = false;
+
+    (async () => {
+      const ticketRes = await getControlTicket(huntId).catch(() => null);
+      if (dead) return;
+      const ticket = ticketRes && ticketRes.ok && ticketRes.data && ticketRes.data.ticket;
+      if (!ticket) {
+        // No ticket: hand the lock straight back — never leave the
+        // machine locked with no channel to drive it.
+        releaseMachineControl(huntId).catch(() => {});
+        setControlError('Could not open the control channel — please try again.');
+        setControlState('error');
+        return;
+      }
+      let RFB;
+      try {
+        ({ default: RFB } = await import('@novnc/novnc/lib/rfb.js'));
+      } catch {
+        releaseMachineControl(huntId).catch(() => {});
+        setControlError('Could not load the remote-desktop client — please try again.');
+        setControlState('error');
+        return;
+      }
+      if (dead) return;
+      let rfb;
+      try {
+        rfb = new RFB(controlScreenRef.current, controlWsUrl(huntId, ticket), {
+          credentials: { password: '' },
+          shared: true,
+        });
+      } catch (err) {
+        releaseMachineControl(huntId).catch(() => {});
+        setControlError(`Control channel failed to start: ${err.message || err}`);
+        setControlState('error');
+        return;
+      }
+      rfbRef.current = rfb;
+      // Scale the 1280x800 desktop into the view; never resize the
+      // remote display (the agent's Chromium is maximised there and
+      // a resize would confuse its next turns).
+      rfb.scaleViewport = true;
+      rfb.resizeSession = false;
+      rfb.addEventListener('connect', () => {
+        if (dead) return;
+        setControlError('');
+        setControlState('on');
+        try { rfb.focus(); } catch { /* focus is best-effort */ }
+      });
+      rfb.addEventListener('disconnect', (e) => {
+        if (dead) return;
+        rfbRef.current = null;
+        if (intentionalDisconnectRef.current) return; // Done / Cancel
+        // Unexpected drop mid-takeover: hand the lock back and say so.
+        releaseMachineControl(huntId).catch(() => {});
+        setControlError(
+          e && e.detail && e.detail.clean === false
+            ? 'The control connection dropped — the machine is back with the AI. Try again to retake it.'
+            : 'The control connection closed — the machine is back with the AI.',
+        );
+        setControlState('error');
+      });
+      rfb.addEventListener('credentialsrequired', () => {
+        // The control VNC runs -nopw (backend auth is the gate); a
+        // credential prompt means the channel is misconfigured.
+        if (dead) return;
+        try { rfb.disconnect(); } catch { /* already closing */ }
+        releaseMachineControl(huntId).catch(() => {});
+        setControlError('The control channel asked for a password — it is misconfigured. The machine is back with the AI.');
+        setControlState('error');
+      });
+    })();
+
+    return () => {
+      // The RFB belongs to the takeover lifecycle (endControl /
+      // unmount), NOT to this effect: when the connection succeeds
+      // the control flips 'taking' -> 'on' and this effect re-runs —
+      // that must NOT kill the live desktop. Only the in-flight
+      // ticket promise is cancelled here; a live RFB is torn down by
+      // endControl (Done / Cancel) or the unmount cleanup.
+      dead = true;
+    };
+  }, [control, expanded, huntId, setControlState]);
+
+  // Unmount while driving: hand the machine back instead of leaving
+  // the lock held for a tab that is gone (the backend's WS close also
+  // releases, this is the belt to its braces).
+  useEffect(() => () => {
+    if (controlRef.current === 'on' || controlRef.current === 'taking') {
+      try { if (rfbRef.current) rfbRef.current.disconnect(); } catch { /* already closing */ }
+      releaseMachineControl(huntId).catch(() => {});
+    }
   }, [huntId]);
 
+  const takeControl = useCallback(async () => {
+    if (controlRef.current === 'taking' || controlRef.current === 'on') return;
+    setControlError('');
+    setControlHolder('');
+    setControlState('taking');
+    setExpanded(true);
+    const res = await takeMachineControl(huntId);
+    if (!res.ok) {
+      setControlError(controlErrorText(res));
+      if (res.status === 409 && res.data && res.data.holder) setControlHolder(res.data.holder);
+      setControlState('error');
+      return;
+    }
+    // The lock is held; the [control, expanded] effect mounts the
+    // noVNC client and flips 'taking' -> 'on' on connect.
+  }, [huntId, setControlState]);
+
+  // Done AND Cancel both hand the machine back to the AI — Done is the
+  // deliberate hand-back, Cancel is the exit. Neither pauses or stops
+  // the hunt; the agent's GUI actions simply resume next turn.
+  const endControl = useCallback(async () => {
+    if (controlRef.current === 'off') return;
+    intentionalDisconnectRef.current = true;
+    try { if (rfbRef.current) rfbRef.current.disconnect(); } catch { /* already closing */ }
+    rfbRef.current = null;
+    await releaseMachineControl(huntId).catch(() => {});
+    intentionalDisconnectRef.current = false;
+    setControlError('');
+    setControlHolder('');
+    setControlState('off');
+  }, [huntId, setControlState]);
+
   const shortTarget = target ? target.replace(/^https?:\/\//, '') : huntId;
+  const controlBusy = control === 'taking' || control === 'on';
+  const controlButtonLabel = control === 'on'
+    ? 'You are in control'
+    : control === 'taking'
+      ? 'Connecting…'
+      : controlHolder
+        ? `In control by ${controlHolder}`
+        : 'Take Control of This Machine';
+  const controlButtonTitle = controlHolder
+    ? `This machine is already controlled by ${controlHolder}`
+    : 'Take over this machine yourself — full mouse and keyboard. The AI pauses its GUI actions while you drive.';
+
+  const controlButton = (
+    <button
+      type="button"
+      className="live-machine-control-btn"
+      onClick={takeControl}
+      disabled={controlBusy || Boolean(controlHolder)}
+      title={controlButtonTitle}
+      aria-label="Take control of this machine"
+    >
+      {controlButtonLabel}
+    </button>
+  );
 
   const frame = available && frameUrl ? (
     <img
@@ -119,6 +345,18 @@ export default function LiveMachine({ huntId, target }) {
     <div className="live-machine-placeholder">
       Machine view starts when the hunter uses its desktop
     </div>
+  );
+
+  // While taking control or driving, the overlay shows the live noVNC
+  // canvas instead of the 3-second screenshots.
+  const overlayScreen = controlBusy ? (
+    <div
+      ref={controlScreenRef}
+      className="live-machine-control-screen"
+      aria-label="Interactive machine desktop — you are in control"
+    />
+  ) : (
+    <div className="live-machine-screen live-machine-screen-full">{frame}</div>
   );
 
   if (minimized) {
@@ -150,6 +388,7 @@ export default function LiveMachine({ huntId, target }) {
           <span className={`live-machine-dot${available ? ' on' : ''}`} aria-hidden="true" />
           <span className="live-machine-live">LIVE</span>
           <span className="live-machine-target" title={target}>{shortTarget}</span>
+          {controlButton}
           <button
             type="button"
             className="live-machine-expand"
@@ -167,6 +406,16 @@ export default function LiveMachine({ huntId, target }) {
             ✕
           </button>
         </div>
+        {control === 'error' && controlError && (
+          <div className="live-machine-control-error" role="alert">
+            {controlError}
+          </div>
+        )}
+        {control === 'on' && (
+          <div className="live-machine-control-banner" role="status">
+            <span aria-hidden="true">●</span> YOU ARE IN CONTROL — the AI&apos;s GUI actions are paused
+          </div>
+        )}
         <div
           className="live-machine-screen live-machine-screen-clickable"
           onClick={() => setExpanded(true)}
@@ -184,17 +433,60 @@ export default function LiveMachine({ huntId, target }) {
             <span className={`live-machine-dot${available ? ' on' : ''}`} aria-hidden="true" />
             <span className="live-machine-live">LIVE</span>
             <span className="live-machine-target" title={target}>{shortTarget}</span>
-            <span className="live-machine-note">View only — the hunter is driving</span>
+            {control === 'on' ? (
+              <>
+                <span className="live-machine-control-banner" role="status">
+                  <span aria-hidden="true">●</span> YOU ARE IN CONTROL — the AI&apos;s GUI actions are paused
+                </span>
+                <button
+                  type="button"
+                  className="live-machine-done"
+                  onClick={endControl}
+                  title="Hand the machine back to the AI"
+                >
+                  Done
+                </button>
+                <button
+                  type="button"
+                  className="live-machine-cancel"
+                  onClick={endControl}
+                  title="Exit control mode and hand the machine back to the AI"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="live-machine-note">
+                  {control === 'taking' ? 'Connecting to the machine…' : 'View only — the hunter is driving'}
+                </span>
+                {controlButton}
+              </>
+            )}
             <button
               type="button"
               className="live-machine-expand"
-              onClick={() => setExpanded(false)}
-              title="Close expanded view"
+              onClick={() => {
+                // ✕ while driving is Cancel: end control AND close.
+                // Closing the overlay while still holding the lock
+                // would hide the desktop but keep the machine locked.
+                if (controlRef.current === 'on' || controlRef.current === 'taking') {
+                  endControl().then(() => setExpanded(false));
+                } else {
+                  setExpanded(false);
+                }
+              }}
+              title={control === 'on' ? 'Exit control mode and close' : 'Close expanded view'}
             >
               ✕
             </button>
           </div>
-          <div className="live-machine-screen live-machine-screen-full">{frame}</div>
+          {control === 'error' && controlError && (
+            <div className="live-machine-control-error" role="alert">
+              {controlError}
+            </div>
+          )}
+          {overlayScreen}
         </div>
       )}
     </>
