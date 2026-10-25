@@ -7,6 +7,13 @@
 # Started ON DEMAND by the host backend (huntRunner.startHuntDesktop) via
 # `docker exec` — never at container boot, so ordinary hunts pay nothing
 # for it. Idempotent: re-running while the desktop is up is a no-op.
+# Chromium supervisor (25 Oct 2026): re-running the script also revives
+# a DEAD Chromium — the early exit below requires Chromium's CDP
+# endpoint to answer, not just Xvfb + the ready file (Chromium died
+# silently 11:35:11Z with no crash signature and nothing revived it).
+# The backend's screenshot poller re-runs this script every ~3s while
+# the owner watches, so a future death is caught within one poll cycle
+# without waiting for a browser action.
 #
 # Components (all bound to the container's loopback — NOTHING is published
 # to the host or the network):
@@ -30,14 +37,45 @@
 set -u
 
 export DISPLAY=:99
-READY_FILE=/tmp/dm-desktop.ready
-LOG_FILE=/tmp/dm-desktop.log
+# Paths are overridable for tests (DM_DESKTOP_READY_FILE /
+# DM_DESKTOP_LOG_FILE); production leaves them unset and gets /tmp.
+READY_FILE="${DM_DESKTOP_READY_FILE:-/tmp/dm-desktop.ready}"
+LOG_FILE="${DM_DESKTOP_LOG_FILE:-/tmp/dm-desktop.log}"
 SCREEN_W="${DM_DESKTOP_WIDTH:-1280}"
 SCREEN_H="${DM_DESKTOP_HEIGHT:-800}"
 
 log() { printf '%s\n' "$*" >>"$LOG_FILE" 2>/dev/null || true; }
 
-if [ -f "$READY_FILE" ] && pgrep -x Xvfb >/dev/null 2>&1; then
+# --- Chromium liveness (supervisor, 25 Oct 2026) --------------------------
+# The pgrep/pkill patterns use the bracket trick: pgrep -f matches ANY
+# command line containing the literal pattern, INCLUDING the shell
+# running the check itself (a plain 'remote-debugging-port=9222' check
+# matched the diagnostic shell's own command line and reported phantom
+# "live Chromium" PIDs). '922[2]' as a regex matches the string "9222",
+# but the checking shell's own command line contains "922[2]", not
+# "9222" — so it can never self-match.
+chromium_process_alive() {
+  pgrep -f 'remote-debugging-port=922[2]' >/dev/null 2>&1
+}
+
+chromium_cdp_up() {
+  command -v curl >/dev/null 2>&1 || return 1
+  curl -s --max-time 2 http://127.0.0.1:9222/json/version 2>/dev/null | grep -q 'webSocketDebuggerUrl'
+}
+
+# Healthy = the CDP endpoint answers. If curl is unavailable in the
+# image, fall back to "a Chromium process exists", so a missing curl
+# can never make a healthy browser look dead (and never get it killed
+# by the wedge handling below).
+chromium_healthy() {
+  if command -v curl >/dev/null 2>&1; then
+    chromium_cdp_up
+  else
+    chromium_process_alive
+  fi
+}
+
+if [ -f "$READY_FILE" ] && pgrep -x Xvfb >/dev/null 2>&1 && chromium_healthy; then
   echo "desktop already running"
   exit 0
 fi
@@ -110,7 +148,22 @@ DM_PROXY_FLAG=""
 if [ -f /tmp/dm-intercept/proxy.on ]; then
   DM_PROXY_FLAG="--proxy-server=$(cat /tmp/dm-intercept/proxy.on)"
 fi
-if ! pgrep -f 'remote-debugging-port=9222' >/dev/null 2>&1; then
+if chromium_process_alive && ! chromium_healthy; then
+  # Wedged: a Chromium process exists but its CDP endpoint does not
+  # answer. A new Chromium cannot bind port 9222 or the same profile
+  # while the old one holds them, so kill the stale process first.
+  # The dead process's exit code is unrecoverable — it was started
+  # detached by an earlier run of this script and already reaped — so
+  # log what IS known (pid(s), time, CDP unresponsive) to leave the
+  # signature the 11:35Z death never had.
+  log "chromium wedged: process present ($(pgrep -f 'remote-debugging-port=922[2]' | tr '\n' ' ')) but CDP 127.0.0.1:9222 unresponsive — killing stale chromium"
+  pkill -f 'remote-debugging-port=922[2]' 2>/dev/null || true
+  for _ in $(seq 1 10); do
+    chromium_process_alive || break
+    sleep 0.5
+  done
+fi
+if ! chromium_process_alive; then
   log "starting chromium (CDP 127.0.0.1:9222${DM_PROXY_FLAG:+, via intercept proxy})"
   nohup chromium \
     --no-sandbox \
