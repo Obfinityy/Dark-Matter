@@ -56,7 +56,7 @@ async function makeHarness(t, initialState, { withCurl = true, minimalPath = fal
 if [ "$1" = "-x" ]; then
   case "$2" in
     Xvfb) [ "$(cat "$STUB_STATE_DIR/xvfb")" = "1" ] && exit 0 || exit 1;;
-    fluxbox) [ "$(cat "$STUB_STATE_DIR/fluxbox")" = "1" ] && exit 0 || exit 1;;
+    xfce4-session) [ "$(cat "$STUB_STATE_DIR/xfce")" = "1" ] && exit 0 || exit 1;;
     x11vnc) [ "$(cat "$STUB_STATE_DIR/x11vnc")" = "1" ] && exit 0 || exit 1;;
     *) exit 1;;
   esac
@@ -92,13 +92,13 @@ exit 7`,
     );
   }
   // Recording stubs for everything the script launches or probes.
-  for (const name of ['chromium', 'Xvfb', 'fluxbox', 'x11vnc', 'websockify', 'xdotool', 'scrot']) {
+  for (const name of ['chromium', 'Xvfb', 'startxfce4', 'xfce4-terminal', 'x11vnc', 'websockify', 'xdotool', 'scrot']) {
     await writeStub(name, `echo "${name} $*" >> "$STUB_LOG"\nexit 0`);
   }
 
   for (const [key, value] of Object.entries({
     xvfb: 0,
-    fluxbox: 0,
+    xfce: 0,
     x11vnc: 0,
     websockify: 0,
     chromium: 0,
@@ -154,7 +154,7 @@ exit 7`,
   return { dir, readyPath, run, calls, scriptLog, hasCall };
 }
 
-const ALL_UP = { xvfb: 1, fluxbox: 1, x11vnc: 1, websockify: 1, chromium: 1, cdp: 1 };
+const ALL_UP = { xvfb: 1, xfce: 1, x11vnc: 1, websockify: 1, chromium: 1, cdp: 1 };
 
 test('SS-1: script is a no-op when the desktop is up and CDP answers', async (t) => {
   const h = await makeHarness(t, ALL_UP);
@@ -198,7 +198,7 @@ test('SS-4: cold start launches the whole stack and touches the ready file', asy
   const h = await makeHarness(t, {});
   const res = await h.run();
   assert.equal(res.code, 0);
-  for (const name of ['Xvfb ', 'fluxbox ', 'chromium ', 'x11vnc ', 'websockify ']) {
+  for (const name of ['Xvfb ', 'startxfce4 ', 'chromium ', 'x11vnc ', 'websockify ']) {
     assert.equal(await h.hasCall(name), true, `${name.trim()} must start`);
   }
   assert.match(res.stdout, /desktop ready on :99/);
