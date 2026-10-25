@@ -7,7 +7,7 @@ import {
   listAdminUsers, createAdminUser, updateAdminUser, deleteAdminUser,
   listAdminHunts, blockAdminUser, unblockAdminUser, changeUserPassword,
   stopHunt, resumeHunt, getAuthToken, listAgentAccounts, revealAgentAccount,
-  listPaymentClaims, verifyPaymentClaim, rejectPaymentClaim,
+  listPaymentClaims, verifyPaymentClaim, rejectPaymentClaim, rejectAdminUser,
 } from '../lib/api';
 import { resolveApiBase } from '../config';
 import { toast } from '../lib/toast';
@@ -21,6 +21,10 @@ export default function AdminPage() {
   const [form, setForm] = useState({ username: '', password: '', control: 'minimal' });
   const [busy, setBusy] = useState(false);
   const [blockModal, setBlockModal] = useState(null); // user to block
+  // Shared in-app confirmation modal (replaces native confirm(), which
+  // automated browsers auto-dismiss — so Delete/Reject never fired).
+  // { kind: 'delete-user' | 'reject-signup' | 'reject-claim', title, message, confirmLabel, user, claim }
+  const [confirmModal, setConfirmModal] = useState(null);
   const [blockDuration, setBlockDuration] = useState('24');
   const [customHours, setCustomHours] = useState('');
   const [pwModal, setPwModal] = useState(null); // user to change password
@@ -80,11 +84,33 @@ export default function AdminPage() {
     else toast(res.error || 'Failed.', 'error');
   }
 
-  async function handleDelete(u) {
-    if (!confirm(`Delete user ${u.username}? This cannot be undone.`)) return;
-    const res = await deleteAdminUser(u.id);
-    if (res.ok) { toast('User deleted.', 'success'); load(); }
-    else toast(res.error || 'Failed.', 'error');
+  function handleDelete(u) {
+    setConfirmModal({
+      kind: 'delete-user',
+      title: `Delete user ${u.username}?`,
+      message: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      user: u,
+    });
+  }
+
+  async function handleConfirmModal() {
+    if (!confirmModal) return;
+    const m = confirmModal;
+    setConfirmModal(null);
+    if (m.kind === 'delete-user') {
+      const res = await deleteAdminUser(m.user.id);
+      if (res.ok) { toast('User deleted.', 'success'); load(); }
+      else toast(res.error || 'Failed.', 'error');
+    } else if (m.kind === 'reject-signup') {
+      const res = await rejectAdminUser(m.user.id);
+      if (res.ok) { toast(`Rejected ${m.user.username}`, 'success'); load(); }
+      else toast(res.error || 'Failed', 'error');
+    } else if (m.kind === 'reject-claim') {
+      const res = await rejectPaymentClaim(m.claim.id);
+      if (res.ok) { toast(`Claim from ${m.claim.username} rejected.`, 'success'); load(); }
+      else toast(res.error || 'Failed.', 'error');
+    }
   }
 
   async function handleBlock() {
@@ -131,11 +157,14 @@ export default function AdminPage() {
     } else toast(res.error || 'Failed.', 'error');
   }
 
-  async function handleRejectClaim(c) {
-    if (!confirm(`Reject the payment claim from ${c.username} (UTR ${c.utr})? The account will NOT be activated.`)) return;
-    const res = await rejectPaymentClaim(c.id);
-    if (res.ok) { toast(`Claim from ${c.username} rejected.`, 'success'); load(); }
-    else toast(res.error || 'Failed.', 'error');
+  function handleRejectClaim(c) {
+    setConfirmModal({
+      kind: 'reject-claim',
+      title: `Reject the payment claim from ${c.username} (UTR ${c.utr})?`,
+      message: 'The account will NOT be activated.',
+      confirmLabel: 'Reject',
+      claim: c,
+    });
   }
 
   async function handleStopHunt(huntId) {
@@ -286,13 +315,13 @@ export default function AdminPage() {
                             </button>
                             <button
                               className="btn btn-ghost small danger"
-                              onClick={async () => {
-                                if (!confirm(`Reject signup for ${u.username}?`)) return;
-                                const { rejectAdminUser } = await import('../lib/api');
-                                const res = await rejectAdminUser(u.id);
-                                if (res.ok) { toast(`Rejected ${u.username}`, 'success'); load(); }
-                                else toast(res.error || 'Failed', 'error');
-                              }}
+                              onClick={() => setConfirmModal({
+                                kind: 'reject-signup',
+                                title: `Reject signup for ${u.username}?`,
+                                message: '',
+                                confirmLabel: 'Reject',
+                                user: u,
+                              })}
                             >
                               ❌ Reject
                             </button>
@@ -607,6 +636,26 @@ export default function AdminPage() {
                 </button>
                 <button className="btn btn-primary danger" onClick={handleBlock}>
                   Block User
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Confirm Modal — Delete user / Reject signup / Reject payment claim.
+            In-app (never native confirm()): automated browsers auto-dismiss
+            native confirm(), so those buttons silently did nothing. */}
+        {confirmModal && (
+          <div className="modal-overlay" onClick={() => setConfirmModal(null)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <h3>{confirmModal.title}</h3>
+              {confirmModal.message && <p className="page-sub">{confirmModal.message}</p>}
+              <div className="modal-actions">
+                <button className="btn btn-ghost" onClick={() => setConfirmModal(null)}>
+                  Cancel
+                </button>
+                <button className="btn btn-primary danger" onClick={handleConfirmModal}>
+                  {confirmModal.confirmLabel}
                 </button>
               </div>
             </div>
