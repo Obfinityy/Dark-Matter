@@ -5,6 +5,13 @@
 // event is recorded, and the brain is told to spend the turn on
 // non-GUI work. Non-GUI actions (search, shell) keep running — the
 // hunt itself is never paused by a takeover.
+//
+// WRONG-PAGE GUARD (25 Oct 2026, fix 5): the loop takes ONE
+// read-only turn-start snapshot when the session opens — before the
+// first turn, even while controlled (it types/clicks nothing, so it
+// cannot fight the owner's input). The guiCalls assertions below
+// therefore expect exactly one leading 'snapshot'; the brain's own
+// GUI actions must still never run while controlled.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { humanIteration } from './humanLoop.js';
@@ -46,7 +53,7 @@ test('CP-1 (wire-up): browser_click is skipped while the owner controls the mach
     { controlled: true },
   );
   const res = await s.run();
-  assert.deepEqual(s.guiCalls, [], 'no GUI call may run while controlled');
+  assert.deepEqual(s.guiCalls, ['snapshot'], 'only the read-only turn-start snapshot may run while controlled — the click must not');
   const paused = res.log.find((e) => String(e.observation || '').includes('PAUSED'));
   assert.ok(paused, 'a turn observation must carry the PAUSED verdict');
   assert.match(paused.observation, /OWNER IS CONTROLLING THE MACHINE/);
@@ -64,7 +71,7 @@ test('CP-2: browser_open and screenshot are skipped too while controlled', async
     { controlled: true },
   );
   const res = await s.run();
-  assert.deepEqual(s.guiCalls, [], 'no GUI call may run while controlled');
+  assert.deepEqual(s.guiCalls, ['snapshot'], 'only the read-only turn-start snapshot may run while controlled');
   assert.equal(s.recorded.filter((e) => e.type === 'control_pause').length, 2);
   assert.ok(res.log.every((e) => String(e.observation || '').includes('PAUSED')));
 });
@@ -80,7 +87,7 @@ test('CP-3: the same click RUNS when nobody controls the machine', async () => {
     { controlled: false },
   );
   await s.run();
-  assert.deepEqual(s.guiCalls, ['snapshot', 'click']);
+  assert.deepEqual(s.guiCalls, ['snapshot', 'snapshot', 'click'], 'turn-start snapshot, then the brain\'s own snapshot turn, then the click');
   assert.ok(!s.recorded.some((e) => e.type === 'control_pause'));
 });
 
@@ -90,7 +97,7 @@ test('CP-4: non-GUI work (search) still runs while controlled', async () => {
     { controlled: true },
   );
   const res = await s.run();
-  assert.deepEqual(s.guiCalls, []);
+  assert.deepEqual(s.guiCalls, ['snapshot'], 'only the read-only turn-start snapshot may run while controlled');
   assert.ok(!s.recorded.some((e) => e.type === 'control_pause'), 'search is not a GUI action');
   const row = res.log.find((e) => e.action === 'search');
   assert.ok(row, 'the search turn must execute and log');

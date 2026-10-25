@@ -80,6 +80,20 @@ test('AJ-9: shell/search/snapshot actions are never auth-gated', () => {
   assert.equal(authGateHit('browser_snapshot', {}, new Map(), EMPTY_OBS), null);
 });
 
+// WRONG-PAGE GUARD (25 Oct 2026, AJ-12): the driver's own WRONG
+// PAGE refusal is authoritative — it already names the page and the
+// way back. The auth gate must pass it through untouched: a foreign
+// URL can contain "/login" (our own frontend's login route), and
+// the empty-snapshot check would otherwise swallow the refusal and
+// send the agent snapshotting a page that is not the target.
+test('AJ-12: a WRONG PAGE observation is never auth-gated', () => {
+  const wrongBlank = 'WRONG PAGE — you are on about:blank, which is NOT your target. Do NOT type or click here.';
+  assert.equal(authGateHit('browser_type', { text: 'obfinity-ml5eemlu' }, new Map(), wrongBlank), null);
+  assert.equal(authGateHit('browser_click', { text: 'Sign in' }, new Map(), wrongBlank), null);
+  const wrongLoginUrl = 'WRONG PAGE — you are on https://hack.thebhavesh.online/login, which is NOT your target. Do NOT type or click here.';
+  assert.equal(authGateHit('browser_type', { text: 'obfinity-ml5eemlu' }, new Map(), wrongLoginUrl), null);
+});
+
 test('AJ-10 (wire-up): a stubbed session blocks the blind re-type and never calls gui.type', async () => {
   const recorded = [];
   const typeCalls = [];
