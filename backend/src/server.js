@@ -33,7 +33,7 @@ import voiceRouter from './routes/voice.js';
 import paymentsRouter from './routes/payments.js';
 import notificationsRouter from './routes/notifications.js';
 import { backfillAllHunts, episodeLedgerEnabled, runEmbeddingBackfill, backfillRuledOutFromEpisodes } from './episodeStore.js';
-import { ttydPortForHunt } from './huntRunner.js';
+import { ttydPortForHunt, checkChromiumWatchdog, CHROMIUM_WATCHDOG_MS } from './huntRunner.js';
 import { maybeConsolidateAll } from './consolidation.js';
 import { evaluatePromotions } from './playbook.js';
 
@@ -592,6 +592,30 @@ server.listen(config.port, () => {
   }
   setTimeout(() => scanAndResumeRunningHunts('boot'), 8000);
   setInterval(() => scanAndResumeRunningHunts('periodic'), 60000);
+
+  // CHROMIUM WATCHDOG — periodic liveness check for RUNNING hunts.
+  // The supervisor (startHuntDesktop) revives a dead Chromium, but it
+  // only runs when something calls it — the screenshot poller (only
+  // while the owner watches the Live Machine) or the agent's browser
+  // actions. Since the Live Machine defaults to collapsed, the poller
+  // usually does not run, so a dead Chromium could sit dead in the
+  // unwatched gap (the 11:35Z death sat ~35 min). This timer closes
+  // that gap: every 3 min it probes CDP for each running hunt and
+  // revives a dead Chromium via the existing starter. Only running
+  // hunts; hunts that never started a desktop are never started here;
+  // healthy checks stay silent, a revival logs once via the starter.
+  async function checkChromiumWatchdogTick(tag) {
+    try {
+      const r = await checkChromiumWatchdog();
+      if (r.revived) {
+        console.log(`[desktop:watchdog:${tag}] revived Chromium for ${r.revived} hunt(s)`);
+      }
+    } catch (err) {
+      console.error(`[desktop:watchdog:${tag}] check failed:`, err.message || err);
+    }
+  }
+  setTimeout(() => checkChromiumWatchdogTick('boot'), 15000);
+  setInterval(() => checkChromiumWatchdogTick('periodic'), CHROMIUM_WATCHDOG_MS);
 
   // EPISODE LEDGER (Job 6 stage 1) — boot backfill mirrors every hunt's
   // events.jsonl into the SQLite episode ledger; a periodic flush keeps it

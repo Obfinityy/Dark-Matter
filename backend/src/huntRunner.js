@@ -377,6 +377,95 @@ export async function startHuntDesktop(huntId, deps = {}) {
   return fail('desktop_start_timeout');
 }
 
+// Chromium watchdog interval: 3 minutes. A dead Chromium is rare
+// (one silent death sat ~35 min before anyone noticed, 11:35Z), so
+// probing every few minutes bounds the unwatched black-screen window
+// to ~3 min at the cost of one tiny `docker exec` probe per running
+// hunt (the one-hunt order means usually exactly one). Shorter than a
+// human turn (10–25 min), so a death is caught well before the
+// agent's next browser action would need the browser.
+export const CHROMIUM_WATCHDOG_MS = 3 * 60 * 1000;
+
+/** Default hunt list for the watchdog: lazy import on purpose — this
+ * module has only node-builtin imports (same reason as
+ * readMetaTargetMode). `deps.listMetas` overrides it in tests. */
+async function defaultListHuntMetas() {
+  const { listHuntMetas } = await import('./store.js');
+  return listHuntMetas();
+}
+
+/**
+ * Chromium watchdog — periodic liveness check for RUNNING hunts.
+ *
+ * Follow-up to the supervisor (25 Oct 2026): startHuntDesktop revives
+ * a dead Chromium, but it only runs when something calls it — the
+ * screenshot poller (only while the owner watches the Live Machine)
+ * or the agent's browser actions. Since the Live Machine now defaults
+ * to collapsed, the poller usually does NOT run, so a dead Chromium
+ * could sit dead in the unwatched gap. This check closes that gap: it
+ * probes CDP for each running hunt and revives a dead Chromium via
+ * the existing starter — it never starts a desktop, never respawns a
+ * container, never touches a hunt. Healthy checks stay silent (no log
+ * spam every interval); a revival is logged once by the starter
+ * itself ("[desktop] hunt <id>: chromium down ... reviving via
+ * hunt-desktop.sh"). A failed revive is throttled by the starter's
+ * shared 30s cache, so a permanently-dead desktop cannot spin.
+ * @returns {{checked: number, healthy: number, revived: number, failed: number, skipped: number}}
+ */
+export async function checkChromiumWatchdog(deps = {}) {
+  const summary = { checked: 0, healthy: 0, revived: 0, failed: 0, skipped: 0 };
+  const listMetas = (deps && deps.listMetas) || defaultListHuntMetas;
+  const exec = (deps && deps.exec) || execInHuntContainer;
+  const startDesktop =
+    (deps && deps.startDesktop) || ((huntId) => startHuntDesktop(huntId, deps));
+
+  let metas;
+  try {
+    metas = await listMetas();
+  } catch (err) {
+    console.error(`[desktop:watchdog] list failed:`, err.message || err);
+    return summary;
+  }
+  for (const meta of metas || []) {
+    if (!meta || meta.state !== 'running' || !meta.huntId) {
+      summary.skipped += 1;
+      continue;
+    }
+    const huntId = meta.huntId;
+    try {
+      if (desktopStartRecentlyFailed(huntId)) {
+        summary.skipped += 1;
+        continue;
+      }
+      const probe = await exec(huntId, DESKTOP_PROBE_CMD, 10000, { bypassTmux: true });
+      if (probe.containerMissing) {
+        // Container gone: Lane E / the hunt loop owns respawn, not the
+        // watchdog — it only revives Chromium inside an existing one.
+        summary.skipped += 1;
+        continue;
+      }
+      const state = parseDesktopProbe(probe.stdout);
+      if (!state.ready) {
+        // Desktop never started for this hunt: never create one here.
+        summary.skipped += 1;
+        continue;
+      }
+      summary.checked += 1;
+      if (state.cdp) {
+        summary.healthy += 1;
+        continue;
+      }
+      const res = await startDesktop(huntId);
+      if (res.ok) summary.revived += 1;
+      else summary.failed += 1;
+    } catch (err) {
+      console.error(`[desktop:watchdog] ${huntId} check failed:`, err.message || err);
+      summary.skipped += 1;
+    }
+  }
+  return summary;
+}
+
 /**
  * Capture the hunt desktop's current frame.
  * @returns {{ok: true, buffer: Buffer, contentType: string} | {ok: false, error: string}}
