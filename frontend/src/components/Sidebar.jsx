@@ -197,7 +197,7 @@ export default function Sidebar({
   open,
   onClose,
 }) {
-  const { user } = useAuth();
+  const { user, ready } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
@@ -278,7 +278,9 @@ export default function Sidebar({
     closeIfMobile();
   }
 
-  const initial = user && (user.username || user.name) ? (user.username || user.name).trim().charAt(0).toUpperCase() : '•';
+  const displayName = user?.displayName || user?.name || user?.fullName || user?.firstName || user?.email || user?.username || 'Signed in';
+  const usernameText = user?.username ? `@${String(user.username).replace(/^@/, '')}` : (user?.email ? `@${String(user.email).split('@')[0]}` : '');
+  const initial = displayName ? String(displayName).trim().charAt(0).toUpperCase() : '•';
 
   return (
     <aside className={`sidebar${open ? ' open' : ''}`} aria-label="Navigation">
@@ -372,14 +374,22 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar-user" ref={profileRef}>
-        {user ? (
+        {!ready && !user ? (
+          <div className="sidebar-user-skeleton" aria-label="Loading profile">
+            <span className="user-avatar skeleton" />
+            <span className="user-meta skeleton-block" />
+          </div>
+        ) : user ? (
           <>
             {profileOpen && (
               <ProfileMenu onNavigate={(p) => { go(p); }} onClose={() => setProfileOpen(false)} />
             )}
-            <button className="user-row" onClick={() => setProfileOpen((v) => !v)} aria-haspopup="menu">
+            <button className="user-row" onClick={() => setProfileOpen((v) => !v)} aria-haspopup="menu" aria-label={`Open profile menu for ${displayName}`}>
               <span className="user-avatar" aria-hidden="true">{initial}</span>
-              <span className="user-name">{user.name || user.email}</span>
+              <span className="user-meta">
+                <span className="user-name">{displayName}</span>
+                {usernameText && <span className="user-username">{usernameText}</span>}
+              </span>
             </button>
           </>
         ) : (

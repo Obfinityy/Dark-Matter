@@ -41,7 +41,11 @@ function IconLogout() {
 }
 
 export default function ProfileMenu({ onNavigate, onClose, positionClass = '' }) {
-  const { logout: authLogout } = useAuth();
+  const { user, logout: authLogout } = useAuth();
+
+  const displayName = user?.displayName || user?.name || user?.fullName || user?.firstName || user?.email || user?.username || 'Signed in';
+  const usernameText = user?.username ? `@${String(user.username).replace(/^@/, '')}` : (user?.email ? `@${String(user.email).split('@')[0]}` : '');
+  const initial = displayName ? String(displayName).trim().charAt(0).toUpperCase() : '•';
 
   function go(page) {
     onClose && onClose();
@@ -56,6 +60,13 @@ export default function ProfileMenu({ onNavigate, onClose, positionClass = '' })
 
   return (
     <div className={`profile-menu ${positionClass}`} role="menu">
+      <div className="profile-menu-header" role="presentation">
+        <span className="profile-menu-avatar" aria-hidden="true">{initial}</span>
+        <div className="profile-menu-user-meta">
+          <div className="profile-menu-name">{displayName}</div>
+          {usernameText && <div className="profile-menu-username">{usernameText}</div>}
+        </div>
+      </div>
       <button className="profile-menu-item" onClick={() => go('plugins')} role="menuitem">
         <IconPlugins /> Plugins
       </button>

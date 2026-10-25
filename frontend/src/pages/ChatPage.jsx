@@ -104,10 +104,14 @@ export default function ChatPage({
     toast('Stopped generating.', 'info');
   }
 
-  async function handleSend(text, speak) {
+  async function handleSend(text, speak, editMessageId = null) {
     const chatId = chat ? chat.id : onNewChat();
-    const userMsg = { id: uid(), role: 'user', text };
-    onAppendMessage(chatId, userMsg);
+    if (editMessageId) {
+      onUpdateMessage(chatId, editMessageId, text);
+    } else {
+      const userMsg = { id: uid(), role: 'user', text };
+      onAppendMessage(chatId, userMsg);
+    }
     setSending(true);
     const token = { aborted: false };
     streamTokenRef.current = token;
@@ -148,6 +152,7 @@ export default function ChatPage({
     setSending(false);
 
     if (token.aborted) return;
+    setEditText(null);
     if (speakerOn && speak) {
       speak(reply);
     }
@@ -272,6 +277,16 @@ export default function ChatPage({
     await handleStartHunt(hunt.target, hunt.scope || '', hunt.mode || 'normal', true, true);
   }
 
+  function handleRegenerateMessage(message) {
+    const index = messages.findIndex((m) => m.id === message.id);
+    const lastUser = [...messages].slice(0, index).reverse().find((m) => m.role === 'user');
+    if (!lastUser) {
+      toast('There is no previous prompt to regenerate from.', 'error');
+      return;
+    }
+    handleSend(lastUser.text, false);
+  }
+
   const [editText, setEditText] = useState(null);
 
   const composer = (
@@ -281,6 +296,7 @@ export default function ChatPage({
       generating={generating}
       onStop={handleStop}
       editText={editText}
+      onCancelEdit={() => setEditText(null)}
       onStartHunt={() => {
         if (ensureHuntAuth()) setHuntModalOpen(true);
       }}
@@ -338,7 +354,8 @@ export default function ChatPage({
               thinking={sending && streamingId === null}
               onHuntStatusChange={handleHuntStatusChange}
               onOpenReports={onOpenReports}
-              onEditMessage={(msg) => setEditText(msg.text)}
+              onEditMessage={(msg) => setEditText({ id: msg.id, text: msg.text })}
+              onRegenerateMessage={handleRegenerateMessage}
               onRerunHunt={handleRerunHunt}
               onTalkWithAI={handleTalkWithAI}
               onGetReport={handleGetReport}
