@@ -84,6 +84,36 @@ xfce_alive() {
   pgrep -x xfce4-session >/dev/null 2>&1
 }
 
+# A LIVE (non-zombie) xfdesktop. pgrep alone is not enough: a killed
+# xfdesktop lingers as a defunct PID because the container init never
+# reaps it, and pgrep matches defunct PIDs.
+xfdesktop_alive() {
+  ps -eo stat,comm 2>/dev/null | awk '$2 == "xfdesktop" && $1 !~ /^Z/ { found=1 } END { exit !found }'
+}
+
+# Restart the backdrop manager so it re-reads the xfconf wallpaper.
+# xfdesktop 4.20 reads the backdrop once at its own startup: a session
+# that started with an empty image-path shows black and never picks up
+# later xfconf changes (the notification only fires value -> value,
+# proven live 26 Oct 2026: blue -> purple redrew, null -> blue did
+# not). The session does NOT respawn it — start the replacement
+# ourselves. Bounded, never fatal: if the new instance fails to come
+# up the desktop still works, just with a black backdrop.
+restart_xfdesktop() {
+  command -v xfdesktop >/dev/null 2>&1 || return 0
+  command -v pkill >/dev/null 2>&1 || return 0
+  pkill -x xfdesktop 2>/dev/null || true
+  sleep 1
+  DISPLAY=:99 xfdesktop >>"$LOG_FILE" 2>&1 &
+  sleep 1
+  if xfdesktop_alive; then
+    log "kali theme: xfdesktop restarted — wallpaper should now render"
+  else
+    log "kali theme: WARNING xfdesktop did not come back after restart — desktop backdrop may stay black"
+  fi
+  return 0
+}
+
 # --- Real Kali look (25 Oct 2026) -------------------------------------------
 # The image ships the Kali XFCE theme (kali-themes): Kali-Dark GTK + xfwm4
 # theme, Flat-Remix-Blue-Dark icons (incl. the kali-panel-menu dragon),
@@ -150,12 +180,18 @@ apply_kali_theme() {
   # The session's user config can carry empty image-path values that
   # override the /etc/xdg default, so set it explicitly on the live
   # session every apply. last-image is for older xfdesktop; the unused
-  # one is inert. xfdesktop picks the change up via the xfconf
-  # notification and redraws (proven live 26 Oct 2026: blue -> purple
-  # with no restart) — `xfdesktop --reload` cannot reach the running
-  # instance here (no session bus: it exits "xfdesktop is not running"),
-  # so there is no reload call.
+  # one is inert. NOTE: setting the properties is NOT enough on its own —
+  # xfdesktop reads the backdrop once at its own startup, and a session
+  # that started with an empty image-path never picks up later xfconf
+  # changes (the notification only fires value -> value: blue -> purple
+  # redrew live, null -> blue did not). So after (re)setting the
+  # wallpaper, restart xfdesktop (see restart_xfdesktop) so the new
+  # instance reads the values at startup. `xfdesktop --reload` cannot
+  # reach the running instance here (no session bus: it exits
+  # "xfdesktop is not running"), so there is no reload call.
+  local wallpaper_changed=0
   if [ -e "$KALI_WALLPAPER" ]; then
+    [ "$wallpaper_now" = "$KALI_WALLPAPER" ] || wallpaper_changed=1
     local m
     for m in "monitor${monitor_name}" monitor0; do
       xfconf-query -c xfce4-desktop -p "/backdrop/screen0/${m}/workspace0/image-path" -n -t string -s "$KALI_WALLPAPER"
@@ -166,6 +202,13 @@ apply_kali_theme() {
     xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-path -n -t string -s "$KALI_WALLPAPER"
     xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-style -n -t int -s 5
     xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-show -n -t bool -s true
+  fi
+  # The backdrop only renders if xfdesktop itself started with these
+  # values — restart it when the wallpaper actually changed (a fresh
+  # session's null -> kali-cubes). Supervisor re-runs hit the fast path
+  # and never restart it.
+  if [ "$wallpaper_changed" = 1 ]; then
+    restart_xfdesktop
   fi
   # Menu button: a fresh session already gets whiskermenu first with
   # button-icon=kali-panel-menu (the dragon) from Kali's panel default.

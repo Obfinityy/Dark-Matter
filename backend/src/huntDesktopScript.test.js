@@ -132,6 +132,10 @@ esac
 exit 0`,
     );
     await writeStub('xfce4-panel', `echo "xfce4-panel $*" >> "$STUB_LOG"\nexit 0`);
+    // ps stub: the real ps in the test env has no xfdesktop, but the
+    // restart check needs a live one to report (the script's job is to
+    // launch it; the stub pretends the launch succeeded).
+    await writeStub('ps', `echo "ps $*" >> "$STUB_LOG"\necho "S xfdesktop"\nexit 0`);
     // xrandr stub: reports the RandR output name xfdesktop 4.20 keys the
     // backdrop to (Xvfb: "screen"). withXrandr=false omits it; an empty
     // xrandrOutput reports no connected output — both make the script
@@ -141,7 +145,7 @@ exit 0`,
     }
   }
   // Recording stubs for everything the script launches or probes.
-  for (const name of ['chromium', 'Xvfb', 'startxfce4', 'xfce4-terminal', 'x11vnc', 'websockify', 'xdotool', 'scrot']) {
+  for (const name of ['chromium', 'Xvfb', 'startxfce4', 'xfce4-terminal', 'x11vnc', 'websockify', 'xdotool', 'scrot', 'xfdesktop']) {
     await writeStub(name, `echo "${name} $*" >> "$STUB_LOG"\nexit 0`);
   }
 
@@ -337,7 +341,12 @@ test('KT-1: cold start with the Kali theme installed applies it (theme, icons, w
   ]) {
     assert.ok(log.includes(want), `missing call: ${want}`);
   }
-  assert.equal(log.includes('xfdesktop '), false, 'xfdesktop --reload cannot reach the running instance (no session bus) and must not be called');
+  assert.equal(log.includes('xfdesktop --reload'), false, 'xfdesktop --reload cannot reach the running instance (no session bus) and must not be called');
+  // The wallpaper changed (empty -> kali-cubes): xfdesktop must be
+  // restarted so the new instance reads the values at startup.
+  assert.equal(log.includes('pkill -x xfdesktop'), true, 'xfdesktop must be restarted after the wallpaper changes');
+  assert.match(log, /^xfdesktop /m, 'the replacement xfdesktop must be launched');
+  assert.match(await h.scriptLog(), /xfdesktop restarted/);
   assert.match(await h.scriptLog(), /kali theme applied/);
   await readFile(h.readyPath, 'utf8'); // throws if the ready file was not created
 });
@@ -365,6 +374,11 @@ test('KT-3: theme already Kali-Dark AND wallpaper already set — the apply is a
   assert.equal(log.includes(' -s Kali-Dark'), false, 'no set calls when already Kali-Dark');
   assert.equal(log.includes('whiskermenu'), false, 'no panel swap when already Kali-Dark');
   assert.equal(await h.hasCall('xfce4-panel '), false, 'no panel restart when already Kali-Dark');
+  // Fast path: the wallpaper is already set, so xfdesktop must NOT be
+  // restarted (supervisor re-runs would otherwise flicker the desktop
+  // every ~3s).
+  assert.equal(log.includes('pkill -x xfdesktop'), false, 'no xfdesktop restart when the wallpaper is already set');
+  assert.equal((await h.scriptLog()).includes('xfdesktop restarted'), false, 'no restart log line on the fast path');
 });
 
 test('KT-4: xfconf unreachable — the desktop still starts and the theme is skipped, never fatal', async (t) => {
@@ -389,6 +403,14 @@ test('KT-4: xfconf unreachable — the desktop still starts and the theme is ski
 // session bus, so the change must arrive via the xfconf notification
 // (proven live: blue -> purple with no restart). The fast path must
 // check the wallpaper too, at the monitor-name path.
+// The third proof run set the wallpaper at the monitor-name path and
+// STILL showed black: xfdesktop reads the backdrop once at its own
+// startup, and a session that started with an empty image-path never
+// picks up later xfconf changes (the notification only fires
+// value -> value). The fix: after (re)setting the wallpaper, restart
+// xfdesktop (pkill + start it ourselves — the session does NOT respawn
+// it) so the new instance reads the values at startup (proven live:
+// the restarted xfdesktop rendered the dragon immediately).
 
 test('KT-5: theme already Kali-Dark but wallpaper unset — the apply runs and sets the wallpaper at the monitor-name path', async (t) => {
   const h = await makeHarness(t, { 'xfconf-theme': 'Kali-Dark' }, { withXfconf: true });
@@ -402,6 +424,9 @@ test('KT-5: theme already Kali-Dark but wallpaper unset — the apply runs and s
   assert.ok(log.includes(`xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorscreen/workspace0/image-path -n -t string -s ${wallpaper}`), 'wallpaper must be set at the monitor-name path xfdesktop 4.20 reads');
   assert.ok(log.includes(`xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/image-path -n -t string -s ${wallpaper}`), 'the numeric monitor path is set too as a fallback');
   assert.ok(log.includes(`xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorscreen/workspace0/image-style -n -t int -s 5`), 'zoomed style must be set');
+  assert.equal(log.includes('pkill -x xfdesktop'), true, 'xfdesktop must be restarted after the wallpaper changes');
+  assert.match(log, /^xfdesktop /m, 'the replacement xfdesktop must be launched');
+  assert.match(await h.scriptLog(), /xfdesktop restarted/);
   assert.match(await h.scriptLog(), /kali theme applied/);
   await readFile(h.readyPath, 'utf8');
 });
@@ -415,6 +440,7 @@ test('KT-6: wallpaper file missing — the theme-only fast path still applies (n
   const log = await h.calls();
   assert.equal(log.includes('image-path -n'), false, 'no wallpaper set when the file is missing');
   assert.equal(log.includes(' -s Kali-Dark'), false, 'no set calls when already Kali-Dark');
+  assert.equal(log.includes('pkill -x xfdesktop'), false, 'no xfdesktop restart when there is no wallpaper to set');
   await readFile(h.readyPath, 'utf8');
 });
 
@@ -429,6 +455,28 @@ test('KT-7: xrandr reports no connected output — the wallpaper falls back to t
   const log = await h.calls();
   assert.equal(log.includes('monitorscreen'), false, 'no monitor-name path when xrandr reports nothing');
   assert.ok(log.includes(`xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/image-path -n -t string -s ${wallpaper}`), 'fallback sets the numeric monitor path');
+  assert.equal(log.includes('pkill -x xfdesktop'), true, 'xfdesktop must be restarted after the wallpaper changes');
+  assert.match(log, /^xfdesktop /m, 'the replacement xfdesktop must be launched');
+  assert.match(await h.scriptLog(), /xfdesktop restarted/);
+  assert.match(await h.scriptLog(), /kali theme applied/);
+  await readFile(h.readyPath, 'utf8');
+});
+
+test('KT-8: theme changed but wallpaper already set — the theme is applied but xfdesktop is NOT restarted', async (t) => {
+  const h = await makeHarness(t, {}, { withXfconf: true });
+  const themeDir = join(h.dir, 'Kali-Dark');
+  const wallpaper = join(h.dir, 'kali-wallpaper.jpg');
+  await mkdir(themeDir);
+  await writeFile(wallpaper, 'fake wallpaper');
+  await h.setState('xfconf-wallpaper', wallpaper);
+  const res = await h.run({ DM_KALI_THEME_DIR: themeDir, DM_KALI_WALLPAPER: wallpaper });
+  assert.equal(res.code, 0);
+  const log = await h.calls();
+  // Theme was not Kali-Dark, so the theme sets ran...
+  assert.ok(log.includes('xfconf-query -c xsettings -p /Net/ThemeName -n -t string -s Kali-Dark'), 'theme must be set');
+  // ...but the wallpaper was already the Kali file, so no restart.
+  assert.equal(log.includes('pkill -x xfdesktop'), false, 'no xfdesktop restart when the wallpaper did not change');
+  assert.equal((await h.scriptLog()).includes('xfdesktop restarted'), false, 'no restart log line when the wallpaper did not change');
   assert.match(await h.scriptLog(), /kali theme applied/);
   await readFile(h.readyPath, 'utf8');
 });
