@@ -39,7 +39,7 @@ async function parseJsonSafe(res) {
   }
 }
 
-async function request(method, path, body) {
+async function request(method, path, body, opts = {}) {
   try {
     const headers = {};
     if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -49,6 +49,10 @@ async function request(method, path, body) {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      // CHAT-ANSWERS (26 Oct 2026): Stop must abort the in-flight
+      // chat fetch instead of letting it run and discarding the
+      // result. The caller passes { signal } from an AbortController.
+      signal: opts.signal,
     });
     const data = await parseJsonSafe(res);
     if (!res.ok) {
@@ -62,12 +66,16 @@ async function request(method, path, body) {
     }
     return { ok: true, status: res.status, data };
   } catch (err) {
+    // An intentional abort is not a backend failure — the caller
+    // distinguishes it so Stop never shows a "backend unreachable"
+    // toast for a reply the user stopped on purpose.
+    if (err && err.name === 'AbortError') return { ok: false, error: 'aborted', aborted: true };
     return { ok: false, error: 'Backend unreachable. Check Settings → backend connection.' };
   }
 }
 
 const get = (path) => request('GET', path);
-const post = (path, body) => request('POST', path, body);
+const post = (path, body, opts) => request('POST', path, body, opts);
 const put = (path, body) => request('PUT', path, body);
 const del = (path) => request('DELETE', path);
 
@@ -94,11 +102,18 @@ export async function steerHunt(huntId, message) {
   return post(`/api/v1/hunts/${encodeURIComponent(huntId)}/steer`, { message });
 }
 
-export async function sendChat(message, huntId) {
-  const res = await post('/api/v1/chat', { message, ...(huntId ? { huntId } : {}) });
+export async function sendChat(message, huntId, history, opts) {
+  const body = { message, ...(huntId ? { huntId } : {}) };
+  // CHAT-ANSWERS (26 Oct 2026): carry the thread's recent history so
+  // follow-ups are answered with context instead of cold.
+  if (Array.isArray(history) && history.length) body.history = history;
+  const res = await post('/api/v1/chat', body, opts);
   if (!res.ok) return res;
   const reply = (res.data && (res.data.reply || res.data.message)) || '';
-  return { ok: true, data: { reply } };
+  // CHAT-ANSWERS: return the whole response, not just the reply — the
+  // old shape dropped `action` (and ai/scoped/busy), so the steering
+  // mirroring in ChatPage (pause/resume/stop chips) never fired.
+  return { ok: true, data: { ...(res.data || {}), reply } };
 }
 
 // --- Chat title sync (renames follow the account across devices) -----------
