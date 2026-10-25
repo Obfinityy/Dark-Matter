@@ -15,10 +15,12 @@ import {
  * every 3 seconds via GET /api/v1/hunts/:id/desktop.jpg (JWT-authenticated
  * fetch, blob URL). The expand button opens the same stream full-screen.
  *
- * TAKE CONTROL OF THIS MACHINE: the header (and the expanded overlay
- * bar) carry a "Take Control of This Machine" button. Clicking it takes
- * the per-hunt control lock, starts the interactive VNC inside the
- * container, and mounts a noVNC client on the live desktop — the owner
+ * TAKE CONTROL OF THIS MACHINE: the expanded overlay bar carries a
+ * "Take Control of This Machine" button (owner order 25 Oct 2026 — the
+ * button appears ONLY in the expanded view, never on the small docked
+ * card or the minimised chip, so the small view stays clean). Clicking
+ * it takes the per-hunt control lock, starts the interactive VNC inside
+ * the container, and mounts a noVNC client on the live desktop — the owner
  * drives the whole Kali machine himself (mouse + keyboard, any tool)
  * while the agent's GUI/browser actions pause so the two drivers never
  * fight over the same screen. The hunt itself is never paused. Done
@@ -401,7 +403,6 @@ export default function LiveMachine({ huntId, target }) {
           <span className={`live-machine-dot${available ? ' on' : ''}`} aria-hidden="true" />
           <span className="live-machine-live">LIVE</span>
           <span className="live-machine-target" title={target}>{shortTarget}</span>
-          {controlButton}
           <button
             type="button"
             className="live-machine-expand"
