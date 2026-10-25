@@ -165,6 +165,51 @@ RUN for t in nmap nikto sqlmap nuclei gobuster hydra ffuf dirb enum4linux smbmap
 # entry above is written by hand — without it Burp Suite would not
 # appear in the XFCE applications menu at all. Wireshark DOES ship
 # org.wireshark.Wireshark.desktop, so it needs no hand-written entry.
+
+# --- Real Kali look (owner order 25 Oct 2026, ~23:16 IST) ------------------
+# The owner: "abhi bhi jo kali linux aa raha hai na, wo real wala kali
+# linux nahi aa raha hai" — the desktop underneath IS latest kali-rolling
+# (2026-10-18 base, VERSION_ID 2026.3) but it wears plain stock-XFCE
+# clothes (light panel, XFCE mouse logo, plain wallpaper), while his laptop
+# Kali has Kali's dark theme, dragon wallpaper and dragon menu logo.
+# This layer installs ONLY the look — measured 25 Oct 2026 from the
+# kali-rolling Packages index (Depends-only closure vs this image):
+#   kali-themes              ~123 MB (Kali-Dark GTK + xfwm4 themes,
+#                             Flat-Remix-Blue-Dark icons incl. the
+#                             kali-panel-menu dragon, kali-cubes dragon
+#                             wallpaper, Cantarell/Fira Code fonts)
+#   kali-menu                ~10 MB (Kali menu categories)
+#   xfce4-whiskermenu-plugin ~1 MB (the dragon menu button)
+#   xfce4-cpugraph-plugin / xfce4-genmon-plugin / xfce4-notifyd /
+#   xfce4-power-manager-plugins / xfce4-pulseaudio-plugin (0-16 MB —
+#   the remaining plugins in Kali's default panel)
+#   qterminal ~4 MB (Kali's default terminal; helpers.rc points at it)
+#   mousepad ~13 MB (the text-editor launcher in Kali's panel)
+#   LEAN TOTAL ~170 MB.
+# Deliberately NOT kali-desktop-xfce: its closure is ~950 MB and drags
+# firefox-esr (~293 MB — Chromium is already the browser), libwebkit2gtk
+# (~126 MB), atril/parole/ristretto/engrampa, pipewire-pulse,
+# network-manager and lightdm (a display manager — we run Xvfb +
+# startxfce4 directly, no DM). The owner also ordered "faltu ka space
+# mat bhare" (25 Oct 2026) — ~780 MB of unused apps is exactly that.
+# How it takes effect: kali-themes' postinst COPIES Kali's XFCE defaults
+# to /etc/xdg on install (panel/default.xml with whiskermenu first,
+# whiskermenu/defaults.rc with button-icon=kali-panel-menu, xfconf
+# perchannel defaults: xsettings Kali-Dark/Flat-Remix-Blue-Dark, xfwm4
+# Kali-Dark, xfce4-desktop wallpaper /usr/share/backgrounds/kali-16x9/
+# default = kali-cubes.jpg, zoomed) — so a fresh session looks like Kali
+# with no further steps. hunt-desktop.sh ALSO enforces the same settings
+# on the live session via xfconf-query (heals a session that started with
+# stock values). Its postinst also runs `update-initramfs -u` (via the
+# plymouth-label dep) — safe in a container: update-initramfs 0.151 exits
+# 0 with "Nothing to do" when no /boot/initrd.img-* exists (verified
+# from the shipped script). lightdm is never installed or started.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    kali-themes kali-menu xfce4-whiskermenu-plugin \
+    xfce4-cpugraph-plugin xfce4-genmon-plugin xfce4-notifyd \
+    xfce4-power-manager-plugins xfce4-pulseaudio-plugin \
+    qterminal mousepad \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 COPY docker/hunt-desktop.sh /usr/local/bin/hunt-desktop.sh
 RUN chmod +x /usr/local/bin/hunt-desktop.sh
 

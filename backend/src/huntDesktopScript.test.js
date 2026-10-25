@@ -27,7 +27,7 @@ function stubScript(name, body) {
   return `#!/bin/sh\n${body}\n`;
 }
 
-async function makeHarness(t, initialState, { withCurl = true, minimalPath = false } = {}) {
+async function makeHarness(t, initialState, { withCurl = true, minimalPath = false, withXfconf = false } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'dm-desktop-test-'));
   t.after(async () => {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
@@ -91,6 +91,41 @@ fi
 exit 7`,
     );
   }
+  // xfconf-query stub (25 Oct 2026, Kali theme lane): answers the readiness
+  // probe (-l) and the ThemeName / panel-plugin reads from state files, so
+  // the theme apply in the real script can be driven end to end. Every
+  // call is recorded. xfconf-dead=1 makes every call fail (unreachable
+  // xfconfd). xfce4-panel is a recording stub (the script restarts it
+  // after a menu-button swap).
+  if (withXfconf) {
+    await writeStub(
+      'xfconf-query',
+      `echo "xfconf-query $*" >> "$STUB_LOG"
+if [ "$(cat "$STUB_STATE_DIR/xfconf-dead" 2>/dev/null)" = "1" ]; then exit 1; fi
+case "$*" in
+  *"-l"*) exit 0;;
+esac
+case "$*" in
+  *"/Net/ThemeName"*)
+    case "$*" in
+      *" -s "*) echo "$*" | sed 's/.* -s //' > "$STUB_STATE_DIR/xfconf-theme"; exit 0;;
+      *) cat "$STUB_STATE_DIR/xfconf-theme"; exit 0;;
+    esac;;
+esac
+case "$*" in
+  *"/plugins/plugin-"*)
+    case "$*" in
+      *" -s "*) exit 0;;
+      *)
+        n=$(echo "$*" | sed -E 's/.*plugin-([0-9]+).*/\\1/')
+        cat "$STUB_STATE_DIR/xfconf-panel$n" 2>/dev/null || exit 1
+        exit 0;;
+    esac;;
+esac
+exit 0`,
+    );
+    await writeStub('xfce4-panel', `echo "xfce4-panel $*" >> "$STUB_LOG"\nexit 0`);
+  }
   // Recording stubs for everything the script launches or probes.
   for (const name of ['chromium', 'Xvfb', 'startxfce4', 'xfce4-terminal', 'x11vnc', 'websockify', 'xdotool', 'scrot']) {
     await writeStub(name, `echo "${name} $*" >> "$STUB_LOG"\nexit 0`);
@@ -103,6 +138,9 @@ exit 7`,
     websockify: 0,
     chromium: 0,
     cdp: 0,
+    'xfconf-theme': 'Adwaita',
+    'xfconf-panel1': 'applicationsmenu',
+    'xfconf-dead': 0,
     ...initialState,
   })) {
     await writeFile(join(stateDir, key), String(value));
@@ -249,4 +287,71 @@ test('SS-7: the bracket trick itself — literal pattern matches the checking sh
     (err) => err.code,
   );
   assert.equal(bracket, 1, 'the bracket pattern never self-matches');
+});
+
+// --- Real Kali look (25 Oct 2026) -----------------------------------------
+// The image now ships kali-themes (Kali-Dark GTK + xfwm4, Flat-Remix-
+// Blue-Dark icons, kali-cubes dragon wallpaper, whisker menu). The script
+// enforces the same look on the live session via xfconf-query. These tests
+// run the ACTUAL script with a stub xfconf-query and a fake theme dir /
+// wallpaper file (DM_KALI_THEME_DIR / DM_KALI_WALLPAPER), so they prove
+// the apply logic without the real Kali packages.
+
+test('KT-1: cold start with the Kali theme installed applies it (theme, icons, wallpaper, dragon menu)', async (t) => {
+  const h = await makeHarness(t, {}, { withXfconf: true });
+  const themeDir = join(h.dir, 'Kali-Dark');
+  const wallpaper = join(h.dir, 'kali-wallpaper.jpg');
+  await mkdir(themeDir);
+  await writeFile(wallpaper, 'fake wallpaper');
+  const res = await h.run({ DM_KALI_THEME_DIR: themeDir, DM_KALI_WALLPAPER: wallpaper });
+  assert.equal(res.code, 0);
+  const log = await h.calls();
+  for (const want of [
+    'xfconf-query -c xsettings -p /Net/ThemeName -n -t string -s Kali-Dark',
+    'xfconf-query -c xsettings -p /Net/IconThemeName -n -t string -s Flat-Remix-Blue-Dark',
+    'xfconf-query -c xsettings -p /Gtk/FontName -n -t string -s Cantarell 11',
+    'xfconf-query -c xfwm4 -p /general/theme -n -t string -s Kali-Dark',
+    `xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/image-path -n -t string -s ${wallpaper}`,
+    'xfconf-query -c xfce4-panel -p /plugins/plugin-1 -t string -s whiskermenu',
+    'xfconf-query -c xfce4-panel -p /plugins/plugin-1/button-icon -n -t string -s kali-panel-menu',
+    'xfce4-panel -r',
+  ]) {
+    assert.ok(log.includes(want), `missing call: ${want}`);
+  }
+  assert.match(await h.scriptLog(), /kali theme applied/);
+  await readFile(h.readyPath, 'utf8'); // throws if the ready file was not created
+});
+
+test('KT-2: without the Kali theme installed, no xfconf call is made and the desktop still starts', async (t) => {
+  const h = await makeHarness(t, {}, { withXfconf: true });
+  // Point the theme dir at a path that does not exist, so the test is
+  // hermetic even on a machine that happens to have the Kali theme.
+  const res = await h.run({ DM_KALI_THEME_DIR: join(h.dir, 'no-such-theme') });
+  assert.equal(res.code, 0);
+  assert.equal(await h.hasCall('xfconf-query '), false, 'no theme, no xfconf calls');
+  await readFile(h.readyPath, 'utf8');
+});
+
+test('KT-3: theme already Kali-Dark — the apply is a no-op (idempotent supervisor re-runs)', async (t) => {
+  const h = await makeHarness(t, { 'xfconf-theme': 'Kali-Dark' }, { withXfconf: true });
+  const themeDir = join(h.dir, 'Kali-Dark');
+  const wallpaper = join(h.dir, 'kali-wallpaper.jpg');
+  await mkdir(themeDir);
+  await writeFile(wallpaper, 'fake wallpaper');
+  const res = await h.run({ DM_KALI_THEME_DIR: themeDir, DM_KALI_WALLPAPER: wallpaper });
+  assert.equal(res.code, 0);
+  const log = await h.calls();
+  assert.equal(log.includes(' -s Kali-Dark'), false, 'no set calls when already Kali-Dark');
+  assert.equal(log.includes('whiskermenu'), false, 'no panel swap when already Kali-Dark');
+  assert.equal(await h.hasCall('xfce4-panel '), false, 'no panel restart when already Kali-Dark');
+});
+
+test('KT-4: xfconf unreachable — the desktop still starts and the theme is skipped, never fatal', async (t) => {
+  const h = await makeHarness(t, { 'xfconf-dead': 1 }, { withXfconf: true });
+  const themeDir = join(h.dir, 'Kali-Dark');
+  await mkdir(themeDir);
+  const res = await h.run({ DM_KALI_THEME_DIR: themeDir });
+  assert.equal(res.code, 0);
+  assert.match(await h.scriptLog(), /xfconf not reachable/);
+  await readFile(h.readyPath, 'utf8');
 });
