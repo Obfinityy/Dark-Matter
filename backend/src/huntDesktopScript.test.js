@@ -71,11 +71,16 @@ fi
 exit 1`,
   );
   // pkill records its args and flips the chromium state to dead.
+  // It also flips the xfdesktop state (the restart waits for the old
+  // instance to die before starting the replacement).
   await writeStub(
     'pkill',
     `echo "pkill $*" >> "$STUB_LOG"
 case "$*" in
   *922*) echo 0 > "$STUB_STATE_DIR/chromium";;
+esac
+case "$*" in
+  *xfdesktop*) echo 0 > "$STUB_STATE_DIR/xfdesktop-alive";;
 esac
 exit 0`,
   );
@@ -132,10 +137,12 @@ esac
 exit 0`,
     );
     await writeStub('xfce4-panel', `echo "xfce4-panel $*" >> "$STUB_LOG"\nexit 0`);
-    // ps stub: the real ps in the test env has no xfdesktop, but the
-    // restart check needs a live one to report (the script's job is to
-    // launch it; the stub pretends the launch succeeded).
-    await writeStub('ps', `echo "ps $*" >> "$STUB_LOG"\necho "S xfdesktop"\nexit 0`);
+    // ps stub: answers the xfdesktop liveness check from state (the
+    // restart waits for the old instance to die, then for the new one
+    // to come up; the xfdesktop stub flips the state on launch).
+    await writeStub('ps', `echo "ps $*" >> "$STUB_LOG"
+if [ "$(cat "$STUB_STATE_DIR/xfdesktop-alive" 2>/dev/null)" = "1" ]; then echo "S xfdesktop"; fi
+exit 0`);
     // xrandr stub: reports the RandR output name xfdesktop 4.20 keys the
     // backdrop to (Xvfb: "screen"). withXrandr=false omits it; an empty
     // xrandrOutput reports no connected output — both make the script
@@ -145,9 +152,12 @@ exit 0`,
     }
   }
   // Recording stubs for everything the script launches or probes.
-  for (const name of ['chromium', 'Xvfb', 'startxfce4', 'xfce4-terminal', 'x11vnc', 'websockify', 'xdotool', 'scrot', 'xfdesktop']) {
+  for (const name of ['chromium', 'Xvfb', 'startxfce4', 'xfce4-terminal', 'x11vnc', 'websockify', 'xdotool', 'scrot']) {
     await writeStub(name, `echo "${name} $*" >> "$STUB_LOG"\nexit 0`);
   }
+  // xfdesktop stub: records the launch and flips the liveness state
+  // (the restart's wait-for-alive poll reads it via the ps stub).
+  await writeStub('xfdesktop', `echo "xfdesktop $*" >> "$STUB_LOG"\necho 1 > "$STUB_STATE_DIR/xfdesktop-alive"\nexit 0`);
 
   for (const [key, value] of Object.entries({
     xvfb: 0,
@@ -156,6 +166,7 @@ exit 0`,
     websockify: 0,
     chromium: 0,
     cdp: 0,
+    'xfdesktop-alive': 1,
     'xfconf-theme': 'Adwaita',
     'xfconf-wallpaper': '',
     'xfconf-panel1': 'applicationsmenu',

@@ -97,20 +97,32 @@ xfdesktop_alive() {
 # later xfconf changes (the notification only fires value -> value,
 # proven live 26 Oct 2026: blue -> purple redrew, null -> blue did
 # not). The session does NOT respawn it — start the replacement
-# ourselves. Bounded, never fatal: if the new instance fails to come
-# up the desktop still works, just with a black backdrop.
+# ourselves. CRITICAL: wait for the old instance to actually exit
+# before starting the replacement — a fixed sleep 1 was NOT enough
+# (the old one was still shutting down, so the new one died at once
+# with "Another desktop manager is already running on screen 0" and
+# the script logged a false success because the old one still
+# answered the liveness check). Both waits are bounded, never fatal:
+# if the new instance fails to come up the desktop still works, just
+# with a black backdrop.
 restart_xfdesktop() {
   command -v xfdesktop >/dev/null 2>&1 || return 0
   command -v pkill >/dev/null 2>&1 || return 0
   pkill -x xfdesktop 2>/dev/null || true
-  sleep 1
+  local i
+  for i in $(seq 1 50); do
+    xfdesktop_alive || break
+    sleep 0.2
+  done
   DISPLAY=:99 xfdesktop >>"$LOG_FILE" 2>&1 &
-  sleep 1
-  if xfdesktop_alive; then
-    log "kali theme: xfdesktop restarted — wallpaper should now render"
-  else
-    log "kali theme: WARNING xfdesktop did not come back after restart — desktop backdrop may stay black"
-  fi
+  for i in $(seq 1 25); do
+    if xfdesktop_alive; then
+      log "kali theme: xfdesktop restarted — wallpaper should now render"
+      return 0
+    fi
+    sleep 0.2
+  done
+  log "kali theme: WARNING xfdesktop did not come back after restart — desktop backdrop may stay black"
   return 0
 }
 
