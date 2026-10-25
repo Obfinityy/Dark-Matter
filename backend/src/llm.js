@@ -91,6 +91,26 @@ export function aiAvailable() {
   return getBedrockConfig() !== null;
 }
 
+// CHAT-ANSWERS (26 Oct 2026): is an inference running RIGHT NOW?
+// chatWithOllama writes a heartbeat file carrying a deadline while a
+// generation runs and deletes it when done (the same file the
+// ollama-watchdog reads, so the watchdog never kills a healthy busy
+// server). A fresh heartbeat means the one shared 8B is occupied —
+// a chat question sent now would queue 10–25 min behind the running
+// hunt turn and die at the deadline. Callers answer from the live
+// record instead. Best-effort and side-effect-free: a missing,
+// unreadable, or stale file means "not busy". The env var is read at
+// call time (not module load) so tests can point it at a temp file.
+export function isInferenceActive() {
+  try {
+    const p = process.env.AI_HEARTBEAT_PATH || '/opt/Dark-Matter/.ai-inference-active';
+    const hb = JSON.parse(fs.readFileSync(p, 'utf8'));
+    return typeof hb.deadline === 'number' && hb.deadline > Date.now();
+  } catch {
+    return false;
+  }
+}
+
 async function chatWithBedrock(messages, system, ctx) {
   const cfg = getBedrockConfig();
   if (!cfg) return null;

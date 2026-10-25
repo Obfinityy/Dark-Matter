@@ -63,8 +63,22 @@ export default function ChatPage({
   });
   const threadEndRef = useRef(null);
   const streamTokenRef = useRef(null);
+  // CHAT-ANSWERS (26 Oct 2026): the send queue. The composer no
+  // longer locks while a reply is pending — a follow-up typed during
+  // a generation is queued here and sent when the in-flight reply
+  // lands, instead of being refused. sendingRef mirrors the `sending`
+  // state for async closures (state reads go stale inside awaits).
+  const sendQueueRef = useRef([]);
+  const sendingRef = useRef(false);
+  // AbortController for the in-flight chat fetch — Stop aborts the
+  // request itself instead of letting it run and discarding the reply.
+  const chatAbortRef = useRef(null);
 
   const messages = chat && Array.isArray(chat.messages) ? chat.messages : [];
+  // Fresh-thread mirror for the queue pump: the render-scope `messages`
+  // goes stale inside awaits, so the pump reads the latest thread here.
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
 
   useEffect(() => {
     if (threadEndRef.current) {
@@ -99,57 +113,99 @@ export default function ChatPage({
       own Stop button on the hunt card — never from the chat stop. */
   function handleStop() {
     if (streamTokenRef.current) streamTokenRef.current.aborted = true;
+    // CHAT-ANSWERS: abort the in-flight fetch itself — the old code
+    // only flagged the token, so the request kept running (and burning
+    // the shared brain) until it resolved, then threw the reply away.
+    if (chatAbortRef.current) chatAbortRef.current.abort();
     setSending(false);
     setStreamingId(null);
     toast('Stopped generating.', 'info');
+    // NOTE: sendingRef stays true until the in-flight runSend lands
+    // in its finally (reset + queue flush) — clearing it here would
+    // let a queued send start concurrently with the aborting one.
+    // A queued follow-up still gets its answer once that lands.
+  }
+
+  /** Send the next queued follow-up, if any and if nothing is in flight. */
+  async function flushSendQueue() {
+    if (sendingRef.current) return;
+    const next = sendQueueRef.current.shift();
+    if (!next) return;
+    await runSend(next.text, next.speak, next.chatId, next.userMsgId);
   }
 
   async function handleSend(text, speak) {
     const chatId = chat ? chat.id : onNewChat();
     const userMsg = { id: uid(), role: 'user', text };
     onAppendMessage(chatId, userMsg);
+    // A reply is in flight: queue the follow-up behind it instead of
+    // refusing it (the old composer lock). Its user bubble is already
+    // in the thread; the reply arrives when its turn comes.
+    if (sendingRef.current) {
+      sendQueueRef.current.push({ text, speak, chatId, userMsgId: userMsg.id });
+      return;
+    }
+    await runSend(text, speak, chatId, userMsg.id);
+  }
+
+  async function runSend(text, speak, chatId, userMsgId) {
+    sendingRef.current = true;
     setSending(true);
     const token = { aborted: false };
     streamTokenRef.current = token;
+    // AbortController for this request (see handleStop).
+    const controller = new AbortController();
+    chatAbortRef.current = controller;
+    try {
+      // Give the assistant the most recent hunt in this chat for mid-hunt context.
+      const lastHunt = [...messagesRef.current].reverse().find((m) => m.role === 'hunt');
+      const huntId = lastHunt ? lastHunt.hunt.huntId : undefined;
+      // Conversation history for the LLM path (last ~6 thread turns,
+      // excluding this message itself) — follow-ups are answered with
+      // context instead of cold.
+      const history = [...messagesRef.current]
+        .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.text && m.id !== userMsgId)
+        .slice(-6)
+        .map((m) => ({ role: m.role, text: m.text }));
 
-    // Give the assistant the most recent hunt in this chat for mid-hunt context.
-    const lastHunt = [...messages].reverse().find((m) => m.role === 'hunt');
-    const huntId = lastHunt ? lastHunt.hunt.huntId : undefined;
+      const res = await sendChat(text, huntId, history, { signal: controller.signal });
+      if (token.aborted || res.aborted) {
+        return;
+      }
+      if (!res.ok) {
+        onAppendMessage(chatId, {
+          id: uid(),
+          role: 'assistant',
+          text: 'I could not reach the backend just now. Check Settings → backend connection, then try again.',
+        });
+        toast(res.error || 'Backend unreachable.', 'error');
+        return;
+      }
 
-    const res = await sendChat(text, huntId);
-    if (token.aborted) {
+      const reply = res.data.reply || '(empty reply)';
+      // Steering actions (pause/resume/stop) change the hunt's state on the
+      // backend — mirror it in the UI immediately so the chip and the
+      // Pause/Resume/Stop buttons update without a reload.
+      if (huntId && res.data && res.data.action) {
+        const mapped = { pause: 'paused', resume: 'running', stop: 'stopped' }[res.data.action];
+        if (mapped && typeof onUpdateHunt === 'function') onUpdateHunt(chatId, huntId, mapped);
+      }
+      const assistantId = uid();
+      onAppendMessage(chatId, { id: assistantId, role: 'assistant', text: '' });
+      setStreamingId(assistantId);
+      await streamReveal(reply, (chunk) => onUpdateMessage(chatId, assistantId, chunk), { signal: token });
+      setStreamingId(null);
+
+      if (token.aborted) return;
+      if (speakerOn && speak) {
+        speak(reply);
+      }
+    } finally {
+      chatAbortRef.current = null;
       setSending(false);
-      return;
-    }
-    if (!res.ok) {
-      onAppendMessage(chatId, {
-        id: uid(),
-        role: 'assistant',
-        text: 'I could not reach the backend just now. Check Settings → backend connection, then try again.',
-      });
-      toast(res.error || 'Backend unreachable.', 'error');
-      setSending(false);
-      return;
-    }
-
-    const reply = res.data.reply || '(empty reply)';
-    // Steering actions (pause/resume/stop) change the hunt's state on the
-    // backend — mirror it in the UI immediately so the chip and the
-    // Pause/Resume/Stop buttons update without a reload.
-    if (huntId && res.data && res.data.action) {
-      const mapped = { pause: 'paused', resume: 'running', stop: 'stopped' }[res.data.action];
-      if (mapped && typeof onUpdateHunt === 'function') onUpdateHunt(chatId, huntId, mapped);
-    }
-    const assistantId = uid();
-    onAppendMessage(chatId, { id: assistantId, role: 'assistant', text: '' });
-    setStreamingId(assistantId);
-    await streamReveal(reply, (chunk) => onUpdateMessage(chatId, assistantId, chunk), { signal: token });
-    setStreamingId(null);
-    setSending(false);
-
-    if (token.aborted) return;
-    if (speakerOn && speak) {
-      speak(reply);
+      sendingRef.current = false;
+      // A follow-up queued while this reply was in flight sends now.
+      flushSendQueue();
     }
   }
 

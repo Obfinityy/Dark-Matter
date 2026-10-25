@@ -212,7 +212,12 @@ export default function ChatInput({
 
   function submit() {
     const text = value.trim();
-    if (!text || sending || generating) return;
+    // CHAT-ANSWERS (26 Oct 2026): follow-ups send even while a reply
+    // is pending — the old `sending || generating` guard locked the
+    // composer for the whole generation, so the owner's next message
+    // could not even be typed out. ChatPage queues the send behind
+    // the in-flight reply; nothing is lost.
+    if (!text) return;
     setValue('');
     requestAnimationFrame(() => {
       if (textareaRef.current) textareaRef.current.style.height = 'auto';

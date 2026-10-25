@@ -24,9 +24,10 @@ import { requireAuth } from './auth.js';
 import { getBalanceUsd } from '../billing/credits.js';
 import { hasActiveAccessById } from '../access.js';
 import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
-import { chatWithAI, aiAvailable } from '../llm.js';
+import { chatWithAI, aiAvailable, isInferenceActive } from '../llm.js';
 import { analyzeFindings } from '../hunt-intel/index.js';
 import { loadHuntMemory, normTitle, findingCounts } from '../huntMemory.js';
+import { pageUrlFromObservation } from '../humanLoop.js';
 
 /**
  * The confirmed findings of a hunt, as UNIQUE titles. Findings must
@@ -130,6 +131,14 @@ const HINGLISH_MARKERS = [
   'likh', 'aur', 'yeh', 'woh', 'matlab', 'abhi', 'kuch', 'koi',
   'kab', 'kyun', 'kyu', 'raha', 'rahi', 'rahe', 'nahi', 'mausam',
   'kaisa', 'kaisi', 'mera', 'meri', 'tumne', 'kiya',
+  // CHAT-ANSWERS (26 Oct 2026): the owner's status-question vocabulary
+  // was missing, so short Roman-Hindi questions ("kitni mili ab tak?",
+  // "bata fir jau sone?") detected as English and got English
+  // summaries. These are unambiguous Hindi words — they never appear
+  // in an English sentence.
+  'kitni', 'kitne', 'mili', 'mile', 'mila', 'tak', 'bata', 'batao',
+  'pahunche', 'kahan', 'fir', 'jau', 'jaun', 'sone', 'chal', 'ho',
+  'kar', 'chahiye', 'bhai',
 ];
 
 export function looksHinglish(message) {
@@ -139,6 +148,74 @@ export function looksHinglish(message) {
   let hits = 0;
   for (const marker of HINGLISH_MARKERS) if (words.has(marker)) hits++;
   return hits >= 2;
+}
+
+// CHAT-ANSWERS (26 Oct 2026): the language + script of a message, so
+// replies come back the way the user asked — Hindi in Devanagari gets
+// Devanagari, Roman Hindi gets Roman Hindi, English gets English.
+// Devanagari detection is a script test (no case to fold); Hinglish is
+// the existing marker test above. Anything else is English.
+export function detectChatLanguage(message) {
+  const raw = String(message || '');
+  if (/[\u0900-\u097F]/.test(raw)) return 'devanagari';
+  if (looksHinglish(raw)) return 'hinglish';
+  return 'english';
+}
+
+// CHAT-ANSWERS (26 Oct 2026): a bare "tell me" — the message IS
+// essentially just that word (optionally a filler particle and trailing
+// punctuation), in either script. A longer message that merely CONTAINS
+// bata ("bata fir jau sone?" — "tell me, should I go to sleep?") is a
+// real question and must NOT be misrouted to the status summary the way
+// the old unanchored `bata|batao` pattern did (live evidence 25 Oct
+// 2026: the owner asked whether the agent had a question for him and
+// got a status summary instead).
+export function isBareTell(message) {
+  const m = String(message || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[?.!…\s]+$/g, '')
+    .trim();
+  return /^(bata|batao|बता|बताओ)(\s+(na|to|zara|please))?$/.test(m);
+}
+
+// CHAT-ANSWERS (26 Oct 2026): sanitise conversation history the
+// frontend sends with a chat request — role + text only, last 6,
+// each text capped. Anything malformed is dropped, never trusted.
+export function sanitizeHistory(input) {
+  if (!Array.isArray(input)) return [];
+  const out = [];
+  for (const item of input.slice(-6)) {
+    if (!item || typeof item.text !== 'string') continue;
+    const role = item.role === 'assistant' ? 'assistant' : 'user';
+    const text = item.text.slice(0, 1000);
+    if (text.trim()) out.push({ role, text });
+  }
+  return out;
+}
+
+// CHAT-ANSWERS (26 Oct 2026): the honest one-liners that prefix a
+// deterministic summary when the detailed LLM answer cannot be
+// produced — the brain is mid-turn (busy) or unreachable (fallback).
+// The summary that follows is labelled as the live state, never
+// presented as the LLM's answer.
+const BUSY_LINE = {
+  english: 'The brain is mid-turn right now, so a detailed answer has to wait — here is the live state instead: ',
+  hinglish: 'Brain abhi ek turn ke beech mein hai, isliye detailed jawab thoda rukega — live state ye hai: ',
+  devanagari: 'Brain अभी एक turn के बीच में है, इसलिए detailed जवाब थोड़ा रुकेगा — live state ये है: ',
+};
+const FALLBACK_LINE = {
+  english: "I couldn't reach the brain for a detailed answer — here is the live state from the record: ",
+  hinglish: 'Brain se detailed jawab nahi mil paya — record se live state ye hai: ',
+  devanagari: 'Brain से detailed जवाब नहीं मिल पाया — record से live state ये है: ',
+};
+
+export function busyLine(lang) {
+  return BUSY_LINE[lang] || BUSY_LINE.english;
+}
+
+export function fallbackLine(lang) {
+  return FALLBACK_LINE[lang] || FALLBACK_LINE.english;
 }
 
 export function offTopicDecline(message) {
@@ -216,7 +293,7 @@ function outcomeForCall(call, nextCall, rows) {
   return clipClean(String(best.result).split(/\r?\n/)[0], 110);
 }
 
-export function recentAttempts({ events = [], reasoningRows = [], limit = 5 } = {}) {
+export function recentAttempts({ events = [], reasoningRows = [], limit = 5, label = 'Recent attempts' } = {}) {
   const calls = (events || []).filter((e) => e && e.type === 'tool_call' && e.tool);
   if (!calls.length) return '';
   const narrated = calls.map((c, i) => ({
@@ -233,7 +310,7 @@ export function recentAttempts({ events = [], reasoningRows = [], limit = 5 } = 
     else parts.push(item);
   }
   return (
-    'Recent attempts: ' +
+    `${label}: ` +
     parts.map((p) => (p.outcome ? `${p.label} — ${p.outcome}` : p.label)).join('; ') +
     '.'
   );
@@ -337,7 +414,20 @@ export function detectSteering(message) {
   // is raised alongside (300s -> 1800s) so a genuinely open question
   // still gets its answer instead of the false backend error — but a
   // status question must never wait for the brain at all.
-  if (/\b(what (is|are) (now|currently) doing|what (are )?you thinking|what('s| is) (going on|happening)|bata|batao|kya chal raha hai)\b/.test(m))
+  if (/\b(what (is|are) (now|currently) doing|what (are )?you thinking|what('s| is) (going on|happening)|kya chal raha hai)\b/.test(m))
+    return 'summary';
+  // CHAT-ANSWERS (26 Oct 2026): bare "bata"/"batao" ("tell me") means
+  // "tell me the status" — but ONLY when the message is essentially
+  // just that word (isBareTell). The old unanchored pattern routed
+  // "bata fir jau sone?" (a real question) to the summary.
+  if (isBareTell(m)) return 'summary';
+  // CHAT-ANSWERS (26 Oct 2026): Devanagari status questions. The
+  // instant-answer system was Latin-script-only, so every Devanagari
+  // message (the owner's speech-to-text default) fell to the LLM path
+  // and queued behind hunt turns. These mirror the Roman Hinglish
+  // list above — deliberately multi-word status phrasings, never a
+  // bare बता/बताओ (that goes through isBareTell, same as Roman).
+  if (/कितनी मिली|कितने मिले|क्या मिला|कुछ मिला|अब तक क्या|कहाँ तक|क्या चल रहा|क्या हो रहा|क्या कर रहा|क्या कर रहे|क्या किया|अभी क्या/.test(m))
     return 'summary';
   return null;
 }
@@ -357,6 +447,19 @@ router.post(
     return res.status(400).json({ ok: false, error: 'missing_message' });
   }
 
+  // CHAT-ANSWERS observability (26 Oct 2026): one log line per
+  // request — route, language/script, latency ms, hunt, HTTP status.
+  // Until now there was no server-side record of which messages went
+  // unanswered or how long answers took; the owner's "no reply"
+  // complaint could only be investigated from the browser. The
+  // finish listener covers every return path, including errors.
+  const startedAt = Date.now();
+  const lang = detectChatLanguage(message);
+  let chatRoute = 'unknown';
+  res.on('finish', () => {
+    console.log(`[chat] route=${chatRoute} lang=${lang} ms=${Date.now() - startedAt} hunt=${huntId || '-'} status=${res.statusCode}`);
+  });
+
   // Ownership check for hunt-scoped chat: your hunts are yours alone.
   if (huntId && req.user) {
     const meta0 = readHuntMeta(huntId);
@@ -367,9 +470,16 @@ router.post(
 
   const action = detectSteering(message);
 
+  // CHAT-ANSWERS: conversation history the frontend sends (last ~6
+  // thread messages). The LLM path previously got ONE message and no
+  // context, so follow-ups ("aur batao", "uske baad kya?") were
+  // answered cold. Sanitised hard: role + text only, capped.
+  const history = sanitizeHistory(req.body && req.body.history);
+
   // No hunt context: answer steering only generically.
   if (!huntId) {
     if (action === 'pause' || action === 'resume' || action === 'stop') {
+      chatRoute = 'no-hunt-steering';
       return res.json({
         ok: true,
         reply:
@@ -378,6 +488,7 @@ router.post(
       });
     }
     if (action === 'summary') {
+      chatRoute = 'no-hunt-summary';
       return res.json({
         ok: true,
         reply: 'There is no hunt in context for this chat. Start a hunt first, then ask me about it.',
@@ -385,14 +496,16 @@ router.post(
     }
     // No hunt context: try the real AI; fall back to honest guidance.
     if (aiAvailable()) {
+      chatRoute = 'no-hunt-llm';
       const aiReply = await chatWithAI(
-        [{ role: 'user', text: message }],
+        [...history, { role: 'user', text: message }],
         'You are Dark Matter, an elite autonomous bug-bounty hunter by Obfinity. ' +
         'No hunt is attached to this chat yet. Answer helpfully and concisely.',
         { huntId: null }
       );
       if (aiReply) return res.json({ ok: true, reply: aiReply, ai: true });
     }
+    chatRoute = 'no-hunt-fallback';
     return res.json({
       ok: true,
       reply:
@@ -436,20 +549,24 @@ router.post(
     try { host = new URL(meta.target || '').hostname; } catch { /* target may be a bare host */ }
     if (!host && meta.target) host = String(meta.target).split('/')[0];
     if (isOffTopicHuntChat(message, { host })) {
+      chatRoute = 'off-topic';
       return res.json({ ok: true, scoped: true, reply: offTopicDecline(message) });
     }
   }
 
   try {
     if (action === 'pause') {
+      chatRoute = 'pause';
       await pauseHuntResilient(huntId);
       return res.json({ ok: true, action: 'pause', reply: `Hunt paused. ${ctx}` });
     }
     if (action === 'resume') {
+      chatRoute = 'resume';
       await resumeHuntResilient(huntId, req.user);
       return res.json({ ok: true, action: 'resume', reply: `Hunt resumed. ${ctx}` });
     }
     if (action === 'stop') {
+      chatRoute = 'stop';
       await stopHuntResilient(huntId);
       return res.json({ ok: true, action: 'stop', reply: `Hunt stopped. ${ctx}` });
     }
@@ -463,18 +580,31 @@ router.post(
       // ~9 minutes). A status answer must never be held hostage by the
       // brain's queue; summaryReply reads the same live state (meta + event
       // log + latest thinking) the AI would have been given.
-      return res.json({ ok: true, reply: summaryReply({ ctx, live, liveError, cached, findings, reasoningRows: memory.reasoningRows }) });
+      chatRoute = 'summary';
+      return res.json({ ok: true, reply: summaryReply({ ctx, live, liveError, cached, findings, reasoningRows: memory.reasoningRows, message, meta, huntId }) });
     }
     // Open questions: REAL AI with full hunt context (no hardcoded answers).
     if (aiAvailable()) {
-      const system = buildHuntSystemPrompt({ huntId, meta, live, liveError, cached, findings });
-      const aiReply = await chatWithAI([{ role: 'user', text: message }], system, { huntId });
+      // CHAT-ANSWERS (26 Oct 2026): when a hunt turn holds the one
+      // shared model, an open question would queue 10–25 min and die
+      // at the deadline — the "no answer" the owner reported. Answer
+      // immediately from the live record instead, and say honestly
+      // that the detailed answer needs the brain (it is mid-turn).
+      // Never present the deterministic summary as the LLM's answer.
+      if (isInferenceActive()) {
+        chatRoute = 'busy-summary';
+        return res.json({ ok: true, busy: true, reply: busyLine(lang) + summaryReply({ ctx, live, liveError, cached, findings, reasoningRows: memory.reasoningRows, message, meta, huntId }) });
+      }
+      chatRoute = 'llm';
+      const system = buildHuntSystemPrompt({ huntId, meta, live, liveError, cached, findings, memory, userMessage: message });
+      const aiReply = await chatWithAI([...history, { role: 'user', text: message }], system, { huntId });
       if (aiReply) return res.json({ ok: true, reply: aiReply, ai: true });
     }
     // AI unreachable: answer from real hunt data, not a generic fallback.
+    chatRoute = 'fallback-summary';
     return res.json({
       ok: true,
-      reply: summaryReply({ ctx, live, liveError, cached, findings, reasoningRows: memory.reasoningRows }),
+      reply: fallbackLine(lang) + summaryReply({ ctx, live, liveError, cached, findings, reasoningRows: memory.reasoningRows, message, meta, huntId }),
     });
   } catch (err) {
     if (err instanceof EngineUnreachableError) {
@@ -489,7 +619,7 @@ router.post(
 });
 
 /** Rich system prompt: the AI thinks with full hunt context, not canned lines. */
-function buildHuntSystemPrompt({ huntId, meta, live, liveError, cached, findings }) {
+export function buildHuntSystemPrompt({ huntId, meta, live, liveError, cached, findings, memory = {}, userMessage = '' }) {
   const target = (live && live.target) || (meta && meta.target) || 'unknown target';
   const state = (live && (live.state || live.status)) || 'unknown';
   const phase = (live && live.phase) || 'unknown';
@@ -505,12 +635,54 @@ function buildHuntSystemPrompt({ huntId, meta, live, liveError, cached, findings
         ? `\nTop chains: ${a.chains.slice(0, 3).map((c) => `[${c.impact}] ${c.title}`).join('; ')}.`
         : '');
   } catch { /* intel best-effort */ }
+  // CHAT-ANSWERS (26 Oct 2026): the memory the route already loads
+  // was thrown away here — leftOff, ruledOut and the dossier briefing
+  // never reached the prompt, so the LLM answered from counts alone.
+  // These are clipped hard: the prompt must stay small on the 8B.
+  let memoryBlock = '';
+  const lo = memory.leftOff;
+  if (lo && (lo.lastThinking || lo.lastNote)) {
+    memoryBlock += `\nWhere I left off: ${clipClean(lo.lastThinking || lo.lastNote, 220)}`;
+  }
+  if (lo && Array.isArray(lo.lastActions) && lo.lastActions.length) {
+    const acts = lo.lastActions.slice(-3).map((a) => clipClean(`${a.action || ''} — ${String(a.result || '').split(/\r?\n/)[0]}`, 130)).join(' | ');
+    if (acts) memoryBlock += `\nLast actions: ${acts}`;
+  }
+  if (Array.isArray(memory.ruledOut) && memory.ruledOut.length) {
+    memoryBlock += `\nRuled out (do not re-try without new evidence): ${memory.ruledOut.slice(0, 5).map((r) => clipClean(String(r), 90)).join(' | ')}`;
+  }
+  if (memory.dossierBriefing) {
+    memoryBlock += `\nDossier: ${clipClean(memory.dossierBriefing, 600)}`;
+  }
+  // CHAT-ANSWERS: what I am doing RIGHT NOW, from the last reasoning
+  // row — same derivation as the deterministic summary, so the LLM
+  // and the summary never disagree about the live state.
+  let rightNow = '';
+  const rows = memory.reasoningRows || [];
+  if (rows.length) {
+    const lastRow = rows[rows.length - 1];
+    const page = pageUrlFromObservation(lastRow.result || '');
+    rightNow =
+      `\nRight now: ${clipClean(String(lastRow.action || 'turn'), 90)} — ` +
+      `${clipClean(String(lastRow.result || '').split(/\r?\n/)[0], 140)}` +
+      (page ? ` (page: ${page})` : ' (page unknown from the record)') +
+      (lastRow.at ? `, ${relativeAge(lastRow.at, 'english')}` : '');
+  }
   return (
     `You are Dark Matter, an elite autonomous bug-bounty hunter by Obfinity. ` +
     `You are mid-hunt and the user is chatting with you live. Think like a senior ` +
     `security researcher: be specific, technical, and honest about uncertainty. ` +
     `Never invent findings. If asked to pause/resume/stop, tell the user to use ` +
     `those exact words (the controls handle it deterministically).\n\n` +
+    // CHAT-ANSWERS (26 Oct 2026): answer in the user's own language
+    // and script — Hindi in Devanagari gets Devanagari, Roman Hindi
+    // gets Roman Hindi, English gets English. The old prompt had no
+    // language instruction at all, so Devanagari questions got English
+    // answers (when they got any answer).
+    `Reply in the language and script of the user's latest message: ` +
+    `Hindi in Devanagari script → Devanagari; Roman Hindi/Hinglish → Roman Hindi; ` +
+    `English → English. Match the user's register; be specific about what ` +
+    `you are doing right now, not generic.\n\n` +
     `Hunt ${huntId} on ${target}: state=${state}, phase=${phase}, ` +
     `${findings.length} finding(s), ${cached.length} event(s).` +
     (liveError ? ` Live engine unreachable — cached data only.` : '') +
@@ -520,11 +692,13 @@ function buildHuntSystemPrompt({ huntId, meta, live, liveError, cached, findings
       : `\nNo findings recorded yet.`) +
     (thinking.length
       ? `\nRecent thinking: ${thinking.map((t) => clipClean(t.text || t.summary || '', 200)).join(' | ')}`
-      : '')
+      : '') +
+    memoryBlock +
+    rightNow
   );
 }
 
-function huntContextLine({ huntId, meta, live, liveError, cached, findings }) {
+export function huntContextLine({ huntId, meta, live, liveError, cached, findings, lang = 'english' }) {
   const target = (live && live.target) || (meta && meta.target) || 'your target';
   const state = (live && (live.state || live.status)) || (meta && meta.state) || 'unknown';
   const step = (live && (live.stepCount ?? live.step_count)) ?? (meta && (meta.iteration ?? meta.stepCount));
@@ -535,7 +709,28 @@ function huntContextLine({ huntId, meta, live, liveError, cached, findings }) {
   // count made chat say "284 lead(s)" where the panel said 76
   // leads over the same record (Lane Y, 24 Oct 2026).
   const leads = findingCounts(findings).leads;
-  const stateWord = { running: 'actively hunting', paused: 'paused', stopped: 'stopped', starting: 'starting up' }[state] || state;
+  // CHAT-ANSWERS (26 Oct 2026): the status line renders in the user's
+  // language/script — the English template was the "generic answer"
+  // the owner complained about (he writes in Devanagari now).
+  const stateWord = {
+    english: { running: 'actively hunting', paused: 'paused', stopped: 'stopped', starting: 'starting up' }[state] || state,
+    hinglish: { running: 'actively hunting', paused: 'ruki hui hai', stopped: 'band hai', starting: 'shuru ho rahi hai' }[state] || state,
+    devanagari: { running: 'actively hunting', paused: 'रुकी हुई है', stopped: 'बंद है', starting: 'शुरू हो रही है' }[state] || state,
+  }[lang] || state;
+  if (lang === 'hinglish') {
+    let line = `Hunt ${target} par chal rahi hai — ${stateWord}`;
+    if (phase) line += ` (${phase} phase)`;
+    if (step !== undefined && step !== null) line += `, round ${step}`;
+    line += `. ${leads} lead(s), ${verified} confirmed ab tak`;
+    return line + '.';
+  }
+  if (lang === 'devanagari') {
+    let line = `हंट ${target} पर चल रही है — ${stateWord}`;
+    if (phase) line += ` (${phase} phase)`;
+    if (step !== undefined && step !== null) line += `, राउंड ${step}`;
+    line += `। ${leads} lead(s), ${verified} confirmed अब तक`;
+    return line + '।';
+  }
   let line = `Hunting ${target} — ${stateWord}`;
   if (phase) line += ` (${phase} phase)`;
   if (step !== undefined && step !== null) line += `, round ${step}`;
@@ -543,10 +738,75 @@ function huntContextLine({ huntId, meta, live, liveError, cached, findings }) {
   return line + '.';
 }
 
-function summaryReply({ ctx, live, liveError, cached, findings, reasoningRows = [] }) {
-  const thinking = cached.filter((e) => e.type === 'thinking');
-  const lastThink = thinking.length ? thinking[thinking.length - 1] : null;
-  let reply = ctx;
+// CHAT-ANSWERS (26 Oct 2026): how long ago a turn ran, timezone-proof
+// (the server clock is UTC; the owner reads IST — a relative age can
+// never be misread the way an absolute clock time can).
+function relativeAge(at, lang = 'english') {
+  const t = Date.parse(String(at || ''));
+  if (!t) return '';
+  const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
+  const justNow = { english: 'just now', hinglish: 'abhi abhi', devanagari: 'अभी-अभी' }[lang] || 'just now';
+  if (mins < 1) return justNow;
+  if (mins < 60) {
+    return { english: `${mins} min ago`, hinglish: `${mins} min pehle`, devanagari: `${mins} मिनट पहले` }[lang];
+  }
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return {
+    english: `${h} h ${m} min ago`,
+    hinglish: `${h} ghante ${m} min pehle`,
+    devanagari: `${h} घंटे ${m} मिनट पहले`,
+  }[lang];
+}
+
+// Bilingual summary templates (CHAT-ANSWERS, 26 Oct 2026). The old
+// summary was an English template in every language — the "generic
+// answer" the owner complained about. The record content (tool names,
+// titles, thinking quotes) stays as recorded; only the narration
+// around it is rendered in the user's language/script.
+const SUMMARY_TEXT = {
+  english: {
+    found: (n, titles) => ` Found ${n} confirmed ${n > 1 ? 'vulnerabilities' : 'vulnerability'}: ${titles.join(', ')}.`,
+    leadsOnly: (leads) => ` ${leads} lead(s) under investigation — nothing confirmed yet.`,
+    early: ' Still in early recon — no vulnerabilities found yet, but the hunt is methodically mapping your site.',
+    attemptsLabel: 'Recent attempts',
+    thinking: ' Currently: ',
+    rightNow: (step, action, result, page, age) =>
+      ` Right now${step != null ? ` (round ${step})` : ''}: ${action} — ${result}. Page: ${page}${age ? `. Last turn: ${age}` : ''}.`,
+    rightNowNone: ' No turn has run yet on this hunt.',
+    pageUnknown: 'page unknown from the record',
+  },
+  hinglish: {
+    found: (n, titles) => ` ${n} confirmed ${n > 1 ? 'vulnerabilities mile hain' : 'vulnerability mili hai'}: ${titles.join(', ')}.`,
+    leadsOnly: (leads) => ` ${leads} lead(s) investigation mein hain — abhi tak kuch confirm nahi hua.`,
+    early: ' Abhi early recon mein hai — abhi tak koi vulnerability confirm nahi hui, par hunt site ko methodically map kar raha hai.',
+    attemptsLabel: 'Abhi tak kya try kiya',
+    thinking: ' Aakhri soch: ',
+    rightNow: (step, action, result, page, age) =>
+      ` Right now${step != null ? ` (round ${step})` : ''}: ${action} — ${result}. Page: ${page}${age ? `. Aakhri turn: ${age}` : ''}.`,
+    rightNowNone: ' Is hunt par abhi tak ek bhi turn nahi chala.',
+    pageUnknown: 'page record se pata nahi chal raha',
+  },
+  devanagari: {
+    found: (n, titles) => ` ${n} confirmed ${n > 1 ? 'vulnerabilities मिली हैं' : 'vulnerability मिली है'}: ${titles.join(', ')}.`,
+    leadsOnly: (leads) => ` ${leads} lead(s) investigation में हैं — अभी तक कुछ confirm नहीं हुआ।`,
+    early: ' अभी early recon में है — अभी तक कोई vulnerability confirm नहीं हुई, पर hunt site को methodically map कर रहा है।',
+    attemptsLabel: 'अभी तक क्या try किया',
+    thinking: ' आख़िरी सोच: ',
+    rightNow: (step, action, result, page, age) =>
+      ` अभी${step != null ? ` (राउंड ${step})` : ''}: ${action} — ${result}। Page: ${page}${age ? `। आख़िरी turn: ${age}` : ''}।`,
+    rightNowNone: ' इस hunt पर अभी तक एक भी turn नहीं चला।',
+    pageUnknown: 'page record से पता नहीं चल रहा',
+  },
+};
+
+export function summaryReply({ ctx, live, liveError, cached, findings, reasoningRows = [], message = '', meta = {}, huntId = '' }) {
+  const lang = detectChatLanguage(message);
+  const T = SUMMARY_TEXT[lang] || SUMMARY_TEXT.english;
+  const step = (live && (live.stepCount ?? live.step_count)) ?? (meta && (meta.iteration ?? meta.stepCount));
+  // The status line itself renders in the user's language; the passed
+  // ctx stays English for the steering replies that share it.
+  let reply = lang === 'english' ? ctx : huntContextLine({ huntId, meta, live, liveError, cached, findings, lang });
   if (findings.length) {
     // Count CONFIRMED as unique titles, not raw stamps: a long hunt
     // stamps the same vulnerability many times, and "Found 5 confirmed"
@@ -554,24 +814,40 @@ function summaryReply({ ctx, live, liveError, cached, findings, reasoningRows = 
     // the number and the list must agree.
     const titles = confirmedTitles(findings);
     if (titles.length) {
-      reply +=
-        ` Found ${titles.length} confirmed ${titles.length > 1 ? 'vulnerabilities' : 'vulnerability'}: ` +
-        titles.slice(0, 5).join(', ') + '.';
+      reply += T.found(titles.length, titles.slice(0, 5));
     } else {
-      reply += ` ${findingCounts(findings).leads} lead(s) under investigation — nothing confirmed yet.`;
+      reply += T.leadsOnly(findingCounts(findings).leads);
     }
   } else {
-    reply += ' Still in early recon — no vulnerabilities found yet, but the hunt is methodically mapping your site.';
+    reply += T.early;
   }
   // What the hunter actually TRIED, from its own record — the counts
   // above never answered "kya kya try kiya?" (Lane S).
-  const attempts = recentAttempts({ events: cached, reasoningRows });
+  const attempts = recentAttempts({ events: cached, reasoningRows, label: T.attemptsLabel });
   if (attempts) reply += ` ${attempts}`;
+  const thinking = cached.filter((e) => e.type === 'thinking');
+  const lastThink = thinking.length ? thinking[thinking.length - 1] : null;
   if (lastThink && (lastThink.text || lastThink.summary)) {
     // Clip at a clean boundary: the raw slice cut a live reply
     // mid-word ("...sensitive in the FTP direct") (Lane S).
     const t = clipClean(lastThink.text || lastThink.summary, 200);
-    if (t && !/unreachable|no reply/i.test(t)) reply += ` Currently: ${t}`;
+    if (t && !/unreachable|no reply/i.test(t)) reply += `${T.thinking}${t}`;
+  }
+  // RIGHT NOW (CHAT-ANSWERS, 26 Oct 2026): the specific line the old
+  // summary never had — the last reasoning row's action + outcome,
+  // the page it ran on (derived from the row's own text; the live
+  // page URL is session-local only, so when the record carries no
+  // URL the answer says so instead of inventing one), the iteration,
+  // and how long ago that turn ran.
+  const rows = reasoningRows || [];
+  const lastRow = rows.length ? rows[rows.length - 1] : null;
+  if (lastRow) {
+    const action = clipClean(String(lastRow.action || 'turn'), 90);
+    const result = clipClean(String(lastRow.result || '').split(/\r?\n/)[0], 140) || '—';
+    const page = pageUrlFromObservation(lastRow.result || '') || T.pageUnknown;
+    reply += T.rightNow(step != null ? step : null, action, result, page, relativeAge(lastRow.at, lang));
+  } else {
+    reply += T.rightNowNone;
   }
   return reply;
 }
