@@ -13,6 +13,7 @@ import assert from 'node:assert/strict';
 import {
   parseDesktopProbe,
   startHuntDesktop,
+  checkChromiumWatchdog,
   resetDesktopStartFailures,
 } from './huntRunner.js';
 
@@ -133,4 +134,171 @@ test('CS-10: startHuntDesktop — CDP never answers times out and throttles the 
   const throttled = await startHuntDesktop('h-cs10', { exec, ...FAST_WAIT });
   assert.deepEqual(throttled, { ok: false, error: 'desktop_unavailable' });
   assert.equal(calls.length, callsBefore, 'throttled call performs no exec');
+});
+
+// --- checkChromiumWatchdog (actual check logic, fake I/O boundary) ------
+// The watchdog closes the unwatched gap: the supervisor only runs when
+// the screenshot poller (owner watching) or a browser action calls the
+// starter, and the Live Machine now defaults to collapsed. These tests
+// run the ACTUAL watchdog loop with a fake hunt list, fake exec probe
+// and (mostly) a fake starter — the decision of which hunts to probe,
+// revive or skip is the real code.
+
+function probeExecByHunt(byHunt) {
+  const calls = [];
+  const exec = async (huntId, cmd) => {
+    calls.push({ huntId, cmd });
+    const res = byHunt[huntId];
+    if (typeof res === 'function') return res();
+    return res || { stdout: '', code: 0 };
+  };
+  return { exec, calls };
+}
+
+const HEALTHY_PROBE = { stdout: `DESKTOP_READY\n${CDP_VERSION}\n`, code: 0 };
+const DEAD_PROBE = { stdout: 'DESKTOP_READY\n', code: 0 };
+const NO_DESKTOP_PROBE = { stdout: '', code: 0 };
+
+test('CW-1: checkChromiumWatchdog — healthy running hunt is a no-op (starter never called)', async () => {
+  resetDesktopStartFailures();
+  const { exec, calls } = probeExecByHunt({ 'h-cw1': HEALTHY_PROBE });
+  const started = [];
+  const res = await checkChromiumWatchdog({
+    listMetas: async () => [{ huntId: 'h-cw1', state: 'running' }],
+    exec,
+    startDesktop: async (id) => {
+      started.push(id);
+      return { ok: true };
+    },
+  });
+  assert.deepEqual(res, { checked: 1, healthy: 1, revived: 0, failed: 0, skipped: 0 });
+  assert.equal(calls.length, 1, 'one probe for the one running hunt');
+  assert.deepEqual(started, [], 'the starter is never called for a healthy desktop');
+});
+
+test('CW-2: checkChromiumWatchdog — dead Chromium (ready, no CDP) revives via the starter exactly once', async () => {
+  resetDesktopStartFailures();
+  const { exec } = probeExecByHunt({ 'h-cw2': DEAD_PROBE });
+  const started = [];
+  const res = await checkChromiumWatchdog({
+    listMetas: async () => [{ huntId: 'h-cw2', state: 'running' }],
+    exec,
+    startDesktop: async (id) => {
+      started.push(id);
+      return { ok: true };
+    },
+  });
+  assert.deepEqual(res, { checked: 1, healthy: 0, revived: 1, failed: 0, skipped: 0 });
+  assert.deepEqual(started, ['h-cw2'], 'the starter runs exactly once');
+});
+
+test('CW-3: checkChromiumWatchdog — paused hunt is skipped without any probe', async () => {
+  resetDesktopStartFailures();
+  const { exec, calls } = probeExecByHunt({ 'h-cw3': DEAD_PROBE });
+  const started = [];
+  const res = await checkChromiumWatchdog({
+    listMetas: async () => [{ huntId: 'h-cw3', state: 'paused' }],
+    exec,
+    startDesktop: async (id) => {
+      started.push(id);
+      return { ok: true };
+    },
+  });
+  assert.deepEqual(res, { checked: 0, healthy: 0, revived: 0, failed: 0, skipped: 1 });
+  assert.equal(calls.length, 0, 'a paused hunt is never probed');
+  assert.deepEqual(started, []);
+});
+
+test('CW-4: checkChromiumWatchdog — running hunt that never started a desktop is skipped, never created', async () => {
+  resetDesktopStartFailures();
+  const { exec, calls } = probeExecByHunt({ 'h-cw4': NO_DESKTOP_PROBE });
+  const started = [];
+  const res = await checkChromiumWatchdog({
+    listMetas: async () => [{ huntId: 'h-cw4', state: 'running' }],
+    exec,
+    startDesktop: async (id) => {
+      started.push(id);
+      return { ok: true };
+    },
+  });
+  assert.deepEqual(res, { checked: 0, healthy: 0, revived: 0, failed: 0, skipped: 1 });
+  assert.equal(calls.length, 1, 'the probe runs (to learn there is no desktop)');
+  assert.deepEqual(started, [], 'the starter never runs — no desktop is created');
+});
+
+test('CW-5: checkChromiumWatchdog — missing container is skipped, never respawned by the watchdog', async () => {
+  resetDesktopStartFailures();
+  const { exec } = probeExecByHunt({
+    'h-cw5': { stdout: '', code: 0, containerMissing: true },
+  });
+  const started = [];
+  const res = await checkChromiumWatchdog({
+    listMetas: async () => [{ huntId: 'h-cw5', state: 'running' }],
+    exec,
+    startDesktop: async (id) => {
+      started.push(id);
+      return { ok: true };
+    },
+  });
+  assert.deepEqual(res, { checked: 0, healthy: 0, revived: 0, failed: 0, skipped: 1 });
+  assert.deepEqual(started, [], 'a missing container is never respawned here');
+});
+
+test('CW-6: checkChromiumWatchdog — mixed hunts: only the dead running one is revived', async () => {
+  resetDesktopStartFailures();
+  const { exec } = probeExecByHunt({
+    'h-cw6-healthy': HEALTHY_PROBE,
+    'h-cw6-dead': DEAD_PROBE,
+    'h-cw6-never': NO_DESKTOP_PROBE,
+  });
+  const started = [];
+  const res = await checkChromiumWatchdog({
+    listMetas: async () => [
+      { huntId: 'h-cw6-healthy', state: 'running' },
+      { huntId: 'h-cw6-dead', state: 'running' },
+      { huntId: 'h-cw6-never', state: 'running' },
+      { huntId: 'h-cw6-paused', state: 'paused' },
+    ],
+    exec,
+    startDesktop: async (id) => {
+      started.push(id);
+      return { ok: true };
+    },
+  });
+  assert.deepEqual(res, { checked: 2, healthy: 1, revived: 1, failed: 0, skipped: 2 });
+  assert.deepEqual(started, ['h-cw6-dead'], 'only the dead running hunt is revived');
+});
+
+test('CW-7: checkChromiumWatchdog — throttle respected with the REAL starter (failed revive is not retried)', async () => {
+  resetDesktopStartFailures();
+  // First pass: probe finds a dead Chromium, the real starter runs the
+  // script, the script is missing (code 127) — the failure is recorded
+  // in the shared 30s cache.
+  const { exec, calls } = fakeExec((i) => {
+    if (i === 0) return DEAD_PROBE; // watchdog probe: ready, CDP silent
+    if (i === 1) return { stdout: '', stderr: 'sh: 1: /usr/local/bin/hunt-desktop.sh: not found', code: 127 }; // script launch
+    return DEAD_PROBE; // later watchdog probes: still dead
+  });
+  const listMetas = async () => [{ huntId: 'h-cw7', state: 'running' }];
+  const first = await checkChromiumWatchdog({
+    listMetas,
+    exec,
+    startWaitAttempts: 5,
+    startWaitIntervalMs: 0,
+  });
+  assert.deepEqual(first, { checked: 1, healthy: 0, revived: 0, failed: 1, skipped: 0 });
+  const launchesAfterFirst = calls.filter((c) => c.includes('hunt-desktop.sh')).length;
+  assert.equal(launchesAfterFirst, 1, 'the script runs once on the first pass');
+  // Second pass inside the throttle window: the watchdog short-circuits
+  // on the shared cache before spending even the probe — no exec at
+  // all, and the real starter is never reached.
+  const callsAfterFirst = calls.length;
+  const second = await checkChromiumWatchdog({
+    listMetas,
+    exec,
+    startWaitAttempts: 5,
+    startWaitIntervalMs: 0,
+  });
+  assert.deepEqual(second, { checked: 0, healthy: 0, revived: 0, failed: 0, skipped: 1 });
+  assert.equal(calls.length, callsAfterFirst, 'throttled pass performs no exec');
 });
