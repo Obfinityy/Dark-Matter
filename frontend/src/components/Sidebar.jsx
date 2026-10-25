@@ -205,16 +205,24 @@ export default function Sidebar({
   const profileRef = useRef(null);
   const searchRef = useRef(null);
 
-  // Credit balance pill next to "Top up" (logged in only; silent on failure).
+  // Access pill next to "Pay" (logged in only; silent on failure).
+  // Shows the paid access window when active, else the credit balance.
   useEffect(() => {
     if (!user) { setBalanceText(''); return; }
     let cancelled = false;
     (async () => {
       try {
-        const { billingStatus } = await import('../lib/api');
-        const res = await billingStatus();
-        if (!cancelled && res.ok && res.data && typeof res.data.balanceUsd === 'number') {
-          setBalanceText(`$${res.data.balanceUsd.toFixed(2)}`);
+        const { getPaymentStatus } = await import('../lib/api');
+        const res = await getPaymentStatus();
+        if (!cancelled && res.ok && res.data) {
+          if (res.data.accessActive && res.data.accessUntil) {
+            const until = new Date(res.data.accessUntil);
+            setBalanceText(`Access till ${until.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`);
+          } else if (typeof res.data.balanceUsd === 'number' && res.data.balanceUsd > 0) {
+            setBalanceText(`$${res.data.balanceUsd.toFixed(2)}`);
+          } else {
+            setBalanceText('');
+          }
         }
       } catch { /* offline — no pill */ }
     })();
@@ -300,8 +308,8 @@ export default function Sidebar({
         <button className={`nav-item${activePage === 'machines' ? ' active' : ''}`} onClick={() => go('machines')}>
           <IconHexagon /> Live machines
         </button>
-        <button className={`nav-item${activePage === 'topup' ? ' active' : ''}`} onClick={() => go('topup')}>
-          <IconHexagon /> Top up{balanceText ? ` · ${balanceText}` : ''}
+        <button className={`nav-item${activePage === 'pay' ? ' active' : ''}`} onClick={() => go('pay')}>
+          <IconHexagon /> Pay · ₹10,000{balanceText ? ` · ${balanceText}` : ''}
         </button>
         <button className={`nav-item${activePage === 'settings' ? ' active' : ''}`} onClick={() => go('settings')}>
           <IconGear /> Settings

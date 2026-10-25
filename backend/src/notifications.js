@@ -81,6 +81,42 @@ export function notifyFinding({ huntId, ownerId, title, severity, target }) {
   }
 }
 
+/**
+ * Record a generic account notification (no hunt attached — e.g. a UPI
+ * payment claim was verified and the account activated). The record uses
+ * the same shape the bell already renders (title / severity / target /
+ * createdAt / readBy) with huntId null and kind 'account'; the bell only
+ * opens a hunt when huntId is set. Dedupe is on (huntId, title), so the
+ * caller should put a distinguishing detail (e.g. the access-until date)
+ * in the title. Never throws.
+ */
+export function notifyAccount({ ownerId, title, kind }) {
+  try {
+    if (!ownerId || !title) return null;
+    const store = readStore();
+    const list = store.notifications;
+    const dup = list.find((n) => n.huntId === null && n.title === title);
+    if (dup) return dup;
+    const rec = {
+      id: crypto.randomUUID(),
+      huntId: null,
+      ownerId: String(ownerId),
+      title: String(title).slice(0, 300),
+      severity: 'info',
+      target: 'Obfinity',
+      kind: kind || 'account',
+      createdAt: new Date().toISOString(),
+      readBy: [],
+    };
+    list.push(rec);
+    if (list.length > 500) store.notifications = list.slice(list.length - 500);
+    writeStore(store);
+    return rec;
+  } catch {
+    return null;
+  }
+}
+
 /** Notifications visible to this user, newest first. */
 export function listNotificationsFor(user) {
   try {

@@ -50,6 +50,7 @@ import { loadHuntMemory, panelFindings } from '../huntMemory.js';
 import { understandTarget } from '../targetIntel.js';
 import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
 import { getBalanceUsd } from '../billing/credits.js';
+import { hasActiveAccessById } from '../access.js';
 import { teardownHuntContainer, huntDesktopScreenshot } from '../huntRunner.js';
 
 /** Reject unless the hunt belongs to the authenticated user.
@@ -228,8 +229,9 @@ router.post('/', requireAuth, async (req, res) => {
     });
   }
   // Credits gate: non-admin users need balance for at least one iteration.
-  // Admins (owner) hunt free.
-  if (req.user.role !== 'admin') {
+  // Admins (owner) hunt free, and so does a user inside a paid access
+  // window (UPI activation: Rs 10,000 = 1 day, already paid for).
+  if (req.user.role !== 'admin' && !hasActiveAccessById(req.user.id)) {
     console.log(`[hunts] Checking credits for ${req.user.username}...`);
     const priceCents = iterationPriceCents(huntMode.id);
     const balance = getBalanceUsd(req.user.id);
@@ -529,7 +531,7 @@ for (const [route, fn, verb] of [
     // directly (the loop already tore down its container when it paused).
     if (route === 'resume' && meta.state === 'out_of_credits') {
       const priceCents = iterationPriceCents(meta.mode || 'normal');
-      const canPay = req.user.role === 'admin' || getBalanceUsd(req.user.id) * 100 >= priceCents;
+      const canPay = req.user.role === 'admin' || hasActiveAccessById(req.user.id) || getBalanceUsd(req.user.id) * 100 >= priceCents;
       if (!canPay) {
         return res.status(402).json({
           ok: false,

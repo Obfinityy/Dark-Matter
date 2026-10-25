@@ -55,8 +55,8 @@ async function request(method, path, body) {
       return {
         ok: false,
         status: res.status,
-        // Prefer the human-readable message (e.g. the real Razorpay error)
-        // over the machine code so users see WHY something failed.
+        // Prefer the human-readable message over the machine code so users
+        // see WHY something failed.
         error: (data && (data.message || data.error)) || `Request failed (${res.status})`,
       };
     }
@@ -126,17 +126,38 @@ export async function saveChatMessages(chatId, messages) {
   });
 }
 
-// --- Billing / top-up ---------------------------------------------------------
-export async function billingStatus() {
-  return get('/api/v1/billing/status');
+// --- UPI payments / activation ---------------------------------------------
+// Simplified activation (owner order 25 Oct 2026): the user pays Rs 10,000
+// to the Obfinity UPI ID from any UPI app, then submits a claim (phone,
+// WhatsApp, account details, UTR). The admin verifies the money arrived
+// and activates the account for 1 day. No gateway, no OTP. A claim never
+// auto-activates an account.
+export async function getUpiDetails() {
+  return get('/api/v1/payments/upi');
 }
 
-export async function createTopupOrder(amountUsd) {
-  return post('/api/v1/billing/order', { amountUsd });
+export async function getPaymentStatus() {
+  return get('/api/v1/payments/status');
 }
 
-export async function verifyTopup(orderId, paymentId, signature) {
-  return post('/api/v1/billing/verify', { orderId, paymentId, signature });
+export async function submitPaymentClaim(payload) {
+  return post('/api/v1/payments/claims', payload);
+}
+
+export async function getMyClaims() {
+  return get('/api/v1/payments/claims/mine');
+}
+
+export async function listPaymentClaims() {
+  return get('/api/v1/payments/claims');
+}
+
+export async function verifyPaymentClaim(id) {
+  return post(`/api/v1/payments/claims/${encodeURIComponent(id)}/verify`, {});
+}
+
+export async function rejectPaymentClaim(id) {
+  return post(`/api/v1/payments/claims/${encodeURIComponent(id)}/reject`, {});
 }
 
 // --- Hunts -----------------------------------------------------------------

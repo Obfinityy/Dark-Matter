@@ -158,10 +158,13 @@ import { handleArtifactCommand, spillOutput } from './artifacts.js';
 import { notifyFinding } from './notifications.js';
 import { humanIteration } from './humanLoop.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
+import { hasActiveAccessById } from './access.js';
 
 // Credit price per hunt iteration (USD), by hunt mode. The hunt auto-pauses
 // with state 'out_of_credits' when the wallet can't cover the next iteration;
-// topping up + Resume continues it. Admins (owner) are exempt.
+// topping up + Resume continues it. Admins (owner) are exempt, and so is a
+// user inside a paid access window (UPI activation: Rs 10,000 = 1 day —
+// the day is already paid for, so iterations are free until it lapses).
 const ITERATION_PRICE_USD = {
   normal: 0.1,
   medium: 0.15,
@@ -190,6 +193,7 @@ function isAdminUser(userId) {
 /** Deduct one iteration's price. Returns true if the hunt may proceed. */
 function chargeIteration(huntId, userId, mode, iteration) {
   if (isAdminUser(userId)) return true; // owner testing is free
+  if (hasActiveAccessById(userId)) return true; // paid access day: no per-iteration charge
   const priceCents = Math.round((ITERATION_PRICE_USD[mode] || ITERATION_PRICE_USD.normal) * 100);
   if (getBalanceUsd(userId) * 100 < priceCents) {
     writeHuntMetaCheckpoint(huntId, { state: 'out_of_credits', paused: true });

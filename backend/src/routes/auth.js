@@ -47,7 +47,7 @@ function signToken(payload) {
   return `${header}.${body}.${sig}`;
 }
 
-function verifyToken(token) {
+export function verifyToken(token) {
   if (typeof token !== 'string') return null;
   const parts = token.split('.');
   if (parts.length !== 3) return null;
@@ -140,7 +140,7 @@ export function hashPassword(password) {
   return { salt: saltBuf.toString('hex'), hash };
 }
 
-function verifyPassword(password, saltHex, hashHex) {
+export function verifyPassword(password, saltHex, hashHex) {
   try {
     const derived = crypto.scryptSync(password, Buffer.from(saltHex, 'hex'), 64);
     const expected = Buffer.from(hashHex, 'hex');
@@ -197,6 +197,7 @@ function publicUser(u) {
     role: u.role || 'user',
     control: u.control || 'minimal',
     approved: u.approved !== false, // default true for legacy/admin-created users
+    accessUntil: u.accessUntil || null, // paid access window (UPI activation); null = none
     createdAt: u.createdAt,
   };
 }
