@@ -152,22 +152,51 @@ const SNAP = \`(() => {
 })()\`;
 ${resolveClickTarget.toString().replace(/^export\s+/, '')}
 async function getPage() {
+  const hosts = params.targetHosts || [];
   let list = await (await fetch(BASE + '/json/list')).json();
-  let page = list.find((t) => t.type === 'page');
-  if (!page) {
-    try { await fetch(BASE + '/json/new?about:blank', { method: 'PUT' }); } catch {}
-    list = await (await fetch(BASE + '/json/list')).json();
-    page = list.find((t) => t.type === 'page');
+  let pages = list.filter((t) => t.type === 'page');
+  if (act === 'navigate') {
+    // Reuse the tab already on the requested URL's host (keeps the
+    // target tab when opening a foreign in-scope page); else the
+    // first tab — Page.navigate takes it where the action asked
+    // (for a return-to-target open, that IS the target).
+    let page = pages.find((t) => hostOf(t.url) === hostOf(params.url)) || pages[0];
+    if (!page) {
+      try { await fetch(BASE + '/json/new?about:blank', { method: 'PUT' }); } catch {}
+      list = await (await fetch(BASE + '/json/list')).json();
+      page = list.filter((t) => t.type === 'page')[0];
+    }
+    if (!page) throw new Error('no page target on CDP endpoint');
+    return page;
   }
-  if (!page) throw new Error('no page target on CDP endpoint');
-  return page;
+  // Anything that drives the CURRENT page must run on the target —
+  // never on whatever tab happens to be first (about:blank on a
+  // fresh container, the owner's own frontend left open in the hunt
+  // browser). A tab is "on target" by the same host rule as the
+  // scope gate (target host or a programme-listed host, subdomains
+  // included). No target tab: refuse with the actual URL so the
+  // caller can name it and navigate back.
+  const targetPage = pages.find((t) => onTargetHosts(t.url, hosts));
+  if (targetPage) return targetPage;
+  const first = pages[0];
+  return { wrongPage: true, url: first ? (first.url || '') : '', title: first ? (first.title || '') : '' };
+}
+// WRONG-PAGE FIX (25 Oct 2026): getPage used to return the FIRST tab
+// blindly, so the agent typed its probes into whatever tab happened
+// to be first — about:blank on a fresh container, or the owner's own
+// frontend left open in the hunt browser. See getPage above.
+function hostOf(u) { try { return new URL(u).hostname.toLowerCase(); } catch { return ''; } }
+function onTargetHosts(url, hosts) {
+  const h = hostOf(url);
+  if (!h) return false;
+  return (hosts || []).some((d) => { d = String(d || '').toLowerCase(); return h === d || h.endsWith('.' + d); });
 }
 const page = await getPage();
-const ws = new WebSocket(page.webSocketDebuggerUrl);
-await new Promise((res, rej) => { ws.onopen = res; ws.onerror = () => rej(new Error('CDP websocket failed')); });
+const ws = page.wrongPage ? null : new WebSocket(page.webSocketDebuggerUrl);
+if (ws) await new Promise((res, rej) => { ws.onopen = res; ws.onerror = () => rej(new Error('CDP websocket failed')); });
 let seq = 0;
 const pending = new Map();
-ws.onmessage = (ev) => {
+if (ws) ws.onmessage = (ev) => {
   const m = JSON.parse(ev.data);
   if (m.id && pending.has(m.id)) {
     const p = pending.get(m.id);
@@ -188,10 +217,14 @@ async function evaluate(expr) {
   if (r.exceptionDetails) throw new Error('page JS error: ' + ((r.exceptionDetails.exception && r.exceptionDetails.exception.description) || r.exceptionDetails.text || 'evaluate failed'));
   return r.result ? r.result.value : undefined;
 }
-await send('Page.enable');
-await send('Runtime.enable');
+if (!page.wrongPage) {
+  await send('Page.enable');
+  await send('Runtime.enable');
+}
 let out;
-if (act === 'navigate') {
+if (page.wrongPage) {
+  out = { ok: false, error: 'wrong_page', url: page.url || '', title: page.title || '' };
+} else if (act === 'navigate') {
   await send('Page.navigate', { url: params.url });
   await new Promise((r) => setTimeout(r, 1800));
   out = await evaluate(SNAP);
@@ -235,7 +268,11 @@ if (act === 'navigate') {
   const snap = await evaluate(SNAP);
   out = { ...clicked, snapshot: snap };
 } else if (act === 'type') {
-  await evaluate(\`(() => {
+  // WRONG-PAGE FIX (25 Oct 2026): the field check below used to be
+  // evaluated and then DISCARDED — typing into about:blank (no
+  // inputs at all) still reported { ok: true } and the agent believed
+  // its probe had landed. Honour the check: no field, no type.
+  const field = await evaluate(\`(() => {
     const editable = (e) => e && (e.tagName === 'INPUT' || e.tagName === 'TEXTAREA' || e.isContentEditable);
     let el = document.activeElement;
     if (!editable(el)) {
@@ -246,14 +283,18 @@ if (act === 'navigate') {
     el.focus();
     return { ok: true };
   })()\`);
-  await send('Input.insertText', { text: params.text });
-  if (params.submit) {
-    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-    await new Promise((r) => setTimeout(r, 1500));
+  if (!field || field.ok === false) {
+    out = { ok: false, error: (field && field.error) || 'no typeable field found on this page' };
+  } else {
+    await send('Input.insertText', { text: params.text });
+    if (params.submit) {
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    const snap = await evaluate(SNAP);
+    out = { ok: true, typed: params.text, snapshot: snap };
   }
-  const snap = await evaluate(SNAP);
-  out = { ok: true, typed: params.text, snapshot: snap };
 } else if (act === 'screenshot') {
   const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
   out = { screenshot_b64: shot.data || '' };
@@ -261,7 +302,7 @@ if (act === 'navigate') {
   throw new Error('unknown CDP action: ' + act);
 }
 console.log(JSON.stringify(out));
-ws.close();
+if (ws) ws.close();
 `;
 
 // ---------------------------------------------------------------------------
@@ -513,7 +554,17 @@ async function cdpAction(huntId, action, params, deps = {}) {
   if (!(await ensureCdpScript(huntId, exec, probe))) {
     return { ok: false, observation: 'The desktop browser is running but its control channel (CDP driver) could not be installed in the container.' };
   }
-  const p64 = Buffer.from(JSON.stringify(params || {}), 'utf8').toString('base64');
+  // WRONG-PAGE FIX (25 Oct 2026): the driver needs the hunt's target
+  // hosts to pick the right tab (getPage) — they arrive on deps from
+  // the loop's getGui, which owns the target + scope. Absent (tests,
+  // old callers), the driver behaves as before: an empty host list
+  // still refuses a foreign tab, naming it.
+  const fullParams = {
+    ...(params || {}),
+    targetHosts: Array.isArray(deps.targetHosts) ? deps.targetHosts : [],
+    targetUrl: String(deps.targetUrl || ''),
+  };
+  const p64 = Buffer.from(JSON.stringify(fullParams), 'utf8').toString('base64');
   const r = await exec(huntId, `DMGUI_P64='${p64}' node ${GUI_DIR}/cdp.mjs ${action}`, 60000, { bypassTmux: true });
   const raw = String(r.stdout || '').trim();
   const line = raw.split('\n').filter(Boolean).pop() || '';
@@ -566,6 +617,16 @@ async function savePngArtifact(huntId, b64) {
 // Public actions. Every one returns { ok, observation, artifact? } and
 // NEVER throws — a broken desktop must degrade to text, not kill a hunt.
 // ---------------------------------------------------------------------------
+
+// WRONG-PAGE FIX (25 Oct 2026): the honest refusal when the live
+// desktop's current tab is not the target. Names the actual URL the
+// browser is on and the move that gets back (open the target, then
+// snapshot) — never a fake "typed" success, never a silent no-op.
+export function wrongPageObservation(res, targetUrl) {
+  const actual = (res && res.url) || '(unknown page)';
+  const target = targetUrl || 'your target';
+  return `WRONG PAGE — you are on ${actual}, which is NOT your target. Do NOT type or click here: nothing you do on this page reaches the target. Open your target with browser_open ${target} first, then take browser_snapshot and work there.`;
+}
 export async function guiBrowserOpen(huntId, url, deps = {}) {
   const exec = resolveExec(deps);
   try {
@@ -573,6 +634,7 @@ export async function guiBrowserOpen(huntId, url, deps = {}) {
     if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE, degraded: true };
     if (probe.mode === 'cdp') {
       const res = await cdpAction(huntId, 'navigate', { url }, deps);
+      if (res && res.error === 'wrong_page') return { ok: false, observation: wrongPageObservation(res, deps.targetUrl) };
       if (res && !res.observation) return { ok: true, observation: `Opened ${url} in your desktop browser.\n${formatSnapshot(res)}` };
       if (res) return res;
     }
@@ -603,6 +665,7 @@ export async function guiBrowserSnapshot(huntId, deps = {}) {
     if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE, degraded: true };
     if (probe.mode === 'cdp') {
       const res = await cdpAction(huntId, 'snapshot', {}, deps);
+      if (res && res.error === 'wrong_page') return { ok: false, observation: wrongPageObservation(res, deps.targetUrl) };
       if (res && !res.observation) return { ok: true, observation: formatSnapshot(res) };
       if (res) return res;
     }
@@ -633,6 +696,7 @@ export async function guiBrowserClick(huntId, text, deps = {}) {
     }
     const res = await cdpAction(huntId, 'click', { text: String(text || '') }, deps);
     if (!res) return { ok: false, observation: NOT_AVAILABLE };
+    if (res.error === 'wrong_page') return { ok: false, observation: wrongPageObservation(res, deps.targetUrl) };
     if (res.observation) return res;
     if (res.ok === false) return { ok: false, observation: `Click failed: ${res.error || 'element not found'}. Take a browser_snapshot and use an exact label from it.` };
     return { ok: true, observation: `Clicked "${res.clicked || text}". The page now shows:\n${formatSnapshot(res.snapshot)}` };
@@ -652,6 +716,7 @@ export async function guiBrowserType(huntId, text, submit = false, deps = {}) {
     }
     const res = await cdpAction(huntId, 'type', { text: String(text || ''), submit: Boolean(submit) }, deps);
     if (!res) return { ok: false, observation: NOT_AVAILABLE };
+    if (res.error === 'wrong_page') return { ok: false, observation: wrongPageObservation(res, deps.targetUrl) };
     if (res.observation) return res;
     if (res.ok === false) return { ok: false, observation: `Type failed: ${res.error || 'no field'}. Take a browser_snapshot first.` };
     return { ok: true, observation: `Typed ${JSON.stringify(String(text).slice(0, 120))}${submit ? ' and pressed Enter' : ''}. The page now shows:\n${formatSnapshot(res.snapshot)}` };
@@ -667,6 +732,10 @@ export async function guiBrowserScreenshot(huntId, deps = {}) {
     if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE };
     if (probe.mode === 'cdp') {
       const res = await cdpAction(huntId, 'screenshot', {}, deps);
+      // WRONG PAGE must be checked BEFORE the screenshot_b64 branch
+      // and before the headless fallback below: a foreign tab is a
+      // refusal, not a missing image to work around.
+      if (res && res.error === 'wrong_page') return { ok: false, observation: wrongPageObservation(res, deps.targetUrl) };
       if (res && res.screenshot_b64) {
         const name = await savePngArtifact(huntId, res.screenshot_b64);
         const snapRes = await cdpAction(huntId, 'snapshot', {}, deps);

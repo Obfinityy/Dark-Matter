@@ -751,6 +751,11 @@ router.post('/:id/control/take', requireAuth, async (req, res) => {
     return res.status(503).json({ ok: false, error: 'control_unavailable', detail: started.error });
   }
   console.log(`[control] take OK hunt=${req.params.id} user=${user.username} vncAlreadyRunning=${Boolean(started.alreadyRunning)}`);
+  // WRONG-PAGE GUARD (fix 6): Take Control sessions are hunt events
+  // now, not just journal lines — the loop's history and the
+  // monitors can see them. Best-effort: a failed write must never
+  // fail a take that already succeeded.
+  try { appendHuntEvent(req.params.id, { type: 'control_take', username: user.username, at: new Date().toISOString() }); } catch { /* best-effort */ }
   return res.json({
     ok: true,
     controlled: true,
@@ -770,6 +775,11 @@ router.post('/:id/control/release', requireAuth, async (req, res) => {
     return res.status(status).json({ ok: false, error: rel.error });
   }
   console.log(`[control] release OK hunt=${req.params.id} user=${user.username}`);
+  // WRONG-PAGE GUARD (fix 6): see the take handler above. Only the
+  // route records the event — the WS-close release in server.js
+  // must NOT, or every normal Done would double-record (Done calls
+  // this route, then the WS closes).
+  try { appendHuntEvent(req.params.id, { type: 'control_release', username: user.username, at: new Date().toISOString() }); } catch { /* best-effort */ }
   // Best-effort: the interactive VNC dies with the release even if
   // the container is already gone.
   await stopControlDesktop(req.params.id);

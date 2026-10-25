@@ -133,6 +133,92 @@ function targetHostOf(target) {
   }
 }
 
+// WRONG-PAGE GUARD (25 Oct 2026): the CDP driver refuses to type /
+// click / snapshot when the live tab is not the target, and the
+// observation it returns starts with "WRONG PAGE —". These helpers
+// are the loop-side half of that guard: the target hosts the driver
+// is bound to, whether a URL is on them, and the narrow dedupe
+// exemption that lets the agent navigate BACK to the target when it
+// is currently on a foreign page (Trap 4: every return-to-target
+// open already ran x2, so dedupe blocked the way home forever).
+export function targetHostsFor(target, parsedScope) {
+  const hosts = [];
+  const tHost = targetHostOf(target);
+  if (tHost) hosts.push(tHost);
+  for (const entry of (parsedScope && parsedScope.inScope) || []) {
+    const d = String(entry).toLowerCase();
+    if (d && !hosts.includes(d)) hosts.push(d);
+  }
+  return hosts;
+}
+
+function hostOnTargetList(host, hosts) {
+  const h = String(host || '').toLowerCase();
+  if (!h) return false;
+  return (hosts || []).some((d) => {
+    const dd = String(d).toLowerCase();
+    return h === dd || h.endsWith('.' + dd);
+  });
+}
+
+export function isOnTargetHosts(url, target, parsedScope) {
+  let host = '';
+  try {
+    host = new URL(String(url)).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return hostOnTargetList(host, targetHostsFor(target, parsedScope));
+}
+
+// Narrow dedupe exemption: browser_open of a target-host URL is
+// allowed when the current tab is provably NOT the target (the
+// agent is on a foreign page — about:blank, our own frontend, an
+// SSO hop that never landed — and must navigate home). Unknown
+// current page ('') means NO exemption: a broken tracker must never
+// open a re-open-forever loophole. Repeated opens while already ON
+// the target are still deduped as before.
+export function isReturnToTarget(kind, action, currentPageUrl, target, parsedScope) {
+  if (String(kind || '').toLowerCase() !== 'browser_open') return false;
+  if (!currentPageUrl) return false;
+  if (isOnTargetHosts(currentPageUrl, target, parsedScope)) return false;
+  const url = String((action && action.url) || '');
+  return isOnTargetHosts(url, target, parsedScope);
+}
+
+// Extract the current page URL from a browser observation. The
+// snapshot formatter's first line is "Page: <title> — <url>"; a
+// wrong-page refusal names the URL in prose; about:blank is a real
+// (empty) page, not an unknown one. Returns '' when no URL can be
+// found — callers treat '' as "unknown", never as "on target".
+export function pageUrlFromObservation(obs) {
+  const s = String(obs || '');
+  if (!s) return '';
+  const pageLine = s.match(/^Page:.*—\s*(\S+)/m);
+  if (pageLine) return pageLine[1];
+  const wrong = s.match(/WRONG PAGE — you are on (\S+),/);
+  if (wrong) return wrong[1];
+  if (/about:blank/.test(s)) return 'about:blank';
+  const url = s.match(/https?:\/\/[^\s'"<>)\]|,]+/i);
+  return url ? url[0] : '';
+}
+
+// Seed for lastObservation at session start (fix 2): the last
+// non-empty result the previous session recorded, so the new
+// session does not start blind. Results that are themselves an
+// empty-page snapshot are skipped — seeding one would re-trip the
+// very gate the seed exists to defeat. Returns '' when the previous
+// session left nothing usable; the turn-start snapshot then
+// provides it.
+export function lastActionResultOfLeftOff(leftOff) {
+  const actions = (leftOff && leftOff.lastActions) || [];
+  for (let i = actions.length - 1; i >= 0; i--) {
+    const r = String((actions[i] && actions[i].result) || '').trim();
+    if (r && !r.includes('(empty page snapshot)')) return r;
+  }
+  return '';
+}
+
 /**
  * Out-of-scope check for a URL string against the hunt's parsedScope.
  * Returns the offending URL, or null when allowed. Allows: the target
@@ -1671,6 +1757,12 @@ export function authGateHit(kind, action, history, lastObservation) {
   const k = String(kind || '').toLowerCase();
   if (k !== 'browser_type' && k !== 'browser_click') return null;
   const obs = String(lastObservation || '');
+  // WRONG-PAGE GUARD: the driver's own refusal is authoritative —
+  // it already names the page and the way back. Do NOT let the auth
+  // gate misfire on it (a foreign URL can contain "/login" and the
+  // empty-snapshot check would otherwise swallow the refusal and
+  // send the agent snapshotting a page that is not the target).
+  if (obs.startsWith('WRONG PAGE —')) return null;
   // 1. Never type/click blind: the last snapshot was empty (or the
   // page has never been observed at all this session).
   if (obs.includes('(empty page snapshot)') || obs.trim() === '') {
@@ -2288,15 +2380,22 @@ export async function humanIteration(huntId, target, opts = {}) {
     try { deps.recordNote(huntId, scrubEntry(entry)); } catch { /* best-effort */ }
   };
 
+  // WRONG-PAGE GUARD (seam): the driver needs the hunt's target
+  // hosts to pick the right tab. The loop already owns the target +
+  // parsedScope, so it computes the host list once per session and
+  // binds it into every gui call via the same deps channel the exec
+  // already rides. guiTools itself stays target-agnostic except for
+  // the optional deps.targetHosts / deps.targetUrl.
+  const guiTarget = { targetHosts: targetHostsFor(target, parsedScope), targetUrl: target };
   const getGui = () => {
     if (!deps.gui) {
       const ex = (h, c, t, o) => deps.execRaw(h, c, t, o);
       deps.gui = {
-        open: (h, url) => guiBrowserOpen(h, url, { exec: ex }),
-        snapshot: (h) => guiBrowserSnapshot(h, { exec: ex }),
-        click: (h, text) => guiBrowserClick(h, text, { exec: ex }),
-        type: (h, text, submit) => guiBrowserType(h, text, submit, { exec: ex }),
-        screenshot: (h) => guiBrowserScreenshot(h, { exec: ex }),
+        open: (h, url) => guiBrowserOpen(h, url, { exec: ex, ...guiTarget }),
+        snapshot: (h) => guiBrowserSnapshot(h, { exec: ex, ...guiTarget }),
+        click: (h, text) => guiBrowserClick(h, text, { exec: ex, ...guiTarget }),
+        type: (h, text, submit) => guiBrowserType(h, text, submit, { exec: ex, ...guiTarget }),
+        screenshot: (h) => guiBrowserScreenshot(h, { exec: ex, ...guiTarget }),
       };
     }
     return deps.gui;
@@ -2382,6 +2481,18 @@ export async function humanIteration(huntId, target, opts = {}) {
   let pendingDegraded = false; // Lane AF: the executing browser action's result was the look-only fallback
   let pendingPrevStreak = 0; // Lane AF: the signature's degraded streak before this execution
   let lastObservation = '';
+  // WRONG-PAGE GUARD: the page the live browser is currently on,
+  // as last observed ('' = unknown). Only EXECUTED browser
+  // observations set it — never gate-block text, which names the
+  // page the agent TRIED to reach, not the one it is on.
+  let currentPageUrl = '';
+  // WRONG-PAGE GUARD: track the live tab from an executed browser
+  // observation. Seeding from the turn-start snapshot or a browser
+  // action is the only way this moves.
+  const notePageUrl = (obs) => {
+    const u = pageUrlFromObservation(obs);
+    if (u) currentPageUrl = u;
+  };
   let lastShellAt = 0;
   let lastShellCommand = '';
   let aiOk = false;
@@ -2397,10 +2508,33 @@ export async function humanIteration(huntId, target, opts = {}) {
   let memory0 = null;
   try { memory0 = loadHuntMemory(huntId, { target, meta: meta0 }); } catch { /* memory is best-effort */ }
   const prevLeftOff = leftOffLines((memory0 && memory0.leftOff) || (meta0.humanLoop && meta0.humanLoop.leftOff));
+  // WRONG-PAGE GUARD (fix 2): seed the session's last observation
+  // from the previous session's last action result instead of
+  // starting blind (''). The auth gate's empty-snapshot check trips
+  // on '' at the first GUI action of EVERY session otherwise.
+  lastObservation = lastActionResultOfLeftOff((memory0 && memory0.leftOff) || (meta0.humanLoop && meta0.humanLoop.leftOff));
   let sessionLastThinking = '';
   let sessionLastNote = '';
 
   say(`Human mode session: ${turns} turns at my own machine. Target: ${target}.`);
+
+  // WRONG-PAGE GUARD (fix 5): deterministic turn-start snapshot —
+  // the driver looks at the live page itself and seeds
+  // lastObservation with what it actually sees, so the session
+  // never starts blind. This is perception (like the per-turn
+  // machine-state read), not a brain action: no tool_call event.
+  // The brain never snapshots on its own (0 in 140 turns), so the
+  // loop does it. Read-only, so it runs even while the owner holds
+  // control. On a foreign page the driver refuses with the WRONG
+  // PAGE observation, which is itself the seed — it names the page
+  // and the way back.
+  try {
+    const startSnap = await getGui().snapshot(huntId);
+    if (startSnap && startSnap.observation) {
+      lastObservation = startSnap.observation;
+      notePageUrl(lastObservation);
+    }
+  } catch { /* best-effort: a failed snapshot leaves the seed */ }
 
   for (let turn = 1; turn <= turns; turn++) {
     // Operator control: a pause/stop landed mid-session — hold position.
@@ -2581,7 +2715,15 @@ export async function humanIteration(huntId, target, opts = {}) {
     // observation carrying the count and, when known, the last
     // result — then it must choose a different action. Every other
     // gate below runs exactly as before for actions that pass.
-    const gateHit = dedupeGateHit(kind, action, actionHistory);
+    // WRONG-PAGE GUARD (fix 4): the narrow return-to-target
+    // exemption — a browser_open of the target's own login surface
+    // while the live tab is provably OFF the target is not a repeat,
+    // it is the way home (Trap 4: every such open already ran x2,
+    // so dedupe blocked the return forever). Unknown current page
+    // means NO exemption; repeated opens while already ON the
+    // target are still deduped as before.
+    const returnExempt = isReturnToTarget(kind, action, currentPageUrl, target, parsedScope);
+    const gateHit = returnExempt ? null : dedupeGateHit(kind, action, actionHistory);
     const authHit = authGateHit(kind, action, actionHistory, lastObservation);
     const controlHit = GUI_CONTROL_KINDS.has(kind) && deps.machineControlled(huntId);
     if (controlHit) {
@@ -2985,18 +3127,21 @@ export async function humanIteration(huntId, target, opts = {}) {
         const res = await getGui().open(huntId, url);
         if (res && res.degraded === true) pendingDegraded = true; // Lane AF
         observation = res.observation || '(no observation)';
+        notePageUrl(observation);
       }
       note({ action: `browser_open: ${url.slice(0, 120)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'browser_snapshot') {
       toolCall('browser_snapshot', '');
       const res = await getGui().snapshot(huntId);
       observation = res.observation || '(no observation)';
+      notePageUrl(observation);
     } else if (kind === 'browser_click') {
       const text = String(action.text || '');
       toolCall('browser_click', text);
       const res = await getGui().click(huntId, text);
       if (res && res.degraded === true) pendingDegraded = true; // Lane AF
       observation = res.observation || '(no observation)';
+      notePageUrl(observation);
       note({ action: `browser_click: ${text.slice(0, 80)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'browser_type') {
       const text = String(action.text || '');
@@ -3004,11 +3149,13 @@ export async function humanIteration(huntId, target, opts = {}) {
       const res = await getGui().type(huntId, text, action.submit === true);
       if (res && res.degraded === true) pendingDegraded = true; // Lane AF
       observation = res.observation || '(no observation)';
+      notePageUrl(observation);
       note({ action: 'browser_type', why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'screenshot') {
       toolCall('screenshot', '');
       const res = await getGui().screenshot(huntId);
       observation = res.observation || '(no observation)';
+      notePageUrl(observation);
     } else if (kind === 'claim_finding') {
       const rawTitle = String(action.title || '');
       const title = String(rawTitle.trim() ? rawTitle : 'Untitled claim').slice(0, 200);
