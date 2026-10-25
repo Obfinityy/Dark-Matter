@@ -24,6 +24,7 @@ import {
   stopControlDesktop,
   CONTROL_TTL_MS,
 } from './machineControl.js';
+import { guardStreamError, safeSend } from './wsGuards.js';
 import adminRouter from './routes/admin.js';
 import chatRouter from './routes/chat.js';
 import chatsRouter from './routes/chats.js';
@@ -115,6 +116,12 @@ const wss = new WebSocketServer({ noServer: true });
 const STREAM_POLL_MS = parseInt(process.env.STREAM_POLL_MS || '1000', 10);
 
 server.on('upgrade', (req, socket, head) => {
+  // EPIPE GUARD (25 Oct 2026 crash): a client that disconnects
+  // mid-upgrade makes socket.write fail asynchronously (EPIPE) — with
+  // no 'error' listener on this raw socket that is an unhandled
+  // 'error' event and crashes the whole backend. Sink socket errors
+  // here; the upgrade flow still fails gracefully via handleUpgrade.
+  guardStreamError(socket);
   const streamMatch = /^\/api\/v1\/hunts\/([^/]+)\/stream$/.exec(req.url.split('?')[0] || '');
   if (streamMatch) {
     wss.handleUpgrade(req, socket, head, (ws) => {
@@ -241,8 +248,9 @@ wssTerm.on('connection', async (ws, req, huntId, ticket) => {
     });
     
     ttydWs.on('message', (data) => {
-      // ttyd -> client (terminal output)
-      if (ws.readyState === ws.OPEN) ws.send(data);
+      // ttyd -> client (terminal output). safeSend never throws on a
+      // closing socket (the readyState check alone is racy).
+      safeSend(ws, data);
     });
     
     ttydWs.on('close', () => {
@@ -256,7 +264,15 @@ wssTerm.on('connection', async (ws, req, huntId, ticket) => {
     ws.on('message', () => {
       // Drop client->server (read-only). Defence in depth.
     });
-    
+
+    // EPIPE GUARD (25 Oct 2026 crash, same class): a dead browser tab
+    // makes this socket emit 'error' (ECONNRESET) — with no listener
+    // that crashes the process. The 'close' handler below does the
+    // cleanup; this only keeps the error from being fatal.
+    guardStreamError(ws, (err) => {
+      console.warn(`[terminal] WS error hunt=${huntId} error=${err && err.message ? err.message : err}`);
+    });
+
     ws.on('close', () => {
       viewers.delete(ws);
       if (viewers.size === 0) TERM_VIEWERS.delete(huntId);
@@ -333,6 +349,15 @@ wssControl.on('connection', async (ws, req, huntId, ticket) => {
     }
     CONTROL_VIEWERS.set(huntId, ws);
 
+    // EPIPE GUARD (25 Oct 2026 crash, same class as the tunnel stdin
+    // bug below): a dead browser tab makes this socket emit 'error'
+    // (ECONNRESET) — with no listener that crashes the process. The
+    // 'close' handler below does the cleanup (kills the tunnel,
+    // releases the lock); this only keeps the error from being fatal.
+    guardStreamError(ws, (err) => {
+      console.warn(`[control] WS error hunt=${huntId} error=${err && err.message ? err.message : err}`);
+    });
+
     // Heartbeat (same discipline as the terminal proxy): a missed pong
     // means a dead tab — terminate it so the lock frees instead of
     // leaking until its TTL.
@@ -369,6 +394,26 @@ wssControl.on('connection', async (ws, req, huntId, ticket) => {
       if (ws.readyState === ws.OPEN) ws.close(1011, 'control closed');
     });
 
+    // EPIPE GUARD (25 Oct 2026 crash — the backend died here):
+    // the tunnel child's stdin/stdout are Sockets that fail
+    // ASYNCHRONOUSLY. A write to a dead forwarder emits 'error'
+    // (EPIPE) on the stream itself, NOT on the child process — the
+    // tunnel.on('error') above only fires on spawn failure, and the
+    // try/catch around tunnel.stdin.write below only covers
+    // synchronous failures. With no listener on the stream, the EPIPE
+    // is an unhandled 'error' event and kills the whole Node process
+    // (seen: "write EPIPE, Emitted 'error' event on Socket instance",
+    // exit 1). Close honestly (1011); the 'close' handler below kills
+    // the tunnel and releases the lock via the existing close path.
+    guardStreamError(tunnel.stdin, (err) => {
+      console.error(`[control] tunnel stdin error hunt=${huntId} error=${err && err.message ? err.message : err}`);
+      if (ws.readyState === ws.OPEN) ws.close(1011, 'control unreachable');
+    });
+    guardStreamError(tunnel.stdout, (err) => {
+      console.error(`[control] tunnel stdout error hunt=${huntId} error=${err && err.message ? err.message : err}`);
+      if (ws.readyState === ws.OPEN) ws.close(1011, 'control unreachable');
+    });
+
     // Browser -> container (RFB input: mouse, keyboard, clipboard).
     ws.on('message', (data) => {
       try {
@@ -377,7 +422,9 @@ wssControl.on('connection', async (ws, req, huntId, ticket) => {
     });
     // Container -> browser (RFB framebuffer updates). Binary frames.
     tunnel.stdout.on('data', (chunk) => {
-      if (ws.readyState === ws.OPEN) ws.send(chunk);
+      // safeSend never throws on a closing socket (the readyState
+      // check alone is racy).
+      safeSend(ws, chunk);
     });
 
     ws.on('close', async (code, reason) => {
@@ -414,7 +461,9 @@ wss.on('connection', async (ws, req, huntId) => {
   let lastSeq = 0;
 
   const send = (event) => {
-    if (alive && ws.readyState === ws.OPEN) ws.send(JSON.stringify(event));
+    // safeSend never throws on a closing socket (the readyState
+    // check alone is racy); async send failures are swallowed.
+    if (alive) safeSend(ws, JSON.stringify(event));
   };
 
   // 1) Replay locally cached events so the client has history immediately.
