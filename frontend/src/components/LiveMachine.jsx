@@ -11,9 +11,16 @@ import {
 /**
  * LiveMachine — picture-in-picture view of the hunt machine's GUI desktop.
  *
- * Fixed bottom-right card (~320x180) that refreshes the desktop frame
- * every 3 seconds via GET /api/v1/hunts/:id/desktop.jpg (JWT-authenticated
- * fetch, blob URL). The expand button opens the same stream full-screen.
+ * COLLAPSED BY DEFAULT (25 Oct 2026, owner order): the hunt view opens
+ * with a single-line bar (● LIVE + Open + ✕) and NO live machine — no
+ * desktop image, no polling, no connection — until the user asks for it.
+ * Open mounts the fixed bottom-right PiP card (~320x180) that refreshes
+ * the desktop frame every 3 seconds via GET /api/v1/hunts/:id/desktop.jpg
+ * (JWT-authenticated fetch, blob URL); clicking the PiP (or ⛶) expands
+ * the same stream full-screen. ✕ on the bar dismisses to the minimised
+ * chip; ✕ on the PiP does the same; the chip restores the PiP. Closing
+ * the view stops the poller (the effect cleanup clears the interval and
+ * revokes the frame URL) — nothing stays connected while hidden.
  *
  * TAKE CONTROL OF THIS MACHINE: the expanded overlay bar carries a
  * "Take Control of This Machine" button (owner order 25 Oct 2026 — the
@@ -97,6 +104,14 @@ export default function LiveMachine({ huntId, target }) {
   // docked card minimises it to a small chip in the same corner — the
   // live screen stays hidden until the chip is clicked again.
   const [minimized, setMinimized] = useState(false);
+  // COLLAPSED BY DEFAULT (25 Oct 2026, owner order): the hunt view
+  // opens with a single-line bar (LIVE + Open + ✕) and NO live
+  // machine — no desktop image, no poll, no connection — until the
+  // user opens the PiP. Open → PiP; ✕ on the bar → the minimised
+  // chip (the same hidden state as ✕ on the PiP; the chip restores
+  // the PiP). The bar and the chip are two doors to the same hidden
+  // state, never shown at once.
+  const [collapsed, setCollapsed] = useState(true);
   // Take Control state: off | taking | taken | on | error.
   // 'taking' = the take POST is in flight (the lock is NOT held yet);
   // 'taken' = the lock is held, the channel is mounting; 'on' means
@@ -143,17 +158,33 @@ export default function LiveMachine({ huntId, target }) {
   // Who holds the control lock right now (if anyone) — so the button
   // can say so honestly instead of letting the owner discover it by
   // clicking. Best-effort: a failed status fetch just leaves the
-  // button enabled and the take call reports the truth.
+  // button enabled and the take call reports the truth. LAZY (25 Oct
+  // 2026): no request at all while the bar or chip is showing — the
+  // take call itself reports the holder on a 409, so the button is
+  // never dishonest.
   useEffect(() => {
+    if (collapsed || minimized) return;
     let cancelled = false;
     getMachineControl(huntId).then((res) => {
       if (cancelled || !res.ok || !res.data) return;
       if (res.data.controlled) setControlHolder(res.data.holder || '');
     }).catch(() => {});
     return () => { cancelled = true; };
-  }, [huntId]);
+  }, [huntId, collapsed, minimized]);
 
   useEffect(() => {
+    // COLLAPSED / MINIMISED = disconnected (25 Oct 2026, owner
+    // order): no desktop.jpg fetch, no poll interval while the bar
+    // or the chip is showing. The poller starts only when the user
+    // opens the PiP (or the expanded view) and stops the moment the
+    // view closes again — the cleanup below clears the timer and
+    // revokes the frame URL, and this gate resets the LIVE dot and
+    // the frame so a closed view never claims to be live.
+    if (collapsed || minimized) {
+      setAvailable(false);
+      setFrameUrl('');
+      return;
+    }
     // While the owner drives (or is connecting), the noVNC canvas is
     // the view — the screenshot poller stands down and resumes when
     // control ends.
@@ -185,7 +216,7 @@ export default function LiveMachine({ huntId, target }) {
         frameUrlRef.current = '';
       }
     };
-  }, [huntId, control]);
+  }, [huntId, control, collapsed, minimized]);
 
   // Mount the noVNC client once the overlay screen exists and the
   // lock is HELD. The effect runs on [control, expanded] so the RFB
@@ -380,7 +411,7 @@ export default function LiveMachine({ huntId, target }) {
         type="button"
         className="live-machine-chip"
         style={{ bottom: 16 + slot * STACK_STEP_PX }}
-        onClick={() => setMinimized(false)}
+        onClick={() => { setMinimized(false); setCollapsed(false); }}
         title={`Show live machine view — ${shortTarget}`}
         aria-label="Show live machine view"
       >
@@ -389,6 +420,41 @@ export default function LiveMachine({ huntId, target }) {
         <span className="live-machine-target">{shortTarget}</span>
         <span aria-hidden="true">▸</span>
       </button>
+    );
+  }
+
+  // Collapsed by default: one line, no stream. Open mounts the PiP
+  // (which starts the poller); ✕ dismisses to the minimised chip.
+  // The Take Control button is deliberately NOT here — it appears
+  // only in the expanded view (owner order 25 Oct 2026).
+  if (collapsed) {
+    return (
+      <div
+        className="live-machine-bar"
+        aria-label="Live machine — collapsed"
+        style={{ bottom: 16 + slot * STACK_STEP_PX }}
+      >
+        <span className="live-machine-dot" aria-hidden="true" />
+        <span className="live-machine-live">LIVE</span>
+        <span className="live-machine-target" title={target}>{shortTarget}</span>
+        <button
+          type="button"
+          className="live-machine-bar-open"
+          onClick={() => setCollapsed(false)}
+          title="Open the live machine view"
+        >
+          Open
+        </button>
+        <button
+          type="button"
+          className="live-machine-expand"
+          onClick={() => setMinimized(true)}
+          title="Dismiss to a small chip"
+          aria-label="Dismiss live machine bar"
+        >
+          ✕
+        </button>
+      </div>
     );
   }
 
