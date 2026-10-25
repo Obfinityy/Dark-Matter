@@ -176,13 +176,23 @@ export async function stopControlDesktop(huntId, deps = {}) {
 // the RFB stream from the browser, stdout is the RFB stream back.
 // A failed connect exits non-zero immediately (the WS handler turns
 // that into a 1011 close).
+//
+// LANE AN (25 Oct 2026, live-proven): stdin MUST be read with os.read,
+// never `sys.stdin.buffer.read(n)`. BufferedReader.read(n) waits for
+// EXACTLY n bytes or EOF — so the browser's 12-byte RFB version reply
+// sat in the forwarder forever while the 5901 VNC waited for the
+// client's protocol version and dropped the connection
+// ("rfbProcessClientProtocolVersion: client gone"), leaving a blank
+// desktop for ~30s. os.read returns as soon as ANY data is available.
+// The socket direction already behaves that way (s.recv returns on
+// first data), so it is unchanged.
 export const CONTROL_FORWARDER_CODE = [
-  'import socket, sys, threading',
+  'import os, socket, sys, threading',
   `s = socket.create_connection(('127.0.0.1', ${CONTROL_VNC_PORT}), timeout=10)`,
   'def to_sock():',
   '    try:',
   '        while True:',
-  '            b = sys.stdin.buffer.read(65536)',
+  '            b = os.read(0, 65536)',
   '            if not b: break',
   '            s.sendall(b)',
   '    except Exception:',

@@ -95,8 +95,15 @@ export default function LiveMachine({ huntId, target }) {
   // docked card minimises it to a small chip in the same corner — the
   // live screen stays hidden until the chip is clicked again.
   const [minimized, setMinimized] = useState(false);
-  // Take Control state: off | taking | on | error. 'taking' covers the
-  // lock + ticket + RFB connect; 'on' means the owner is driving.
+  // Take Control state: off | taking | taken | on | error.
+  // 'taking' = the take POST is in flight (the lock is NOT held yet);
+  // 'taken' = the lock is held, the channel is mounting; 'on' means
+  // the owner is driving. LANE AN (25 Oct 2026): the noVNC mount used
+  // to fire on 'taking', so the ticket fetch raced the take POST —
+  // if it arrived first the backend 403'd (lock not held yet) and the
+  // first attempt failed at once with "Could not open the control
+  // channel". The mount now waits for 'taken', i.e. the take POST
+  // has succeeded.
   const [control, setControl] = useState('off');
   const [controlError, setControlError] = useState('');
   const [controlHolder, setControlHolder] = useState('');
@@ -111,12 +118,14 @@ export default function LiveMachine({ huntId, target }) {
   }, []);
 
   // Escape exits the fullscreen overlay back to the docked card —
-  // EXCEPT while the owner is driving: then Escape belongs to the
-  // guest (e.g. closing a menu inside Metasploit), not to us.
+  // EXCEPT while the owner is driving or connecting: then Escape
+  // belongs to the guest (e.g. closing a menu inside Metasploit), not
+  // to us — and closing mid-connect would leave the lock held with
+  // no channel to drive it.
   useEffect(() => {
     if (!expanded) return;
     const onKey = (e) => {
-      if (e.key === 'Escape' && controlRef.current !== 'on') setExpanded(false);
+      if (e.key === 'Escape' && !['on', 'taking', 'taken'].includes(controlRef.current)) setExpanded(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -146,7 +155,7 @@ export default function LiveMachine({ huntId, target }) {
     // While the owner drives (or is connecting), the noVNC canvas is
     // the view — the screenshot poller stands down and resumes when
     // control ends.
-    if (control === 'on' || control === 'taking') return;
+    if (control === 'on' || control === 'taking' || control === 'taken') return;
     let cancelled = false;
     let timer = null;
 
@@ -176,13 +185,16 @@ export default function LiveMachine({ huntId, target }) {
     };
   }, [huntId, control]);
 
-  // Mount the noVNC client once the overlay screen exists and a take
-  // is in flight. The effect runs on [control, expanded] so the RFB
-  // instance is created exactly once per takeover. The noVNC client is
+  // Mount the noVNC client once the overlay screen exists and the
+  // lock is HELD. The effect runs on [control, expanded] so the RFB
+  // instance is created exactly once per takeover — and only after
+  // the take POST has succeeded ('taken'), never while it is still
+  // in flight ('taking'): fetching the ticket before the lock exists
+  // 403s and fails the first attempt (Lane AN). The noVNC client is
   // lazy-loaded (dynamic import) so its ~200 kB stays out of the main
   // bundle until someone actually takes control.
   useEffect(() => {
-    if (control !== 'taking' || !expanded || !controlScreenRef.current || rfbRef.current) return;
+    if (control !== 'taken' || !expanded || !controlScreenRef.current || rfbRef.current) return;
     let dead = false;
 
     (async () => {
@@ -258,7 +270,7 @@ export default function LiveMachine({ huntId, target }) {
     return () => {
       // The RFB belongs to the takeover lifecycle (endControl /
       // unmount), NOT to this effect: when the connection succeeds
-      // the control flips 'taking' -> 'on' and this effect re-runs —
+      // the control flips 'taken' -> 'on' and this effect re-runs —
       // that must NOT kill the live desktop. Only the in-flight
       // ticket promise is cancelled here; a live RFB is torn down by
       // endControl (Done / Cancel) or the unmount cleanup.
@@ -270,14 +282,14 @@ export default function LiveMachine({ huntId, target }) {
   // the lock held for a tab that is gone (the backend's WS close also
   // releases, this is the belt to its braces).
   useEffect(() => () => {
-    if (controlRef.current === 'on' || controlRef.current === 'taking') {
+    if (controlRef.current === 'on' || controlRef.current === 'taking' || controlRef.current === 'taken') {
       try { if (rfbRef.current) rfbRef.current.disconnect(); } catch { /* already closing */ }
       releaseMachineControl(huntId).catch(() => {});
     }
   }, [huntId]);
 
   const takeControl = useCallback(async () => {
-    if (controlRef.current === 'taking' || controlRef.current === 'on') return;
+    if (controlRef.current === 'taking' || controlRef.current === 'taken' || controlRef.current === 'on') return;
     setControlError('');
     setControlHolder('');
     setControlState('taking');
@@ -290,7 +302,8 @@ export default function LiveMachine({ huntId, target }) {
       return;
     }
     // The lock is held; the [control, expanded] effect mounts the
-    // noVNC client and flips 'taking' -> 'on' on connect.
+    // noVNC client and flips 'taken' -> 'on' on connect.
+    setControlState('taken');
   }, [huntId, setControlState]);
 
   // Done AND Cancel both hand the machine back to the AI — Done is the
@@ -309,10 +322,10 @@ export default function LiveMachine({ huntId, target }) {
   }, [huntId, setControlState]);
 
   const shortTarget = target ? target.replace(/^https?:\/\//, '') : huntId;
-  const controlBusy = control === 'taking' || control === 'on';
+  const controlBusy = control === 'taking' || control === 'taken' || control === 'on';
   const controlButtonLabel = control === 'on'
     ? 'You are in control'
-    : control === 'taking'
+    : control === 'taking' || control === 'taken'
       ? 'Connecting…'
       : controlHolder
         ? `In control by ${controlHolder}`
@@ -458,7 +471,7 @@ export default function LiveMachine({ huntId, target }) {
             ) : (
               <>
                 <span className="live-machine-note">
-                  {control === 'taking' ? 'Connecting to the machine…' : 'View only — the hunter is driving'}
+                  {control === 'taking' || control === 'taken' ? 'Connecting to the machine…' : 'View only — the hunter is driving'}
                 </span>
                 {controlButton}
               </>
@@ -470,13 +483,13 @@ export default function LiveMachine({ huntId, target }) {
                 // ✕ while driving is Cancel: end control AND close.
                 // Closing the overlay while still holding the lock
                 // would hide the desktop but keep the machine locked.
-                if (controlRef.current === 'on' || controlRef.current === 'taking') {
+                if (controlRef.current === 'on' || controlRef.current === 'taking' || controlRef.current === 'taken') {
                   endControl().then(() => setExpanded(false));
                 } else {
                   setExpanded(false);
                 }
               }}
-              title={control === 'on' ? 'Exit control mode and close' : 'Close expanded view'}
+              title={control === 'on' || control === 'taking' || control === 'taken' ? 'Exit control mode and close' : 'Close expanded view'}
             >
               ✕
             </button>
