@@ -59,6 +59,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends tmux \
 #   xdotool   the agent's GUI hands (mouse/keyboard) inside its sandbox.
 #   scrot     screenshot capture for GET /api/v1/hunts/:id/desktop.jpg.
 #   dbus-x11 + x11-xserver-utils: Chromium-under-Xvfb plumbing.
+#   xterm     lightweight terminal emulator — the owner can open a real
+#             terminal on the desktop (fluxbox menu entry + Ctrl+Alt+T,
+#             wired in hunt-desktop.sh). Without it Ctrl+Alt+T did nothing
+#             and the menu had no terminal (verified live 25 Oct 2026).
 # The stack is started ON DEMAND by huntRunner.startHuntDesktop (docker
 # exec of hunt-desktop.sh) — nothing here runs at container boot, so
 # ordinary hunts are not slowed. Estimated image growth: ~+80 MB on a
@@ -66,6 +70,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends tmux \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     xvfb fluxbox x11vnc websockify novnc \
     xdotool scrot dbus-x11 x11-xserver-utils \
+    xterm \
     && rm -rf /var/lib/apt/lists/*
 COPY docker/hunt-desktop.sh /usr/local/bin/hunt-desktop.sh
 RUN chmod +x /usr/local/bin/hunt-desktop.sh

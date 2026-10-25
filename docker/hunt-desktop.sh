@@ -66,6 +66,35 @@ if ! xdotool getdisplaygeometry >/dev/null 2>&1; then
 fi
 
 # --- Window manager ---------------------------------------------------------
+# Terminal launcher: the image ships no terminal emulator by default, so
+# Ctrl+Alt+T did nothing and the right-click menu had no terminal entry
+# (verified live 25 Oct 2026). fluxbox reads ~/.fluxbox/keys and
+# ~/.fluxbox/menu at startup, so write them BEFORE it first starts.
+# Only created when missing — never clobber an existing config. The keys
+# file intentionally holds just the one binding (window switching still
+# works by mouse: click to focus, titlebar buttons to close); the menu is
+# the minimal hunt set (Terminal, Chromium, Exit). No desktop icon:
+# fluxbox has no desktop-icon support (that needs idesk or similar).
+FLUXBOX_DIR="${HOME:-/root}/.fluxbox"
+mkdir -p "$FLUXBOX_DIR"
+if [ ! -f "$FLUXBOX_DIR/keys" ]; then
+  cat > "$FLUXBOX_DIR/keys" <<'EOF'
+Control Mod1 T :Exec xterm
+EOF
+  log "fluxbox keys: Ctrl+Alt+T -> xterm"
+fi
+if [ ! -f "$FLUXBOX_DIR/menu" ]; then
+  cat > "$FLUXBOX_DIR/menu" <<'EOF'
+[begin] (fluxbox)
+[exec] (Terminal) {xterm}
+[exec] (Chromium) {chromium}
+[separator]
+[exit] (Exit)
+[end]
+EOF
+  log "fluxbox menu: Terminal entry added"
+fi
+
 if ! pgrep -x fluxbox >/dev/null 2>&1; then
   log "starting fluxbox"
   fluxbox >>"$LOG_FILE" 2>&1 &
