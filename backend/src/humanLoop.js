@@ -46,7 +46,7 @@ import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
 import { getRelevantMemories, formatGlobalMemoryForPrompt, readAllGlobalMemories } from './globalMemory.js';
 import { listSkills, loadSkill } from './skillCards.js';
-import { saveCredential, getCredential, generatePassword, generatePersonaUsername, scrubSecrets, touchCredential, markVerified } from './credentials.js';
+import { saveCredential, getCredential, generatePassword, generatePersonaUsername, scrubSecrets, touchCredential, markVerified, listCredentials } from './credentials.js';
 import { createInboxPreferred, pollForCode } from './tempmail.js';
 import {
   loadCoverage,
@@ -68,6 +68,43 @@ import {
   guiBrowserType,
   guiBrowserScreenshot,
 } from './guiTools.js';
+// Infinity level (26 Oct 2026): the parsed page-state record —
+// every snapshot becomes state (URL, page type, interactive
+// elements with tried/untried marks) instead of a 300-char stub
+// in the record, and the loop counters that measure the sense-act
+// loop. Pure; the loop owns the wiring.
+import {
+  emptyPageState,
+  loadPageState,
+  savePageState,
+  mergePageState,
+  markElementClicked,
+  markTypedInto,
+  pageStateLines,
+  loopCounters,
+  loopCounterLines,
+  reconChecklist,
+  coverageSummaryLines,
+  normalisePageUrl,
+  classifyPageType,
+} from './pageState.js';
+// WHOLE-OS CONTROL (26 Oct 2026): the desktop channel — xdotool on
+// the same X :99 the Take Control x11vnc serves (see desktopControl.js
+// for why xdotool, not a from-scratch RFB client).
+import {
+  DESKTOP_WINDOWS_CMD,
+  parseDesktopWindows,
+  emptyDesktopState,
+  mergeDesktopState,
+  markWindowInteracted,
+  desktopStateLines,
+  resolveWindowForClick,
+  desktopClickCommand,
+  parseDesktopKeys,
+  desktopKeyCommand,
+  desktopTypeCommand,
+  captureDesktopScreenshot,
+} from './desktopControl.js';
 // Lane U: the Burp-style intercept workflow (mitmproxy inside the
 // hunt container; see proxyIntercept.js for the topology). The pure
 // replay builders + signature are imported directly — deterministic
@@ -94,6 +131,7 @@ import {
   retractedFindingCount,
   extractDossierBriefing,
   deadEndLines,
+  SOM_TOTAL_BUDGET,
 } from './huntMemory.js';
 
 export { applyRetractions, retractedFindingCount, extractDossierBriefing, deadEndLines };
@@ -958,7 +996,7 @@ function systemPromptFor(target, parsedScope) {
   rules.push('non-destructive: read and probe, do not break or delete anything');
   return [
     `You are an elite human bug-bounty hunter who has been hired to test ${target}. You are sitting at your own Kali machine. You see the machine's current state below.`,
-    'You also have a real desktop with a Chromium browser on this machine: you can open pages, SEE them (browser_snapshot gives you the page text and its clickable elements), click and type like a person at a computer, and take screenshots.',
+    'You also have a real desktop with a Chromium browser on this machine: you can open pages, SEE them (browser_snapshot gives you the page text and its clickable elements), click and type like a person at a computer, and take screenshots. The desktop itself is yours too — the whole XFCE desktop, not just the browser: desktop_snapshot shows you its windows, desktop_click focuses a window by title, desktop_key sends keys to the focused window, and desktop_screenshot captures the whole desktop. GUI apps (Burp, ZAP, Wireshark, the terminal) launch from the shell; focus one with desktop_click, then work it with the keyboard.',
     'Each reply: first think briefly like a human (what you notice, what you wonder, what you will try next and why), then give EXACTLY ONE action as a JSON object on the last line:',
     '{"action":"shell","command":"..."} — run any shell command on your machine (curl, nmap, python3, anything installed — or download/install what you need)',
     '{"action":"search","query":"..."} — search the web (techniques, CVEs, docs)',
@@ -967,7 +1005,11 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"browser_snapshot"} — see the current page: its text and clickable elements',
     '{"action":"browser_click","text":"visible label OR CSS selector"} — click in the desktop browser',
     '{"action":"browser_type","text":"...","submit":true} — type into the page field (submit=true presses Enter)',
-    '{"action":"screenshot"} — capture the desktop to a PNG artifact; you also get the page text',
+    '{"action":"screenshot"} — capture the browser viewport to a PNG artifact; you also get the page text',
+    '{"action":"desktop_snapshot"} — see the whole XFCE desktop: its windows and which one is focused (text — you never see the image; the owner watches the desktop live)',
+    '{"action":"desktop_click","window":"Burp Suite"} — focus a window by its title (exact, starts-with, or contains) and send it a click; the focused window then receives your desktop_key keystrokes. Take desktop_snapshot first if you do not know the window titles.',
+    '{"action":"desktop_key","keys":"ctrl+l"} — send keys to the focused window: modifiers ctrl/alt/shift/super/meta plus one key (Return, Tab, Escape, space, BackSpace, Delete, arrows, Home, End, Page_Up, Page_Down, F1-F12, or a single letter/digit). Or {"action":"desktop_key","text":"nmap -sV target"} to type literal text into the focused window. This is how you work inside GUI apps after focusing them.',
+    '{"action":"desktop_screenshot"} — capture the WHOLE desktop (not just the browser) to a JPG artifact; you also get the desktop state text',
     '{"action":"proxy_start"} — start your intercepting proxy (Burp-style) on this machine: your browser is re-routed through it so EVERY request/response is captured, and you get the intercept dashboard URL — open it in your browser to click through captured requests visually. The proxy is pass-through: traffic is captured, never held.',
     '{"action":"intercept_list"} — list the requests your proxy has captured (newest last, each with a # index)',
     '{"action":"intercept_read","index":3} — read one captured request in full: its headers and body, and the response headers and body',
@@ -1370,6 +1412,80 @@ export function failedActionThreadLines({ events = [], reasoningRows = [] } = {}
   ];
 }
 
+/**
+ * PENDING PLANS (Infinity level, 26 Oct 2026) — a skill card pulled
+ * but never followed by a probe. Lane T tracks failed EXECUTED
+ * actions; a load_skill is a plan, not an execution, so a card
+ * pulled twice (SQLi, Infomaniak, 06:05 + 06:25) with zero probes
+ * sent was invisible to every thread on screen. The research-debt
+ * line names the class as "researched, never probed" but never the
+ * plan itself or how long it has waited. This names it: the skill,
+ * the turns since it was pulled, and the two ways to close it —
+ * send its first probe, or record_coverage it as not_applicable
+ * with the reason. Pure. A re-pull resets the clock (the latest
+ * load per topic wins); a probe AFTER the load clears the plan.
+ * A probe before the load does not count — the plan postdates it.
+ */
+const PLAN_PROBE_TOOLS = new Set(['shell', 'browser_open', 'browser_click', 'browser_type', 'claim_finding', 'intercept_replay']);
+
+function topicForSkillName(name) {
+  const n = String(name || '').trim().toLowerCase();
+  if (!n) return null;
+  for (const t of PROBE_TOPICS) {
+    if (n === t.id) return t;
+  }
+  for (const t of PROBE_TOPICS) {
+    if (n.includes(t.id)) return t;
+  }
+  for (const t of PROBE_TOPICS) {
+    if (t.re.test(n)) return t;
+  }
+  return null;
+}
+
+function isProbeDetailForTopic(tool, detail, topic) {
+  if (!PLAN_PROBE_TOOLS.has(String(tool || '').toLowerCase())) return false;
+  const d = String(detail || '');
+  if (topic.re.test(d)) return true;
+  return (topic.probes || []).some((re) => re.test(d));
+}
+
+export function pendingPlannedProbeLines({ events = [], reasoningRows = [] } = {}) {
+  const loads = [];
+  (events || []).forEach((e, i) => {
+    if (!e || e.type !== 'tool_call' || String(e.tool || '').toLowerCase() !== 'load_skill') return;
+    const topic = topicForSkillName(e.detail);
+    if (!topic) return;
+    loads.push({ topic, skill: String(e.detail || ''), index: i });
+  });
+  if (!loads.length) return [];
+  // Latest load per topic wins.
+  const latest = new Map();
+  for (const l of loads) latest.set(l.topic.id, l);
+  const rows = reasoningRows || [];
+  const lines = [];
+  for (const l of [...latest.values()].sort((a, b) => a.index - b.index)) {
+    // Probe after the load?
+    let probed = false;
+    for (let i = l.index + 1; i < (events || []).length; i++) {
+      const e = events[i];
+      if (!e || e.type !== 'tool_call') continue;
+      if (isProbeDetailForTopic(e.tool, e.detail, l.topic)) { probed = true; break; }
+    }
+    if (probed) continue;
+    // Turns since the pull: reasoning rows after the load_skill row.
+    let rowIdx = -1;
+    for (let i = rows.length - 1; i >= 0; i--) {
+      if (String((rows[i] && rows[i].action) || '') === `load_skill: ${l.skill}`) { rowIdx = i; break; }
+    }
+    const turnsSince = rowIdx >= 0 ? Math.max(0, rows.length - 1 - rowIdx) : null;
+    const when = turnsSince === null ? 'in an earlier session' : `${turnsSince} turn${turnsSince === 1 ? '' : 's'} ago`;
+    lines.push(`- PENDING PLAN: ${l.topic.label} — skill "${l.skill}" pulled ${when}, no probe sent yet. Send its first probe now, or close it with record_coverage as not_applicable and the reason.`);
+  }
+  if (!lines.length) return [];
+  return ['=== PENDING PLANS — SKILL CARDS PULLED, NO PROBE SENT ===', ...lines.slice(0, 3)];
+}
+
 /** The detail a log/journal entry carries for one parsed action. */
 function detailForAction(kind, action) {
   switch (kind) {
@@ -1501,7 +1617,7 @@ export function repetitionLines(events) {
 // browser_snapshot.
 // ---------------------------------------------------------------------------
 
-const GATED_TOOLS = new Set(['shell', 'search', 'browser_open', 'browser_click', 'browser_type', 'intercept_replay']);
+const GATED_TOOLS = new Set(['shell', 'search', 'browser_open', 'browser_click', 'browser_type', 'intercept_replay', 'desktop_click', 'desktop_key']);
 const DEDUP_THRESHOLD = 2; // an action already run this many times is not run again
 
 // Lane AF (24 Oct 2026): DEGRADED executions — a browser action
@@ -1678,6 +1794,8 @@ function gatedCandidate(kind, action) {
     case 'browser_open': return { tool: 'browser_open', detail: String(action.url || '') };
     case 'browser_click': return { tool: 'browser_click', detail: String(action.text || '') };
     case 'browser_type': return { tool: 'browser_type', detail: String(action.text || '').slice(0, 80) };
+    case 'desktop_click': return { tool: 'desktop_click', detail: String(action.window || '') };
+    case 'desktop_key': return { tool: 'desktop_key', detail: String(action.keys || action.text || '').slice(0, 80) };
     case 'intercept_replay': return { tool: 'intercept_replay', detail: replaySignature(action) };
     default: return null;
   }
@@ -1706,6 +1824,13 @@ export const GUI_CONTROL_KINDS = new Set([
   'browser_type',
   'screenshot',
   'use_saved_credential',
+  // WHOLE-OS CONTROL (26 Oct 2026): the desktop actions drive the
+  // same X server the owner drives while holding Take Control, so
+  // they pause under the lock exactly like the browser actions.
+  'desktop_snapshot',
+  'desktop_click',
+  'desktop_key',
+  'desktop_screenshot',
 ]);
 
 export function dedupeGateHit(kind, action, history) {
@@ -1791,6 +1916,236 @@ export function authGateHit(kind, action, history, lastObservation) {
     }
   }
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// EXHAUSTED SURFACES (Infinity level, 26 Oct 2026)
+//
+// Root cause (Infomaniak hunt, live, iter 108): the dedupe gate keys
+// on EXACT (tool, detail) and the auth gate on EXACT typed text, so
+// the hunter varies the payload — plain XSS, then encoded XSS —
+// and each variant is a NEW signature the gates pass, until the
+// execution itself is refused by the auth gate or the driver's
+// WRONG PAGE guard. Every refused variant burns a full turn
+// (10-25 min of 8B generation), and nothing ever records that the
+// (page, field, payload-class) combination is finished. The settled
+// lines (Lane AD/AH) state the prohibition, but the hunter
+// re-derives "signup not probed" because the payload was never
+// SENT — a premise that is true in its own terms. Prompt text
+// cannot fix a choice the brain re-derives; only state can.
+//
+// So the combination itself is tracked, deterministically, from
+// the hunt's own record — auth_block + dedup_block + WRONG PAGE
+// refusals grouped by (tool, page host, payload class) — and at
+// EXHAUSTED_MIN_BLOCKS blocks the surface is CLOSED: the gate
+// below refuses ANY further attempt on it, whatever the payload
+// wording. The brain still chooses everything else; the dead loop
+// is simply no longer offered. The key carries the page, so a
+// different page is a different surface — exhaustion lifts the
+// moment the surface changes, exactly as the brief requires —
+// and a login-form payload is judged against the LOGIN surface,
+// never against the signup surface it was aimed at.
+//
+// This is a gate, in the Lane F/AJ shape — it stops traffic, never
+// picks a replacement action (owner order 20 Oct stands).
+// ---------------------------------------------------------------------------
+
+export const EXHAUSTED_MIN_BLOCKS = 3; // blocks before a surface closes
+
+/** Payload class of a typed text, from the PROBE_TOPICS probe shapes. Anything else typed is a credential (a username/password), not an attack. */
+export function classifyPayloadClass(text) {
+  const t = String(text || '');
+  for (const topic of PROBE_TOPICS) {
+    if (topic.probes && topic.probes.some((re) => re.test(t))) return topic.id;
+  }
+  // Encoded variants the probe shapes miss (the live loop's dodge):
+  // %3cscript, &lt;script, unicode-escaped <script.
+  if (/%3c\s*script|&lt;\s*script|\\u003c\s*script/i.test(t)) return 'xss';
+  if (/%27\s*or\s+|%27\s*(--|#)/i.test(t)) return 'sqli';
+  return 'credential';
+}
+
+/** True when a tool_call detail carries a probe payload for ANY class (the researchedTopicStats definition of "probed"). */
+export function isProbeDetail(detail) {
+  const d = String(detail || '');
+  if (!d) return false;
+  for (const topic of PROBE_TOPICS) {
+    if (topic.re.test(d)) return true;
+    if ((topic.probes || []).some((re) => re.test(d))) return true;
+  }
+  return false;
+}
+
+/**
+ * The authenticated-flow state for one target, from the vault +
+ * the record: a credential saved for the target's host (latest),
+ * whether it was ever used (use_saved_credential tool_calls for
+ * its handle), and whether it verified. Null-safe; the vault read
+ * is best-effort (a missing vault means "no credential").
+ */
+export function credentialStateFor({ events = [], target = '' } = {}) {
+  let saved = null;
+  try {
+    const host = hostOfUrl(target);
+    const all = listCredentials() || [];
+    const mine = all.filter((c) => c && (String(c.host || '').toLowerCase() === host || (host && String(c.host || '').toLowerCase().endsWith(`.${host}`))));
+    if (mine.length) saved = mine[mine.length - 1];
+  } catch { /* vault read is best-effort */ }
+  if (!saved) return { saved: false };
+  let used = 0;
+  for (const e of events || []) {
+    if (e && e.type === 'tool_call' && String(e.tool || '').toLowerCase() === 'use_saved_credential' && String(e.detail || '') === saved.handle) used++;
+  }
+  return { saved: true, handle: saved.handle, verified: !!saved.verified, used };
+}
+
+function surfaceKey(tool, pageHost, payloadClass) {
+  return `${String(tool || '').toLowerCase()}|${String(pageHost || '').toLowerCase()}|${String(payloadClass || '')}`;
+}
+
+function hostOfUrl(u) {
+  try {
+    return new URL(String(u || '')).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Block counts per (tool, page host, payload class), purely from
+ * the hunt's record. Page attribution walks the event stream in
+ * order, tracking the live page from browser_open URLs; a WRONG
+ * PAGE execution names its own page in the paired reasoning row.
+ * Pairing follows the Lane T discipline: an executed browser_type
+ * writes exactly one reasoning row, in order, so the Nth
+ * browser_type row pairs with the Nth browser_type tool_call
+ * (gate-block rows carry no tool_call and consume nothing).
+ */
+export function surfaceBlockCounts({ events = [], reasoningRows = [] } = {}) {
+  const counts = new Map();
+  const bump = (tool, pageHost, payloadClass) => {
+    if (!pageHost) return;
+    const key = surfaceKey(tool, pageHost, payloadClass);
+    const cur = counts.get(key) || { tool: String(tool).toLowerCase(), pageHost, payloadClass, count: 0 };
+    cur.count++;
+    counts.set(key, cur);
+  };
+  // Index executed browser_type calls in stream order for pairing.
+  const typeCalls = [];
+  for (const e of events || []) {
+    if (e && e.type === 'tool_call' && String(e.tool || '').toLowerCase() === 'browser_type') typeCalls.push(e);
+  }
+  let typeIdx = 0;
+  let currentHost = '';
+  for (const e of events || []) {
+    if (!e) continue;
+    if (e.type === 'tool_call' && String(e.tool || '').toLowerCase() === 'browser_open') {
+      const h = hostOfUrl(e.detail);
+      if (h) currentHost = h;
+      continue;
+    }
+    if (e.type === 'auth_block' && String(e.tool || '').toLowerCase() === 'browser_type') {
+      bump('browser_type', currentHost, classifyPayloadClass(e.detail));
+      continue;
+    }
+    if (e.type === 'dedup_block' && String(e.tool || '').toLowerCase() === 'browser_type') {
+      bump('browser_type', currentHost, classifyPayloadClass(e.detail));
+      continue;
+    }
+  }
+  // WRONG PAGE executions: the reasoning row names the page.
+  for (const r of reasoningRows || []) {
+    if (!r || r.action !== 'browser_type') continue;
+    const result = String(r.result || '');
+    if (!result.startsWith('WRONG PAGE')) continue;
+    const m = /WRONG PAGE — you are on (\S+),/.exec(result);
+    const pageHost = m ? hostOfUrl(m[1]) : currentHost;
+    const call = typeCalls[typeIdx];
+    typeIdx++;
+    if (call) bump('browser_type', pageHost, classifyPayloadClass(call.detail));
+  }
+  return counts;
+}
+
+/**
+ * Gate verdict for one parsed browser_type against the surface
+ * record: { tool, pageHost, payloadClass, count, key } when the
+ * (page, class) combination has already been blocked >=
+ * EXHAUSTED_MIN_BLOCKS times, else null. The candidate's page is
+ * the live page (currentPageUrl, falling back to the parsed page
+ * state) — the page the action would actually land on, never the
+ * page the hunter believes it is on.
+ */
+export function exhaustedSurfaceHit(kind, action, currentPage, counts, pageState = null) {
+  if (String(kind || '').toLowerCase() !== 'browser_type') return null;
+  const page = String(currentPage || (pageState && pageState.currentUrl) || '');
+  const pageHost = hostOfUrl(page);
+  if (!pageHost) return null;
+  const cls = classifyPayloadClass(action && action.text);
+  const entry = (counts || new Map()).get(surfaceKey('browser_type', pageHost, cls));
+  if (!entry || entry.count < EXHAUSTED_MIN_BLOCKS) return null;
+  return { tool: 'browser_type', pageHost, payloadClass: cls, count: entry.count, key: surfaceKey('browser_type', pageHost, cls) };
+}
+
+function isAuthSurface(pageHost, pageType) {
+  if (pageType === 'login' || pageType === 'signup') return true;
+  return LOGIN_PAGE_RE.test(String(pageHost || ''));
+}
+
+/**
+ * The EXHAUSTED block for the screen's never-trimmed region: every
+ * closed surface (most-blocked first, top 5), and — when an auth
+ * surface is among them — the auth-wall block naming the two
+ * routes that remain open: the account path (save_credential,
+ * already-saved state included) and unauthenticated recon
+ * (target-derived URLs, with the tried/untried marks from the
+ * record). Facts only; the brain still chooses.
+ */
+export function exhaustedSurfaceLines({ counts = null, target = '', credential = null, events = [] } = {}) {
+  const rows = [...(counts || new Map()).values()]
+    .filter((r) => r.count >= EXHAUSTED_MIN_BLOCKS)
+    .sort((a, b) => b.count - a.count || a.pageHost.localeCompare(b.pageHost));
+  if (!rows.length) return [];
+  const lines = ['=== EXHAUSTED — THESE SURFACES ARE CLOSED (your own record) ==='];
+  for (const r of rows.slice(0, 5)) {
+    lines.push(`- EXHAUSTED: typing ${r.payloadClass === 'credential' ? 'credentials' : `${r.payloadClass.toUpperCase()} payloads`} on ${r.pageHost} — blocked ×${r.count} (auth/dedupe/wrong-page). Closed: the gate refuses any further attempt here, whatever the payload wording.`);
+  }
+  const authRows = rows.filter((r) => isAuthSurface(r.pageHost));
+  if (authRows.length) {
+    const total = authRows.reduce((n, r) => n + r.count, 0);
+    lines.push('=== AUTH WALL — LOGIN/SIGNUP SURFACE EXHAUSTED ===');
+    lines.push(`- The login surface is closed after ${total} blocks. Typing payloads or credentials into it again changes nothing.`);
+    if (credential && credential.saved) {
+      lines.push(`- Account route: a credential is already saved for this target (${credential.handle}${credential.verified ? ', verified' : ', not yet verified'}) — use_saved_credential with the field labels from a snapshot, then browser_click the submit button. Do not save another one.`);
+    } else {
+      lines.push(`- Account route: save_credential for ${target} (vaults a login + provisions temp mail), then use_saved_credential + fetch_verification_code. That is the way through the wall.`);
+    }
+    const recon = reconChecklist({ events, target });
+    const open = recon.filter((r) => !r.tried).map((r) => r.url);
+    const done = recon.filter((r) => r.tried).map((r) => r.label);
+    lines.push(`- Unauthenticated recon (no login needed)${done.length ? ` — done: ${done.join(', ')}` : ''}${open.length ? ` — still open: ${open.join(', ')}` : ' — all five surfaces tried'}.`);
+  }
+  return lines;
+}
+
+/** The observation a blocked exhausted-surface attempt gets: what closed, how many blocks, and the routes that are still open (auth wall → account route + recon; anything else → a different page/class, or act on what is already known). */
+export function exhaustedBlockObservation(hit, { target = '', credential = null, events = [] } = {}) {
+  const kind = hit.payloadClass === 'credential' ? 'credentials' : `${hit.payloadClass.toUpperCase()} payloads`;
+  let out = `BLOCKED — EXHAUSTED SURFACE: typing ${kind} on ${hit.pageHost} has already been blocked ×${hit.count} (auth/dedupe/wrong-page). This surface is closed — the gate refuses any further attempt here, whatever the payload wording. `;
+  if (isAuthSurface(hit.pageHost)) {
+    if (credential && credential.saved) {
+      out += `The way through is the saved credential (${credential.handle}${credential.verified ? ', verified' : ', not yet verified'}) — use_saved_credential with the field labels from a snapshot, then browser_click the submit button. `;
+    } else {
+      out += `The way through is an account: save_credential for ${target}, then use_saved_credential + fetch_verification_code. `;
+    }
+    const recon = reconChecklist({ events, target });
+    const open = recon.filter((r) => !r.tried).map((r) => r.url);
+    if (open.length) out += `Or work without a login — still open: ${open.join(', ')}.`;
+    else out += 'Or work without a login — the five recon surfaces are all tried; find the next unauthenticated surface yourself.';
+  } else {
+    out += 'Pick a different page, a different payload class, or act on what the snapshots already show.';
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -2151,7 +2506,7 @@ export function skillCardLines() {
   }
 }
 
-function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [], stateOfMind = [], followThrough = [], settled = [] }) {
+function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [], stateOfMind = [], followThrough = [], settled = [], pageState = [], exhausted = [], desktopState = [] }) {
   const confirmed = (findings || []).filter((f) => f.verified);
   const unconfirmed = (findings || []).filter((f) => !f.verified);
   const findLines = [
@@ -2169,6 +2524,17 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     ...(scopeHosts && scopeHosts.length
       ? ['', '=== IN SCOPE FOR THIS PROGRAMME ===', `You may test: ${scopeHosts.join(', ')} (a listed domain\'s subdomains are in scope too). Anything else is out of scope and will be blocked.`]
       : []),
+    // Infinity level: the parsed page state sits FIRST after the
+    // scope — it is the freshest truth about what the browser
+    // shows, and every choice this turn is made against it. A
+    // snapshot's element list lives here, in state, not in a
+    // 300-char stub in the record.
+    ...(pageState && pageState.length ? ['', ...pageState] : []),
+    // WHOLE-OS CONTROL: the desktop state sits beside the page
+    // state — the same perception region, the same per-turn
+    // refresh. The windows and the focused app are what the
+    // desktop actions are chosen against.
+    ...(desktopState && desktopState.length ? ['', ...desktopState] : []),
     // Lane I: where the hunter left off last session sits beside the
     // explored digest — continuity first, before the long briefing.
     ...(leftOff && leftOff.length ? ['', ...leftOff] : []),
@@ -2186,6 +2552,11 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     // families that would actually test it). Refreshed every turn
     // from the hunt's record, like the Lane T thread above.
     ...(settled && settled.length ? ['', ...settled] : []),
+    // Infinity level: the exhausted-surfaces block sits beside
+    // settled — combinations the gate has closed (page + payload
+    // class), with the auth-wall routes that remain open. Same
+    // never-trimmed region, same per-turn refresh discipline.
+    ...(exhausted && exhausted.length ? ['', ...exhausted] : []),
     // Lane F: the already-explored digest sits EARLY — ahead of the
     // (long, capped) memory briefing — so no prompt cap downstream
     // can truncate away the record of what is already done.
@@ -2288,6 +2659,9 @@ export async function humanIteration(huntId, target, opts = {}) {
     // control gate in the ACT section). Tests inject a stub here.
     machineControlled: d.machineControlled || ((h) => isMachineControlled(h)),
     intercept: d.intercept || null, // lazy: proxyIntercept bound to execRaw (Lane U)
+    // WHOLE-OS CONTROL: the desktop screenshot (lazy: the owner's
+    // scrot poller route + artifact save). Tests inject a stub here.
+    desktopScreenshot: d.desktopScreenshot || null,
     sleep: d.sleep || ((ms) => new Promise((r) => setTimeout(r, ms))),
     now: d.now || (() => Date.now()),
     buildBriefing: d.buildBriefing || buildMemoryBriefing,
@@ -2306,10 +2680,42 @@ export async function humanIteration(huntId, target, opts = {}) {
   const computeStateOfMind = (meta) => {
     if (typeof d.buildStateOfMind === 'function') return d.buildStateOfMind(huntId, target, meta);
     const memory = loadHuntMemory(huntId, { target, meta });
-    return buildStateOfMind(memory, {
+    const som = buildStateOfMind(memory, {
       topicStats: researchedTopicStats({ events: memory.events, reasoningRows: memory.reasoningRows }),
       endpoints: discoveredEndpoints(memory.events, target),
     });
+    // INFINITY LEVEL: pending plans + the coverage summary ride
+    // inside the SOM block — the two additions the brief names —
+    // computed from the same memory the SOM was built from, so the
+    // block never contradicts the record it summarises. Capped to
+    // the remaining Lane Q budget, so the block never exceeds
+    // SOM_TOTAL_BUDGET: a long SOM can cut these lines, but the
+    // per-turn screen carries the same facts in its own never-
+    // trimmed blocks (exhausted + page state), so nothing is lost.
+    const extra = [];
+    try {
+      const pending = pendingPlannedProbeLines({ events: memory.events, reasoningRows: memory.reasoningRows });
+      if (pending.length) extra.push('', ...pending);
+    } catch { /* pending plans are best-effort */ }
+    try {
+      const summary = coverageSummaryLines({
+        events: memory.events,
+        pageState: sessionPageState,
+        target,
+        credential: credentialStateFor({ events: memory.events, target }),
+        counters: loopCounters({ events: memory.events, reasoningRows: memory.reasoningRows, pageState: sessionPageState }),
+      });
+      if (summary.length) extra.push('', ...summary);
+    } catch { /* coverage summary is best-effort */ }
+    if (extra.length) {
+      let budgetLeft = SOM_TOTAL_BUDGET - som.join('\n').length;
+      for (const line of extra) {
+        if (line.length + 1 > budgetLeft) break;
+        som.push(line);
+        budgetLeft -= line.length + 1;
+      }
+    }
+    return som;
   };
   const turns = Math.max(1, opts.turns || 6);
   const log = [];
@@ -2415,6 +2821,15 @@ export async function humanIteration(huntId, target, opts = {}) {
     return deps.intercept;
   };
 
+  // WHOLE-OS CONTROL: the desktop screenshot, bound lazily like the
+  // GUI tools. Tests inject deps.desktopScreenshot whole; the
+  // default reuses the owner's scrot poller route (huntRunner) and
+  // saves the frame as a hunt artifact.
+  const getDesktopScreenshot = () => {
+    if (!deps.desktopScreenshot) deps.desktopScreenshot = (h) => captureDesktopScreenshot(h);
+    return deps.desktopScreenshot;
+  };
+
   const getExec = async () => {
     if (!deps.exec) {
       const ha = await import('./huntAgent.js');
@@ -2493,6 +2908,32 @@ export async function humanIteration(huntId, target, opts = {}) {
     const u = pageUrlFromObservation(obs);
     if (u) currentPageUrl = u;
   };
+  // INFINITY LEVEL: the parsed page state for this session —
+  // loaded from pageState.json (coverage-ledger idiom), merged
+  // from every executed snapshot, saved per turn. The brain's next
+  // action is chosen against this record, never against a 300-char
+  // stub. Declared before the loop so computeStateOfMind (defined
+  // above) can read it at call time; its first call is in the loop.
+  let sessionPageState = emptyPageState();
+  try { sessionPageState = loadPageState(huntId); } catch { /* a bad file starts fresh */ }
+  // WHOLE-OS CONTROL: the desktop state for this session —
+  // in-memory only. The window list is re-read live on every
+  // desktop_snapshot (small, re-derivable); what persists is the
+  // interaction history in the tool_call record, counted by
+  // loopCounters. The interacted titles survive across snapshots
+  // within the session via mergeDesktopState.
+  let sessionDesktopState = emptyDesktopState();
+  // INFINITY LEVEL: fold an executed action's structured snapshot
+  // into the session page state (and persist it). A refusal carries
+  // no snapshot, so it changes nothing.
+  const noteSnapshot = (res) => {
+    if (res && res.snapshot) {
+      try {
+        sessionPageState = mergePageState(sessionPageState, res.snapshot);
+        savePageState(huntId, sessionPageState);
+      } catch { /* page-state persistence is best-effort */ }
+    }
+  };
   let lastShellAt = 0;
   let lastShellCommand = '';
   let aiOk = false;
@@ -2533,6 +2974,7 @@ export async function humanIteration(huntId, target, opts = {}) {
     if (startSnap && startSnap.observation) {
       lastObservation = startSnap.observation;
       notePageUrl(lastObservation);
+      noteSnapshot(startSnap);
     }
   } catch { /* best-effort: a failed snapshot leaves the seed */ }
 
@@ -2638,6 +3080,29 @@ export async function humanIteration(huntId, target, opts = {}) {
       turnEvents = Array.isArray(sEvents) ? sEvents.slice() : sEvents;
       settled = settledActionLines({ events: sEvents, history: actionHistory });
     } catch { /* settled is best-effort perception */ }
+    // INFINITY LEVEL: the exhausted-surface record + the parsed
+    // page state + the loop counters, refreshed every turn from
+    // the hunt's current record (same discipline as Lane AD).
+    // surfaceCounts feeds the gate below; the page-state lines
+    // and counters ride the screen; the credential state names
+    // the account route in the auth-wall block.
+    let surfaceCounts = new Map();
+    let exhaustedLines = [];
+    let pageStateLinesOut = [];
+    let desktopStateLinesOut = [];
+    let credentialState = { saved: false };
+    try {
+      let turnRows = [];
+      try { turnRows = getAllReasoning(huntId) || []; } catch { /* rows are best-effort */ }
+      surfaceCounts = surfaceBlockCounts({ events: turnEvents, reasoningRows: turnRows });
+      credentialState = credentialStateFor({ events: turnEvents, target });
+      exhaustedLines = exhaustedSurfaceLines({ counts: surfaceCounts, target, credential: credentialState, events: turnEvents });
+      const counters = loopCounters({ events: turnEvents, reasoningRows: turnRows, pageState: sessionPageState });
+      pageStateLinesOut = [...pageStateLines(sessionPageState, { target }), ...loopCounterLines(counters)];
+      // WHOLE-OS CONTROL: the desktop state rides the same
+      // per-turn refresh as the page state.
+      desktopStateLinesOut = desktopStateLines(sessionDesktopState, { target });
+    } catch { /* exhausted/page-state/counters are best-effort perception */ }
     const screen = buildScreen({
       target,
       parsedScope,
@@ -2660,6 +3125,9 @@ export async function humanIteration(huntId, target, opts = {}) {
       stateOfMind,
       followThrough,
       settled,
+      pageState: pageStateLinesOut,
+      exhausted: exhaustedLines,
+      desktopState: desktopStateLinesOut,
     });
 
     // THINK: one brain call. Full reply is recorded verbatim (total
@@ -2725,6 +3193,13 @@ export async function humanIteration(huntId, target, opts = {}) {
     const returnExempt = isReturnToTarget(kind, action, currentPageUrl, target, parsedScope);
     const gateHit = returnExempt ? null : dedupeGateHit(kind, action, actionHistory);
     const authHit = authGateHit(kind, action, actionHistory, lastObservation);
+    // INFINITY LEVEL: the exhausted-surface gate — the (page,
+    // payload class) combination has already been blocked >=
+    // EXHAUSTED_MIN_BLOCKS times, so no wording of the payload
+    // can change the outcome. Judged against the LIVE page
+    // (currentPageUrl, falling back to the parsed page state),
+    // never the page the hunter believes it is on.
+    const exhaustedHit = exhaustedSurfaceHit(kind, action, currentPageUrl, surfaceCounts, sessionPageState);
     const controlHit = GUI_CONTROL_KINDS.has(kind) && deps.machineControlled(huntId);
     if (controlHit) {
       // TAKE-CONTROL GATE — checked FIRST, before the auth and dedupe
@@ -2755,6 +3230,20 @@ export async function humanIteration(huntId, target, opts = {}) {
       say(`Auth gate stopped a blind/looped browser action: ${authHit.tool} (${authHit.reason}).`);
       observation = `BLOCKED — ${authHit.reason === 'empty_snapshot' ? 'YOU CANNOT SEE THE PAGE' : 'STILL ON THE SIGN-IN PAGE'}: ${authHit.redirect} It was NOT executed — choose one of the moves above.`;
       note({ action: `auth_block: ${authHit.tool} ${authHit.detail.slice(0, 120)}`, why: thinkingText, result: `blocked (${authHit.reason})`, learned: 'Never type into a page you cannot see; a login is only real when the page after it is not the sign-in page.' });
+    } else if (exhaustedHit) {
+      // EXHAUSTED-SURFACE GATE (Infinity level) — after the auth
+      // gate (whose redirect is the more useful answer while it
+      // still fires) and before dedupe: a 3×-blocked surface is a
+      // stronger statement than an exact repeat. The gate closes
+      // the surface itself — any payload wording, not just the
+      // ones already tried — and the observation names the routes
+      // that are still open (account / unauthenticated recon).
+      // A different page is a different surface: the gate lifts
+      // the moment the page changes.
+      try { deps.record(huntId, { type: 'exhausted_block', tool: exhaustedHit.tool, detail: exhaustedHit.key, count: exhaustedHit.count, via: 'human-mode' }); } catch { /* best-effort */ }
+      say(`Exhausted surface — ${exhaustedHit.tool} ${exhaustedHit.payloadClass} on ${exhaustedHit.pageHost} already blocked ×${exhaustedHit.count}.`);
+      observation = exhaustedBlockObservation(exhaustedHit, { target, credential: credentialState, events: turnEvents });
+      note({ action: `exhausted_block: ${exhaustedHit.tool} ${exhaustedHit.payloadClass} on ${exhaustedHit.pageHost}`, why: thinkingText, result: `surface closed — blocked ×${exhaustedHit.count}`, learned: 'A surface blocked 3 times is closed; the way forward is a different page, a different payload class, or the account/recon routes.' });
     } else if (gateHit) {
       try { deps.record(huntId, { type: 'dedup_block', tool: gateHit.tool, detail: scrub(gateHit.detail), count: gateHit.count, via: 'human-mode' }); } catch { /* best-effort */ }
       say(`Already-done gate stopped a repeat: ${gateHit.tool} ${gateHit.detail.slice(0, 120)} — already run ×${gateHit.count} in this hunt.`);
@@ -3082,12 +3571,26 @@ export async function humanIteration(huntId, target, opts = {}) {
           observation = `Credential ${handle} is ready for ${rec.site} (username ${rec.username}). Snapshot the login page and call use_saved_credential again with "usernameField" and "passwordField" as the visible labels of the two fields — the server will fill them from the vault without ever showing the password in text.`;
         } else {
           const gui = getGui();
-          await gui.click(huntId, uField);
-          await gui.type(huntId, rec.username, false);
-          await gui.click(huntId, pField);
-          await gui.type(huntId, rec.password, false);
-          toolCall('use_saved_credential', handle);
-          observation = `Filled the login fields for ${rec.site} from vaulted credential ${handle} (username ${rec.username}). Submit with browser_click when ready.`;
+          // INFINITY LEVEL: the old code ignored every result and
+          // reported "Filled the login fields…" unconditionally —
+          // on a wrong page the driver refuses the click and the
+          // fill never happens, but the brain was told it did
+          // (the false-success hole in the wrong-page guard's
+          // coverage). Each step is checked; the first refusal
+          // stops the chain and its observation IS the answer.
+          const clickU = await gui.click(huntId, uField);
+          const typeU = clickU && clickU.ok !== false ? await gui.type(huntId, rec.username, false) : null;
+          const clickP = typeU && typeU.ok !== false ? await gui.click(huntId, pField) : null;
+          const typeP = clickP && clickP.ok !== false ? await gui.type(huntId, rec.password, false) : null;
+          const failed = [clickU, typeU, clickP, typeP].find((r) => r && r.ok === false);
+          if (failed) {
+            observation = failed.observation || `Could not fill the login fields for ${rec.site} — the browser refused the action (${failed.error || 'unknown reason'}). Snapshot the page and check you are on the login page first.`;
+            notePageUrl(observation);
+            noteSnapshot(failed);
+          } else {
+            toolCall('use_saved_credential', handle);
+            observation = `Filled the login fields for ${rec.site} from vaulted credential ${handle} (username ${rec.username}). Submit with browser_click when ready.`;
+          }
         }
       }
       note({ action: `use_saved_credential: ${handle}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
@@ -3128,6 +3631,7 @@ export async function humanIteration(huntId, target, opts = {}) {
         if (res && res.degraded === true) pendingDegraded = true; // Lane AF
         observation = res.observation || '(no observation)';
         notePageUrl(observation);
+        noteSnapshot(res);
       }
       note({ action: `browser_open: ${url.slice(0, 120)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'browser_snapshot') {
@@ -3135,6 +3639,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       const res = await getGui().snapshot(huntId);
       observation = res.observation || '(no observation)';
       notePageUrl(observation);
+      noteSnapshot(res);
     } else if (kind === 'browser_click') {
       const text = String(action.text || '');
       toolCall('browser_click', text);
@@ -3142,6 +3647,13 @@ export async function humanIteration(huntId, target, opts = {}) {
       if (res && res.degraded === true) pendingDegraded = true; // Lane AF
       observation = res.observation || '(no observation)';
       notePageUrl(observation);
+      noteSnapshot(res);
+      // INFINITY LEVEL: a successful click marks its element
+      // interacted-with in the parsed page state — the click
+      // coverage the brain chooses from next turn.
+      if (res && res.ok !== false) {
+        try { sessionPageState = markElementClicked(sessionPageState, currentPageUrl, text); savePageState(huntId, sessionPageState); } catch { /* best-effort */ }
+      }
       note({ action: `browser_click: ${text.slice(0, 80)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'browser_type') {
       const text = String(action.text || '');
@@ -3150,12 +3662,131 @@ export async function humanIteration(huntId, target, opts = {}) {
       if (res && res.degraded === true) pendingDegraded = true; // Lane AF
       observation = res.observation || '(no observation)';
       notePageUrl(observation);
+      noteSnapshot(res);
+      // INFINITY LEVEL: a successful type marks the field typed-
+      // into — the record of what the page's inputs received.
+      if (res && res.ok !== false) {
+        try { sessionPageState = markTypedInto(sessionPageState, currentPageUrl); savePageState(huntId, sessionPageState); } catch { /* best-effort */ }
+      }
       note({ action: 'browser_type', why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'screenshot') {
       toolCall('screenshot', '');
       const res = await getGui().screenshot(huntId);
       observation = res.observation || '(no observation)';
       notePageUrl(observation);
+      noteSnapshot(res);
+    } else if (kind === 'desktop_snapshot') {
+      // WHOLE-OS CONTROL: read the live desktop (windows + focused
+      // app) via xdotool on :99. Perception, like browser_snapshot
+      // — but it IS a loop action (tool_call), so the counters can
+      // measure snapshots acted on. A desktop that is down is a
+      // reportable state, not a silent empty list: stderr/code
+      // distinguish it from "no windows".
+      toolCall('desktop_snapshot', '');
+      try {
+        const res = await deps.execRaw(huntId, DESKTOP_WINDOWS_CMD, 15000, { bypassTmux: true });
+        const out = String((res && res.stdout) || '');
+        const errText = String((res && res.stderr) || '');
+        if (!out.trim() && (errText || (res && res.code && res.code !== 0))) {
+          observation = `The desktop is not running right now (xdotool could not reach display :99${errText ? `: ${errText.slice(0, 160)}` : ''}). Open a page with browser_open first — that starts the desktop — then take desktop_snapshot again.`;
+        } else {
+          sessionDesktopState = mergeDesktopState(sessionDesktopState, parseDesktopWindows(out));
+          observation = desktopStateLines(sessionDesktopState, { target }).join('\n');
+        }
+      } catch (err) {
+        observation = `Desktop snapshot failed: ${err.message || err}. Open a page with browser_open first — that starts the desktop — then try again.`;
+      }
+      note({ action: 'desktop_snapshot', why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'desktop_click') {
+      // WHOLE-OS CONTROL: focus a window by title (resolved
+      // deterministically from the last desktop_snapshot) and send
+      // it a click. No snapshot yet, or no matching window, is a
+      // named refusal — the observation lists the windows that DO
+      // exist. Nothing is executed on a guess. The tool_call
+      // records the RAW name the brain gave, so the dedupe gate's
+      // candidate (same raw name) matches the history exactly.
+      const winName = String(action.window || '');
+      const win = resolveWindowForClick(sessionDesktopState.windows, winName);
+      if (!win) {
+        const known = (sessionDesktopState.windows || []).map((w) => w.title).filter(Boolean);
+        observation = known.length
+          ? `No window matches "${winName}". Windows on this desktop: ${known.join(' | ')}. Take desktop_snapshot to refresh the list, then desktop_click one of them by title.`
+          : `No window matches "${winName}" — and no desktop snapshot has been taken yet, so no window titles are known. Take desktop_snapshot first, then desktop_click one of its windows by title.`;
+      } else {
+        toolCall('desktop_click', winName);
+        try {
+          const res = await deps.execRaw(huntId, desktopClickCommand(win), 15000, { bypassTmux: true });
+          if (String((res && res.stdout) || '').includes('clicked')) {
+            sessionDesktopState = markWindowInteracted(sessionDesktopState, win.title);
+            observation = `Focused window "${win.title}" (clicked it). It now receives your desktop_key keystrokes — Tab/Return/arrows to move inside it, or type text with desktop_key.`;
+          } else {
+            observation = `Could not click window "${win.title}" (xdotool reported ${String((res && res.stderr) || 'failure').slice(0, 160)}). The window may have closed — take desktop_snapshot to refresh the list.`;
+          }
+        } catch (err) {
+          observation = `Desktop click failed: ${err.message || err}. Take desktop_snapshot to refresh the window list.`;
+        }
+      }
+      note({ action: `desktop_click: ${winName.slice(0, 80)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'desktop_key') {
+      // WHOLE-OS CONTROL: keys or literal text to the focused
+      // window. Keystrokes are whitelist-validated BEFORE any exec
+      // (parseDesktopKeys) — an unvalidated keysym would be an
+      // injection into the xdotool command line. A refusal names
+      // the allowed keys; nothing is executed on a guess. The
+      // tool_call records the RAW keys/text, so the dedupe gate's
+      // candidate matches the history exactly.
+      const keys = String(action.keys || '');
+      const text = String(action.text || '');
+      if (keys) {
+        const parsed = parseDesktopKeys(keys);
+        if (!parsed.ok) {
+          observation = `Keys not sent — ${parsed.error}. Send one keystroke: modifiers ctrl/alt/shift/super/meta plus one key (Return, Tab, Escape, space, BackSpace, Delete, arrows, Home, End, Page_Up, Page_Down, F1-F12, or a single letter/digit), e.g. {"action":"desktop_key","keys":"ctrl+l"}. To type words, use {"action":"desktop_key","text":"..."} instead.`;
+        } else {
+          toolCall('desktop_key', keys);
+          try {
+            const res = await deps.execRaw(huntId, desktopKeyCommand(parsed.keys), 15000, { bypassTmux: true });
+            observation = String((res && res.stdout) || '').includes('key_sent')
+              ? `Sent keys ${parsed.keys} to the focused window (${sessionDesktopState.activeTitle || 'unknown window'}). Take desktop_snapshot or browser_snapshot to see what changed.`
+              : `Keys ${parsed.keys} may not have reached the focused window (xdotool reported ${String((res && res.stderr) || 'failure').slice(0, 160)}). Take desktop_snapshot to check which window is focused.`;
+          } catch (err) {
+            observation = `Desktop keys failed: ${err.message || err}. Take desktop_snapshot to check the focused window.`;
+          }
+        }
+      } else if (text) {
+        toolCall('desktop_key', text.slice(0, 80));
+        try {
+          const res = await deps.execRaw(huntId, desktopTypeCommand(text), 15000, { bypassTmux: true });
+          observation = String((res && res.stdout) || '').includes('typed')
+            ? `Typed ${text.length} chars into the focused window (${sessionDesktopState.activeTitle || 'unknown window'}). Take desktop_snapshot or browser_snapshot to see what changed.`
+            : `Typing may not have reached the focused window (xdotool reported ${String((res && res.stderr) || 'failure').slice(0, 160)}). Take desktop_snapshot to check the focused window.`;
+        } catch (err) {
+          observation = `Desktop typing failed: ${err.message || err}. Take desktop_snapshot to check the focused window.`;
+        }
+      } else {
+        observation = 'Nothing sent — give "keys" (e.g. "ctrl+l", "Return") or "text" (words to type) with desktop_key.';
+      }
+      note({ action: `desktop_key: ${(keys || text).slice(0, 80)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'desktop_screenshot') {
+      // WHOLE-OS CONTROL: the full desktop frame (scrot on :99),
+      // saved as a hunt artifact via the owner's poller route —
+      // the brain gets the TEXT desktop state with the observation
+      // (it never sees the image); the owner gets the picture.
+      toolCall('desktop_screenshot', '');
+      try {
+        const shot = await getDesktopScreenshot()(huntId);
+        if (shot && shot.ok) {
+          try {
+            const res = await deps.execRaw(huntId, DESKTOP_WINDOWS_CMD, 15000, { bypassTmux: true });
+            sessionDesktopState = mergeDesktopState(sessionDesktopState, parseDesktopWindows(String((res && res.stdout) || '')));
+          } catch { /* the state read is best-effort beside the shot */ }
+          observation = `Desktop screenshot saved as artifact ${shot.name} in your hunt workspace (the owner watches this desktop live). What the desktop shows:\n${desktopStateLines(sessionDesktopState, { target }).join('\n')}`;
+        } else {
+          observation = `Desktop screenshot failed: ${(shot && shot.error) || 'unknown error'}. Open a page with browser_open first — that starts the desktop — then try again.`;
+        }
+      } catch (err) {
+        observation = `Desktop screenshot failed: ${err.message || err}.`;
+      }
+      note({ action: 'desktop_screenshot', why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'claim_finding') {
       const rawTitle = String(action.title || '');
       const title = String(rawTitle.trim() ? rawTitle : 'Untitled claim').slice(0, 200);
@@ -3290,6 +3921,17 @@ export async function humanIteration(huntId, target, opts = {}) {
     try {
       const cur = deps.readMeta(huntId) || {};
       const curLoop = cur.humanLoop || {};
+      // INFINITY LEVEL: the loop counters ride the same per-turn
+      // checkpoint — the parent can read meta.humanLoop.loopCounters
+      // at any moment and see snapshots taken/acted on, clicks,
+      // distinct pages/elements, and payloads planned vs sent.
+      let turnCounters = null;
+      try {
+        const ev = deps.readEvents(huntId) || sessionEvents;
+        let rows = [];
+        try { rows = getAllReasoning(huntId) || []; } catch { /* rows are best-effort */ }
+        turnCounters = loopCounters({ events: ev, reasoningRows: rows, pageState: sessionPageState });
+      } catch { /* counters are best-effort */ }
       deps.writeMeta(huntId, {
         ...cur,
         huntId,
@@ -3297,6 +3939,7 @@ export async function humanIteration(huntId, target, opts = {}) {
           ...curLoop,
           turnsTotal: sessionBaseTurns + turnsRun,
           lastTurnAt: new Date().toISOString(),
+          ...(turnCounters ? { loopCounters: turnCounters } : {}),
         },
         checkpointAt: new Date().toISOString(),
       });
@@ -3398,6 +4041,13 @@ export async function humanIteration(huntId, target, opts = {}) {
       openThreads,
       lastThinking: clipLine(sessionLastThinking || '', 240),
     };
+    // INFINITY LEVEL: the session-end checkpoint rebuilds humanLoop
+    // WITHOUT spreading prev (above), so the per-turn counters
+    // would be lost here unless carried forward explicitly.
+    let endCounters = null;
+    try {
+      endCounters = loopCounters({ events: endEvents, reasoningRows: endRows, pageState: sessionPageState });
+    } catch { /* counters are best-effort */ }
     deps.writeMeta(huntId, {
       ...m,
       huntId,
@@ -3412,6 +4062,7 @@ export async function humanIteration(huntId, target, opts = {}) {
         lastTurnAt: new Date().toISOString(),
         lastActions: log.slice(-6).map((l) => l.action),
         leftOff,
+        ...(endCounters ? { loopCounters: endCounters } : {}),
       },
     });
   } catch { /* checkpoint is best-effort */ }

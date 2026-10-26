@@ -635,13 +635,19 @@ export async function guiBrowserOpen(huntId, url, deps = {}) {
     if (probe.mode === 'cdp') {
       const res = await cdpAction(huntId, 'navigate', { url }, deps);
       if (res && res.error === 'wrong_page') return { ok: false, observation: wrongPageObservation(res, deps.targetUrl) };
-      if (res && !res.observation) return { ok: true, observation: `Opened ${url} in your desktop browser.\n${formatSnapshot(res)}` };
+      // Infinity level: the structured snapshot rides along with the
+      // observation — the loop parses it into the page-state record
+      // (URL, page type, interactive elements). The text observation
+      // alone cannot be parsed back reliably, and the record is what
+      // the next turn's choice is made against.
+      if (res && !res.observation) return { ok: true, observation: `Opened ${url} in your desktop browser.\n${formatSnapshot(res)}`, snapshot: res };
       if (res) return res;
     }
     await writeState(huntId, exec, { currentUrl: url });
     const snap = await headlessSnapshot(huntId, url, deps);
     return {
       ok: true,
+      snapshot: snap,
       // Lane AF: this observation is the look-only fallback — the
       // hunter did not see the real interactive page. The result
       // says so in machine-readable form (`degraded`) so the dedupe
@@ -666,7 +672,7 @@ export async function guiBrowserSnapshot(huntId, deps = {}) {
     if (probe.mode === 'cdp') {
       const res = await cdpAction(huntId, 'snapshot', {}, deps);
       if (res && res.error === 'wrong_page') return { ok: false, observation: wrongPageObservation(res, deps.targetUrl) };
-      if (res && !res.observation) return { ok: true, observation: formatSnapshot(res) };
+      if (res && !res.observation) return { ok: true, observation: formatSnapshot(res), snapshot: res };
       if (res) return res;
     }
     const state = await readState(huntId, exec);
@@ -675,6 +681,7 @@ export async function guiBrowserSnapshot(huntId, deps = {}) {
     const note = desktopRecoveryNote(recovery);
     return {
       ok: true,
+      snapshot: snap,
       degraded: true, // Lane AF: the look-only headless view, as in guiBrowserOpen.
       observation: (note ? `(Look-only headless view — the desktop browser is not running.${note})\n` : '') + formatSnapshot(snap),
     };
@@ -699,7 +706,7 @@ export async function guiBrowserClick(huntId, text, deps = {}) {
     if (res.error === 'wrong_page') return { ok: false, observation: wrongPageObservation(res, deps.targetUrl) };
     if (res.observation) return res;
     if (res.ok === false) return { ok: false, observation: `Click failed: ${res.error || 'element not found'}. Take a browser_snapshot and use an exact label from it.` };
-    return { ok: true, observation: `Clicked "${res.clicked || text}". The page now shows:\n${formatSnapshot(res.snapshot)}` };
+    return { ok: true, observation: `Clicked "${res.clicked || text}". The page now shows:\n${formatSnapshot(res.snapshot)}`, snapshot: res.snapshot };
   } catch (err) {
     return { ok: false, observation: `browser_click failed: ${err.message || err}` };
   }
@@ -719,7 +726,7 @@ export async function guiBrowserType(huntId, text, submit = false, deps = {}) {
     if (res.error === 'wrong_page') return { ok: false, observation: wrongPageObservation(res, deps.targetUrl) };
     if (res.observation) return res;
     if (res.ok === false) return { ok: false, observation: `Type failed: ${res.error || 'no field'}. Take a browser_snapshot first.` };
-    return { ok: true, observation: `Typed ${JSON.stringify(String(text).slice(0, 120))}${submit ? ' and pressed Enter' : ''}. The page now shows:\n${formatSnapshot(res.snapshot)}` };
+    return { ok: true, observation: `Typed ${JSON.stringify(String(text).slice(0, 120))}${submit ? ' and pressed Enter' : ''}. The page now shows:\n${formatSnapshot(res.snapshot)}`, snapshot: res.snapshot };
   } catch (err) {
     return { ok: false, observation: `browser_type failed: ${err.message || err}` };
   }
@@ -740,7 +747,7 @@ export async function guiBrowserScreenshot(huntId, deps = {}) {
         const name = await savePngArtifact(huntId, res.screenshot_b64);
         const snapRes = await cdpAction(huntId, 'snapshot', {}, deps);
         const snapText = snapRes && !snapRes.observation ? formatSnapshot(snapRes) : '(page text unavailable)';
-        return { ok: true, artifact: name, observation: `Screenshot saved as artifact ${name} in your hunt workspace (the owner watches this desktop live). What the page shows:\n${snapText}` };
+        return { ok: true, artifact: name, observation: `Screenshot saved as artifact ${name} in your hunt workspace (the owner watches this desktop live). What the page shows:\n${snapText}`, snapshot: snapRes && !snapRes.observation ? snapRes : undefined };
       }
       if (res && res.observation) return res;
     }
@@ -759,7 +766,7 @@ export async function guiBrowserScreenshot(huntId, deps = {}) {
     if (!b64) return { ok: false, observation: 'Screenshot failed: the headless browser produced no image.' };
     const name = await savePngArtifact(huntId, b64);
     const snap = await headlessSnapshot(huntId, state.currentUrl, deps);
-    return { ok: true, artifact: name, observation: `Screenshot saved as artifact ${name} in your hunt workspace. What the page shows:\n${formatSnapshot(snap)}` };
+    return { ok: true, artifact: name, observation: `Screenshot saved as artifact ${name} in your hunt workspace. What the page shows:\n${formatSnapshot(snap)}`, snapshot: snap };
   } catch (err) {
     return { ok: false, observation: `screenshot failed: ${err.message || err}` };
   }
