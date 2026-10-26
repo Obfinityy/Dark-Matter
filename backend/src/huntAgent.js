@@ -2509,7 +2509,7 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
     if (!hasAI) {
       think(huntId, 'No AI backend configured — hunt completed with recon results only.');
     }
-    // Consecutive AI failures — circuit breaker trips at 3.
+    // Consecutive AI failures — circuit breaker trips at 5.
     // We track WHAT failed (not just that it failed) so the pause reason is honest:
     // 'no_reply' = brain gave nothing back, 'error' = the call threw,
     // 'bad_output' = brain replied but produced no usable plan.

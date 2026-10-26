@@ -13,8 +13,9 @@
 //           no GUI exec) while non-GUI work keeps running.
 //   LOOP-5  a repeated action is answered from the output ledger,
 //           not re-run (0 exec calls on the repeat).
-//   LOOP-6  the loop stops cleanly per hunt — owner stop (6a) and
-//           hunt paused mid-run (6b).
+//   LOOP-6  the loop stops cleanly per hunt — owner stop (6a), hunt
+//           paused mid-run (6b), and a stop issued DURING a cycle
+//           sticks in meta (6c).
 //   LOOP-7  a silent brain (both paths) backs off and retries; 5
 //           consecutive failures end the run with the streak.
 //   LOOP-8  the loop flag (default on, per-hunt off) and the
@@ -283,6 +284,34 @@ test('LOOP-6b: the loop stops cleanly when the hunt is paused mid-run', async ()
   assert.equal(res.cyclesRun, 1);
   assert.equal(res.stopped, true);
   assert.equal(res.aiOk, true);
+});
+
+test('LOOP-6c: a stop issued DURING a cycle sticks — the loop does not restart on the next run', async () => {
+  // Review fix, 26 Oct 2026: the per-cycle save used to force
+  // enabled:true, overwriting a mid-cycle stop — the run stopped,
+  // but meta.loop.enabled came back true and the next outer
+  // iteration restarted the loop. The save no longer forces
+  // enabled, so the stop must survive the cycle's own save.
+  let stopped = false;
+  const reply = shellReply('echo one');
+  const s = stubRun('h_loop_6c', [reply], {
+    maxCycles: 3,
+    chatImpl: async (messages) => {
+      s.screens.push(messages[0].text);
+      if (!stopped) {
+        stopped = true;
+        stopHumanLoop('h_loop_6c', { registry: s.registry, readMeta: () => s.meta(), writeMeta: (h, p) => s.setMeta({ ...s.meta(), ...p }), record: (h, e) => s.recorded.push(e) });
+      }
+      return reply;
+    },
+  });
+  const res = await s.run();
+  assert.equal(res.cyclesRun, 1, 'the current cycle finished, then the loop stopped — no further cycles');
+  assert.equal(res.stopped, true);
+  assert.equal(res.aiOk, true, 'a clean stop is not a failure');
+  assert.equal(s.meta().loop.enabled, false, 'the mid-cycle stop sticks in meta — the next run must not restart the loop');
+  assert.equal(loopEnabledFor('h_loop_6c', s.meta()), false);
+  assert.equal(isLoopRunning('h_loop_6c', { registry: s.registry }), false, 'the registry is cleared on exit');
 });
 
 test('LOOP-7: a silent brain backs off and retries; 5 consecutive failures end the run with the streak', async () => {

@@ -249,8 +249,12 @@ export async function runHumanLoop(huntId, target, opts = {}) {
       // beside the turn totals humanIteration already wrote. The
       // outer `iteration` is NOT written here — the outer loop owns
       // it and advances it once per driver run, so it can never go
-      // backwards between runs.
-      saveLoopState(huntId, { enabled: true, cycles: baseCycles + cyclesRun, lastCycleAt: new Date().toISOString() }, { readMeta, writeMeta });
+      // backwards between runs. NOTE: `enabled` is deliberately NOT
+      // forced here — a stop issued mid-cycle (stopHumanLoop) saves
+      // enabled:false, and this save must not overwrite it, or the
+      // next outer iteration would restart the loop (review fix,
+      // 26 Oct 2026).
+      saveLoopState(huntId, { cycles: baseCycles + cyclesRun, lastCycleAt: new Date().toISOString() }, { readMeta, writeMeta });
 
       if (res && res.aiOk) {
         failStreak = 0;
