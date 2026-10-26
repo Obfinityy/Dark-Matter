@@ -17,6 +17,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -74,6 +75,56 @@ export function ttydPortForHunt(huntId) {
   return String(17681 + (hash % 100));
 }
 
+// HUNTER-MIND timing fix (26 Oct 2026): the container's clocks are
+// NOT skewed — host, container and sandbox all read the same UTC —
+// the bug is DISPLAY: the container runs UTC with no TZ set, so the
+// XFCE desktop clock (and `date` in its terminal) shows UTC, 5:30
+// behind the owner's IST wall clock. Set TZ=Asia/Kolkata in the
+// container env and mount the host zoneinfo read-only so glibc can
+// resolve the zone (the image also gains tzdata + ENV TZ in
+// docker/Dockerfile.hunt for the next rebuild — this runtime path is
+// what fixes the CURRENT container without a rebuild).
+export const HUNT_TZ = 'Asia/Kolkata';
+export const HUNT_ZONEINFO_PATH = '/usr/share/zoneinfo';
+
+/**
+ * Pure builder for the `docker run` args of a hunt container —
+ * exported so the TZ fix is unit-testable without Docker.
+ * @param {string} huntId
+ * @param {string} target
+ * @param {{mode?: string, zoneinfoPath?: string|null}} opts — pass
+ *   zoneinfoPath: null to skip the zoneinfo mount (the caller guards
+ *   with fs.existsSync: a mount of a nonexistent host path would
+ *   create an empty dir on the host).
+ */
+export function buildHuntContainerRunArgs(huntId, target, opts = {}) {
+  const name = containerName(huntId);
+  const TTYD_PORT = ttydPortForHunt(huntId);
+  const zoneinfo = opts.zoneinfoPath === undefined ? HUNT_ZONEINFO_PATH : opts.zoneinfoPath;
+  const env = [
+    '-e', `DM_HUNT_ID=${huntId}`,
+    '-e', `DM_TARGET=${target}`,
+    '-e', `DM_MODE=${opts.mode || 'normal'}`,
+    '-e', `DM_TTYD_PORT=${TTYD_PORT}`,
+    '-e', `TZ=${HUNT_TZ}`,
+    // NOTE: no cloud credentials are passed into hunt containers. The host
+    // backend is the sole brain (LLM lives on the host); the container is
+    // only hands (tools). This keeps AWS keys out of the sandbox.
+  ];
+  return [
+    'run', '-d',
+    '--name', name,
+    '--memory', HUNT_MEMORY,
+    '--cpus', HUNT_CPUS,
+    '--network', 'bridge',
+    '--restart', 'no',
+    '-p', `127.0.0.1:${TTYD_PORT}:${TTYD_PORT}`,
+    ...(zoneinfo ? ['-v', `${zoneinfo}:/usr/share/zoneinfo:ro`] : []),
+    ...env,
+    HUNT_IMAGE,
+  ];
+}
+
 export async function spawnHuntContainer(huntId, target, opts = {}) {
   const name = containerName(huntId);
   // Clean up any stale container with the same name first — and WAIT
@@ -101,27 +152,10 @@ export async function spawnHuntContainer(huntId, target, opts = {}) {
   // exist. See ttydPortForHunt (single source of truth).
   const TTYD_PORT = ttydPortForHunt(huntId);
 
-  const env = [
-    '-e', `DM_HUNT_ID=${huntId}`,
-    '-e', `DM_TARGET=${target}`,
-    '-e', `DM_MODE=${opts.mode || 'normal'}`,
-    '-e', `DM_TTYD_PORT=${TTYD_PORT}`,
-    // NOTE: no cloud credentials are passed into hunt containers. The host
-    // backend is the sole brain (LLM lives on the host); the container is
-    // only hands (tools). This keeps AWS keys out of the sandbox.
-  ];
-
-  const runArgs = [
-    'run', '-d',
-    '--name', name,
-    '--memory', HUNT_MEMORY,
-    '--cpus', HUNT_CPUS,
-    '--network', 'bridge',
-    '--restart', 'no',
-    '-p', `127.0.0.1:${TTYD_PORT}:${TTYD_PORT}`,
-    ...env,
-    HUNT_IMAGE,
-  ];
+  // HUNTER-MIND timing fix: the zoneinfo mount is guarded — a mount
+  // of a nonexistent host path would create an empty dir on the host.
+  const zoneinfoPath = existsSync(HUNT_ZONEINFO_PATH) ? HUNT_ZONEINFO_PATH : null;
+  const runArgs = buildHuntContainerRunArgs(huntId, target, { ...opts, zoneinfoPath });
   try {
     await docker(runArgs);
   } catch (err) {

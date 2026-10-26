@@ -278,13 +278,20 @@ function fakeDeps({ events = [], script = [] } = {}) {
   check('session end: research debt recorded for the session',
     after1.researchDebt.sqli && after1.researchDebt.sqli.researched === 2 && after1.researchDebt.sqli.probed === false);
 
-  // Second session: same research again — debt grows, row stays one.
+  // Second session: same research again — the gap row stays one, and
+  // the debt does NOT grow.
   const s2 = fakeDeps({ events: s1.state.events, script });
   await humanIteration(hunt, TARGET, { turns: 3, deps: s2.deps });
   const after2 = loadCoverage(hunt);
   check('session end ×2: the gap row is NOT duplicated', after2.rows.length === 1);
-  check('session end ×2: cumulative debt grew across sessions',
-    after2.researchDebt.sqli.researched === 4 && after2.researchDebt.sqli.sessionsResearched === 2);
+  // HUNTER-MIND (26 Oct 2026): the second session's identical
+  // searches are answered from the saved outputs (output recall),
+  // not re-executed — completed work is never redone. Research debt
+  // counts research actually executed, so it does NOT grow on a
+  // recall (researched stays 2, sessionsResearched stays 1). A
+  // genuinely NEW search would grow it.
+  check('session end ×2: debt does NOT grow on a recall (no new research executed)',
+    after2.researchDebt.sqli.researched === 2 && after2.researchDebt.sqli.sessionsResearched === 1);
 
   // A corrupt ledger must never break a session.
   fs.writeFileSync(coverageFilePath(hunt), 'GARBAGE{{{');
