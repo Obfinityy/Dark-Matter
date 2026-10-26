@@ -2566,17 +2566,37 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
         // The pipeline below remains untouched for every other hunt.
         const metaBranch = readHuntMeta(huntId) || {};
         if (metaBranch.humanMode === true || mode === 'human' || metaBranch.mode === 'human') {
-          iterResult = await humanIteration(huntId, target, {
-            turns: 6,
-            findings,
-            iteration: i,
-            // MODEL-SWITCHER (26 Oct 2026): the loop's brain call
-            // goes through callBrain — the selected model answers,
-            // and a silent Meta falls back to the 8B automatically.
-            // The wrapper has the same (messages, system, ctx)
-            // signature as chatWithAI, so the loop is unchanged.
-            deps: { assess: assessResult, exec: executeWithEvasion, chat: (messages, system, ctx) => callBrain(messages, system, ctx, { huntId }) },
-          });
+          // CONTINUOUS HUMAN-BRAIN LOOP (26 Oct 2026, owner order):
+          // the loop driver runs observe→decide→act→observe cycles
+          // back-to-back (humanLoopDriver.js) — the new driver for
+          // human-mode hunts. The turn loop below stays as the
+          // fallback driver whenever the loop is disabled, and the
+          // driver itself falls back to it if its import fails.
+          const loopDeps = { assess: assessResult, exec: executeWithEvasion, chat: (messages, system, ctx) => callBrain(messages, system, ctx, { huntId }) };
+          let usedLoop = false;
+          try {
+            const { runHumanLoop, loopEnabledFor } = await import('./humanLoopDriver.js');
+            if (loopEnabledFor(huntId, metaBranch)) {
+              iterResult = await runHumanLoop(huntId, target, { deps: loopDeps, findings, startIteration: i });
+              usedLoop = true;
+            }
+          } catch (err) {
+            // The loop driver must never take the hunt down with it.
+            think(huntId, `Continuous loop unavailable (${(err && err.message) || err}) — falling back to turn sessions.`);
+          }
+          if (!usedLoop) {
+            iterResult = await humanIteration(huntId, target, {
+              turns: 6,
+              findings,
+              iteration: i,
+              // MODEL-SWITCHER (26 Oct 2026): the loop's brain call
+              // goes through callBrain — the selected model answers,
+              // and a silent Meta falls back to the 8B automatically.
+              // The wrapper has the same (messages, system, ctx)
+              // signature as chatWithAI, so the loop is unchanged.
+              deps: loopDeps,
+            });
+          }
         } else {
           iterResult = await agentIteration(huntId, target, recon, findings, i, playbook);
         }
@@ -2588,7 +2608,12 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
         think(huntId, `Iteration ${i} failed safely: ${err.message || err} :: ${stackHint}`);
       }
       if (iterResult === null || (iterResult && iterResult.aiOk === false)) {
-        aiFailStreak++;
+        // CONTINUOUS LOOP (26 Oct 2026): the driver returns its
+        // consecutive failed-cycle streak — a dead brain still
+        // pauses the hunt after 5 failed calls, exactly as the turn
+        // loop does (a run of 5 failed cycles counts 5, not 1).
+        // Turn-loop results carry no failStreak and count 1, as before.
+        aiFailStreak += (iterResult && Number(iterResult.failStreak)) || 1;
         aiFailKinds.push((iterResult && iterResult.failKind) || 'unknown');
         // Circuit breaker trips at 5 consecutive failures (was 3). The 8B model
         // on 2vCPU is flaky — occasional malformed JSON or slow replies are
