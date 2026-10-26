@@ -200,4 +200,25 @@ router.post('/:id/messages', requireAuth, (req, res) => {
   res.json({ ok: true, updatedAt });
 });
 
+// REAL-HUMAN (26 Oct 2026): server-side append of ONE assistant
+// message — the brain's answer to a queued mid-hunt question.
+// The answer is written with a FRESH updatedAt, so a later client
+// push carrying an older updatedAt is rejected as stale instead of
+// wiping it (the last-write-wins rule above), and the client's
+// pull effect (App.jsx, on chat open + 30s poll) merges
+// remote-only messages into the open thread by id. Without the
+// poll, a user who keeps typing would push a list that lacks the
+// server's answer and overwrite it — the poll is part of this
+// delivery, not an optional extra.
+export function appendChatMessage(userId, chatId, message) {
+  const id = safeChatId(chatId);
+  if (!id || !userId) return false;
+  const clean = cleanMessage(message);
+  if (!clean) return false;
+  const prev = readMessages(userId, id);
+  const messages = [...(prev.messages || []), clean];
+  writeMessages(userId, id, messages, new Date().toISOString());
+  return true;
+}
+
 export default router;

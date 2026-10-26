@@ -28,6 +28,12 @@ import { chatWithAI, aiAvailable, isInferenceActive } from '../llm.js';
 import { analyzeFindings } from '../hunt-intel/index.js';
 import { loadHuntMemory, normTitle, findingCounts } from '../huntMemory.js';
 import { pageUrlFromObservation } from '../humanLoop.js';
+import {
+  queueChatQuestion,
+  pendingChatQuestions,
+  busyAck,
+  queueFullLine,
+} from '../chatQueue.js';
 
 /**
  * The confirmed findings of a hunt, as UNIQUE titles. Findings must
@@ -218,6 +224,28 @@ export function fallbackLine(lang) {
   return FALLBACK_LINE[lang] || FALLBACK_LINE.english;
 }
 
+// REAL-HUMAN (26 Oct 2026): the honest acknowledgement for a
+// queued thinking question, built from the last reasoning row —
+// what the brain actually did last, where, and how long ago.
+// Pure (testable without the route): the route supplies the
+// hunt's reasoning rows and the user's language, and gets back
+// the 1–2 sentence ack — never the summary shape.
+export function ackTextForHunt({ reasoningRows = [], lang = 'english', pendingCount = 1 } = {}) {
+  const rows = reasoningRows || [];
+  const lastRow = rows.length ? rows[rows.length - 1] : null;
+  let doing = '';
+  let page = '';
+  let age = '';
+  if (lastRow) {
+    const actionText = clipClean(String(lastRow.action || 'turn'), 90);
+    const resultText = clipClean(String(lastRow.result || '').split(/\r?\n/)[0], 140) || '—';
+    doing = `${actionText} — ${resultText}`;
+    page = pageUrlFromObservation(lastRow.result || '') || '';
+    age = relativeAge(lastRow.at, lang);
+  }
+  return busyAck({ lang, doing, page, age, pendingCount });
+}
+
 export function offTopicDecline(message) {
   if (looksHinglish(message)) {
     return (
@@ -388,7 +416,17 @@ export function detectSteering(message) {
   if (/\b(pause|hold|freeze)\b/.test(m) && /\b(hunt|it|scan)\b|\bpause\b/.test(m)) return 'pause';
   if (/\b(resume|continue|carry on)\b/.test(m)) return 'resume';
   if (/\b(stop|abort|cancel|kill)\b/.test(m) && /\b(hunt|scan|it)\b/.test(m)) return 'stop';
-  if (/\b(what did you find|findings?|what('s| is) the status|status|progress|what are you (doing|up to)|summary)\b/.test(m))
+  // STATUS ONLY (REAL-HUMAN, 26 Oct 2026): the summary is the right
+  // answer for a genuine status/count question — "what did you
+  // find", "how many so far", "how far along". Thinking/doing
+  // questions ("what are you thinking", "what are you doing now",
+  // "aage ka kya kaam h") are NOT status: they used to match here
+  // and got the canned summary shape instead of the brain's own
+  // thinking — the owner's verified complaint. They now fall
+  // through to the open-question path, where a running hunt queues
+  // them for the brain's next turn instead of answering from a
+  // template.
+  if (/\b(what did you find|findings?|what('s| is) the status|status|progress|summary)\b/.test(m))
     return 'summary';
   // Hinglish status questions (Lane S follow-up, 24 Oct 2026): the
   // owner's mid-hunt question is "kitni mili ab tak?" — "how many
@@ -399,10 +437,13 @@ export function detectSteering(message) {
   // after ~5 min with the backend-unreachable error (nginx 300s).
   // A status question must never queue behind the brain; these
   // patterns route it to the instant deterministic summary instead.
-  // Kept tight to status phrasings so open questions still reach
-  // the LLM (a false summary of a real question is worse than a
-  // slow answer).
-  if (/\b(kitni mili|kitne mile|kitne mili|kya mila|kuch mila|ab tak kya|kahan tak|kya chal raha|kya ho raha|kya kar raha|kya kiya|kya try kiya)\b/.test(m))
+  // Kept tight to status/count phrasings so open questions still
+  // reach the brain (a false summary of a real question is worse
+  // than a slow answer). REAL-HUMAN (26 Oct 2026): "kya kar raha",
+  // "kya chal raha", "kya ho raha", "kya kiya", "kya try kiya" are
+  // doing/thinking questions, not status — they used to route here
+  // and got the canned shape; they now fall through to the queue.
+  if (/\b(kitni mili|kitne mile|kitne mili|kya mila|kuch mila|ab tak kya|kahan tak)\b/.test(m))
     return 'summary';
   // Owner's own phrasings (24 Oct 2026, live evidence): "so what is
   // now doing by you and what you thinking now?" and "bata" both went
@@ -414,8 +455,13 @@ export function detectSteering(message) {
   // is raised alongside (300s -> 1800s) so a genuinely open question
   // still gets its answer instead of the false backend error — but a
   // status question must never wait for the brain at all.
-  if (/\b(what (is|are) (now|currently) doing|what (are )?you thinking|what('s| is) (going on|happening)|kya chal raha hai)\b/.test(m))
-    return 'summary';
+  //
+  // REAL-HUMAN (26 Oct 2026): "what is now doing by you" / "what
+  // are you thinking" / "what's going on" are THINKING questions,
+  // not status — the old pattern routed them to the summary, which
+  // is exactly the canned-shape complaint. They now fall through
+  // to the open-question path, where a running hunt queues them for
+  // the brain. A bare "bata" ("tell me") still means status (below).
   // CHAT-ANSWERS (26 Oct 2026): bare "bata"/"batao" ("tell me") means
   // "tell me the status" — but ONLY when the message is essentially
   // just that word (isBareTell). The old unanchored pattern routed
@@ -427,7 +473,14 @@ export function detectSteering(message) {
   // and queued behind hunt turns. These mirror the Roman Hinglish
   // list above — deliberately multi-word status phrasings, never a
   // bare बता/बताओ (that goes through isBareTell, same as Roman).
-  if (/कितनी मिली|कितने मिले|क्या मिला|कुछ मिला|अब तक क्या|कहाँ तक|क्या चल रहा|क्या हो रहा|क्या कर रहा|क्या कर रहे|क्या किया|अभी क्या/.test(m))
+  // REAL-HUMAN (26 Oct 2026): क्या कर रहा / क्या कर रहे / क्या किया /
+  // क्या चल रहा / क्या हो रहा are doing/thinking questions — they
+  // fall through to the queue like their Roman forms. A bare "अभी
+  // क्या" is NOT kept as a status pattern either: the unanchored
+  // match would swallow "अभी क्या कर रहे हो" ("what are you doing
+  // right now") into the summary — a bare "what now?" is an open
+  // question the brain answers better from its own context.
+  if (/कितनी मिली|कितने मिले|क्या मिला|कुछ मिला|अब तक क्या|कहाँ तक/.test(m))
     return 'summary';
   return null;
 }
@@ -584,17 +637,45 @@ router.post(
       return res.json({ ok: true, reply: summaryReply({ ctx, live, liveError, cached, findings, reasoningRows: memory.reasoningRows, message, meta, huntId }) });
     }
     // Open questions: REAL AI with full hunt context (no hardcoded answers).
-    if (aiAvailable()) {
-      // CHAT-ANSWERS (26 Oct 2026): when a hunt turn holds the one
-      // shared model, an open question would queue 10–25 min and die
-      // at the deadline — the "no answer" the owner reported. Answer
-      // immediately from the live record instead, and say honestly
-      // that the detailed answer needs the brain (it is mid-turn).
-      // Never present the deterministic summary as the LLM's answer.
-      if (isInferenceActive()) {
-        chatRoute = 'busy-summary';
-        return res.json({ ok: true, busy: true, reply: busyLine(lang) + summaryReply({ ctx, live, liveError, cached, findings, reasoningRows: memory.reasoningRows, message, meta, huntId }) });
+    //
+    // REAL-HUMAN (26 Oct 2026): while the hunt is RUNNING, a thinking
+    // question goes to the BRAIN's next turn through the chat queue —
+    // it is NOT answered by a chatWithAI call here. The old code did
+    // exactly that when the brain looked free, and answered from the
+    // deterministic summary when it looked busy: the first queued
+    // 10–25 min behind the hunt on the same shared model and died at
+    // the deadline, the second gave the canned summary shape and a
+    // "detailed answer will wait" promise that was never kept (the
+    // owner's verified complaint — 03:25Z "detailed jawab thoda
+    // rukega", no follow-up ever arrived). The queue keeps the
+    // promise in code: the question stays pending until the loop
+    // delivers the brain's answer, and the instant reply is an
+    // honest acknowledgement grounded in the live record — never
+    // the summary shape. When the hunt is NOT running the brain is
+    // free, so the direct LLM path below still applies.
+    if (meta.state === 'running' || isInferenceActive()) {
+      const chatId = String((req.body && req.body.chatId) || '').slice(0, 64);
+      const userId = req.user ? String(req.user.id || '') : '';
+      const { question, queued, reason } = queueChatQuestion(huntId, {
+        chatId, userId, text: message, lang,
+      });
+      if (!queued) {
+        chatRoute = 'queue-full';
+        return res.json({ ok: true, queued: false, reason, reply: queueFullLine(lang) });
       }
+      // The ack's facts come from the last reasoning row — what the
+      // brain actually did last, where, and how long ago — the same
+      // record the summary's RIGHT NOW line reads, rendered here as
+      // one or two honest sentences instead of the summary shape.
+      chatRoute = 'queued-ack';
+      return res.json({
+        ok: true,
+        queued: true,
+        questionId: question.id,
+        reply: ackTextForHunt({ reasoningRows: memory.reasoningRows, lang, pendingCount: pendingChatQuestions(huntId).length }),
+      });
+    }
+    if (aiAvailable()) {
       chatRoute = 'llm';
       const system = buildHuntSystemPrompt({ huntId, meta, live, liveError, cached, findings, memory, userMessage: message });
       const aiReply = await chatWithAI([...history, { role: 'user', text: message }], system, { huntId });

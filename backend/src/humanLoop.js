@@ -105,6 +105,20 @@ import {
   desktopTypeCommand,
   captureDesktopScreenshot,
 } from './desktopControl.js';
+// REAL-HUMAN (26 Oct 2026): the owner's queued questions (the
+// brain answers them in-turn — see chatQueue.js) and in-app
+// clicking via the AT-SPI accessibility tree (desktopAtspi.js).
+// The chat-answer delivery appends to the chat-messages file
+// (routes/chats.js) — humanLoop owns the loop side, chats.js owns
+// the file, and neither imports the other's route layer.
+import {
+  pendingChatQuestions,
+  chatQuestionScreenLines,
+  extractChatAnswers,
+  markChatAnswered,
+} from './chatQueue.js';
+import { appendChatMessage } from './routes/chats.js';
+import { clickControlCommand, parseAtspiOutput, atspiFailureObservation, atspiSuccessObservation } from './desktopAtspi.js';
 // Lane U: the Burp-style intercept workflow (mitmproxy inside the
 // hunt container; see proxyIntercept.js for the topology). The pure
 // replay builders + signature are imported directly — deterministic
@@ -998,6 +1012,15 @@ function systemPromptFor(target, parsedScope) {
     `You are an elite human bug-bounty hunter who has been hired to test ${target}. You are sitting at your own Kali machine. You see the machine's current state below.`,
     'You also have a real desktop with a Chromium browser on this machine: you can open pages, SEE them (browser_snapshot gives you the page text and its clickable elements), click and type like a person at a computer, and take screenshots. The desktop itself is yours too — the whole XFCE desktop, not just the browser: desktop_snapshot shows you its windows, desktop_click focuses a window by title, desktop_key sends keys to the focused window, and desktop_screenshot captures the whole desktop. GUI apps (Burp, ZAP, Wireshark, the terminal) launch from the shell; focus one with desktop_click, then work it with the keyboard.',
     'Each reply: first think briefly like a human (what you notice, what you wonder, what you will try next and why), then give EXACTLY ONE action as a JSON object on the last line:',
+    // REAL-HUMAN (26 Oct 2026): the owner talks to you mid-hunt.
+    // When YOUR OWNER\'S QUESTIONS are on your screen, answer them
+    // in THIS reply: add a "chat_answers" array to your action JSON
+    // — [{"q":"<id>","answer":"..."}] — one answer per question, in
+    // the user\'s language, from what you actually did and think.
+    // Never a canned summary, never counts you did not earn, never
+    // "I will answer later" — the answer IS this reply. A question
+    // you leave out stays queued for your next turn.
+    'If YOUR OWNER\'S QUESTIONS are on your screen, answer them in this same reply: add "chat_answers":[{"q":"<id>","answer":"your answer in the user\'s language"}] to your action JSON (beside the action, not instead of it). Answer from what you actually did and think — a real human answers the person talking to them, they do not recite a status template.',
     '{"action":"shell","command":"..."} — run any shell command on your machine (curl, nmap, python3, anything installed — or download/install what you need)',
     '{"action":"search","query":"..."} — search the web (techniques, CVEs, docs)',
     '{"action":"write_file","name":"x.py","content":"..."} — save a file or script in your workspace (permanent: it survives container restarts); run it later with a shell action. For anything longer than one reply — a big script, a tool installer — write the first chunk with write_file, then keep appending one chunk per reply with a shell action whose command is APPEND_ARTIFACT: x.py followed by the next chunk on the next line, resuming exactly where the last chunk ended; READ_ARTIFACT: x.py with start:end reads any slice back. Save downloaded tools the same way: keep the installer script as a file and rerun it in a fresh container, never trust a container install to survive a restart.',
@@ -1008,6 +1031,7 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"screenshot"} — capture the browser viewport to a PNG artifact; you also get the page text',
     '{"action":"desktop_snapshot"} — see the whole XFCE desktop: its windows and which one is focused (text — you never see the image; the owner watches the desktop live)',
     '{"action":"desktop_click","window":"Burp Suite"} — focus a window by its title (exact, starts-with, or contains) and send it a click; the focused window then receives your desktop_key keystrokes. Take desktop_snapshot first if you do not know the window titles.',
+    '{"action":"desktop_click_control","control":"Repeater","window":"Burp Suite"} — click a NAMED CONTROL inside a GUI app (a tab, a button, a menu item) by its visible name: the loop finds it in the app\'s accessibility tree and clicks it. Give the control\'s visible name ("Repeater", "Send", "Proxy"), and "window" when more than one app is open. This is how you press a button inside Burp/ZAP/Wireshark — desktop_click only focuses a window, it never presses a button inside it. If the app has no accessibility tree (or AT-SPI is not installed in this image), the observation says so — fall back to desktop_key keyboard navigation.',
     '{"action":"desktop_key","keys":"ctrl+l"} — send keys to the focused window: modifiers ctrl/alt/shift/super/meta plus one key (Return, Tab, Escape, space, BackSpace, Delete, arrows, Home, End, Page_Up, Page_Down, F1-F12, or a single letter/digit). Or {"action":"desktop_key","text":"nmap -sV target"} to type literal text into the focused window. This is how you work inside GUI apps after focusing them.',
     '{"action":"desktop_screenshot"} — capture the WHOLE desktop (not just the browser) to a JPG artifact; you also get the desktop state text',
     '{"action":"proxy_start"} — start your intercepting proxy (Burp-style) on this machine: your browser is re-routed through it so EVERY request/response is captured, and you get the intercept dashboard URL — open it in your browser to click through captured requests visually. The proxy is pass-through: traffic is captured, never held.',
@@ -1450,7 +1474,14 @@ function isProbeDetailForTopic(tool, detail, topic) {
   return (topic.probes || []).some((re) => re.test(d));
 }
 
-export function pendingPlannedProbeLines({ events = [], reasoningRows = [] } = {}) {
+/**
+ * The pending plans, structured — one entry per topic whose skill
+ * card was pulled with no probe sent after it. Pure. The line
+ * renderer below and the load_skill re-pull gate (REAL-HUMAN) both
+ * read this: a re-pull of a skill whose plan is already pending is
+ * answered from the record instead of re-running the lookup.
+ */
+export function pendingPlannedProbes({ events = [], reasoningRows = [] } = {}) {
   const loads = [];
   (events || []).forEach((e, i) => {
     if (!e || e.type !== 'tool_call' || String(e.tool || '').toLowerCase() !== 'load_skill') return;
@@ -1463,7 +1494,7 @@ export function pendingPlannedProbeLines({ events = [], reasoningRows = [] } = {
   const latest = new Map();
   for (const l of loads) latest.set(l.topic.id, l);
   const rows = reasoningRows || [];
-  const lines = [];
+  const out = [];
   for (const l of [...latest.values()].sort((a, b) => a.index - b.index)) {
     // Probe after the load?
     let probed = false;
@@ -1480,9 +1511,15 @@ export function pendingPlannedProbeLines({ events = [], reasoningRows = [] } = {
     }
     const turnsSince = rowIdx >= 0 ? Math.max(0, rows.length - 1 - rowIdx) : null;
     const when = turnsSince === null ? 'in an earlier session' : `${turnsSince} turn${turnsSince === 1 ? '' : 's'} ago`;
-    lines.push(`- PENDING PLAN: ${l.topic.label} — skill "${l.skill}" pulled ${when}, no probe sent yet. Send its first probe now, or close it with record_coverage as not_applicable and the reason.`);
+    out.push({ topic: l.topic, skill: l.skill, turnsSince, when });
   }
-  if (!lines.length) return [];
+  return out;
+}
+
+export function pendingPlannedProbeLines({ events = [], reasoningRows = [] } = {}) {
+  const plans = pendingPlannedProbes({ events, reasoningRows });
+  if (!plans.length) return [];
+  const lines = plans.map((l) => `- PENDING PLAN: ${l.topic.label} — skill "${l.skill}" pulled ${l.when}, no probe sent yet. Send its first probe now, or close it with record_coverage as not_applicable and the reason.`);
   return ['=== PENDING PLANS — SKILL CARDS PULLED, NO PROBE SENT ===', ...lines.slice(0, 3)];
 }
 
@@ -1502,6 +1539,7 @@ function detailForAction(kind, action) {
     case 'load_skill': return String(action.skill || '').slice(0, 120);
     case 'save_credential': return String(action.site || '').slice(0, 120);
     case 'use_saved_credential': return String(action.handle || '').slice(0, 120);
+    case 'desktop_click_control': return String(action.control || '').slice(0, 120);
     case 'fetch_verification_code': return String(action.handle || '').slice(0, 120);
     case 'proxy_start': return '';
     case 'intercept_list': return '';
@@ -1539,6 +1577,49 @@ async function defaultRecallMemory(huntId, query) {
   } catch { /* ledger recall is best-effort — searchRecall stands alone */ }
   const merged = ledgerText ? `${ledgerText}\n${rec.text}` : rec.text;
   return String(merged).slice(0, 1500);
+}
+
+/**
+ * Default CHAT-ANSWER delivery (REAL-HUMAN, 26 Oct 2026): the
+ * three legs of the promise the queue makes when a question is
+ * asked. (1) A chat_answer event in the hunt's permanent record —
+ * countable, and it flows through the WS stream to the open hunt
+ * view, whose live log shows the answer. (2) The answer appended
+ * to the asking chat's message file, so it is in the thread the
+ * owner asked in (the client's pull merges it by id; the fresh
+ * updatedAt keeps a later client push from wiping it). (3) The
+ * question marked answered in the queue, so it leaves the next
+ * screen. Every leg is best-effort and independent — a failed
+ * append never blocks the event, and the queue mark is what
+ * stops the re-ask. Returns true when the event was recorded.
+ */
+export async function defaultDeliverChatAnswer(huntId, { q, answer, question = {} } = {}) {
+  let recorded = false;
+  try {
+    appendHuntEvent(huntId, {
+      type: 'chat_answer',
+      questionId: q,
+      chatId: question.chatId || '',
+      question: String(question.text || '').slice(0, 500),
+      answer: String(answer || '').slice(0, 2000),
+      via: 'human-mode',
+    });
+    recorded = true;
+  } catch { /* the record is best-effort */ }
+  try {
+    if (question.chatId && question.userId) {
+      appendChatMessage(question.userId, question.chatId, {
+        id: `a_${String(q || 'q').replace(/[^a-zA-Z0-9_-]/g, '')}_${Date.now().toString(36)}`,
+        role: 'assistant',
+        text: String(answer || ''),
+        createdAt: new Date().toISOString(),
+      });
+    }
+  } catch { /* the thread append is best-effort */ }
+  try {
+    markChatAnswered(huntId, q, { answer });
+  } catch { /* the queue mark is best-effort */ }
+  return recorded;
 }
 
 /**
@@ -1617,7 +1698,7 @@ export function repetitionLines(events) {
 // browser_snapshot.
 // ---------------------------------------------------------------------------
 
-const GATED_TOOLS = new Set(['shell', 'search', 'browser_open', 'browser_click', 'browser_type', 'intercept_replay', 'desktop_click', 'desktop_key']);
+const GATED_TOOLS = new Set(['shell', 'search', 'browser_open', 'browser_click', 'browser_type', 'intercept_replay', 'desktop_click', 'desktop_key', 'desktop_click_control']);
 const DEDUP_THRESHOLD = 2; // an action already run this many times is not run again
 
 // Lane AF (24 Oct 2026): DEGRADED executions — a browser action
@@ -1796,6 +1877,7 @@ function gatedCandidate(kind, action) {
     case 'browser_type': return { tool: 'browser_type', detail: String(action.text || '').slice(0, 80) };
     case 'desktop_click': return { tool: 'desktop_click', detail: String(action.window || '') };
     case 'desktop_key': return { tool: 'desktop_key', detail: String(action.keys || action.text || '').slice(0, 80) };
+    case 'desktop_click_control': return { tool: 'desktop_click_control', detail: String(action.control || '').slice(0, 120) };
     case 'intercept_replay': return { tool: 'intercept_replay', detail: replaySignature(action) };
     default: return null;
   }
@@ -1831,6 +1913,10 @@ export const GUI_CONTROL_KINDS = new Set([
   'desktop_click',
   'desktop_key',
   'desktop_screenshot',
+  // REAL-HUMAN (26 Oct 2026): clicking a named control inside a
+  // GUI app drives the same X server — it pauses under Take
+  // Control exactly like the other desktop actions.
+  'desktop_click_control',
 ]);
 
 export function dedupeGateHit(kind, action, history) {
@@ -1842,6 +1928,114 @@ export function dedupeGateHit(kind, action, history) {
   const degradedStreak = entry.degradedStreak || 0;
   if (fullCount < DEDUP_THRESHOLD && degradedStreak < DEGRADED_THRESHOLD) return null;
   return { tool: cand.tool, detail: entry.detail, count: entry.count, fullCount, degradedStreak, lastResult: entry.lastResult || '' };
+}
+
+// ---------------------------------------------------------------------------
+// NEAR-DUPLICATE SEARCH GATE (REAL-HUMAN, 26 Oct 2026 — owner
+// clarification 14:18 IST: the repeated-search loop is the same
+// disease as the repeated skill-load loop).
+//
+// The exact-repeat dedupe gate (Lane F) stops a search only when
+// the query string is identical. The 8B brain re-asks the same
+// question in slightly different words — "sql injection login
+// bypass" then "SQL injection login bypass techniques" — and each
+// rewording sails past the exact gate, burns a turn, and returns
+// the same results it already has. This gate compares TOKEN SETS:
+// a search whose words are (nearly) all words of an already-run
+// search is the same question, whatever the word order or the
+// filler words. The block is the same dedup_block shape (countable
+// event + BLOCKED observation naming the earlier search and its
+// outcome), so monitors read it exactly like an exact repeat.
+//
+// Thresholds, chosen to never block a genuinely new question:
+// Jaccard >= 0.75, or the smaller token set fully inside the
+// larger one (a subset — "xss payload" after "xss payload list").
+// Both need >= 2 tokens on the smaller side, so a one-word query
+// can never be "similar" to everything. Stopwords and case /
+// punctuation / word order carry no meaning here. And the block
+// fires only when the question's FAMILY has already run
+// DEDUP_THRESHOLD times in any wording — a question asked once
+// may be re-asked once, exactly like Lane F's exact-repeat
+// tolerance; the third asking is blocked. (A single-run family
+// must never block: the coverage-ledger and working-memory suites
+// legitimately re-run a search once across sessions.)
+// ---------------------------------------------------------------------------
+
+const SEARCH_STOPWORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'of', 'on', 'in', 'to', 'for', 'how',
+  'what', 'is', 'are', 'was', 'were', 'with', 'by', 'from', 'at', 'vs',
+  'about', 'into', 'using', 'use', 'used', 'via', 'per', 'please',
+  'me', 'my', 'this', 'that', 'these', 'those', 'it', 'its', 'be',
+]);
+
+/** The meaning-bearing tokens of a search query. Pure. */
+export function searchQueryTokens(query) {
+  const tokens = String(query || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(' ')
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2 && !SEARCH_STOPWORDS.has(t));
+  return new Set(tokens);
+}
+
+/** Jaccard similarity of two token sets (0 when either is empty). Pure. */
+export function searchTokenSimilarity(a, b) {
+  const setA = a instanceof Set ? a : new Set(a || []);
+  const setB = b instanceof Set ? b : new Set(b || []);
+  if (!setA.size || !setB.size) return 0;
+  let inter = 0;
+  for (const t of setA) if (setB.has(t)) inter++;
+  return inter / (setA.size + setB.size - inter);
+}
+
+export const SEARCH_REPEAT_JACCARD = 0.75;
+
+/**
+ * The near-duplicate verdict for one search against the hunt's
+ * action history: { tool: 'search', detail, earlier, similarity,
+ * lastResult, familyCount } when the same question has already
+ * been asked DEDUP_THRESHOLD times (in any wording), else null.
+ *
+ * The count is a FAMILY count: every earlier search whose words
+ * cover the new query adds its fullCount. A question asked once
+ * may be re-asked once (the same tolerance Lane F gives an exact
+ * repeat); the third asking — exact or reworded — is blocked.
+ * Only EXECUTED searches count — a search that was itself blocked
+ * never "answered" the question. The most similar earlier search
+ * wins as the named `earlier`. Pure.
+ */
+export function searchRepeatHit(query, history) {
+  const tokens = searchQueryTokens(query);
+  if (tokens.size < 2) return null;
+  let best = null;
+  let familyCount = 0;
+  for (const entry of (history || new Map()).values()) {
+    if (!entry || String(entry.tool || '').toLowerCase() !== 'search') continue;
+    const fullCount = entry.fullCount != null ? entry.fullCount : entry.count;
+    if (!fullCount || fullCount < 1) continue;
+    const earlierTokens = searchQueryTokens(entry.detail || '');
+    if (earlierTokens.size < 2) continue;
+    const sim = searchTokenSimilarity(tokens, earlierTokens);
+    const smaller = Math.min(tokens.size, earlierTokens.size);
+    let inter = 0;
+    for (const t of tokens) if (earlierTokens.has(t)) inter++;
+    const subset = inter >= smaller;
+    if (sim >= SEARCH_REPEAT_JACCARD || subset) {
+      familyCount += fullCount;
+      if (!best || sim > best.similarity) {
+        best = {
+          tool: 'search',
+          detail: String(query || '').slice(0, 200),
+          earlier: String(entry.detail || '').slice(0, 200),
+          similarity: sim,
+          lastResult: entry.lastResult || '',
+        };
+      }
+    }
+  }
+  if (!best || familyCount < DEDUP_THRESHOLD) return null;
+  return { ...best, familyCount };
 }
 
 // ---------------------------------------------------------------------------
@@ -2506,7 +2700,7 @@ export function skillCardLines() {
   }
 }
 
-function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [], stateOfMind = [], followThrough = [], settled = [], pageState = [], exhausted = [], desktopState = [] }) {
+function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [], stateOfMind = [], followThrough = [], settled = [], pageState = [], exhausted = [], desktopState = [], chatQuestions = [] }) {
   const confirmed = (findings || []).filter((f) => f.verified);
   const unconfirmed = (findings || []).filter((f) => !f.verified);
   const findLines = [
@@ -2538,6 +2732,13 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     // Lane I: where the hunter left off last session sits beside the
     // explored digest — continuity first, before the long briefing.
     ...(leftOff && leftOff.length ? ['', ...leftOff] : []),
+    // REAL-HUMAN (26 Oct 2026): the owner's queued questions sit in
+    // the same never-trimmed continuity region, directly under
+    // left-off — the owner's voice is not briefing content a cap
+    // can eat. A question stays here until the brain answers it in
+    // a chat_answers field; the loop delivers the answer and the
+    // question leaves the screen.
+    ...(chatQuestions && chatQuestions.length ? ['', ...chatQuestions] : []),
     // Lane T: the failed-action follow-through thread sits in the
     // same never-trimmed continuity region as the left-off block —
     // an unaddressed failure from the hunt's own record, carried on
@@ -2662,6 +2863,13 @@ export async function humanIteration(huntId, target, opts = {}) {
     // WHOLE-OS CONTROL: the desktop screenshot (lazy: the owner's
     // scrot poller route + artifact save). Tests inject a stub here.
     desktopScreenshot: d.desktopScreenshot || null,
+    // REAL-HUMAN (26 Oct 2026): delivering the brain's answer to a
+    // queued owner question. The default records a chat_answer
+    // event (which flows through the WS stream to the open hunt
+    // view), appends the answer to the asking chat's message file,
+    // and marks the question answered in the queue — the three
+    // legs of the promise the queue makes. Tests inject a stub.
+    deliverChatAnswer: d.deliverChatAnswer || defaultDeliverChatAnswer,
     sleep: d.sleep || ((ms) => new Promise((r) => setTimeout(r, ms))),
     now: d.now || (() => Date.now()),
     buildBriefing: d.buildBriefing || buildMemoryBriefing,
@@ -3090,6 +3298,8 @@ export async function humanIteration(huntId, target, opts = {}) {
     let exhaustedLines = [];
     let pageStateLinesOut = [];
     let desktopStateLinesOut = [];
+    let chatQuestionLinesOut = [];
+    let pendingChat = [];
     let credentialState = { saved: false };
     try {
       let turnRows = [];
@@ -3101,7 +3311,26 @@ export async function humanIteration(huntId, target, opts = {}) {
       pageStateLinesOut = [...pageStateLines(sessionPageState, { target }), ...loopCounterLines(counters)];
       // WHOLE-OS CONTROL: the desktop state rides the same
       // per-turn refresh as the page state.
-      desktopStateLinesOut = desktopStateLines(sessionDesktopState, { target });
+      // REAL-HUMAN: the desktop nudge — when a browser surface is
+      // exhausted AND the desktop has never been used in this hunt,
+      // the screen names the desktop route explicitly. It is a
+      // gate/observation naming an untried surface (the exhausted
+      // pattern), never a chosen action: the brain still decides
+      // what to do, but it can no longer claim it did not see the
+      // desktop. Once any desktop action lands, the nudge leaves
+      // the screen on its own.
+      const desktopUsed = (counters.desktopClicks || 0) + (counters.desktopKeys || 0) + (counters.desktopClickControls || 0) > 0;
+      const desktopNudge = (exhaustedLines.length > 0 && !desktopUsed)
+        ? 'DESKTOP ROUTE OPEN — your browser route on an exhausted surface is closed, and the desktop is still untried in this hunt: take desktop_snapshot, launch Burp or ZAP from the shell, and work the login flow there (proxy_start intercepts it; desktop_click_control presses a named button inside the app). A GUI tool sees what the browser loop cannot.'
+        : '';
+      desktopStateLinesOut = desktopStateLines(sessionDesktopState, { target, nudge: desktopNudge });
+      // REAL-HUMAN: the owner's queued questions, refreshed every
+      // turn from the queue file (same discipline as the leads) —
+      // a question asked mid-turn is on the very next screen.
+      try {
+        pendingChat = pendingChatQuestions(huntId) || [];
+        chatQuestionLinesOut = chatQuestionScreenLines(pendingChat, { nowMs: deps.now() });
+      } catch { /* a broken queue file never breaks the turn */ }
     } catch { /* exhausted/page-state/counters are best-effort perception */ }
     const screen = buildScreen({
       target,
@@ -3128,6 +3357,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       pageState: pageStateLinesOut,
       exhausted: exhaustedLines,
       desktopState: desktopStateLinesOut,
+      chatQuestions: chatQuestionLinesOut,
     });
 
     // THINK: one brain call. Full reply is recorded verbatim (total
@@ -3175,6 +3405,27 @@ export async function humanIteration(huntId, target, opts = {}) {
     const kind = String(action.action).toLowerCase();
     let observation = '';
 
+    // REAL-HUMAN: the brain's answers to the owner's queued
+    // questions ride in the SAME reply as its action (the
+    // chat_answers array on the action JSON). They are delivered
+    // FIRST, before the action is gated or executed — the answer
+    // is independent of what the action does, and a gate-blocked
+    // action must never swallow the owner's answer with it.
+    // Delivery is the dep (tests inject a stub); the pending list
+    // is the turn's own snapshot, so an answer to a question asked
+    // after this screen was built is ignored, never invented.
+    try {
+      const answers = extractChatAnswers(action, pendingChat);
+      for (const a of answers) {
+        try {
+          await deps.deliverChatAnswer(huntId, a);
+        } catch { /* one failed delivery never blocks the rest */ }
+        try {
+          note({ action: `chat_answer: ${a.q}`, why: thinkingText, result: String(a.answer || '').slice(0, 300), learned: '' });
+        } catch { /* the reasoning note is best-effort */ }
+      }
+    } catch { /* chat answers are best-effort — the action still runs */ }
+
     // ACT
     // ALREADY-DONE GATE (Lane F): the identical action has already
     // been executed >= 2 times in this hunt — do not execute it
@@ -3192,6 +3443,10 @@ export async function humanIteration(huntId, target, opts = {}) {
     // target are still deduped as before.
     const returnExempt = isReturnToTarget(kind, action, currentPageUrl, target, parsedScope);
     const gateHit = returnExempt ? null : dedupeGateHit(kind, action, actionHistory);
+    // REAL-HUMAN: the near-duplicate search gate — same question in
+    // different words. Judged only when the exact gate did not
+    // already fire (an exact repeat is the stronger statement).
+    const searchHit = !gateHit && kind === 'search' ? searchRepeatHit(action.query, actionHistory) : null;
     const authHit = authGateHit(kind, action, actionHistory, lastObservation);
     // INFINITY LEVEL: the exhausted-surface gate — the (page,
     // payload class) combination has already been blocked >=
@@ -3267,6 +3522,19 @@ export async function humanIteration(huntId, target, opts = {}) {
         observation += settledBlockEvidence({ events: turnEvents, history: actionHistory, tool: gateHit.tool, detail: gateHit.detail, extraBlocks: 1 });
       } catch { /* settled evidence is best-effort */ }
       note({ action: `dedup_block: ${gateHit.tool} ${gateHit.detail.slice(0, 120)}`, why: thinkingText, result: `repeat blocked — already run ×${gateHit.count}`, learned: 'Exact repeats are stopped by the record; vary the action.' });
+    } else if (searchHit) {
+      // NEAR-DUPLICATE SEARCH GATE (REAL-HUMAN) — same dedup_block
+      // shape as the exact gate, so monitors count it identically.
+      // The observation names the earlier search and what it
+      // returned, so the brain can act on results it already has
+      // instead of re-asking the web the same question.
+      try { deps.record(huntId, { type: 'dedup_block', tool: 'search', detail: scrub(searchHit.detail), similarTo: searchHit.earlier, via: 'human-mode' }); } catch { /* best-effort */ }
+      say(`Already-searched gate stopped a reworded repeat: "${searchHit.detail.slice(0, 120)}" — same question as "${searchHit.earlier.slice(0, 120)}".`);
+      observation =
+        `BLOCKED — ALREADY SEARCHED: "${searchHit.detail}" asks the same question as your earlier search "${searchHit.earlier}" (same words, different order/filler) — you have already asked this question ${searchHit.familyCount} times in this hunt.` +
+        (searchHit.lastResult ? ` That search already returned: ${searchHit.lastResult.slice(0, 200)}` : '') +
+        ' It was NOT run again — a reworded repeat returns the same results and only burns a turn. Act on what you already learned, or search for something genuinely new: a different technique, a different surface, a different question.';
+      note({ action: `dedup_block: search ${searchHit.detail.slice(0, 120)}`, why: thinkingText, result: `reworded repeat blocked — same question as "${searchHit.earlier.slice(0, 120)}"`, learned: 'A question already searched is answered from the record; rewording it does not make it new.' });
     } else if (kind === 'shell') {
       const command = String(action.command || '').slice(0, COMMAND_CAP);
       if (!command) {
@@ -3410,6 +3678,28 @@ export async function humanIteration(huntId, target, opts = {}) {
       const name = String(action.skill || '').slice(0, 80);
       const skillKey = skillNameKey(name);
       const priorFail = skillKey ? failedSkills.get(skillKey) : null;
+      // REAL-HUMAN: the pending-plan gate — a re-pull of a skill
+      // whose plan is already OPEN (card pulled, no probe sent
+      // after it) is answered from the record instead of re-running
+      // the lookup. Live the hunter pulled the SQLi card twice with
+      // zero probes sent; the card body is already in the record,
+      // and re-reading it cannot change anything — the plan must be
+      // closed by sending its first probe or by record_coverage as
+      // not_applicable with the reason. Same turn-shape as the
+      // Lane AD failed-skill gate (a countable plan_block event, a
+      // reasoning note, a BLOCKED observation naming the closures).
+      // A first pull of a topic, and every pull whose plan was
+      // already closed by a probe, executes exactly as before.
+      let pendingPlan = null;
+      try {
+        const planRows = getAllReasoning(huntId) || [];
+        const planEvents = deps.readEvents(huntId) || turnEvents;
+        const topic = topicForSkillName(name);
+        if (topic) {
+          const plans = pendingPlannedProbes({ events: planEvents, reasoningRows: planRows });
+          pendingPlan = plans.find((p) => p.topic && p.topic.id === topic.id) || null;
+        }
+      } catch { /* the gate is best-effort — a failed read never blocks the pull */ }
       if (priorFail) {
         priorFail.asks++;
         try { deps.record(huntId, { type: 'dedup_block', tool: 'load_skill', detail: priorFail.name, count: priorFail.asks, via: 'human-mode' }); } catch { /* best-effort */ }
@@ -3424,6 +3714,12 @@ export async function humanIteration(huntId, target, opts = {}) {
             ? ` The cards that exist: ${cardNames}. Pull one of those, or work from your briefing and leads.`
             : ' Work from your briefing and leads.');
         note({ action: `dedup_block: load_skill ${priorFail.name}`, why: thinkingText, result: `repeat blocked — no skill card named "${priorFail.name}" (asked ×${priorFail.asks})`, learned: 'A skill card that does not exist cannot be pulled into existence; pick a real card from the index.' });
+      } else if (pendingPlan) {
+        try { deps.record(huntId, { type: 'plan_block', tool: 'load_skill', detail: pendingPlan.skill, turnsSince: pendingPlan.turnsSince, via: 'human-mode' }); } catch { /* best-effort */ }
+        say(`Pending-plan gate stopped a re-pull of "${pendingPlan.skill}" — its plan is still open (${pendingPlan.when}).`);
+        observation =
+          `BLOCKED — PLAN ALREADY OPEN: you pulled the "${pendingPlan.skill}" card ${pendingPlan.when} and have sent no ${pendingPlan.topic.label} probe since. The card is already in your record — pulling it again changes nothing. Close the plan one of two ways: send its first probe now (the card's steps end in a probe), or close it with record_coverage as not_applicable and the reason it does not apply here.`;
+        note({ action: `plan_block: load_skill ${pendingPlan.skill}`, why: thinkingText, result: `re-pull blocked — ${pendingPlan.topic.label} plan open since ${pendingPlan.when}, no probe sent`, learned: 'A pulled card is a plan, not a probe — send the probe or close the plan.' });
       } else {
         toolCall('load_skill', name);
         try {
@@ -3787,6 +4083,42 @@ export async function humanIteration(huntId, target, opts = {}) {
         observation = `Desktop screenshot failed: ${err.message || err}.`;
       }
       note({ action: 'desktop_screenshot', why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'desktop_click_control') {
+      // REAL-HUMAN: click a NAMED CONTROL inside a GUI app via its
+      // accessibility tree (AT-SPI). The brain names the control's
+      // visible text ("Repeater", "Send") and optionally the window;
+      // the helper resolves the name in the tree and performs the
+      // click there — pixel coordinates are never in the choice set.
+      // When the app exposes no tree (Java apps without the Access
+      // Bridge, or AT-SPI missing from this image) the helper says
+      // so, and the observation names the keyboard fallback instead
+      // of pretending the click happened. The window-focus rule
+      // still applies: desktop_click focuses a window, this presses
+      // a button inside it.
+      const controlName = String(action.control || '').trim().slice(0, 120);
+      const windowSub = String(action.window || '').trim().slice(0, 120);
+      if (!controlName) {
+        observation = 'Nothing clicked — give the control\'s visible name, e.g. {"action":"desktop_click_control","control":"Repeater","window":"Burp Suite"}. Take desktop_snapshot first if you do not know the window titles, or list a window\'s controls by naming it.';
+      } else {
+        toolCall('desktop_click_control', controlName);
+        try {
+          const res = await deps.execRaw(huntId, clickControlCommand(controlName, windowSub), 20000, { bypassTmux: true });
+          const parsed = parseAtspiOutput((res && res.stdout) || '');
+          if (parsed.ok) {
+            if (parsed.clicked && parsed.clicked.window) {
+              sessionDesktopState = markWindowInteracted(sessionDesktopState, parsed.clicked.window);
+            } else if (windowSub) {
+              sessionDesktopState = markWindowInteracted(sessionDesktopState, windowSub);
+            }
+            observation = atspiSuccessObservation(parsed.clicked);
+          } else {
+            observation = atspiFailureObservation(parsed.error);
+          }
+        } catch (err) {
+          observation = atspiFailureObservation(`the click command failed: ${err.message || err}`);
+        }
+      }
+      note({ action: `desktop_click_control: ${controlName.slice(0, 80)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'claim_finding') {
       const rawTitle = String(action.title || '');
       const title = String(rawTitle.trim() ? rawTitle : 'Untitled claim').slice(0, 200);

@@ -19,6 +19,7 @@ import {
   huntContextLine,
   busyLine,
   fallbackLine,
+  ackTextForHunt,
 } from './chat.js';
 
 test('hinglish status questions route to summary', () => {
@@ -30,23 +31,48 @@ test('hinglish status questions route to summary', () => {
     'kuch mila?',
     'ab tak kya mila',
     'kahan tak pahunche',
-    'kya chal raha hai',
-    'kya ho raha hai',
-    'kya try kiya ab tak',
   ]) {
     assert.equal(detectSteering(q), 'summary', q);
   }
 });
 
-test("owner's own phrasings route to summary", () => {
+// REAL-HUMAN (26 Oct 2026): thinking/doing questions are NOT
+// status — they used to route to the summary and got the canned
+// shape the owner complained about. They now fall through to the
+// open-question path, where a running hunt queues them for the
+// brain's next turn.
+test('thinking/doing questions fall through to the brain (not summary)', () => {
   for (const q of [
+    // The owner's exact live questions (03:24–03:26Z, 08:21Z 26 Oct).
+    'Abhi kya progress h.', // has "progress" — still status
+    'To fir aage ka kya kaam h',
+    'Now what are you thinking',
+    'What are you doing now',
     'so what is now doing by you and what you thinking now?',
-    'bata',
-    'batao',
     "what's going on",
     'what is happening',
     'what are you thinking now',
+    'what are you doing right now?',
+    'kya chal raha hai',
+    'kya ho raha hai',
+    'kya kar raha hai',
+    'kya try kiya ab tak',
+    'क्या चल रहा है',
+    'क्या हो रहा है',
+    'क्या कर रहे हो',
+    'अभी क्या कर रहे हो',
+    'तुम क्या कर रहे हो',
   ]) {
+    if (q === 'Abhi kya progress h.') {
+      assert.equal(detectSteering(q), 'summary', q);
+    } else {
+      assert.equal(detectSteering(q), null, q);
+    }
+  }
+});
+
+test("owner's bare-tell phrasings still route to summary", () => {
+  for (const q of ['bata', 'batao']) {
     assert.equal(detectSteering(q), 'summary', q);
   }
 });
@@ -82,11 +108,6 @@ test('devanagari status questions route to summary', () => {
     'कुछ मिला?',
     'अब तक क्या मिला',
     'कहाँ तक पहुँचे',
-    'क्या चल रहा है',
-    'क्या हो रहा है',
-    'क्या कर रहे हो',
-    'अभी क्या कर रहे हो',
-    'तुम क्या कर रहे हो',
     'बता',
     'बताओ',
   ]) {
@@ -108,6 +129,28 @@ test('bare tell routes to summary; a real question containing bata does not', ()
     assert.equal(detectSteering(q), null, q);
     assert.equal(isBareTell(q), false, q);
   }
+});
+
+// REAL-HUMAN (26 Oct 2026): the queued-question ack is built
+// from the last reasoning row — the brain's actual last action,
+// where it ran, how long ago — and must never be the summary
+// shape (no status line, no counts, no "early recon", no round).
+test('ackTextForHunt: honest ack from the last reasoning row, never the summary shape', () => {
+  const rows = [
+    { action: 'browser_open: https://ksuite.infomaniak.com/login', result: 'opened the login page', at: new Date(Date.now() - 4 * 60000).toISOString() },
+    { action: 'browser_type: <script>alert(1)</script>', result: 'typed into the login form on https://ksuite.infomaniak.com/login — the form rejected the probe', at: new Date(Date.now() - 60000).toISOString() },
+  ];
+  const ack = ackTextForHunt({ reasoningRows: rows, lang: 'hinglish', pendingCount: 1 });
+  assert.match(ack, /browser_type/);
+  assert.match(ack, /ksuite\.infomaniak\.com\/login/);
+  assert.match(ack, /agle turn/);
+  for (const re of [/lead\(s\)/, /confirmed/, /early recon/i, /round \d+/, /actively hunting/, /Abhi tak kya try kiya/]) {
+    assert.doesNotMatch(ack, re, `ack must never carry the summary shape (${re})`);
+  }
+  // No rows at all: still an honest ack, never a crash, never invented facts.
+  const empty = ackTextForHunt({ reasoningRows: [], lang: 'english' });
+  assert.match(empty, /middle of a turn/);
+  assert.doesNotMatch(empty, /undefined|NaN/);
 });
 
 test('detectChatLanguage matches script and register', () => {
