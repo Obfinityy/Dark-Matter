@@ -135,11 +135,11 @@ function formatMsgTime(ts) {
   try {
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return '';
-    let h = d.getHours();
-    const m = String(d.getMinutes()).padStart(2, '0');
-    const ap = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    return `${h}:${m} ${ap}`;
+    // HUNTER-MIND timing fix (26 Oct 2026): chat times render in the
+    // owner's timezone (IST), not the viewer's browser timezone — the
+    // hunt's clocks are UTC internally, the owner reads IST. Same
+    // "2:30 PM" shape as before.
+    return d.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true });
   } catch {
     return '';
   }

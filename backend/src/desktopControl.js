@@ -243,6 +243,64 @@ export function desktopTypeCommand(text) {
   return `DISPLAY=${DESKTOP_DISPLAY} xdotool type --clearmodifiers -- ${shellQuote(t)} 2>/dev/null && echo typed || echo type_failed`;
 }
 
+// ---------------------------------------------------------------------------
+// GUI-visible terminal (HUMAN-BRAIN, 26 Oct 2026 — owner order: terminal
+// work happens in a terminal window ON the GUI desktop, so the owner
+// watches it live in the frontend Live Machine view, not only as a
+// headless shell exec).
+//
+// The composed action: open xfce4-terminal if none is visible, focus
+// it, type the command visibly, press Return, and bring the output
+// back. The output comes back WITHOUT re-running the command: the
+// typed line pipes the command's output through `tee` into a
+// per-hunt log file inside the container, and the loop reads that
+// file back. The owner sees the typing live; the brain gets the
+// output in its observation; the ledger records the run under the
+// shell signature, so a later headless repeat recalls it.
+// ---------------------------------------------------------------------------
+
+/** Launch a detached xfce4-terminal on the desktop display. */
+export const DESKTOP_TERMINAL_LAUNCH_CMD =
+  `DISPLAY=${DESKTOP_DISPLAY} nohup xfce4-terminal --disable-server >/dev/null 2>&1 & echo launched`;
+
+/** List visible xfce4-terminal windows (ids, then titles) — same shape parseDesktopWindows reads. */
+export const DESKTOP_TERMINAL_WINDOWS_CMD = [
+  `DISPLAY=${DESKTOP_DISPLAY} xdotool search --onlyvisible --class xfce4-terminal`,
+  `echo ---TITLES---`,
+  `DISPLAY=${DESKTOP_DISPLAY} xdotool search --onlyvisible --class xfce4-terminal getwindowname %@`,
+].join('\n');
+
+/** Max chars of the brain's command that fit the typed line (desktopTypeCommand caps at 500; the wrap takes ~110). */
+export const DESKTOP_TERMINAL_COMMAND_CAP = 380;
+
+/** Per-hunt log file inside the container (overwritten per run; the loop reads it back right after typing). */
+export function desktopTerminalLogFile(huntId) {
+  const safe = String(huntId || 'hunt').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32) || 'hunt';
+  return `/tmp/dt-${safe}.log`;
+}
+
+/**
+ * Wrap a command for visible typing: run it in a subshell (so
+ * pipelines/redirects inside survive), tee its output to the log
+ * file, and append the exit marker to the same file. Newlines are
+ * stripped first — a newline inside typed text would act as Return
+ * mid-command. Pure.
+ */
+export function desktopTerminalWrapCommand(command, logFile) {
+  const cmd = String(command || '').replace(/[\r\n]+/g, ' ').trim().slice(0, DESKTOP_TERMINAL_COMMAND_CAP);
+  const log = shellQuote(logFile);
+  return `( ${cmd} ) 2>&1 | tee ${log}; echo __DT_EXIT__:\${PIPESTATUS[0]} >> ${log}`;
+}
+
+/**
+ * The exit marker the wrapped line appends to the log, or null when
+ * the command is still running / the log is not there yet. Pure.
+ */
+export function parseTerminalExit(logText) {
+  const m = /__DT_EXIT__:(\d+)\s*$/.exec(String(logText || '').trim());
+  return m ? Number(m[1]) : null;
+}
+
 /**
  * Capture the WHOLE desktop (scrot on :99) and save the frame as a
  * hunt artifact, reusing huntRunner.huntDesktopScreenshot — the

@@ -232,13 +232,24 @@ const TARGET = 'https://open.ys7.com';
       'A page I have not visited.\n{"action":"browser_open","url":"https://open.ys7.com/api/docs"}',
       'A fresh search.\n{"action":"search","query":"ezviz open platform api authentication"}',
       'A fresh probe.\n{"action":"shell","command":"curl -s https://open.ys7.com/robots.txt"}',
-      'Second run of the fresh probe still passes (gate is at 2 prior runs).\n{"action":"shell","command":"curl -s https://open.ys7.com/robots.txt"}',
+      // HUNTER-MIND (26 Oct 2026): the 2nd-ever run of a shell/search
+      // is NO LONGER a re-execution — the output ledger answers it
+      // from the saved output ("iska output hi aaya tha"). The dedupe
+      // gate itself still passes the 2nd run (it blocks at 2 prior
+      // runs); the ledger answers first, so the work is never redone.
+      // A redo needs a stated reason ("force" + "why") — turn 5.
+      'Second run of the fresh probe — answered from the saved output, not re-run.\n{"action":"shell","command":"curl -s https://open.ys7.com/robots.txt"}',
+      'The target changed its robots file — re-running with a reason.\n{"action":"shell","command":"curl -s https://open.ys7.com/robots.txt","force":true,"why":"the target changed its robots file since the first run"}',
     ],
   });
-  await humanIteration('h_dedupe_test', TARGET, { turns: 4, deps: s.deps });
+  await humanIteration('h_dedupe_test', TARGET, { turns: 5, deps: s.deps });
   check('(c) new browser_open executes', s.guiOpens.length === 1 && s.guiOpens[0] === 'https://open.ys7.com/api/docs');
   check('(c) new search executes', s.searches.length === 1);
-  check('(c) new shell executes, and its 2nd-ever run also passes', s.shellRuns.length === 2);
+  check('(c) new shell executes once; its 2nd-ever run is a recall, not a re-run',
+    s.shellRuns.length >= 1 && s.events.some((e) => e.type === 'output_recall' && e.tool === 'shell'));
+  check('(c) recall observation carries the saved output on the next screen',
+    s.screens[4].includes('RECALL — you already ran this') && s.screens[4].includes('ran: curl -s https://open.ys7.com/robots.txt'));
+  check('(c) a forced re-run with a reason executes', s.shellRuns.length === 2);
   check('(c) nothing blocked in this session', !s.events.some((e) => e.type === 'dedup_block'));
 }
 

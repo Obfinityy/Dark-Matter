@@ -12,6 +12,7 @@
 import fs from 'fs';
 import path from 'path';
 import { dataDir } from './store.js';
+import { scopeGlobalMemoriesForTarget } from './globalMemory.js';
 
 function reasoningFile(huntId) {
   return path.join(dataDir(), 'hunts', huntId, 'reasoning.jsonl');
@@ -401,9 +402,15 @@ export function buildFullHistoryLedger({ reasoningRows = [], findings = [], chai
 /**
  * RECALL search: keyword/technique/endpoint match over the hunt's own
  * records and the global-memory store.
+ * HUMAN-BRAIN (26 Oct 2026, per-hunt isolation): `target` scopes the
+ * global-memory hits — entries from another target are reduced to
+ * their technique rate (no endpoint, payload, or target-specific
+ * note) before they are scored, so a recall on y.com can never
+ * surface x.com's detail. The hunt's own events/reasoning are
+ * untouched — they are this hunt's memory already.
  * @returns {{text: string, hits: number, shown: number}}
  */
-export function searchRecall({ events = [], reasoningRows = [], globalMemories = [], query = '', limit = 8 } = {}) {
+export function searchRecall({ events = [], reasoningRows = [], globalMemories = [], query = '', limit = 8, target = '' } = {}) {
   const terms = [...new Set(String(query || '').toLowerCase().split(/[^a-z0-9_./-]+/).filter((t) => t.length >= 3))];
   if (!terms.length) return { text: `No searchable terms in recall query "${clip(query, 80)}".`, hits: 0, shown: 0 };
   const score = (hay) => {
@@ -426,11 +433,11 @@ export function searchRecall({ events = [], reasoningRows = [], globalMemories =
     const s = score(hay);
     if (s > 0) hits.push({ s, line: `[reasoning] ${clip(r.action, 80)} — result: ${clip(r.result, 130)}${r.learned ? ` — learned: ${clip(r.learned, 90)}` : ''}` });
   }
-  for (const m of globalMemories || []) {
+  for (const m of scopeGlobalMemoriesForTarget(globalMemories, target)) {
     if (!m) continue;
     const hay = [m.type, m.technique, m.appType, m.context, m.note, m.payload].join(' ');
     const s = score(hay);
-    if (s > 0) hits.push({ s, line: `[global memory · ${m.type}/${m.technique}] ${clip(m.context || m.note, 150)} (${m.successes || 0}/${m.attempts || 0} succeeded)` });
+    if (s > 0) hits.push({ s, line: `[global memory · ${m.type}/${m.technique}] ${clip(m.context || m.note || `${m.technique} on ${m.appType} — technique rate only, from another target`, 150)} (${m.successes || 0}/${m.attempts || 0} succeeded)` });
   }
   hits.sort((a, b) => b.s - a.s);
   const top = hits.slice(0, limit);
