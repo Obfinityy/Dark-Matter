@@ -14,9 +14,12 @@
 // present, but at-spi2-registryd and pyatspi are NOT — the image
 // needs at-spi2-core + python3-pyatspi (+ libatk-wrapper-java for
 // Burp/ZAP, which are Java and need the Java Access Bridge to
-// expose any tree at all). Those packages are added to
-// docker/Dockerfile.hunt in this lane; until the image rebuilds,
-// every call degrades GRACEFULLY: the helper reports the missing
+// expose any tree at all). Those packages are NOT in the live
+// image yet — the Dockerfile plan was dropped per the owner's
+// 14:18 IST clarification (machine already given, no provisioning
+// in this lane); adding at-spi2-core + python3-pyatspi (+
+// libatk-wrapper-java) is a separate deploy-time decision. Until
+// the image rebuilds, every call degrades GRACEFULLY: the helper reports the missing
 // piece as its error, and the loop turns that into an observation
 // telling the brain to fall back to desktop_key — never a crash,
 // never a silent no-op.
