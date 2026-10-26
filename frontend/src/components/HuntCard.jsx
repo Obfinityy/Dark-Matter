@@ -2,7 +2,7 @@
 // Status line ("Hunting <target>…"), expandable event feed, findings stream,
 // and Pause/Resume/Stop pill buttons. All stream/control logic unchanged.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { pauseHunt, resumeHunt, stopHunt, getHuntCost, getHuntEvents, steerHunt, listHunts } from '../lib/api';
+import { pauseHunt, resumeHunt, stopHunt, getHuntCost, getHuntEvents, steerHunt, listHunts, getHuntBrain, setHuntBrain } from '../lib/api';
 import { HuntStreamClient, createSimulatedStream, isDemoMode } from '../lib/huntStream';
 import { toast } from '../lib/toast';
 
@@ -88,6 +88,29 @@ import LiveMachine from './LiveMachine';
 
 export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, onGetReport }) {
   const [status, setStatus] = useState(hunt.status || 'idle');
+  // MODEL-SWITCHER: model id -> display label. The loaded brain
+  // state carries the list; the static map covers the render
+  // before it arrives (and any id the list does not know).
+  const BRAIN_LABELS = {
+    'darkmatter-v1': 'Dark Matter V1',
+    'muse-spark-1.3': 'Muse Spark 1.3',
+    'muse-spark-1.2': 'Muse Spark 1.2',
+    'muse-spark-1.1': 'Muse Spark 1.1',
+    'muse-spark-1.3-contributor': 'Muse Spark 1.3 Contributor',
+    'muse-spark-1.2-contributor': 'Muse Spark 1.2 Contributor',
+    'muse-wonder-1.0': 'Muse Wonder 1.0',
+  };
+  const brainLabel = (id) => {
+    const fromList = (brain && Array.isArray(brain.models) && brain.models.find((m) => m.id === id)) || null;
+    return (fromList && fromList.label) || BRAIN_LABELS[id] || (id ? String(id) : '');
+  };
+  // MODEL-SWITCHER (26 Oct 2026): the hunt's brain — Dark Matter V1
+  // (local 8B, default) or a Meta text model, switched mid-hunt
+  // from this card. `brain` holds the backend's state: selected,
+  // active (V1 while the automatic fallback is covering for a
+  // silent Meta), fallback, and the model list with availability.
+  const [brain, setBrain] = useState(null);
+  const [brainBusy, setBrainBusy] = useState(false);
   // Button visibility rule (owner's spec): a live hunt shows Pause + Stop;
   // a paused hunt shows Resume + Stop. Terminal hunts show nothing clickable.
   const isPaused = status === 'paused' || status === 'out_of_credits';
@@ -129,12 +152,16 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
         const evts = r.data.events || r.data || [];
         if (!Array.isArray(evts) || evts.length === 0) return;
         const mapped = evts
-          .filter((e) => e.type === 'thinking' || e.type === 'tool_call' || e.type === 'dedup_block')
+          .filter((e) => e.type === 'thinking' || e.type === 'tool_call' || e.type === 'dedup_block' || e.type === 'model_switch')
           .map((e) => {
             const at = (e.at || e.cachedAt) ? new Date(e.at || e.cachedAt).getTime() : Date.now();
             if (e.type === 'tool_call') return { kind: 'tool', text: toolCallText(e), at };
             if (e.type === 'dedup_block') {
               return { kind: 'thinking', text: `dedup_block: ${e.tool || ''} ${e.detail || ''}`.trim(), at };
+            }
+            if (e.type === 'model_switch') {
+              const label = (id) => (brainLabel(id) || id);
+              return { kind: 'thinking', text: `Brain switched: ${label(e.from)} → ${label(e.to)} (${e.reason || 'switch'})`, at };
             }
             return { kind: 'thinking', text: e.text || e.message || e.detail || '', at };
           })
@@ -143,6 +170,19 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
       }).catch(() => { if (!cancelled) setHistoryLoaded(true); })
     );
     return () => { cancelled = true; };
+  }, [hunt.huntId]);
+
+  // MODEL-SWITCHER: load the hunt's brain state once (selected /
+  // active model, fallback, model list). Refreshed after a switch
+  // and whenever a model_switch event arrives on the stream.
+  const refreshBrain = () => {
+    getHuntBrain(hunt.huntId).then((r) => {
+      if (r && r.ok && r.data && r.data.brain) setBrain(r.data.brain);
+    }).catch(() => {});
+  };
+  useEffect(() => {
+    refreshBrain();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hunt.huntId]);
 
   // Lane V: keep the panel's findings on the reconciled snapshot
@@ -309,6 +349,15 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
           // card, not just in the chat thread.
           const line = (payload.answer || '').slice(0, 200);
           setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: `Answered your question: ${line}`, at: eventTimeMs(payload) }]);
+        } else if (type === 'model_switch') {
+          // MODEL-SWITCHER (26 Oct 2026): the brain changed — a
+          // manual switch, an automatic fallback to the 8B, or a
+          // switch back after Meta recovered. Surface it in the
+          // feed and refresh the control so it shows the model
+          // actually answering now.
+          const line = `Brain switched: ${brainLabel(payload.from)} → ${brainLabel(payload.to)} (${payload.reason || 'switch'})`;
+          setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: line, at: eventTimeMs(payload) }]);
+          refreshBrain();
         } else if (type === 'finding' || type === 'retraction') {
           // Lane V: never accumulate raw finding events in the panel.
           // The reconciled snapshot (loadHuntMemory -> panelFindings,
@@ -571,6 +620,41 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
             </svg>
             {showPiP ? 'Hide Terminal' : 'Live Terminal'}
           </button>
+        )}
+        {brain && (
+          <label className="hunt-model" title="The brain thinking for this hunt — switch mid-hunt; the new brain continues with the same state, history and memory">
+            <span className="hunt-model-label">Brain:</span>
+            <select
+              className="hunt-model-select"
+              value={brain.selected}
+              disabled={brainBusy || isTerminal}
+              onChange={async (e) => {
+                const model = e.target.value;
+                if (!model || model === brain.selected) return;
+                setBrainBusy(true);
+                const r = await setHuntBrain(hunt.huntId, model);
+                setBrainBusy(false);
+                if (r.ok && r.data && r.data.brain) {
+                  setBrain(r.data.brain);
+                  toast(`Brain switched to ${brainLabel(model)}.`, 'success');
+                } else {
+                  toast((r.data && (r.data.message || r.data.error)) || r.error || 'Could not switch brain.', 'error');
+                  refreshBrain();
+                }
+              }}
+            >
+              {(brain.models || []).map((m) => (
+                <option key={m.id} value={m.id} disabled={!m.available} title={m.available ? m.blurb : 'Not available — the Meta API key is not configured on the backend'}>
+                  {m.label}{m.available ? '' : ' (unavailable)'}
+                </option>
+              ))}
+            </select>
+            {brain.fallback && (
+              <span className="hunt-model-fallback" title={`Meta (${brainLabel(brain.selected)}) is not responding — the hunt is answering on Dark Matter V1 until Meta recovers`}>
+                fallback: answering on V1
+              </span>
+            )}
+          </label>
         )}
         <span className="hunt-id">ID: {hunt.huntId}</span>
       </div>

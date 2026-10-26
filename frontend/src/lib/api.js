@@ -239,6 +239,19 @@ export async function stopHunt(id) {
   return post(`/api/v1/hunts/${encodeURIComponent(id)}/stop`);
 }
 
+// MODEL-SWITCHER (26 Oct 2026): the hunt's brain — Dark Matter V1
+// (local 8B, default) or a Meta text model. Switching is seamless:
+// the loop rebuilds its prompt from live state + history + memory
+// every turn, so the new brain continues with everything the old
+// one knew. A switch to Meta is refused while no key is configured.
+export async function getHuntBrain(id) {
+  return get(`/api/v1/hunts/${encodeURIComponent(id)}/brain`);
+}
+
+export async function setHuntBrain(id, model) {
+  return post(`/api/v1/hunts/${encodeURIComponent(id)}/brain`, { model });
+}
+
 export function reportPdfUrl(id) {
   return apiUrl(`/api/v1/hunts/${encodeURIComponent(id)}/report?format=pdf`);
 }

@@ -926,6 +926,35 @@ button { font-family: inherit; }
 .hunt-pill-btn.talk:hover:not(:disabled) {
   background: var(--dm-brand-soft, #f5ead0);
 }
+/* MODEL-SWITCHER (26 Oct 2026): the "Change Model" brain control
+   in the hunt card's controls row — a label + select in the same
+   pill idiom as the Pause/Stop buttons. */
+.hunt-model {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dm-text);
+}
+.hunt-model-label { color: var(--dm-muted, #6e6e80); }
+.hunt-model-select {
+  background: #fff;
+  border: 1px solid var(--dm-border);
+  color: var(--dm-text);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 999px;
+  padding: 6px 10px;
+  cursor: pointer;
+  max-width: 220px;
+}
+.hunt-model-select:disabled { opacity: 0.35; cursor: default; }
+.hunt-model-fallback {
+  font-size: 12px;
+  color: var(--dm-red);
+  font-weight: 600;
+}
 .hunt-id {
   margin-left: auto;
   font-size: 11px;
