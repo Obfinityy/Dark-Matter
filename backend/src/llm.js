@@ -164,6 +164,84 @@ export function ollamaMessageCharCap() {
   return Math.max(8000, Math.floor(numCtx * 3.5));
 }
 
+// READINESS-AWARE RETRY (Infinity level, 26 Oct 2026) — the no-reply
+// root cause, live: the kernel OOM-kills llama-server (5 kills in
+// dmesg, ~7GB RSS on a 7,775MB box; the running server sits at 81.5%
+// MEM / 6.4GB RSS), and the model reload takes ~176s. The old code
+// retried IMMEDIATELY after a connection failure, hit ECONNREFUSED
+// (the server was still reloading), and returned null — "Brain gave
+// no reply" — ending the session. 57 no-reply turns of 182 (31%).
+// Now a connection failure (and a 5xx, which is the same reload
+// wearing an HTTP status) waits for the server to answer GET
+// /api/tags again before the single retry. The wait is bounded
+// (OLLAMA_READY_WAIT_MS, default 200s — the ~176s reload plus
+// margin) and polls every OLLAMA_READY_POLL_MS (default 5s), and it
+// runs INSIDE the heartbeat block, so the watchdog does not kill
+// the reloading server. The gate is deliberately /api/tags (the
+// server answers), NOT /api/ps (the model is loaded): the reload is
+// triggered by the retry's own /api/chat request, so requiring the
+// model to already be listed would wait forever. A deadline error
+// is NOT a connection error — the server was alive but slow — so
+// it keeps the old immediate retry. Do NOT raise the timeout
+// blindly: the timeout was never the failure; the reload was.
+export const OLLAMA_READY_WAIT_MS_DEFAULT = 200000;
+export const OLLAMA_READY_POLL_MS_DEFAULT = 5000;
+
+/** True when an Ollama failure means "the server is (re)starting", not "the model was slow". */
+export function isOllamaConnectionError(err) {
+  if (!err) return false;
+  const code = String(err.code || '');
+  if (code === 'ECONNREFUSED' || code === 'ECONNRESET' || code === 'ENOTFOUND' || code === 'EPIPE' || code === 'ETIMEDOUT') return true;
+  return /ECONNREFUSED|socket hang up|EPIPE/.test(String(err.message || ''));
+}
+
+/** One GET against the Ollama server; null on any transport failure. */
+function ollamaGet(path, baseUrl) {
+  return new Promise((resolve) => {
+    let u;
+    try {
+      u = new URL(`${String(baseUrl || OLLAMA_URL).replace(/\/+$/, '')}${path}`);
+    } catch {
+      resolve(null);
+      return;
+    }
+    const lib = u.protocol === 'https:' ? https : http;
+    const req = lib.request({
+      hostname: u.hostname,
+      port: u.port || (u.protocol === 'https:' ? 443 : 80),
+      path: u.pathname,
+      method: 'GET',
+      timeout: 5000,
+    }, (res) => {
+      let buf = '';
+      res.on('data', (c) => { buf += c; });
+      res.on('end', () => resolve({ status: res.statusCode, body: buf }));
+      res.on('error', () => resolve(null));
+    });
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.on('error', () => resolve(null));
+    req.end();
+  });
+}
+
+/**
+ * Wait for the Ollama server to answer GET /api/tags again.
+ * @returns {Promise<boolean>} true when the server answered 200
+ *   within the wait, false when it never came back (bounded).
+ */
+export async function waitForOllamaReady({ baseUrl, waitMs, pollMs, sleepFn } = {}) {
+  const wait = Math.max(0, Number(waitMs ?? process.env.OLLAMA_READY_WAIT_MS ?? OLLAMA_READY_WAIT_MS_DEFAULT) || 0);
+  const poll = Math.max(1, Number(pollMs ?? process.env.OLLAMA_READY_POLL_MS ?? OLLAMA_READY_POLL_MS_DEFAULT) || OLLAMA_READY_POLL_MS_DEFAULT);
+  const sleep = sleepFn || ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const deadline = Date.now() + wait;
+  for (;;) {
+    const res = await ollamaGet('/api/tags', baseUrl);
+    if (res && res.status === 200) return true;
+    if (Date.now() >= deadline) return false;
+    await sleep(Math.min(poll, Math.max(0, deadline - Date.now())));
+  }
+}
+
 async function chatWithOllama(messages, system, ctx) {
   // Privacy gateway: strip secrets/PII before the model — same as Bedrock.
   const clean = (t) => sanitizeForModel(String(t || ''));
@@ -283,7 +361,6 @@ async function chatWithOllama(messages, system, ctx) {
     } catch { /* heartbeat is best-effort */ }
   };
   const clearHeartbeat = () => { try { fs.unlinkSync(hbPath); } catch { /* ignore */ } };
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   writeHeartbeat();
   try {
     // Defensive: never hang forever if the model stalls — fail cleanly so
@@ -294,6 +371,19 @@ async function chatWithOllama(messages, system, ctx) {
       result = await ollamaChatOnce(hbTimeoutMs);
     } catch (err) {
       console.error(`[llm] Ollama attempt 1 failed at ${OLLAMA_URL}: ${err.message}`);
+      if (isOllamaConnectionError(err)) {
+        // The server is (re)starting — wait for it to answer again
+        // before the retry (readiness note above). An immediate
+        // retry here is the old bug: ECONNREFUSED while the model
+        // reloads, then null, then a no-reply turn.
+        console.error('[llm] Ollama connection failed — waiting for the server to come back before retrying');
+        const ready = await waitForOllamaReady();
+        if (!ready) {
+          console.error('[llm] Ollama never came back within the readiness wait');
+          return null;
+        }
+        writeHeartbeat(); // extend the deadline across the wait
+      }
       // One retry — transient stalls are common on 2vCPU.
       try {
         result = await ollamaChatOnce(hbTimeoutMs);
@@ -306,11 +396,18 @@ async function chatWithOllama(messages, system, ctx) {
       console.error(`[llm] Ollama HTTP ${result.status} for model ${OLLAMA_MODEL}: ${result.body || ''}`);
       // RETRY ON 5xx (19 Oct 2026): HTTP 500 "unexpected EOF" is transient —
       // it fires while the model is (re)loading after a watchdog kill or an
-      // OOM crash. model-watchdog reloads in ~15-30s; one delayed retry turns
-      // a burned iteration into a served one instead of "Model gave no reply".
+      // OOM crash. The old fixed 15s wait assumed the watchdog's ~15-30s
+      // reload; an OOM reload takes ~176s, so the wait is now the same
+      // readiness poll as the connection-failure path — it returns as
+      // soon as the server answers (fast for a quick reload) and waits
+      // out a slow one, bounded.
       if (result.status >= 500) {
-        console.error('[llm] Ollama 5xx — waiting 15s for model reload, then one retry');
-        await sleep(15000);
+        console.error('[llm] Ollama 5xx — waiting for the server to be ready again, then one retry');
+        const ready = await waitForOllamaReady();
+        if (!ready) {
+          console.error('[llm] Ollama never came back after 5xx');
+          return null;
+        }
         writeHeartbeat(); // extend the deadline across the wait
         try {
           result = await ollamaChatOnce(hbTimeoutMs);
