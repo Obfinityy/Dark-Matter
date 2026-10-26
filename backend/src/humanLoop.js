@@ -103,7 +103,15 @@ import {
   parseDesktopKeys,
   desktopKeyCommand,
   desktopTypeCommand,
+  shellQuote,
   captureDesktopScreenshot,
+  // HUMAN-BRAIN (26 Oct 2026): GUI-visible terminal builders.
+  DESKTOP_TERMINAL_LAUNCH_CMD,
+  DESKTOP_TERMINAL_WINDOWS_CMD,
+  DESKTOP_TERMINAL_COMMAND_CAP,
+  desktopTerminalLogFile,
+  desktopTerminalWrapCommand,
+  parseTerminalExit,
 } from './desktopControl.js';
 // REAL-HUMAN (26 Oct 2026): the owner's queued questions (the
 // brain answers them in-turn — see chatQueue.js) and in-app
@@ -992,11 +1000,14 @@ export function buildMemoryBriefing(huntId, target, meta) {
     const deadEnds = deadEndLines({ ruledOut: memory.ruledOut, events });
     // (b) researched but never probed — from the hunt's own record
     const unprobed = researchedNotProbedLines({ events, reasoningRows: rows });
-    // (c) distilled global lessons for this target type
+    // (c) distilled global lessons for this target type.
+    // HUMAN-BRAIN (26 Oct 2026, per-hunt isolation): the target is
+    // passed so another target's endpoint-specific lessons are
+    // reduced to their technique rate before they reach the screen.
     let globalLessons = [];
     try {
       const fp = (meta && meta.appFingerprint) || (memory.meta && memory.meta.appFingerprint) || { appType: 'unknown', techStack: [] };
-      globalLessons = globalLessonLines(getRelevantMemories(fp, 6));
+      globalLessons = globalLessonLines(getRelevantMemories(fp, 6, { target }));
     } catch { /* global memory is best-effort */ }
 
     // The ledger fills whatever the priority head leaves of the
@@ -1042,6 +1053,15 @@ function systemPromptFor(target, parsedScope) {
     // you need a tool, you open it yourself — BurpSuite, the
     // terminal, nmap — nobody hands you steps.
     'This Kali machine is YOURS — your device, your tools, your files, your memory. You ARE a bug bounty agent: you decide what to do next, you make your own instructions and follow them, and you save everything you learn into your own files so it is still there next time. When you need a tool, you open it yourself — BurpSuite, the terminal, nmap — nobody hands you steps. A step is done only when its output is saved in your record; completed work is never done twice.',
+    // HUMAN-BRAIN (26 Oct 2026, owner order: NO PREDEFINED
+    // SEQUENCE). There is no fixed recon→scan→exploit script and no
+    // checklist to work through — every step is decided fresh from
+    // memory plus live observation, so a different target or a
+    // different memory means a different first move. Stated on the
+    // screen because the plan instruction alone does not forbid a
+    // canned order; the test asserts this line is present and that
+    // no fixed-sequence wording exists anywhere in the prompt.
+    'There is no fixed order of operations — no recon→scan→exploit script, no checklist to work through. Decide each step fresh from what you remember and what you just observed; a different target or a different memory means a different first move. Your plan is yours, and it changes when the evidence changes.',
     'You also have a real desktop with a Chromium browser on this machine: you can open pages, SEE them (browser_snapshot gives you the page text and its clickable elements), click and type like a person at a computer, and take screenshots. The desktop itself is yours too — the whole XFCE desktop, not just the browser: desktop_snapshot shows you its windows, desktop_click focuses a window by title, desktop_key sends keys to the focused window, and desktop_screenshot captures the whole desktop. GUI apps (Burp, ZAP, Wireshark, the terminal) launch from the shell; focus one with desktop_click, then work it with the keyboard.',
     // HUNTER-MIND (26 Oct 2026): narration — the owner watches the
     // thinking and wants it to read like a hunter thinking aloud
@@ -1071,12 +1091,20 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"desktop_click_control","control":"Repeater","window":"Burp Suite"} — click a NAMED CONTROL inside a GUI app (a tab, a button, a menu item) by its visible name: the loop finds it in the app\'s accessibility tree and clicks it. Give the control\'s visible name ("Repeater", "Send", "Proxy"), and "window" when more than one app is open. This is how you press a button inside Burp/ZAP/Wireshark — desktop_click only focuses a window, it never presses a button inside it. If the app has no accessibility tree (or AT-SPI is not installed in this image), the observation says so — fall back to desktop_key keyboard navigation.',
     '{"action":"desktop_key","keys":"ctrl+l"} — send keys to the focused window: modifiers ctrl/alt/shift/super/meta plus one key (Return, Tab, Escape, space, BackSpace, Delete, arrows, Home, End, Page_Up, Page_Down, F1-F12, or a single letter/digit). Or {"action":"desktop_key","text":"nmap -sV target"} to type literal text into the focused window. This is how you work inside GUI apps after focusing them.',
     '{"action":"desktop_screenshot"} — capture the WHOLE desktop (not just the browser) to a JPG artifact; you also get the desktop state text',
+    // HUMAN-BRAIN (26 Oct 2026, owner order: GUI-VISIBLE TERMINAL).
+    // Terminal work happens in a terminal window ON the GUI desktop
+    // so the owner watches it live — this action opens xfce4-terminal
+    // if needed, focuses it, types the command visibly, presses
+    // Return, and brings the output back (the run is also saved in
+    // the output ledger, like a shell run). Same rules as shell:
+    // scope-checked, deduped, recalled from the saved output.
+    '{"action":"desktop_terminal","command":"..."} — run a command in a terminal window ON the GUI desktop (the owner watches it live): the loop opens xfce4-terminal if needed, focuses it, types your command visibly and presses Return, and brings the output back to you. Use it for terminal work you want seen — nmap, curl, a script — instead of the headless shell action. Same rules as shell: scope-checked, deduped, and answered from the saved output if you already ran it (force + why to re-run).',
     '{"action":"proxy_start"} — start your intercepting proxy (Burp-style) on this machine: your browser is re-routed through it so EVERY request/response is captured, and you get the intercept dashboard URL — open it in your browser to click through captured requests visually. The proxy is pass-through: traffic is captured, never held.',
     '{"action":"intercept_list"} — list the requests your proxy has captured (newest last, each with a # index)',
     '{"action":"intercept_read","index":3} — read one captured request in full: its headers and body, and the response headers and body',
     '{"action":"intercept_replay","index":3,"headers":{"X-Test":"1"},"body":"changed=1","url":"http://target.test/other"} — resend a captured request from your machine, optionally with a changed URL, extra/changed headers (a null value removes a header), or a changed body. This is Burp Repeater work: change ONE thing at a time and compare the response. The URL is scope-checked like any other action.',
     '{"action":"note","text":"..."} — write a note in your own notebook (your memory is permanent)',
-    '{"action":"recall","query":"..."} — search YOUR OWN memory: this hunt\'s full record and the lessons of every past hunt. Use it whenever your briefing mentions something you need in detail — an exact result, a payload you tried, a lesson — instead of re-doing the work; remembering is free and instant.',
+    '{"action":"recall","query":"..."} — search YOUR OWN memory: this hunt\'s full record, what earlier hunts on THIS target learned, and generic technique rates from other targets (never their endpoints or payloads — each target\'s memory stays its own). Use it whenever your briefing mentions something you need in detail — an exact result, a payload you tried, a lesson — instead of re-doing the work; remembering is free and instant.',
     // HUNTER-MIND (26 Oct 2026): the plan is the hunter's own
     // instructions — it writes them, works them step by step, and
     // checks steps off with evidence. And the output ledger: an
@@ -1590,6 +1618,11 @@ function detailForAction(kind, action) {
     case 'save_credential': return String(action.site || '').slice(0, 120);
     case 'use_saved_credential': return String(action.handle || '').slice(0, 120);
     case 'desktop_click_control': return String(action.control || '').slice(0, 120);
+    // HUMAN-BRAIN: the visible terminal run keys on its command —
+    // the same identity the shell branch records, so the dedupe
+    // gate and the output ledger treat a visible run and a headless
+    // run of one command as one action.
+    case 'desktop_terminal': return String(action.command || '').slice(0, 160);
     case 'fetch_verification_code': return String(action.handle || '').slice(0, 120);
     case 'proxy_start': return '';
     case 'intercept_list': return '';
@@ -1608,18 +1641,24 @@ function detailForAction(kind, action) {
  * alone). Bounded to ~1500 chars of observation.
  */
 async function defaultRecallMemory(huntId, query) {
+  // HUMAN-BRAIN (26 Oct 2026, per-hunt isolation): the hunt's
+  // target scopes both recall paths — the global-memory search and
+  // the cross-hunt episode retrieval stay within this target.
+  let target = '';
+  try { target = String((readHuntMeta(huntId) || {}).target || ''); } catch { /* best-effort */ }
   const rec = searchRecall({
     events: readHuntEvents(huntId),
     reasoningRows: getAllReasoning(huntId),
     globalMemories: (() => { try { return readAllGlobalMemories(); } catch { return []; } })(),
     query,
     limit: 8,
+    target,
   });
   let ledgerText = '';
   try {
     const es = await import('./episodeStore.js');
     if (es.episodeLedgerEnabled && es.episodeLedgerEnabled()) {
-      const ret = await es.retrieveEpisodes(query, { huntId, crossHunt: true, limit: 5 });
+      const ret = await es.retrieveEpisodes(query, { huntId, crossHunt: true, limit: 5, target });
       if (ret && ret.results && ret.results.length) {
         ledgerText = es.formatRetrievalForPrompt(ret.results, { budgetChars: 900, query });
       }
@@ -1928,6 +1967,11 @@ function gatedCandidate(kind, action) {
     case 'desktop_click': return { tool: 'desktop_click', detail: String(action.window || '') };
     case 'desktop_key': return { tool: 'desktop_key', detail: String(action.keys || action.text || '').slice(0, 80) };
     case 'desktop_click_control': return { tool: 'desktop_click_control', detail: String(action.control || '').slice(0, 120) };
+    // HUMAN-BRAIN: a visible terminal run IS a shell run for
+    // dedupe — same command, same candidate, whichever channel ran
+    // it first. (The gate compares like with like: the shell
+    // branch's candidate is {tool:'shell', detail:command}.)
+    case 'desktop_terminal': return { tool: 'shell', detail: String(action.command || '').slice(0, COMMAND_CAP) };
     case 'intercept_replay': return { tool: 'intercept_replay', detail: replaySignature(action) };
     default: return null;
   }
@@ -1967,6 +2011,10 @@ export const GUI_CONTROL_KINDS = new Set([
   // GUI app drives the same X server — it pauses under Take
   // Control exactly like the other desktop actions.
   'desktop_click_control',
+  // HUMAN-BRAIN (26 Oct 2026): the visible terminal types into the
+  // same X server — it pauses under Take Control like the other
+  // desktop actions.
+  'desktop_terminal',
 ]);
 
 export function dedupeGateHit(kind, action, history) {
@@ -2920,6 +2968,10 @@ export async function humanIteration(huntId, target, opts = {}) {
     // WHOLE-OS CONTROL: the desktop screenshot (lazy: the owner's
     // scrot poller route + artifact save). Tests inject a stub here.
     desktopScreenshot: d.desktopScreenshot || null,
+    // HUMAN-BRAIN (26 Oct 2026): starting the desktop for a
+    // desktop_terminal action from a cold desktop (lazy: huntRunner
+    // startHuntDesktop). Tests inject a stub here.
+    startDesktop: d.startDesktop || null,
     // REAL-HUMAN (26 Oct 2026): delivering the brain's answer to a
     // queued owner question. The default records a chat_answer
     // event (which flows through the WS stream to the open hunt
@@ -3093,6 +3145,20 @@ export async function humanIteration(huntId, target, opts = {}) {
   const getDesktopScreenshot = () => {
     if (!deps.desktopScreenshot) deps.desktopScreenshot = (h) => captureDesktopScreenshot(h);
     return deps.desktopScreenshot;
+  };
+
+  // HUMAN-BRAIN: starting the desktop, bound lazily the same way.
+  // Tests inject deps.startDesktop whole; the default is
+  // huntRunner.startHuntDesktop (runs hunt-desktop.sh in the
+  // container, reviving Chromium too).
+  const getStartDesktop = () => {
+    if (!deps.startDesktop) {
+      deps.startDesktop = async (h) => {
+        const hr = await import('./huntRunner.js');
+        return hr.startHuntDesktop(h);
+      };
+    }
+    return deps.startDesktop;
   };
 
   const getExec = async () => {
@@ -4230,6 +4296,144 @@ export async function humanIteration(huntId, target, opts = {}) {
         observation = `Desktop screenshot failed: ${err.message || err}.`;
       }
       note({ action: 'desktop_screenshot', why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'desktop_terminal') {
+      // HUMAN-BRAIN (26 Oct 2026): GUI-VISIBLE TERMINAL — the
+      // command runs in a terminal window ON the GUI desktop, typed
+      // visibly, so the owner watches it live. Same rules as the
+      // headless shell action, enforced identically: scope gates
+      // (heavy-scan + out-of-scope) run FIRST; the output ledger
+      // answers a repeat from the saved output; the dedupe gate
+      // (which maps this kind to the shell signature — see
+      // gatedCandidate) has already blocked a 3rd+ run before this
+      // branch; the shell pacing gap applies between runs. The run
+      // is recorded under the shell signature, so a visible run and
+      // a headless run of one command are one action. The output
+      // comes back WITHOUT re-running: the typed line tees it into
+      // a per-hunt log file and the loop reads that file back.
+      const command = String(action.command || '').replace(/[\r\n]+/g, ' ').trim().slice(0, DESKTOP_TERMINAL_COMMAND_CAP);
+      if (!command) {
+        observation = 'Empty terminal command — nothing ran. Give a real command.';
+      } else if (heavyScanViolation(command, parsedScope)) {
+        observation = `BLOCKED by the programme rules: "${command.slice(0, 120)}" is automated/heavy scanning, which this programme forbids. Work like a human: single targeted probes, one at a time.`;
+        say(`Programme rules blocked a heavy-scan terminal command: ${command.slice(0, 120)}`);
+      } else {
+        const badUrl = commandScopeViolation(command, target, parsedScope);
+        if (badUrl) {
+          observation = `BLOCKED — OUT OF SCOPE: ${badUrl} is not part of this programme. Only test ${target} and its listed assets. Nothing was sent.`;
+          say(`Out-of-scope terminal command blocked: ${command.slice(0, 120)}`);
+        } else {
+          const forceTerm = action.force === true && String(action.why || '').trim().length > 0;
+          const termSig = actionSignature('shell', command);
+          const termSaved = !forceTerm ? findOutput(sessionOutputs, termSig) : null;
+          if (termSaved) {
+            try { deps.record(huntId, { type: 'output_recall', tool: 'desktop_terminal', detail: scrub(command), via: 'human-mode' }); } catch { /* best-effort */ }
+            observation = recallObservation(termSaved, { nowMs: deps.now() });
+          } else {
+            if (minShellGapMs > 0 && lastShellAt > 0) {
+              const wait = lastShellAt + minShellGapMs - deps.now();
+              if (wait > 0) await deps.sleep(wait);
+            }
+            toolCall('desktop_terminal', command);
+            const logFile = desktopTerminalLogFile(huntId);
+            const typed = desktopTerminalWrapCommand(command, logFile);
+            // (1) Desktop up? The other desktop actions tell the
+            // brain to open a page first; a terminal action must
+            // work from a cold desktop, so it starts it here when
+            // xdotool cannot reach :99.
+            let windowsOut = '';
+            try {
+              const res = await deps.execRaw(huntId, DESKTOP_WINDOWS_CMD, 15000, { bypassTmux: true });
+              windowsOut = String((res && res.stdout) || '');
+            } catch { /* desktop down — start it below */ }
+            if (!windowsOut.trim()) {
+              try {
+                await getStartDesktop()(huntId);
+                await deps.sleep(4000);
+                const res = await deps.execRaw(huntId, DESKTOP_WINDOWS_CMD, 15000, { bypassTmux: true });
+                windowsOut = String((res && res.stdout) || '');
+              } catch { /* start failure reports below */ }
+            }
+            if (!windowsOut.trim()) {
+              observation = 'The desktop is not running right now (xdotool could not reach display :99, and starting it did not bring it up). Open a page with browser_open first — that starts the desktop — then try desktop_terminal again.';
+            } else {
+              sessionDesktopState = mergeDesktopState(sessionDesktopState, parseDesktopWindows(windowsOut));
+              // (2) Terminal open? Find one by window class; launch
+              // when none is visible.
+              let termWin = null;
+              try {
+                const res = await deps.execRaw(huntId, DESKTOP_TERMINAL_WINDOWS_CMD, 15000, { bypassTmux: true });
+                termWin = (parseDesktopWindows(String((res && res.stdout) || '')).windows || [])[0] || null;
+              } catch { /* launch below */ }
+              if (!termWin) {
+                try {
+                  await deps.execRaw(huntId, DESKTOP_TERMINAL_LAUNCH_CMD, 15000, { bypassTmux: true });
+                  await deps.sleep(2500);
+                  const res = await deps.execRaw(huntId, DESKTOP_TERMINAL_WINDOWS_CMD, 15000, { bypassTmux: true });
+                  termWin = (parseDesktopWindows(String((res && res.stdout) || '')).windows || [])[0] || null;
+                } catch { /* reports below */ }
+              }
+              if (!termWin) {
+                observation = 'Could not open a terminal window on the desktop (xfce4-terminal did not appear). Take desktop_snapshot to see what is on the desktop, then try again.';
+              } else {
+                // (3) Focus, type visibly, Return.
+                let typedOk = false;
+                try {
+                  const clickRes = await deps.execRaw(huntId, desktopClickCommand(termWin), 15000, { bypassTmux: true });
+                  const typeRes = await deps.execRaw(huntId, desktopTypeCommand(typed), 15000, { bypassTmux: true });
+                  const keyRes = await deps.execRaw(huntId, desktopKeyCommand('Return'), 15000, { bypassTmux: true });
+                  typedOk = String((clickRes && clickRes.stdout) || '').includes('clicked')
+                    && String((typeRes && typeRes.stdout) || '').includes('typed')
+                    && String((keyRes && keyRes.stdout) || '').includes('key_sent');
+                  sessionDesktopState = markWindowInteracted(sessionDesktopState, termWin.title || 'Terminal');
+                } catch { typedOk = false; }
+                if (!typedOk) {
+                  observation = `Could not type into the terminal window "${termWin.title || 'Terminal'}" — the focus, type, or Return step failed. Take desktop_snapshot to check the desktop, then try again.`;
+                } else {
+                  lastShellAt = deps.now();
+                  // (4) Let it run, read the tee log back, screenshot.
+                  await deps.sleep(3000);
+                  let logText = '';
+                  try {
+                    const logRes = await deps.execRaw(huntId, `cat ${shellQuote(logFile)} 2>/dev/null || echo __DT_NO_LOG__`, 15000, { bypassTmux: true });
+                    logText = String((logRes && logRes.stdout) || '');
+                  } catch { /* empty log reports below */ }
+                  let shotName = '';
+                  try {
+                    const shot = await getDesktopScreenshot()(huntId);
+                    if (shot && shot.ok) shotName = shot.name;
+                    try {
+                      const res = await deps.execRaw(huntId, DESKTOP_WINDOWS_CMD, 15000, { bypassTmux: true });
+                      sessionDesktopState = mergeDesktopState(sessionDesktopState, parseDesktopWindows(String((res && res.stdout) || '')));
+                    } catch { /* the state read is best-effort beside the shot */ }
+                  } catch { /* screenshot is best-effort beside the output */ }
+                  const exitCode = parseTerminalExit(logText);
+                  const body = logText.replace(/__DT_EXIT__:\d+\s*$/, '').replace(/__DT_NO_LOG__\s*$/, '').trim();
+                  if (exitCode === null) {
+                    // Still running (no exit marker yet) — report
+                    // the partial output and how to read the rest;
+                    // nothing is recorded in the ledger until the
+                    // run completes.
+                    observation = `Typed visibly into the terminal ("${termWin.title || 'Terminal'}") and pressed Return — the command is STILL RUNNING on the desktop (no exit marker yet). What it has printed so far:\n${body ? body.slice(0, OBS_BUDGET) : '(nothing yet)'}${shotName ? `\nDesktop screenshot saved as artifact ${shotName} — the owner watches it live.` : ''}\nRead the rest with a shell action: cat ${logFile}`;
+                  } else {
+                    let spillHandle = '';
+                    let outText = body || `(command finished with no output, exit code ${exitCode})`;
+                    if (outText.length > OBS_BUDGET) {
+                      try { spillHandle = deps.spill(huntId, outText); } catch { /* best-effort */ }
+                      outText = outText.slice(0, OBS_BUDGET) + `\n[output truncated on screen — ${body.length} chars total${spillHandle ? `, saved in full as artifact ${spillHandle}` : ''}]`;
+                    }
+                    observation = `Ran visibly in the terminal ("${termWin.title || 'Terminal'}") — the owner watched it live. Exit code ${exitCode}${shotName ? ` · desktop screenshot ${shotName}` : ''}:\n${outText}`;
+                    try {
+                      sessionOutputs = recordOutput(sessionOutputs, { signature: termSig, tool: 'shell', detail: command, output: observation, artifact: spillHandle, forced: forceTerm, why: String(action.why || '') });
+                      saveOutputs(huntId, sessionOutputs);
+                    } catch { /* the ledger is best-effort — the turn already ran */ }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      note({ action: `desktop_terminal: ${command.slice(0, 160)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'desktop_click_control') {
       // REAL-HUMAN: click a NAMED CONTROL inside a GUI app via its
       // accessibility tree (AT-SPI). The brain names the control's
@@ -4354,7 +4558,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       note({ action: `claim_finding: ${title}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
       }
     } else {
-      observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, record_coverage, hunt_plan, load_skill, proxy_start, intercept_list, intercept_read, intercept_replay, browser_open, browser_snapshot, browser_click, browser_type, screenshot, claim_finding, save_credential, use_saved_credential, fetch_verification_code. Pick exactly one, as JSON on the last line.`;
+      observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, record_coverage, hunt_plan, load_skill, proxy_start, intercept_list, intercept_read, intercept_replay, browser_open, browser_snapshot, browser_click, browser_type, screenshot, desktop_snapshot, desktop_click, desktop_key, desktop_screenshot, desktop_terminal, desktop_click_control, claim_finding, save_credential, use_saved_credential, fetch_verification_code. Pick exactly one, as JSON on the last line.`;
     }
 
     // Lane F: remember what the executed action returned, so a later

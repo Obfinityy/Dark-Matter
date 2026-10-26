@@ -10,11 +10,29 @@
 // brain time (bounded: --turns × ~1–3 min each). Check the live hunt
 // iteration before and after and report it honestly.
 //
-//   Session 1 (3 turns): the brain writes its OWN plan, runs nmap +
-//     subdomain enumeration, saves the outputs.
-//   Session 2 (3 turns, same hunt id): the plan + outputs are in the
-//     record — the brain must RECALL the saved outputs instead of
-//     re-running them.
+//   Session 3 (human-brain, 26 Oct 2026): the three HUMAN-BRAIN
+//     requirements, one session:
+//     (a) GUI-VISIBLE TERMINAL — the loop's desktop_terminal action
+//         is driven with a stubbed brain reply but REAL container
+//         exec/screenshot/desktop-start: xfce4-terminal must open
+//         visibly, the command must be typed + Return, the output
+//         must come back via the tee log, and a desktop screenshot
+//         artifact must exist. (The free brain turns may also choose
+//         desktop_terminal — bonus, not required.)
+//     (b) PER-HUNT ISOLATION — a global learning recorded for
+//         target A (endpoint + payload) must NOT appear in target
+//         B's briefing, and MUST appear in target A's briefing.
+//     (c) NO PREDEFINED SEQUENCE — a BLANK hunt on a second target
+//         (https://example.com, fresh hunt id) runs 2 real brain
+//         turns; its first move is compared with scanme session 1's
+//         first move (nmap) and the primed scanme session 2 first
+//         move (write install_ssh.sh). Different first moves by
+//         target/memory = the proof; identical first moves are
+//         reported honestly as a miss.
+//
+//   node scripts/lab-hunter-mind.mjs --session 3 [--turns 2]
+//   # --target/--hunt select the session-3 second target/hunt;
+//   # defaults: https://example.com / h_lab_humanbrain_b.
 //
 //   The TZ check runs first: a scratch container is spawned through
 //   the new spawn path and `date` inside it must show IST (+0530).
@@ -49,6 +67,7 @@
 //   restarting. Each lab turn holds the slot only ~1–5 min (small
 //   prompt); the live hunt's queued call simply waits.
 import fs from 'node:fs';
+import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -64,6 +83,9 @@ const TURNS = Number(arg('--turns', '3'));
 const TARGET = arg('--target', 'https://scanme.nmap.org');
 const HUNT_ID = arg('--hunt', 'h_lab_huntermind');
 const KEEP = args.includes('--keep');
+// Session 3's second target/hunt (the blank-hunt comparison).
+const TARGET_B = arg('--target2', 'https://example.com');
+const HUNT_B = arg('--hunt2', 'h_lab_humanbrain_b');
 
 if (!process.env.DATA_DIR) {
   console.error('DATA_DIR is required — point it at a scratch dir (e.g. /tmp/hunter-mind-lab-data). Refusing to run against the live data dir.');
@@ -74,13 +96,14 @@ if (process.env.LLM_PROVIDER !== 'ollama') {
   process.exit(2);
 }
 
-const { humanIteration } = await import('../src/humanLoop.js');
-const { spawnHuntContainer, dockerAvailable } = await import('../src/huntRunner.js');
+const { humanIteration, buildMemoryBriefing } = await import('../src/humanLoop.js');
+const { spawnHuntContainer, dockerAvailable, startHuntDesktop } = await import('../src/huntRunner.js');
 const { parseScope } = await import('../src/scopeParser.js');
 const { loadHuntPlan } = await import('../src/huntPlan.js');
 const { loadOutputs, outputCount } = await import('../src/outputMemory.js');
 const { readHuntEvents } = await import('../src/store.js');
 const { getAllReasoning } = await import('../src/reasoningMemory.js');
+const { recordGlobalLearning } = await import('../src/globalMemory.js');
 
 const log = (...a) => console.log(`[lab s${SESSION}]`, ...a);
 
@@ -89,16 +112,16 @@ async function docker(args) {
   return stdout.trim();
 }
 
-async function ensureContainer() {
-  const name = `dm-hunt-${HUNT_ID.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32)}`;
+async function ensureContainer(huntId = HUNT_ID, target = TARGET) {
+  const name = `dm-hunt-${String(huntId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32)}`;
   try {
     const state = await docker(['inspect', '-f', '{{.State.Status}}', name]);
     if (state === 'running') { log(`container ${name} already running — reusing`); return name; }
     log(`container ${name} exists but is ${state} — removing and respawning`);
     await docker(['rm', '-f', name]);
   } catch { /* no container yet */ }
-  log(`spawning scratch container for ${HUNT_ID} (target ${TARGET})…`);
-  const spawned = await spawnHuntContainer(HUNT_ID, TARGET, { mode: 'human' });
+  log(`spawning scratch container for ${huntId} (target ${target})…`);
+  const spawned = await spawnHuntContainer(huntId, target, { mode: 'human' });
   log(`container up: ${spawned.container} (ttyd ${spawned.ttydPort})`);
   return spawned.container;
 }
@@ -141,6 +164,102 @@ if (!(await dockerAvailable())) {
 }
 const container = await ensureContainer();
 const clockOk = await checkContainerClock(container);
+const MAX_ATTEMPTS = 8;
+
+if (SESSION === 3) {
+  // ---- HUMAN-BRAIN session: terminal + isolation + no-sequence ----
+  // (0) Desktop up on the lab container (the terminal check needs :99).
+  log('starting the desktop on the lab container…');
+  const desk = await startHuntDesktop(HUNT_ID).catch((e) => ({ ok: false, error: String(e.message || e) }));
+  log(`desktop start: ${JSON.stringify(desk)}`);
+  const winCheck = await docker(['exec', container, 'env', 'DISPLAY=:99', 'xdotool', 'search', '--onlyvisible', '--name', '.*']).catch(() => '');
+  log(`desktop windows reachable: ${String(winCheck).trim().split('\n').filter(Boolean).length} id(s)`);
+
+  // (a) GUI-VISIBLE TERMINAL: the REAL loop dispatch (real container
+  // exec, real screenshot, real desktop-start) with only the brain's
+  // reply stubbed — the composition is what is under test.
+  const termCmd = 'echo DT-PROOF && nmap --version | head -1';
+  const execRawReal = async (h, cmd, timeout) => {
+    try {
+      const { stdout, stderr } = await execFileAsync('docker', ['exec', container, 'bash', '-c', String(cmd)], { timeout: timeout || 15000 });
+      return { stdout: String(stdout || ''), stderr: String(stderr || ''), code: 0 };
+    } catch (e) {
+      return { stdout: String((e && e.stdout) || ''), stderr: String((e && e.stderr) || (e && e.message) || e), code: 1 };
+    }
+  };
+  const termRes = await humanIteration(HUNT_ID, TARGET, {
+    turns: 1,
+    parsedScope: parseScope(TARGET),
+    deps: {
+      chat: async () => `terminal check — visible run, owner watches live.\n${JSON.stringify({ action: 'desktop_terminal', command: termCmd })}`,
+      execRaw: execRawReal,
+    },
+  });
+  log(`terminal turn: turnsRun=${termRes.turnsRun} actionsRun=${termRes.actionsRun} aiOk=${termRes.aiOk}`);
+  const termSaved = (loadOutputs(HUNT_ID).entries || {})[`shell|${termCmd}`];
+  const termOut = termSaved ? String(termSaved.output || '') : '';
+  const termOk = termOut.includes('DT-PROOF') && termOut.includes('Exit code 0');
+  const shotName = (/desktop-[0-9]+\.jpg/.exec(termOut) || [])[0] || '';
+  const shotExists = shotName
+    ? fs.existsSync(path.join(process.env.DATA_DIR, 'hunts', HUNT_ID, 'artifacts', shotName))
+    : false;
+  const termWin = await docker(['exec', container, 'env', 'DISPLAY=:99', 'xdotool', 'search', '--onlyvisible', '--class', 'xfce4-terminal']).catch(() => '');
+  log(`(a) TERMINAL: output-back=${termOk} screenshot=${shotName || '(none)'} artifact-on-disk=${shotExists} terminal-window-open=${String(termWin).trim().length > 0}`);
+  if (!termOk) log('(a) TERMINAL MISS: the typed command output did not come back — see the ledger/observation above.');
+
+  // (b) PER-HUNT ISOLATION: record an A-target learning with endpoint
+  // detail, then read B's and A's briefings.
+  recordGlobalLearning({
+    type: 'technique', technique: 'sqli', target: TARGET,
+    appType: 'web', techStack: [], success: true,
+    payload: "admin' OR 1=1--",
+    context: 'POST /rest/user/login (scanme)',
+    note: 'SQLi bypass worked on the scanme login.',
+  });
+  const briefB = buildMemoryBriefing(HUNT_B, TARGET_B, {});
+  const briefA = buildMemoryBriefing(HUNT_ID, TARGET, {});
+  const leakMarkers = ['scanme', '/rest/user/login', 'OR 1=1'];
+  const leakB = leakMarkers.filter((m) => briefB.includes(m));
+  const shownA = briefA.includes('/rest/user/login');
+  log(`(b) ISOLATION: B-briefing leaks=${leakB.length ? leakB.join(',') : 'none'} | A-briefing shows A-detail=${shownA}`);
+  if (leakB.length) log('(b) ISOLATION MISS: target A detail leaked into target B briefing.');
+  if (!shownA) log('(b) ISOLATION MISS: target A detail did not show on target A briefing.');
+
+  // (c) NO PREDEFINED SEQUENCE: a BLANK hunt on the second target,
+  // 2 real brain turns, first move compared with scanme's.
+  const containerB = await ensureContainer(HUNT_B, TARGET_B);
+  const clockBOk = await checkContainerClock(containerB);
+  log(`starting blank hunt on ${TARGET_B} (${TURNS} turns, real brain via Ollama)…`);
+  let resultB = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    resultB = await humanIteration(HUNT_B, TARGET_B, {
+      turns: TURNS,
+      parsedScope: parseScope(TARGET_B),
+      assess: null,
+    });
+    log(`target-B attempt ${attempt}: turnsRun=${resultB.turnsRun}/${TURNS} actionsRun=${resultB.actionsRun} aiOk=${resultB.aiOk} failKind=${resultB.failKind || '-'}`);
+    if (resultB.turnsRun >= TURNS || attempt === MAX_ATTEMPTS) break;
+    log(`only ${resultB.turnsRun}/${TURNS} turns ran (brain slot lost / server OOM) — waiting 30s, then continuing…`);
+    await new Promise((r) => setTimeout(r, 30000));
+  }
+  const firstMove = (hid) => {
+    const evs = (readHuntEvents(hid) || []).filter((e) => e.type === 'tool_call');
+    const f = evs[0];
+    return f ? `${f.tool}:${String(f.detail || '').slice(0, 80)}` : '(none)';
+  };
+  const moveA = firstMove(HUNT_ID);
+  const moveB = firstMove(HUNT_B);
+  log(`(c) NO-SEQUENCE: first move scanme(blank)=${moveA} | first move example.com(blank)=${moveB}`);
+  log('(c) MEMORY AXIS (banked): scanme session 1 first move was shell nmap; primed scanme session 2 first move was write_file install_ssh.sh — same target, different memory, different first move.');
+  if (moveA === moveB) log('(c) NO-SEQUENCE MISS: identical first moves on two different blank targets — report honestly; a shared first recon step is not by itself proof of a canned order, but the bar asked for difference.');
+
+  if (!KEEP) {
+    try { await docker(['rm', '-f', container]); log(`lab container ${container} removed`); } catch (e) { log(`container removal failed: ${e.message}`); }
+    try { await docker(['rm', '-f', containerB]); log(`lab container ${containerB} removed`); } catch (e) { log(`container B removal failed: ${e.message}`); }
+  }
+  log(`verdict s3: clock IST=${clockOk}/${clockBOk} | terminal output-back=${termOk} shot-on-disk=${shotExists} | isolation leak-B=${leakB.length} shown-A=${shownA} | first-moves differ=${moveA !== moveB}`);
+  process.exit(0);
+}
 
 log(`starting session ${SESSION} (${TURNS} turns, real brain via Ollama)…`);
 // Retry the whole session until all TURNS ran (or attempts run
@@ -154,7 +273,6 @@ log(`starting session ${SESSION} (${TURNS} turns, real brain via Ollama)…`);
 // after an OOM death, and the lab must re-queue fast too or it
 // never wins the slot.
 let result = null;
-const MAX_ATTEMPTS = 8;
 for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
   result = await humanIteration(HUNT_ID, TARGET, {
     turns: TURNS,

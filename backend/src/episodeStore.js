@@ -681,8 +681,17 @@ function ftsCandidates(query, huntId, crossHunt, limit) {
  * Hybrid retrieval over the episode ledger. All scoring is arithmetic —
  * no LLM calls. Returns { query, results: [{...episode, score, parts,
  * neighbours}], signals } sorted by score desc.
+ * HUMAN-BRAIN (26 Oct 2026, per-hunt isolation): `target` scopes
+ * cross-hunt retrieval — with crossHunt + a target, only episodes
+ * from hunts on THAT target enter the result set (the per-target
+ * shared memory the owner ordered); episodes from another target are
+ * dropped before scoring. Without a target the old behaviour stands
+ * (callers that know the target must pass it — defaultRecallMemory
+ * does). The hunt-id set comes from the hunt metas on disk via a
+ * dynamic import: store.js imports this module, so a static import
+ * would cycle.
  */
-export async function retrieveEpisodes(query, { huntId = null, crossHunt = false, limit = 8, now = Date.now() } = {}) {
+export async function retrieveEpisodes(query, { huntId = null, crossHunt = false, limit = 8, now = Date.now(), target = '' } = {}) {
   const d = getDb();
   if (!d) return { query, results: [], signals: { fts: 0, vec: 0 } };
   const W = RETRIEVAL_WEIGHTS;
@@ -725,6 +734,24 @@ export async function retrieveEpisodes(query, { huntId = null, crossHunt = false
   const pool = huntId && !crossHunt ? d.prepare(poolSql).all(String(huntId)) : d.prepare(poolSql).all();
   for (const row of pool) {
     if (!candidates.has(row.id)) candidates.set(row.id, { row, ftsPos: null, cos: null });
+  }
+
+  // Per-hunt isolation: drop every candidate from a hunt on another
+  // target before scoring (see the header note above).
+  if (crossHunt && target) {
+    try {
+      const store = await import('./store.js');
+      const folder = store.targetFolderName(target);
+      const sameTarget = new Set(
+        (store.listHuntMetas() || [])
+          .filter((m) => m && store.targetFolderName(m.target || m.url || '') === folder)
+          .map((m) => String(m.huntId)),
+      );
+      if (huntId) sameTarget.add(String(huntId));
+      for (const [id, c] of candidates) {
+        if (!sameTarget.has(String(c.row.hunt_id))) candidates.delete(id);
+      }
+    } catch { /* scoping is best-effort — a failure falls back to the unfiltered set */ }
   }
 
   const entities = extractEntities(query);

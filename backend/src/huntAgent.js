@@ -821,7 +821,10 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   let globalMemorySection = '';
   let globalMemoryAudit = { count: 0, keys: [], sectionLen: 0, sectionHash: 'empty' };
   try {
-    const relevantMemories = getRelevantMemories(appFingerprint, 12);
+    // HUMAN-BRAIN (26 Oct 2026, per-hunt isolation): the target is
+    // passed so another target's endpoint-specific lessons are
+    // reduced to their technique rate before they reach the prompt.
+    const relevantMemories = getRelevantMemories(appFingerprint, 12, { target });
     // Cap raised 500 → 2000 (solver #443): with the widened context window
     // the cross-hunt lessons no longer need to be squeezed to a stub.
     globalMemorySection = formatGlobalMemoryForPrompt(relevantMemories).slice(0, 2000);

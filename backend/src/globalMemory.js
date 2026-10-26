@@ -17,7 +17,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { dataDir } from './store.js';
+import { dataDir, targetFolderName } from './store.js';
 
 const MAX_ENTRIES = 500;
 
@@ -132,15 +132,55 @@ export function recordGlobalLearning(entry) {
 }
 
 /**
+ * HUMAN-BRAIN (26 Oct 2026, owner order: PER-HUNT MEMORY ISOLATION).
+ * Two targets are the same target when their folder names match
+ * (targetFolderName: full host, lowercased — different hosts never
+ * collide; an empty/unknown target never matches anything).
+ */
+export function sameTargetFolder(a, b) {
+  const fa = targetFolderName(a || '');
+  const fb = targetFolderName(b || '');
+  return Boolean(fa && fa !== 'unknown-target' && fa === fb);
+}
+
+/**
+ * Scope a list of global-memory entries for ONE target's screen.
+ * Same-target entries (the entry's recorded target matches this
+ * target) and target-less generic entries pass through untouched.
+ * Entries recorded on ANOTHER target are reduced to their
+ * technique-level rate only — type, technique, appType, attempts,
+ * successes — with payload, context, note and target blanked, so no
+ * endpoint, URL, or target-specific claim from x.com can appear on
+ * y.com's screen. The rate itself survives on purpose: it is the
+ * hunter's general craft knowledge ("SQLi on ecommerce logins works
+ * 1/3 of the time"), not x.com's memory — it names no target and no
+ * endpoint. Pure; never mutates its inputs.
+ */
+export function scopeGlobalMemoriesForTarget(memories, target) {
+  const list = Array.isArray(memories) ? memories : [];
+  return list.map((m) => {
+    if (!m || typeof m !== 'object') return m;
+    const recorded = String(m.target || '').trim();
+    if (!recorded || sameTargetFolder(recorded, target)) return m;
+    return { ...m, target: '', payload: '', context: '', note: '' };
+  });
+}
+
+/**
  * Score entries by relevance to the current target's fingerprint.
  * fingerprint = { appType, techStack: [] }
+ * @param {{target?: string}} [opts] — the hunt's target: entries
+ *   from another target are reduced to their technique rate before
+ *   they are returned (see scopeGlobalMemoriesForTarget). When no
+ *   target is given, every target-tagged entry is reduced — the safe
+ *   default: nothing target-specific leaks to an unknown screen.
  */
 /** All stored global memories (RECALL search reads the whole store). */
 export function readAllGlobalMemories() {
   return readAll();
 }
 
-export function getRelevantMemories(fingerprint = {}, limit = 8) {
+export function getRelevantMemories(fingerprint = {}, limit = 8, { target = '' } = {}) {
   try {
     const all = readAll();
     if (all.length === 0) return [];
@@ -167,7 +207,8 @@ export function getRelevantMemories(fingerprint = {}, limit = 8) {
       return { e, score };
     });
     scored.sort((a, b) => b.score - a.score);
-    return scored.filter((s) => s.score > 0).slice(0, limit).map((s) => s.e);
+    const picked = scored.filter((s) => s.score > 0).slice(0, limit).map((s) => s.e);
+    return scopeGlobalMemoriesForTarget(picked, target);
   } catch {
     return [];
   }
@@ -182,10 +223,17 @@ export function formatGlobalMemoryForPrompt(memories) {
   const lines = memories.map((m) => {
     const rate = `${m.successes || 0}/${m.attempts || 0}`;
     if (m.type === 'chain') {
-      return `\u2022 Chain pattern [${m.appType}] (${rate} worked): ${m.context} — ${m.note}`;
+      // A chain entry scoped for another target has its context and
+      // note blanked (isolation) — it falls through to the generic
+      // technique line below instead of rendering an empty shell.
+      if (m.context || m.note) {
+        return `\u2022 Chain pattern [${m.appType}] (${rate} worked): ${m.context} — ${m.note}`;
+      }
     }
     if (m.type === 'fingerprint') {
-      return `\u2022 Lesson: ${m.note}`;
+      // Same: a blanked note renders nothing, not "Lesson: ".
+      if (m.note) return `\u2022 Lesson: ${m.note}`;
+      return '';
     }
     // PROBE QUALITY (19 Oct 2026, solver #121): malformed probes are a
     // command-construction signal, not a technique verdict. Rendered as a
@@ -200,7 +248,8 @@ export function formatGlobalMemoryForPrompt(memories) {
       : (m.attempts || 0) >= 3 ? 'deprioritise until a new approach' : 'worth trying';
     const where = m.context ? ` — ${m.context}` : '';
     return `\u2022 ${m.technique.toUpperCase()} [${m.appType}] (${rate} succeeded): ${verdict}${where}.`;
-  });
+  }).filter((l) => l && l.trim());
+  if (!lines.length) return '';
   return `\n--- GLOBAL MEMORY (lessons from ALL past hunts — start smarter) ---\n` +
     lines.join('\n');
 }
