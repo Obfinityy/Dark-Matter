@@ -104,6 +104,10 @@ export async function steerHunt(huntId, message) {
 
 export async function sendChat(message, huntId, history, opts) {
   const body = { message, ...(huntId ? { huntId } : {}) };
+  // REAL-HUMAN (26 Oct 2026): the chatId tells the backend WHICH
+  // thread to answer into when the question is queued for the
+  // brain's next turn — without it the answer has no home.
+  if (opts && opts.chatId) body.chatId = opts.chatId;
   // CHAT-ANSWERS (26 Oct 2026): carry the thread's recent history so
   // follow-ups are answered with context instead of cold.
   if (Array.isArray(history) && history.length) body.history = history;

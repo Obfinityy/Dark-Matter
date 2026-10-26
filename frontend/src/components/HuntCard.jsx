@@ -302,6 +302,13 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
           setLogs((prev) => [...prev.slice(-99), { kind: 'tool', text: line, at: eventTimeMs(payload) }]);
         } else if (type === 'dedup_block') {
           setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: `dedup_block: ${payload.tool || ''} ${payload.detail || ''}`.trim(), at: eventTimeMs(payload) }]);
+        } else if (type === 'chat_answer') {
+          // REAL-HUMAN (26 Oct 2026): the brain answered an owner
+          // question in-turn — surface it in the hunt feed so the
+          // owner sees the answer even while looking at the hunt
+          // card, not just in the chat thread.
+          const line = (payload.answer || '').slice(0, 200);
+          setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: `Answered your question: ${line}`, at: eventTimeMs(payload) }]);
         } else if (type === 'finding' || type === 'retraction') {
           // Lane V: never accumulate raw finding events in the panel.
           // The reconciled snapshot (loadHuntMemory -> panelFindings,

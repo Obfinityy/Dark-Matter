@@ -315,6 +315,10 @@ export function loopCounters({ events = [], reasoningRows = [], pageState = null
   let desktopClicks = 0;
   let desktopKeys = 0;
   let desktopScreenshots = 0;
+  // REAL-HUMAN: in-app control clicks (AT-SPI) — counted beside
+  // window clicks so the loop measures the whole desktop, not just
+  // window focus.
+  let desktopClickControls = 0;
   const windowsInteracted = new Set();
   let pendingDesktopSnapshot = false;
   // Track the live page host through the stream (browser_open sets
@@ -354,6 +358,7 @@ export function loopCounters({ events = [], reasoningRows = [], pageState = null
     if (tool === 'desktop_click') { desktopClicks++; if (detail) windowsInteracted.add(detail); continue; }
     if (tool === 'desktop_key') { desktopKeys++; continue; }
     if (tool === 'desktop_screenshot') { desktopScreenshots++; continue; }
+    if (tool === 'desktop_click_control') { desktopClickControls++; continue; }
     if (SNAPSHOT_TOOLS.has(tool)) {
       snapshotsTaken++;
       pendingSnapshotHost = hostOfEvent(e) || currentHost || '';
@@ -403,6 +408,7 @@ export function loopCounters({ events = [], reasoningRows = [], pageState = null
     desktopClicks,
     desktopKeys,
     desktopScreenshots,
+    desktopClickControls,
     distinctWindowsInteracted: windowsInteracted.size,
   };
 }
@@ -413,9 +419,9 @@ export function loopCounterLines(counters) {
   const lines = [
     `LOOP: snapshots ${counters.snapshotsTaken} (acted on ${counters.snapshotsActedOn}) · clicks ${counters.clicks} · pages ${counters.distinctPages} · elements seen ${counters.elementsSeen}, interacted ${counters.distinctElementsInteracted} · payloads planned ${counters.payloadsPlanned}, sent ${counters.payloadsSent} · no-reply turns ${counters.noReplyTurns}`,
   ];
-  const desktopTotal = (counters.desktopSnapshots || 0) + (counters.desktopClicks || 0) + (counters.desktopKeys || 0) + (counters.desktopScreenshots || 0);
+  const desktopTotal = (counters.desktopSnapshots || 0) + (counters.desktopClicks || 0) + (counters.desktopKeys || 0) + (counters.desktopScreenshots || 0) + (counters.desktopClickControls || 0);
   if (desktopTotal > 0) {
-    lines.push(`DESKTOP: snapshots ${counters.desktopSnapshots || 0} (acted on ${counters.desktopSnapshotsActedOn || 0}) · window clicks ${counters.desktopClicks || 0} (${counters.distinctWindowsInteracted || 0} windows) · keystrokes ${counters.desktopKeys || 0} · desktop screenshots ${counters.desktopScreenshots || 0}`);
+    lines.push(`DESKTOP: snapshots ${counters.desktopSnapshots || 0} (acted on ${counters.desktopSnapshotsActedOn || 0}) · window clicks ${counters.desktopClicks || 0} (${counters.distinctWindowsInteracted || 0} windows) · keystrokes ${counters.desktopKeys || 0} · in-app control clicks ${counters.desktopClickControls || 0} · desktop screenshots ${counters.desktopScreenshots || 0}`);
   }
   return lines;
 }

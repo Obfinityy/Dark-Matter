@@ -168,7 +168,7 @@ export default function ChatPage({
         .slice(-6)
         .map((m) => ({ role: m.role, text: m.text }));
 
-      const res = await sendChat(text, huntId, history, { signal: controller.signal });
+      const res = await sendChat(text, huntId, history, { signal: controller.signal, chatId });
       if (token.aborted || res.aborted) {
         return;
       }

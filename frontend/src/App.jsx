@@ -185,10 +185,17 @@ function AppInner() {
   // Pull: when the active chat opens (or on login), fetch remote messages and
   // fill in anything missing locally. Local messages win on id conflicts (they
   // may carry live hunt state); remote-only messages are appended.
+  // REAL-HUMAN (26 Oct 2026): the same pull repeats every 30s while the
+  // chat is open — the brain's answer to a queued owner question is
+  // appended SERVER-side by the hunt loop (the chat file, not the
+  // websocket), so without a poll the user would never see it until
+  // they reopen the chat. The merge is by id, so a poll can never
+  // wipe local messages; and the next poll re-fetches anything a
+  // push race dropped, so the two directions converge.
   useEffect(() => {
     if (!ready || !user || !activeChatId) return;
     let cancelled = false;
-    (async () => {
+    async function pull() {
       try {
         const { getChatMessages } = await import('./lib/api');
         const res = await getChatMessages(activeChatId);
@@ -203,8 +210,10 @@ function AppInner() {
           return { ...c, messages: [...(c.messages || []), ...missing] };
         }));
       } catch { /* offline — local chats still work */ }
-    })();
-    return () => { cancelled = true; };
+    }
+    pull();
+    const timer = setInterval(pull, 30000);
+    return () => { cancelled = true; clearInterval(timer); };
   }, [activeChatId, ready, user]);
 
   // Re-attach backend hunts on login: hunts keep running on the backend even

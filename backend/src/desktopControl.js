@@ -143,13 +143,14 @@ export function markWindowInteracted(state, title) {
  * [clicked] marks; unclicked windows are the untried set, named so
  * a click that was never tried is never reported as exhausted.
  */
-export function desktopStateLines(state, { target = '' } = {}) {
+export function desktopStateLines(state, { target = '', nudge = '' } = {}) {
   const st = state || emptyDesktopState();
   const wins = Array.isArray(st.windows) ? st.windows : [];
   if (!wins.length && !st.activeTitle) {
     return [
       '=== DESKTOP — XFCE :99 (1280x800) ===',
       '- No desktop snapshot yet — take desktop_snapshot to see the windows on this machine.',
+      ...(nudge ? [`- ${nudge}`] : []),
     ];
   }
   const lines = ['=== DESKTOP — XFCE :99 (1280x800) ==='];
@@ -166,6 +167,11 @@ export function desktopStateLines(state, { target = '' } = {}) {
     lines.push('- Every window on this desktop has been clicked at least once.');
   }
   lines.push('- GUI apps launch from the shell (burpsuite, zaproxy, wireshark, xfce4-terminal, thunar); desktop_click focuses a window by title, desktop_key sends keys to the focused window.');
+  // REAL-HUMAN: the desktop nudge — a deterministic line naming the
+  // untried desktop route when the browser route is closed. It is
+  // perception text (like the untried-windows line above), never a
+  // chosen action.
+  if (nudge) lines.push(`- ${nudge}`);
   return lines;
 }
 
