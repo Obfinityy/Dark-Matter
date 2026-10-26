@@ -158,7 +158,8 @@ export function isDriverActive(huntId) {
 export function getOrchestrator(huntId) {
   return orchestrators.get(huntId) || null;
 }
-import { chatWithAI, aiAvailable } from './llm.js';
+import { aiAvailable } from './llm.js';
+import { callBrain } from './brainProvider.js';
 import { generateHypotheses, formatHypothesesForPrompt, scoreInterestingness, buildAppModel, formatAppModelForPrompt } from './curiosity.js';
 import { recordReasoning, formatReasoningForPrompt, formatLedgerForPrompt, getHypothesisLedger, getVerifiedPairs, normalizeHypothesis, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
 import { recordGlobalLearning, getRelevantMemories, formatGlobalMemoryForPrompt, inferTechnique, readAllGlobalMemories } from './globalMemory.js';
@@ -990,9 +991,10 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // the model's plan (seen live on h_bench_cb6e37b2 iteration 1).
   let reply = '';
   try {
-    reply = await chatWithAI(
+    reply = await callBrain(
       [{ role: 'user', text: prompt }],
       'You are an elite bug-bounty hunter. Output ONLY the requested JSON array, no prose.',
+      { huntId },
       { huntId }
     );
     if (!reply) {
@@ -1981,9 +1983,10 @@ export async function assessResult(huntId, target, plan, result) {
     // CURIOSITY: a human hunter doesn't shrug at anomalies — they poke harder.
     // Ask the brain for one targeted follow-up probe into this weirdness.
     try {
-      const followUp = await chatWithAI(
+      const followUp = await callBrain(
         [{ role: 'user', text: `Something odd happened during a security test. Follow your curiosity — propose ONE follow-up probe to dig into this anomaly.\n\nOriginal test: ${plan.test}\nCommand: ${String(plan.command).slice(0, 300)}\nOdd signals: ${weird.signals.join(', ')}\nResponse excerpt: ${output.slice(0, 1200)}\n\nReply as JSON: {"test":"name","command":"shell command","why":"one line"}. Non-destructive, target-scoped.` }],
         'You are a curious elite bug-bounty hunter. Output ONLY the requested JSON, no prose.',
+        { huntId },
         { huntId }
       );
       const fm = /\{[\s\S]*\}/.exec(followUp || '');
@@ -2281,12 +2284,13 @@ function inferSeverity(testName, output) {
 async function generatePoC(huntId, target, findingRec) {
   try {
     think(huntId, `Generating PoC for: ${findingRec.title}`);
-    const reply = await chatWithAI(
+    const reply = await callBrain(
       [{
         role: 'user',
         text: `Write a minimal, non-destructive proof-of-concept shell command (curl-based) that demonstrates this vulnerability:\n\nFinding: ${findingRec.title}\nEvidence: ${JSON.stringify(findingRec.evidence).slice(0, 1000)}\n\nTarget: ${target}\n\nReply with ONLY the shell command, no explanation.`,
       }],
       'You are a security researcher writing PoC commands. Output ONLY the command.',
+      { huntId },
       { huntId }
     );
     if (!reply) return;
@@ -2566,7 +2570,12 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
             turns: 6,
             findings,
             iteration: i,
-            deps: { assess: assessResult, exec: executeWithEvasion },
+            // MODEL-SWITCHER (26 Oct 2026): the loop's brain call
+            // goes through callBrain — the selected model answers,
+            // and a silent Meta falls back to the 8B automatically.
+            // The wrapper has the same (messages, system, ctx)
+            // signature as chatWithAI, so the loop is unchanged.
+            deps: { assess: assessResult, exec: executeWithEvasion, chat: (messages, system, ctx) => callBrain(messages, system, ctx, { huntId }) },
           });
         } else {
           iterResult = await agentIteration(huntId, target, recon, findings, i, playbook);

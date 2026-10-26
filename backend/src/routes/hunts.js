@@ -52,6 +52,7 @@ import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
 import { getBalanceUsd } from '../billing/credits.js';
 import { hasActiveAccessById } from '../access.js';
 import { teardownHuntContainer, huntDesktopScreenshot } from '../huntRunner.js';
+import { listBrainModels, getBrainState, setBrainModel, metaAvailable } from '../brainProvider.js';
 
 /** Reject unless the hunt belongs to the authenticated user.
  *  Hunts without a userId are orphaned (pre-isolation) — admin only. */
@@ -818,6 +819,40 @@ router.get('/:id/control/ticket', requireAuth, (req, res) => {
   }
   const ticket = issueControlTicket(req.user.id || req.user.sub, req.user.username, req.params.id);
   return res.json({ ok: true, ticket });
+});
+
+// ---- Brain switcher (MODEL-SWITCHER, 26 Oct 2026) ----------------------
+// The hunt's brain, selectable per hunt at runtime, mid-hunt:
+// Dark Matter V1 (local 8B, default) or a Meta text model. Switching
+// is seamless by construction — the loop rebuilds its prompt from
+// live state + history + memory on every turn, so the new brain
+// picks up with everything the old one knew; memory never changes.
+// A switch to a Meta model is refused while no META_API_KEY is
+// configured. The automatic fallback (Meta silent -> 8B) lives in
+// brainProvider.callBrain and records `model_switch` events here
+// in the same event stream the activity feed reads.
+router.get('/:id/brain', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const state = getBrainState(req.params.id);
+  return res.json({ ok: true, brain: { ...state, models: listBrainModels(), metaAvailable: metaAvailable() } });
+});
+
+router.post('/:id/brain', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const model = String((req.body && req.body.model) || '').trim();
+  const result = setBrainModel(req.params.id, model, { manual: true });
+  if (!result.ok) {
+    return res.status(400).json({
+      ok: false,
+      error: result.error,
+      message: result.error === 'meta_unavailable'
+        ? 'That Meta model is not available right now — the Meta API key is not configured on the backend (or the card verification is still pending). The hunt stays on Dark Matter V1.'
+        : 'Unknown brain model.',
+    });
+  }
+  return res.json({ ok: true, brain: result.brain });
 });
 
 // ---- Agent activity log: whatever the agent did, when --------------------------------

@@ -24,7 +24,8 @@ import { requireAuth } from './auth.js';
 import { getBalanceUsd } from '../billing/credits.js';
 import { hasActiveAccessById } from '../access.js';
 import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
-import { chatWithAI, aiAvailable, isInferenceActive } from '../llm.js';
+import { isInferenceActive } from '../llm.js';
+import { callChatMeta, metaAvailable } from '../brainProvider.js';
 import { analyzeFindings } from '../hunt-intel/index.js';
 import { loadHuntMemory, normTitle, findingCounts } from '../huntMemory.js';
 import { pageUrlFromObservation } from '../humanLoop.js';
@@ -548,9 +549,14 @@ router.post(
       });
     }
     // No hunt context: try the real AI; fall back to honest guidance.
-    if (aiAvailable()) {
+    // MODEL-SWITCHER (26 Oct 2026): chat replies are permanently on
+    // the Meta model — never on the hunt brain's 8B slot (which is
+    // busy hunting for 10–25 min a turn). When Meta is unavailable
+    // (no key, card not verified, API down) the deterministic
+    // fallback below answers instead; chat never waits on the 8B.
+    if (metaAvailable()) {
       chatRoute = 'no-hunt-llm';
-      const aiReply = await chatWithAI(
+      const aiReply = await callChatMeta(
         [...history, { role: 'user', text: message }],
         'You are Dark Matter, an elite autonomous bug-bounty hunter by Obfinity. ' +
         'No hunt is attached to this chat yet. Answer helpfully and concisely.',
@@ -675,10 +681,15 @@ router.post(
         reply: ackTextForHunt({ reasoningRows: memory.reasoningRows, lang, pendingCount: pendingChatQuestions(huntId).length }),
       });
     }
-    if (aiAvailable()) {
+    // MODEL-SWITCHER (26 Oct 2026): the direct LLM path is Meta,
+    // permanently — the hunt brain's 8B never answers chat here.
+    // (A thinking question while the hunt is RUNNING never reaches
+    // this branch: it queues to the brain's next turn instead, and
+    // the brain answers it there through callBrain.)
+    if (metaAvailable()) {
       chatRoute = 'llm';
       const system = buildHuntSystemPrompt({ huntId, meta, live, liveError, cached, findings, memory, userMessage: message });
-      const aiReply = await chatWithAI([...history, { role: 'user', text: message }], system, { huntId });
+      const aiReply = await callChatMeta([...history, { role: 'user', text: message }], system, { huntId });
       if (aiReply) return res.json({ ok: true, reply: aiReply, ai: true });
     }
     // AI unreachable: answer from real hunt data, not a generic fallback.
