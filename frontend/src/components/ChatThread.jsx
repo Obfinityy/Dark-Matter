@@ -170,7 +170,9 @@ export default function ChatThread({ messages, streaming, thinking, onHuntStatus
           return (
             <div key={msg.id} className="message message-hunt">
               <HuntCard hunt={msg.hunt} onStatusChange={onHuntStatusChange} onRerun={onRerunHunt} onStartFresh={onStartFreshHunt} onTalkWithAI={onTalkWithAI} onGetReport={onGetReport} />
-              {['done', 'stopped', 'failed', 'error'].includes(msg.hunt.status) && (
+              {/* Live report (27 Oct 2026): the report builds while the
+                  hunt runs — not only after it ends. */}
+              {msg.hunt.status && msg.hunt.status !== 'idle' && (
                 <button className="btn btn-ghost btn-sm report-link" onClick={() => onOpenReports(msg.hunt.huntId)}>
                   📄 View report →
                 </button>

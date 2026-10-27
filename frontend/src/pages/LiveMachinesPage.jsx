@@ -84,9 +84,10 @@ export default function LiveMachinesPage({ onOpenHunt }) {
       const res = await listHunts();
       if (cancelled) return;
       const all = (res.ok && res.data && res.data.hunts) || [];
-      // Active machines only: running hunts plus paused ones (their
-      // containers stay up, so their last desktop frame still serves).
-      setHunts(all.filter((h) => h.status === 'running' || h.status === 'paused'));
+      // Running hunts ONLY (27 Oct 2026, live-machine fix): paused
+      // hunts' containers stay up, so their frozen frames used to
+      // render here as extra "live" panels next to the running hunt.
+      setHunts(all.filter((h) => h.status === 'running'));
       if (!cancelled) timer = setTimeout(load, LIST_MS);
     };
     load();

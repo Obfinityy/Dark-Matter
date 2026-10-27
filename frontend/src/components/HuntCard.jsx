@@ -116,6 +116,12 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   const isPaused = status === 'paused' || status === 'out_of_credits';
   const isTerminal = ['done', 'stopped', 'failed', 'error'].includes(status);
   const isActive = ['running', 'paused'].includes(status);
+  const isRunning = status === 'running' || status === 'starting';
+  // LIVE MACHINE GATE (27 Oct 2026, live-machine fix): the live panel
+  // renders ONLY while the hunt is actually running. A paused hunt's
+  // container stays up, so its frozen desktop used to render a second
+  // "live" panel next to the running hunt's — the owner saw two DVWA
+  // live panels. Paused hunts show no live panel at all.
   const [showPiP, setShowPiP] = useState(false);
   const [showTerminalModal, setShowTerminalModal] = useState(false);
   const [cost, setCost] = useState(null);
@@ -462,10 +468,17 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   }, [logs]);
 
   // 100% truth rule: only VERIFIED findings are shown as vulnerabilities.
-  // Unverified leads are hypotheses, not vulnerabilities — they are counted
-  // separately as "under investigation" and never presented as findings.
+  // Unverified leads are hypotheses, not vulnerabilities — they are
+  // NEVER given a verified badge. But they ARE shown (27 Oct 2026,
+  // live-report fix): before this change a hunt with 0 verified
+  // findings showed only the bare count "N leads under investigation"
+  // with no title, severity or evidence — the owner could not see any
+  // report building live. Leads now render as lead rows (title +
+  // severity + evidence snippet + "under investigation" badge) while
+  // the verified list above stays verified-only.
   const verifiedFindings = findings.filter((f) => f && f.verified === true);
-  const unverifiedCount = findings.filter((f) => f && f.verified !== true).length;
+  const unverifiedFindings = findings.filter((f) => f && f.verified !== true);
+  const unverifiedCount = unverifiedFindings.length;
 
   const counts = useMemo(() => {
     const c = { critical: 0, high: 0, medium: 0, low: 0 };
@@ -615,10 +628,19 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
             ))}
           </ul>
           )}
-          {totalFindings > 0 && unverifiedCount > 0 && (
-            <div className="hunt-investigating">
-              + {unverifiedCount} lead{unverifiedCount === 1 ? '' : 's'} under investigation
-            </div>
+          {unverifiedCount > 0 && (
+          <ul className="findings-list findings-leads">
+            {unverifiedFindings.map((f, idx) => (
+              <li key={`lead-${idx}`} className={`finding finding-lead ${SEVERITY_CLASS[f.severity] || 'sev-low'}`}>
+                <span className="finding-sev">{f.severity}</span>
+                <span className="finding-title">{f.title}</span>
+                <span className="finding-badge finding-unverified" title={f.verification || 'Under investigation'}>
+                  under investigation
+                </span>
+                {f.detail && <div className="finding-detail">{f.detail}</div>}
+              </li>
+            ))}
+          </ul>
           )}
         </div>
       )}
@@ -765,9 +787,12 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         />
       )}
       {/* Live Machine: read-only picture-in-picture of the hunt machine's
-          GUI desktop while this hunt is active. View-only by design — the
-          pause/stop controls above remain the only way to control it. */}
-      {isActive && (
+          GUI desktop while this hunt is running. Running ONLY (27 Oct
+          2026) — a paused hunt's container stays up, so gating on
+          isActive rendered a second frozen "live" panel for it. View-only
+          by design — the pause/stop controls above remain the only way
+          to control it. */}
+      {isRunning && (
         <LiveMachine huntId={hunt.huntId} target={hunt.target} />
       )}
       {showTerminalModal && (

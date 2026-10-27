@@ -63,13 +63,37 @@ import { getAllReasoning, getHypothesisLedger } from './reasoningMemory.js';
 import { loadCoverage, emptyCoverage, classLabelFor } from './coverageLedger.js';
 import { getRuledOut } from './episodeStore.js';
 import { buildActionIndex, indexLines } from './actionIndex.js';
+import { isHttpErrorPage } from './hunt-intel/differential.js';
 
 const clip = (s, n) => {
   const t = String(s || '').replace(/\s+/g, ' ').trim();
   return t.length > n ? t.slice(0, n - 1) + '…' : t;
 };
 
-export const normTitle = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+// Title normalisation — the single key every counter/dedup uses.
+// The "PoC confirmed: <title>" stamp is stripped (27 Oct 2026,
+// 404-verified audit): the PoC confirmation is a second stamp of the
+// SAME finding, not a second finding — without the strip, panel,
+// chat, DOSSIER and notifications each counted it twice (5 unique
+// findings showed as 10 verified on the live DVWA hunt).
+export const normTitle = (s) => String(s || '')
+  .toLowerCase().replace(/\s+/g, ' ').trim()
+  .replace(/^poc confirmed:\s*/, '');
+
+/**
+ * True when a finding's stored evidence is an HTTP error page, not
+ * the vulnerability (27 Oct 2026, 404-verified audit — all 5 false
+ * "verified" findings on the live DVWA hunt carry a 404 page in
+ * evidence.response). Read-time demotion: the verifier stamped these
+ * before the gate learned to reject error pages, so every surface
+ * that counts or displays verified findings must exclude them until
+ * they are retracted — the brain must never quote them, the panel
+ * must never count them.
+ */
+export function isErrorPageFinding(f) {
+  const ev = (f && f.evidence) || {};
+  return isHttpErrorPage(ev.response) || isHttpErrorPage(ev.poc_output) || isHttpErrorPage(ev.impact_demo);
+}
 
 // ---------------------------------------------------------------------------
 // Pure record helpers (canonical home — humanLoop re-exports these;
@@ -159,18 +183,24 @@ export function panelFindings(findings) {
     }
     const row = slot.row;
     row.stamps += 1;
+    // ERROR-PAGE DEMOTION (27 Oct 2026, 404-verified audit): a stamp
+    // whose stored evidence is an HTTP error page never counts as
+    // verified — the verifier stamped 404 pages before the gate
+    // learned to reject them. The row stays a lead, never a confirmed
+    // vulnerability, until the finding is retracted or re-proven.
+    const countsAsVerified = Boolean(f.verified) && !isErrorPageFinding(f);
     const sev = String(f.severity || '').toLowerCase();
     if (PANEL_SEVERITIES.has(sev)) {
-      if (f.verified) { row.severity = sev; slot.sevFromVerified = true; slot.sevSet = true; }
+      if (countsAsVerified) { row.severity = sev; slot.sevFromVerified = true; slot.sevSet = true; }
       else if (!slot.sevFromVerified && !slot.sevSet) { row.severity = sev; slot.sevSet = true; }
     }
-    if (f.verified && !row.verified) {
+    if (countsAsVerified && !row.verified) {
       row.verified = true;
       row.title = title; // display the verified stamp's own casing
     }
     const detail = String(f.detail || '').trim();
-    if (detail && (!row.detail || f.verified)) row.detail = detail;
-    if (f.verification && (!row.verification || f.verified)) {
+    if (detail && (!row.detail || countsAsVerified)) row.detail = detail;
+    if (f.verification && (!row.verification || countsAsVerified)) {
       row.verification = String(f.verification);
     }
   }
@@ -568,13 +598,18 @@ function dedupeFindings(list) {
   const seen = new Map();
   for (const f of list || []) {
     if (!f) continue;
-    const key = `${clip(f.title, 90)}|${f.severity || 'medium'}`;
-    seen.set(key, (seen.get(key) || 0) + 1);
+    // Key on the normalised title (27 Oct 2026): "PoC confirmed: X"
+    // is the same finding as "X" — keying on the raw title counted
+    // each PoC stamp as a second verified finding in the DOSSIER.
+    const key = `${normTitle(f.title).slice(0, 90)}|${f.severity || 'medium'}`;
+    const slot = seen.get(key);
+    if (slot) {
+      slot.n += 1;
+      // Prefer the unprefixed title for display when it arrives later.
+      if (/^poc confirmed:/i.test(slot.title) && !/^poc confirmed:/i.test(String(f.title || ''))) slot.title = clip(f.title, 90);
+    } else seen.set(key, { title: clip(f.title, 90), sev: f.severity || 'medium', n: 1 });
   }
-  return [...seen.entries()].map(([key, n]) => {
-    const [title, sev] = key.split('|');
-    return { title, sev, n };
-  });
+  return [...seen.values()];
 }
 
 /**
@@ -688,8 +723,9 @@ export function buildStateOfMind(memory, { topicStats = [], endpoints = [] } = {
 
   // (c) WHAT I KNOW — findings with retraction state, captured
   // artefacts (key presence only), the target fingerprint.
+  // Error-page findings never list as VERIFIED (27 Oct 2026 audit).
   const know = [];
-  const verified = dedupeFindings(findings.filter((f) => f.verified));
+  const verified = dedupeFindings(findings.filter((f) => f.verified && !isErrorPageFinding(f)));
   const unverified = dedupeFindings(findings.filter((f) => !f.verified));
   for (const d of verified) know.push(`- [VERIFIED] ${d.title} (${d.sev})${d.n > 1 ? ` ×${d.n}` : ''}`);
   for (const d of unverified) know.push(`- [claimed, NOT verified] ${d.title} (${d.sev})${d.n > 1 ? ` ×${d.n}` : ''}`);

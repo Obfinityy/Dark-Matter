@@ -48,6 +48,25 @@ export default function ReportsPage({ preselectedHuntId }) {
     setError('');
   }
 
+  // LIVE REPORT (27 Oct 2026, live-report fix): the report used to
+  // build only on a manual "Generate report" click, so the owner
+  // never saw it build as findings landed. Selecting a hunt now
+  // generates at once, and the markdown refreshes every 20 s while
+  // a hunt stays selected — the report builds live, no click, no
+  // reload. The manual button still regenerates on demand.
+  useEffect(() => {
+    if (!selectedId) return undefined;
+    let cancelled = false;
+    const refresh = async () => {
+      const res = await fetchReportMarkdown(selectedId).catch(() => null);
+      if (cancelled || !res || !res.ok) return;
+      if (res.data.markdown) { setMarkdown(res.data.markdown); setError(''); }
+    };
+    refresh();
+    const timer = setInterval(refresh, 20000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [selectedId]);
+
   async function generateReport() {
     if (!selectedId) return;
     setGenerating(true);

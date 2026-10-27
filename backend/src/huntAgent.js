@@ -25,6 +25,8 @@ import {
   dockerAvailable,
 } from './huntRunner.js';
 import { HuntOrchestrator } from './orchestrator.js';
+import { pendingChatQuestions, chatQuestionScreenLines, extractChatAnswers, parseChatAnswerLines } from './chatQueue.js';
+import { isErrorPageFinding } from './huntMemory.js';
 
 // Active orchestrators by huntId — so assessResult can report verified
 // findings to the head even though it doesn't receive it as a parameter.
@@ -174,7 +176,7 @@ import { ensurePlanTree, renderPlanTree, recordPlanOutcome } from './planTree.js
 import { summarizeToolOutput } from './toolOutput.js';
 import { handleArtifactCommand, spillOutput } from './artifacts.js';
 import { notifyFinding } from './notifications.js';
-import { humanIteration } from './humanLoop.js';
+import { humanIteration, defaultDeliverChatAnswer } from './humanLoop.js';
 import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
 import { hasActiveAccessById } from './access.js';
 
@@ -227,6 +229,7 @@ import {
   evidenceGate,
   verifyPipeline,
   executionFailed,
+  httpErrorStatus,
   assessContentRelevance,
   evidenceSignalIds,
   supportingSignalLines,
@@ -718,7 +721,10 @@ function extractTestsFromThinking(reply, recon, target) {
 
 /** Phase 2+: Bedrock picks the next test; we execute and verify. */
 async function agentIteration(huntId, target, recon, findings, iteration, playbook) {
-  const confirmed = findings.filter((f) => f.verified);
+  // ERROR-PAGE DEMOTION (27 Oct 2026, 404-verified audit): a "verified"
+  // stamp whose evidence is an HTTP error page is not a finding — the
+  // count the brain sees, and the count it may quote, excludes it.
+  const confirmed = findings.filter((f) => f.verified && !isErrorPageFinding(f));
 
   // MID-HUNT STEERING: the user can talk to the brain from the frontend.
   // Drain any queued instructions and follow them this iteration.
@@ -732,6 +738,21 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       writeHuntMetaCheckpoint(huntId, { steerQueue: [] });
     }
   } catch { /* steering must never break the hunt */ }
+
+  // MID-HUNT CHAT (27 Oct 2026, chat-gate fix): the owner's queued
+  // questions used to be answered ONLY by the human loop — in normal
+  // mode they sat pending forever (the 21:16 IST "abhi kya kr rha
+  // hai bhai" question waited 11 minutes through normal iterations).
+  // Read them here, same best-effort pattern as the steering drain,
+  // and put them on the screen so the brain answers them this
+  // iteration; delivery happens after the reply is parsed, below.
+  let pendingChat = [];
+  let chatQuestionLines = '';
+  try {
+    pendingChat = pendingChatQuestions(huntId);
+    const lines = chatQuestionScreenLines(pendingChat);
+    if (lines.length) chatQuestionLines = `\n${lines.join('\n')}`;
+  } catch { /* chat questions must never break the hunt */ }
 
   // Playbook: what worked on similar targets before?
   const lessons = (playbook || []).slice(0, 3).map((l) => `- ${l.technique}: ${l.why}`).join('\n');
@@ -784,6 +805,8 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     authHint,
     `Confirmed findings so far: ${confirmed.length}`,
     ...confirmed.slice(-5).map((f) => `- ${f.title} (${f.severity})`),
+    `A finding counts as verified only if its proof response was a real page (HTTP 200-class) — an error page (404/500) is never proof. Do not quote a verified count you have not earned.`,
+    chatQuestionLines,
     lessons ? `Past lessons for similar targets:\n${lessons}` : '',
     // INTELLIGENT CONTEXT: tech detection tells AI what NOT to try
     // (e.g., never suggest SQLi on a MongoDB target)
@@ -991,10 +1014,17 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // threw "ReferenceError: reply is not defined" and silently discarded
   // the model's plan (seen live on h_bench_cb6e37b2 iteration 1).
   let reply = '';
+  // MID-HUNT CHAT (27 Oct 2026): when owner questions are pending, the
+  // brain answers them AFTER the plans array, one CHAT_ANSWER line per
+  // question — the array parser tolerates trailing lines, so the plans
+  // still parse. No questions pending: the strict array-only contract.
+  const systemPrompt = pendingChat.length
+    ? 'You are an elite bug-bounty hunter. Output the requested JSON array first; after it, answer the owner questions listed in the context, one per line: CHAT_ANSWER <question-id>: <your answer in the user\'s language>. No other prose.'
+    : 'You are an elite bug-bounty hunter. Output ONLY the requested JSON array, no prose.';
   try {
     reply = await callBrain(
       [{ role: 'user', text: prompt }],
-      'You are an elite bug-bounty hunter. Output ONLY the requested JSON array, no prose.',
+      systemPrompt,
       { huntId },
       { huntId }
     );
@@ -1036,6 +1066,20 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     think(huntId, `AI call threw: ${err && err.message ? String(err.message).slice(0, 200) : err}`);
     return { aiOk: false, best: null, failKind: 'error' };
   }
+  // MID-HUNT CHAT DELIVERY (27 Oct 2026, chat-gate fix): the brain's
+  // answers ride after the plans array as CHAT_ANSWER <id>: <answer>
+  // lines. Delivered before any plan executes — a blocked plan must
+  // never swallow the owner's answer. Best-effort, mirroring the
+  // human loop's delivery (humanLoop.js).
+  try {
+    if (pendingChat.length && reply) {
+      const parsedAnswers = parseChatAnswerLines(reply).map(({ q, answer }) => ({ q, answer }));
+      const answers = extractChatAnswers({ chat_answers: parsedAnswers }, pendingChat);
+      for (const a of answers) {
+        try { await defaultDeliverChatAnswer(huntId, a, { via: 'normal-mode' }); } catch { /* one failed delivery never blocks the rest */ }
+      }
+    }
+  } catch { /* chat answers are best-effort — the plans still run */ }
   // MANDATORY AUTH TESTS: If recon found login/auth endpoints and the model's
   // plans don't include them, prepend deterministic injection tests. The model
   // often overlooks auth; an elite hunter NEVER skips the login form.
@@ -2152,6 +2196,16 @@ function inferSeverity(testName, output) {
   // unverified with the relevance verdict, so the dead-end registry
   // learns the family like any other validator rejection.
   let rec = { ...gated, verification: v.verdict, verified: v.verified };
+  // ERROR-PAGE AUDIT (27 Oct 2026, 404-verified audit): record the
+  // proof response's HTTP status on the finding, so every later reader
+  // can see whether the proof was a real page or an error page. The
+  // rejection itself rides the content-relevance limb
+  // (differential.js) — a 404 there rewrites the record as a false
+  // positive in the block below.
+  const errorStatus = httpErrorStatus(output);
+  if (errorStatus) {
+    rec = { ...rec, evidence: { ...(rec.evidence || {}), http_status: errorStatus } };
+  }
   if (v.verified) {
     const baselines = await getTargetBaselines(huntId, target);
     const rel = assessContentRelevance({ command: plan.command, target, output, baselines: baselines || [] });
@@ -2329,8 +2383,18 @@ async function generatePoC(huntId, target, findingRec) {
       const pocSigs = evidenceSignalIds(out, cmd);
       const sameFamily = pocSigs.some((s) => parentSigs.includes(s));
       if (rel.relevant && sameFamily) {
+        // POC CONFIRMATION IS NOT A SECOND FINDING (27 Oct 2026,
+        // 404-verified audit): the old code appended a second
+        // type:'finding' event titled "PoC confirmed: X", and every
+        // counter counted it — 5 unique findings showed as 10
+        // verified on the live DVWA hunt. A confirmation is now a
+        // non-countable event carrying the parent title + PoC
+        // evidence for the audit trail; panel/chat/DOSSIER counts
+        // come from the parent record only. The error-page limb in
+        // assessContentRelevance already refused to stamp a 404 PoC.
         appendHuntEvent(huntId, {
-          type: 'finding',
+          type: 'poc_confirmation',
+          findingTitle: findingRec.title,
           class: 'poc_verified',
           title: `PoC confirmed: ${findingRec.title}`,
           severity: findingRec.severity,
@@ -2450,6 +2514,23 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
     // workers, reviews their work, and writes the final report.
     const head = new HuntOrchestrator(huntId, target, mode);
     orchestrators.set(huntId, head);
+    // RESTORE HEAD FINDINGS (27 Oct 2026, 404-verified audit): a fresh
+    // HuntOrchestrator starts with findings: [] and saveState() below
+    // overwrote meta.orchestrator.findings with [] on every resume —
+    // the live hunt's 2 findings vanished to 0. Seed from the
+    // resume-rebuilt findings (verified only, error-page stamps
+    // excluded, one row per title) so the head never clobbers
+    // persisted findings.
+    try {
+      const seen = new Set();
+      head.findings = (findings || []).filter((f) => {
+        if (!f || !f.verified || isErrorPageFinding(f)) return false;
+        const key = String(f.title || '').toLowerCase().replace(/^poc confirmed:\s*/, '').trim();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    } catch { /* seeding is best-effort */ }
     think(huntId, `Head online: I am the lead hacker. Target: ${target}. Assembling my team.`);
 
     // Phase 1: recon — head spawns a recon specialist worker.
