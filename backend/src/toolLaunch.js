@@ -439,8 +439,19 @@ export async function burpFirstUse(huntId, target, deps) {
   // browser is also a Chromium window, so the new one is the id that
   // appears only AFTER the click.
   const beforeIds = new Set(parseWindowIds(await execQuiet(huntId, browserWindowIdsCommand(), 15000, deps)));
-  const obOut = await execQuiet(huntId, clickControlCommand(BURP_OPEN_BROWSER_CONTROL, 'Burp Suite'), 20000, deps);
-  let browserOpened = parseAtspiOutput(obOut).ok;
+  // The click is retried: the proxy listener comes up while the
+  // project is still loading ("Starting project, please wait ..."),
+  // and until the main window finishes loading there is no
+  // "Open Browser" control to click (EC2 lab run 4: single attempt
+  // failed right after the proxy came up; the control appeared
+  // later). Each attempt re-reads the tree, so a success means the
+  // control really existed at click time.
+  let browserOpened = false;
+  for (let i = 0; i < 12 && !browserOpened; i++) {
+    if (i > 0) await sleep(5000);
+    const obOut = await execQuiet(huntId, clickControlCommand(BURP_OPEN_BROWSER_CONTROL, 'Burp Suite'), 20000, deps);
+    browserOpened = parseAtspiOutput(obOut).ok;
+  }
   if (!browserOpened) {
     // OCR fallback: find "Open Browser" on the screen map and click it.
     try {

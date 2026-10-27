@@ -338,6 +338,53 @@ test('burpFirstUse: happy path — launch, wizard, proxy, browser, target confir
   assert.match(res.observation, /target visible in the Burp browser/);
 });
 
+test('burpFirstUse: "Open Browser" is retried until the project finishes loading', async () => {
+  // EC2 lab run 4: the proxy was up but the main window was still on
+  // "Starting project, please wait ..." — the first click attempts
+  // found no "Open Browser" control at all. A single attempt fails
+  // the whole first-use; the retry waits the load out.
+  let probes = 0;
+  let proxyProbes = 0;
+  let browserClicked = false;
+  let openAttempts = 0;
+  let wizardStep = 0; // 0=EULA, 1=edition, 2=project, 3=config, 4=start, 5=done
+  const wizardClick = (name) => () => {
+    if (name === 'Accept' && wizardStep === 0) { wizardStep = 1; return ATSPI_CLICK_OK('Accept'); }
+    if (name === 'Continue with Burp Suite Community Edition' && wizardStep === 1) { wizardStep = 2; return ATSPI_CLICK_OK('Continue with Burp Suite Community Edition'); }
+    if (name === 'Next' && (wizardStep === 2 || wizardStep === 3)) { wizardStep += 1; return ATSPI_CLICK_OK('Next'); }
+    if (name === 'Start Burp' && wizardStep === 4) { wizardStep = 5; return ATSPI_CLICK_OK('Start Burp'); }
+    return JSON.stringify({ ok: false, error: `no control named "${name}" found` });
+  };
+  const { execRaw } = stubExec([
+    ["xdotool search --onlyvisible --name 'Burp Suite'", () => (++probes === 1 ? '' : '12345\n')],
+    ['nohup burpsuite', 'started:123\n'],
+    ["python3 - 'list'", ATSPI_LIST_OK],
+    ["python3 - 'click' 'Accept'", wizardClick('Accept')],
+    ["python3 - 'click' 'Continue with Burp Suite Community Edition'", wizardClick('Continue with Burp Suite Community Edition')],
+    ["python3 - 'click' 'Next'", wizardClick('Next')],
+    ["python3 - 'click' 'Start Burp'", wizardClick('Start Burp')],
+    ['ss -ltn', () => (++proxyProbes === 1 ? 'proxy_down\n' : 'proxy_up\n')],
+    ["xdotool search --onlyvisible --name 'Chromium'", () => (browserClicked ? '67890\n' : '')],
+    ["python3 - 'click' 'Open Browser'", () => {
+      openAttempts += 1;
+      if (openAttempts < 3) return JSON.stringify({ ok: false, error: 'no control named "Open Browser" found in Burp Suite Community Edition v2026.9 — the app may expose no accessibility tree (Java apps need the Java Access Bridge), or the control is named differently; list the window\'s controls first' });
+      browserClicked = true;
+      return ATSPI_CLICK_OK('Open Browser');
+    }],
+    ['windowactivate --sync 67890', 'activated\n'],
+    ['xdotool key', 'key_sent\n'],
+    ['xdotool type', 'typed\n'],
+    ['scrot', 'captured'],
+    ['getdisplaygeometry', '1280 800'],
+    ['tesseract', TSV_HOST],
+  ]);
+  const res = await burpFirstUse('h_x', 'http://172.17.0.1:3100/', { execRaw, sleep: noSleep });
+  assert.equal(res.ok, true);
+  assert.equal(openAttempts, 3, 'the click was retried until the control existed');
+  assert.equal(res.state.browserOpened, true);
+  assert.equal(res.state.targetLoaded, true);
+});
+
 test('burpFirstUse: proxy never listens — honest partial failure, launch still recorded', async () => {
   const { execRaw } = stubExec([
     ["xdotool search --onlyvisible --name 'Burp Suite'", '12345\n'],
