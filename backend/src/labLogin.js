@@ -24,6 +24,7 @@
 // session-secret set (so the scrubber strips it everywhere), and
 // only the credential handle is ever recorded.
 import { dvwaLoginSpec, knownAppOf } from './knownApps.js';
+import { bestLabelMatch } from './labelMatch.js';
 
 /**
  * The login spec when this hunt still needs its lab login, else null.
@@ -66,7 +67,7 @@ export async function runLabLoginFirst(huntId, target, deps) {
     } catch { /* recording is best-effort */ }
     try {
       const meta = deps.readMeta(huntId) || {};
-      deps.writeMeta(huntId, { auth: { ...readAuth(meta), dvwa: { loggedIn: false, loginFailed: true, failedAt: new Date().toISOString(), reason } } });
+      deps.writeMeta(huntId, { auth: { ...readAuth(meta), dvwa: { loggedIn: false, loginFailed: true, failedAt: new Date().toISOString(), reason, via: 'gui' } } });
     } catch { /* persisting the blocker is best-effort */ }
     try {
       note({ action: 'dvwa-login-first', why: 'DVWA modules sit behind the login', result: `login failed (${reason})`, learned: 'The login wall is the blocker — fix it before hunting modules.' });
@@ -109,6 +110,43 @@ export async function runLabLoginFirst(huntId, target, deps) {
   // 4. Fill + submit exactly like use_saved_credential does: click
   //    each field, type from the vault, click the submit button.
   //    Each step is checked — the first refusal stops the chain.
+  //    OCR fallback (27 Oct 2026, live 22:50 failure): when a label
+  //    click misses — the OCR map reads "Username" as "u ername" —
+  //    the fuzzy tiers in resolveClickTarget usually repair it; when
+  //    even they miss, the screen map's coordinates are the second
+  //    chance: the closest map line to the wanted label is clicked
+  //    directly at its (x, y). The post-login Logout check is the
+  //    real proof, so a wrong-coordinate click cannot fake a login
+  //    — it just lands on login-not-verified. The fallback needs
+  //    deps.screenMap + deps.clickAt (wired by the human loop);
+  //    without them the step fails as before.
+  const clickWithMapFallback = async (wanted) => {
+    let res = null;
+    try {
+      res = await gui.click(huntId, wanted);
+    } catch (err) {
+      res = { ok: false, observation: String((err && err.message) || err) };
+    }
+    if (res && res.ok !== false) return res;
+    if (typeof deps.screenMap !== 'function' || typeof deps.clickAt !== 'function') return res;
+    let mapFallbackTried = false;
+    try {
+      const map = await deps.screenMap();
+      const lines = (map && map.ok && Array.isArray(map.lines)) ? map.lines : [];
+      if (!lines.length) return { ...res, mapFallbackTried };
+      // Relaxed best match: the map on a login page has a handful
+      // of lines, the closest one to the wanted label is the field.
+      // Absurd picks are still refused: the distance must be at
+      // most half the wanted label's length.
+      const best = bestLabelMatch(wanted, lines.map((l) => l.text), { maxDistance: Math.max(1, Math.floor(String(wanted).length / 2)) });
+      if (!best) return { ...res, mapFallbackTried };
+      mapFallbackTried = true;
+      const line = lines[best.index];
+      const at = await deps.clickAt(line.x, line.y);
+      if (at && at.ok) return { ok: true, observation: `clicked ${wanted} via screen map at (${line.x}, ${line.y})` };
+    } catch { /* fallback failure keeps the original refusal */ }
+    return { ...res, mapFallbackTried };
+  };
   const saved = (() => {
     try {
       return deps.getCredential ? deps.getCredential(rec.handle) : null;
@@ -128,12 +166,13 @@ export async function runLabLoginFirst(huntId, target, deps) {
   for (const [how, value] of steps) {
     let res = null;
     try {
-      res = how === 'click' ? await gui.click(huntId, value) : await gui.type(huntId, value, false);
+      res = how === 'click' ? await clickWithMapFallback(value) : await gui.type(huntId, value, false);
     } catch (err) {
       return fail('fill-failed', `${how} ${value}: ${String((err && err.message) || err)}`);
     }
     if (res && res.ok === false) {
-      return fail('fill-failed', `${how} ${value}: ${(res.observation || res.error || 'browser refused')}`);
+      const tried = res.mapFallbackTried ? ' (screen-map fallback also missed)' : '';
+      return fail('fill-failed', `${how} ${value}: ${(res.observation || res.error || 'browser refused')}${tried}`);
     }
   }
 
@@ -180,7 +219,7 @@ export async function runLabLoginFirst(huntId, target, deps) {
     deps.writeMeta(huntId, {
       auth: {
         ...readAuth(meta),
-        dvwa: { loggedIn: true, loginFailed: false, securityLevel, verifiedAt, handle: rec.handle },
+        dvwa: { loggedIn: true, loginFailed: false, securityLevel, verifiedAt, handle: rec.handle, via: 'gui' },
       },
     });
   } catch { /* persisting is best-effort */ }

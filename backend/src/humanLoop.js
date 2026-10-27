@@ -126,7 +126,19 @@ import {
   parseClickAt,
   desktopClickAtCommand,
   screenMapErrorLine,
+  parseScreenMapLines,
 } from './screenMap.js';
+// VISIBLE-DESKTOP-FIRST (27 Oct 2026, owner order): the brain must
+// hunt THROUGH the visible desktop so the owner SEES it work —
+// interactive steps on the desktop, shell only for work that needs
+// no screen. Pure routing helpers (prompt section, turn classifier,
+// shell-login detector, next-turn nudge, per-turn heartbeat).
+import {
+  DESKTOP_FIRST_RULE,
+  looksLikeShellLogin,
+  desktopFirstNudge,
+  heartbeatBlock,
+} from './desktopFirst.js';
 // REAL-HUMAN (26 Oct 2026): the owner's queued questions (the
 // brain answers them in-turn — see chatQueue.js) and in-app
 // clicking via the AT-SPI accessibility tree (desktopAtspi.js).
@@ -1111,6 +1123,14 @@ function systemPromptFor(target, parsedScope) {
     // no fixed-sequence wording exists anywhere in the prompt.
     'There is no fixed order of operations — no recon→scan→exploit script, no checklist to work through. Decide each step fresh from what you remember and what you just observed; a different target or a different memory means a different first move. Your plan is yours, and it changes when the evidence changes.',
     'You also have a real desktop with a Chromium browser on this machine: you can open pages, SEE them (browser_snapshot gives you the page text and its clickable elements), click and type like a person at a computer, and take screenshots. The desktop itself is yours too — the whole XFCE desktop, not just the browser: desktop_snapshot shows you its windows, desktop_click focuses a window by title, desktop_key sends keys to the focused window, and desktop_screenshot captures the whole desktop. GUI apps (Burp, ZAP, Wireshark, the terminal) launch from the shell; focus one with desktop_click, then work it with the keyboard. You SEE the desktop itself with see_screen: it reads the screen into a text map — every visible word with its (x, y) position — and you click what you see with desktop_click_at. Look, then act, then look again to confirm the screen changed.',
+    // VISIBLE-DESKTOP-FIRST (27 Oct 2026, owner order): the desktop
+    // was described as an OPTION, so the brain rationally picked
+    // the fastest tool — headless shell curls, which the owner
+    // cannot see. This section is the routing rule: interactive
+    // work happens ON the visible desktop; shell stays for work
+    // that needs no screen. It routes HOW an action is performed,
+    // never WHICH vulnerability to try — the brain still chooses.
+    DESKTOP_FIRST_RULE,
     // HUNTER-MIND (26 Oct 2026): narration — the owner watches the
     // thinking and wants it to read like a hunter thinking aloud
     // ("abhi main nmap chala ke subdomain enum karta hoon"), in the
@@ -2859,7 +2879,7 @@ export function skillCardLines() {
   }
 }
 
-function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [], stateOfMind = [], followThrough = [], settled = [], pageState = [], exhausted = [], desktopState = [], chatQuestions = [], huntPlan = [], detailsRequest = [] }) {
+function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [], stateOfMind = [], followThrough = [], settled = [], pageState = [], exhausted = [], desktopState = [], desktopNow = [], chatQuestions = [], huntPlan = [], detailsRequest = [] }) {
   // ERROR-PAGE DEMOTION (27 Oct 2026, 404-verified audit): a
   // "verified" stamp whose evidence is an HTTP error page is not a
   // finding — it must not appear on the screen's VERIFIED list, or
@@ -2896,6 +2916,12 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     // refresh. The windows and the focused app are what the
     // desktop actions are chosen against.
     ...(desktopState && desktopState.length ? ['', ...desktopState] : []),
+    // VISIBLE-DESKTOP-FIRST: the per-turn heartbeat — a fresh
+    // screen read at the top of every turn, so the brain acts
+    // against what is actually on screen, not from memory. It is
+    // perception, not the result of the last action (that is
+    // lastObservation, rendered separately below).
+    ...(desktopNow && desktopNow.length ? ['', ...desktopNow] : []),
     // Lane I: where the hunter left off last session sits beside the
     // explored digest — continuity first, before the long briefing.
     ...(leftOff && leftOff.length ? ['', ...leftOff] : []),
@@ -3161,6 +3187,15 @@ export async function humanIteration(huntId, target, opts = {}) {
   };
   const toolCall = (tool, detail) => {
     try { deps.record(huntId, { type: 'tool_call', tool, detail: scrub(String(detail || '')).slice(0, 300), via: 'human-mode' }); } catch { /* best-effort */ }
+    // VISIBLE-DESKTOP-FIRST: record the executed action kind for
+    // this turn's routing classification (desktop vs shell-only)
+    // and flag a shell login attempt — a curl login leaves the
+    // visible browser logged out, so the next screen must say so.
+    try {
+      const k = String(tool || '').toLowerCase();
+      turnKinds.push(k);
+      if (k === 'shell' && looksLikeShellLogin(detail)) turnShellLogin = true;
+    } catch { /* routing bookkeeping is best-effort */ }
     // Lane F: every executed action joins the already-done history
     // the moment it is dispatched, so the gate sees this session's
     // own actions too — not just past sessions' records.
@@ -3350,6 +3385,18 @@ export async function humanIteration(huntId, target, opts = {}) {
   // loopCounters. The interacted titles survive across snapshots
   // within the session via mergeDesktopState.
   let sessionDesktopState = emptyDesktopState();
+  // VISIBLE-DESKTOP-FIRST: per-turn routing state. turnKinds
+  // records the action kinds THIS turn executed (toolCall appends);
+  // the turn-end bookkeeping folds them into prevTurnDesktop, and
+  // the next screen's nudge is computed from it. desktopLive
+  // tracks whether the session-start snapshot found a real (CDP)
+  // desktop: the per-turn heartbeat only runs while it is live, so
+  // a headless fallback never pays a slow --dump-dom every turn.
+  let turnKinds = [];
+  let turnShellLogin = false;
+  let prevTurnDesktop = { kinds: [], task: '', shellLogin: false };
+  let desktopLive = false;
+  let desktopNowLines = [];
   // INFINITY LEVEL: fold an executed action's structured snapshot
   // into the session page state (and persist it). A refusal carries
   // no snapshot, so it changes nothing.
@@ -3408,6 +3455,11 @@ export async function humanIteration(huntId, target, opts = {}) {
       lastObservation = startSnap.observation;
       notePageUrl(lastObservation);
       noteSnapshot(startSnap);
+      // VISIBLE-DESKTOP-FIRST: the per-turn heartbeat only runs
+      // while a REAL (CDP) desktop is live — a degraded (headless
+      // look-only) snapshot means the desktop is down, and a
+      // heartbeat would pay a slow --dump-dom every turn for it.
+      desktopLive = startSnap.degraded !== true;
     }
   } catch { /* best-effort: a failed snapshot leaves the seed */ }
 
@@ -3430,9 +3482,31 @@ export async function humanIteration(huntId, target, opts = {}) {
       note,
       addSecret: (s) => sessionSecrets.add(s),
       say,
+      // OCR fallback (27 Oct 2026, live 22:50 failure): when a
+      // label click misses — the OCR map reads "Username" as
+      // "u ername" — the login falls back to the screen map's
+      // coordinates. The map reader + the coordinate clicker are
+      // injected here so labLogin stays testable without a desktop.
+      screenMap: async () => {
+        try {
+          const res = await captureScreenMap(huntId, deps);
+          if (!res || !res.ok) return { ok: false, error: (res && res.error) || 'map unavailable' };
+          return { ok: true, lines: parseScreenMapLines(res.map) };
+        } catch (err) {
+          return { ok: false, error: String((err && err.message) || err) };
+        }
+      },
+      clickAt: async (x, y) => {
+        try {
+          const res = await deps.execRaw(huntId, desktopClickAtCommand(x, y), 15000, { bypassTmux: true });
+          return { ok: String((res && res.stdout) || '').includes('clicked') };
+        } catch {
+          return { ok: false };
+        }
+      },
     });
     if (login && !login.ok && login.reason && login.reason !== 'not-needed') {
-      say(`Login-first blocked: ${login.reason} — hunting continues unauthenticated.`);
+      say(`Login-first blocked: ${login.reason} — hunting continues unauthenticated. The visible browser is still logged out — a shell curl login does NOT log it in; log in in the browser so the owner sees the authenticated surface.`);
     }
   } catch { /* login-first is best-effort */ }
 
@@ -3445,6 +3519,13 @@ export async function humanIteration(huntId, target, opts = {}) {
         break;
       }
     } catch { /* meta check is best-effort */ }
+
+    // VISIBLE-DESKTOP-FIRST: fresh routing record for this turn —
+    // toolCall appends the kinds this turn executes; the turn-end
+    // bookkeeping folds them into prevTurnDesktop for the next
+    // screen's nudge.
+    turnKinds = [];
+    turnShellLogin = false;
 
     // PER-TURN MEMORY REFRESH (Lane I): the briefing was built ONCE
     // per session and frozen for all 6 turns, so the brain's own
@@ -3466,6 +3547,39 @@ export async function humanIteration(huntId, target, opts = {}) {
       machineState = `${st.stdout || ''}${st.stderr || ''}`.trim().slice(0, 900) || '(empty)';
     } catch {
       machineState = '(machine state unavailable)';
+    }
+
+    // VISIBLE-DESKTOP-FIRST: per-turn desktop heartbeat — every
+    // turn starts with a fresh screen read, so the brain acts
+    // against what is actually on screen, not from memory. The
+    // browser snapshot is the fast CDP read (the same one the
+    // session start takes). Best-effort and gated on desktopLive:
+    // when the desktop is down the snapshot degrades to a slow
+    // headless --dump-dom, and the heartbeat would stall every
+    // turn for it. A failed heartbeat clears desktopLive, so it is
+    // paid at most once. This is perception, not a brain action:
+    // no tool_call event, and lastObservation (the result of the
+    // last ACTION) is never overwritten by it. It reads the
+    // BROWSER only — the window list is the desktop_snapshot
+    // action's job: a heartbeat windows read would consume the
+    // down-signal the desktop_terminal branch uses to start a
+    // cold desktop, and would look like terminal work to the
+    // desktop-call counters. The whole desktop is still read by
+    // the brain's own see_screen / desktop_snapshot, which the
+    // DESKTOP-FIRST rule and the nudge push it to take.
+    desktopNowLines = [];
+    if (desktopLive) {
+      try {
+        const hb = await getGui().snapshot(huntId);
+        if (hb && hb.observation) {
+          if (hb.degraded === true) { desktopLive = false; }
+          else {
+            desktopNowLines = heartbeatBlock(hb.observation);
+            notePageUrl(hb.observation);
+            noteSnapshot(hb);
+          }
+        } else { desktopLive = false; }
+      } catch { desktopLive = false; }
     }
 
     const evFindings = findingsFromEvents(deps, huntId);
@@ -3571,10 +3685,17 @@ export async function humanIteration(huntId, target, opts = {}) {
       // what to do, but it can no longer claim it did not see the
       // desktop. Once any desktop action lands, the nudge leaves
       // the screen on its own.
-      const desktopUsed = (counters.desktopClicks || 0) + (counters.desktopKeys || 0) + (counters.desktopClickControls || 0) > 0;
-      const desktopNudge = (exhaustedLines.length > 0 && !desktopUsed)
+      const desktopUsed = (counters.desktopClicks || 0) + (counters.desktopKeys || 0) + (counters.desktopClickControls || 0) + (counters.seeScreens || 0) + (counters.desktopClickAts || 0) + (counters.desktopTerminals || 0) > 0;
+      const routeNudge = (exhaustedLines.length > 0 && !desktopUsed)
         ? 'DESKTOP ROUTE OPEN — your browser route on an exhausted surface is closed, and the desktop is still untried in this hunt: take desktop_snapshot, launch Burp or ZAP from the shell, and work the login flow there (proxy_start intercepts it; desktop_click_control presses a named button inside the app). A GUI tool sees what the browser loop cannot.'
         : '';
+      // VISIBLE-DESKTOP-FIRST: the shell-only nudge — when the
+      // previous turn did interactive work via shell only (or
+      // logged in via curl), the screen says so and names the
+      // desktop route. Both nudges ride the same line; either is
+      // a nudge, never a forced action choice.
+      const shellNudge = desktopFirstNudge(prevTurnDesktop);
+      const desktopNudge = [routeNudge, shellNudge].filter(Boolean).join(' ');
       desktopStateLinesOut = desktopStateLines(sessionDesktopState, { target, nudge: desktopNudge });
       // REAL-HUMAN: the owner's queued questions, refreshed every
       // turn from the queue file (same discipline as the leads) —
@@ -3625,6 +3746,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       pageState: pageStateLinesOut,
       exhausted: exhaustedLines,
       desktopState: desktopStateLinesOut,
+      desktopNow: desktopNowLines,
       chatQuestions: chatQuestionLinesOut,
       huntPlan: planLinesOut,
       detailsRequest: detailsRequestLinesOut,
@@ -4866,6 +4988,15 @@ export async function humanIteration(huntId, target, opts = {}) {
     // in memory, but never lands in this log.
     log.push({ turn, action: kind, detail: scrub(detailForAction(kind, action)), observation: scrub(String(observation)).slice(0, 300) });
     lastObservation = observation;
+
+    // VISIBLE-DESKTOP-FIRST: fold this turn's executed actions
+    // into the previous-turn record the NEXT screen's nudge is
+    // computed from — a shell-only interactive turn (or a shell
+    // login, which leaves the visible browser logged out) earns
+    // the desktop nudge next turn. The task text is the brain's
+    // current task; a turn with no task block is judged on its
+    // shell login alone.
+    prevTurnDesktop = { kinds: [...turnKinds], task: String((sessionCurrentTask && sessionCurrentTask.task) || ''), shellLogin: turnShellLogin };
 
     // PROGRESS CHECKPOINT (Lane P, 23 Oct 2026): the hunt's totals
     // used to move only at session end, so during a whole 6-turn

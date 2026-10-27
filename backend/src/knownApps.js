@@ -166,7 +166,8 @@ export function knownAppSOMLines({ knownApp = null, auth = null } = {}) {
       'TARGET IS DVWA (Damn Vulnerable Web Application) — a deliberately vulnerable lab, NOT a shop. Its real modules live behind /login.php.',
     ];
     if (a.loggedIn === true) {
-      lines.push(`LOGGED IN as admin, security level ${a.securityLevel || 'unknown'} (verified ${a.verifiedAt || 'unknown'}). Hunt the /vulnerabilities/* modules — SQLi first.`);
+      const viaGui = a.via === 'gui' ? ' (visible browser — GUI login)' : '';
+      lines.push(`LOGGED IN as admin, security level ${a.securityLevel || 'unknown'} (verified ${a.verifiedAt || 'unknown'})${viaGui}. Hunt the /vulnerabilities/* modules — SQLi first.`);
     } else if (a.loginFailed === true) {
       lines.push('LOGIN FAILED (blocker recorded) — do not silently hunt unauthenticated; the login wall is the problem to solve, not the modules.');
     } else {

@@ -319,6 +319,14 @@ export function loopCounters({ events = [], reasoningRows = [], pageState = null
   // window clicks so the loop measures the whole desktop, not just
   // window focus.
   let desktopClickControls = 0;
+  // VISIBLE-DESKTOP-FIRST (27 Oct 2026): screen-seeing was
+  // invisible to the counters — a brain that looked at the screen
+  // and clicked coordinates still counted as "desktop never used".
+  // Count the screen reads, the coordinate clicks, and the
+  // visible-terminal runs beside the window clicks.
+  let seeScreens = 0;
+  let desktopClickAts = 0;
+  let desktopTerminals = 0;
   const windowsInteracted = new Set();
   let pendingDesktopSnapshot = false;
   // Track the live page host through the stream (browser_open sets
@@ -359,6 +367,9 @@ export function loopCounters({ events = [], reasoningRows = [], pageState = null
     if (tool === 'desktop_key') { desktopKeys++; continue; }
     if (tool === 'desktop_screenshot') { desktopScreenshots++; continue; }
     if (tool === 'desktop_click_control') { desktopClickControls++; continue; }
+    if (tool === 'see_screen') { seeScreens++; continue; }
+    if (tool === 'desktop_click_at') { desktopClickAts++; continue; }
+    if (tool === 'desktop_terminal') { desktopTerminals++; continue; }
     if (SNAPSHOT_TOOLS.has(tool)) {
       snapshotsTaken++;
       pendingSnapshotHost = hostOfEvent(e) || currentHost || '';
@@ -409,6 +420,9 @@ export function loopCounters({ events = [], reasoningRows = [], pageState = null
     desktopKeys,
     desktopScreenshots,
     desktopClickControls,
+    seeScreens,
+    desktopClickAts,
+    desktopTerminals,
     distinctWindowsInteracted: windowsInteracted.size,
   };
 }
@@ -419,9 +433,9 @@ export function loopCounterLines(counters) {
   const lines = [
     `LOOP: snapshots ${counters.snapshotsTaken} (acted on ${counters.snapshotsActedOn}) · clicks ${counters.clicks} · pages ${counters.distinctPages} · elements seen ${counters.elementsSeen}, interacted ${counters.distinctElementsInteracted} · payloads planned ${counters.payloadsPlanned}, sent ${counters.payloadsSent} · no-reply turns ${counters.noReplyTurns}`,
   ];
-  const desktopTotal = (counters.desktopSnapshots || 0) + (counters.desktopClicks || 0) + (counters.desktopKeys || 0) + (counters.desktopScreenshots || 0) + (counters.desktopClickControls || 0);
+  const desktopTotal = (counters.desktopSnapshots || 0) + (counters.desktopClicks || 0) + (counters.desktopKeys || 0) + (counters.desktopScreenshots || 0) + (counters.desktopClickControls || 0) + (counters.seeScreens || 0) + (counters.desktopClickAts || 0) + (counters.desktopTerminals || 0);
   if (desktopTotal > 0) {
-    lines.push(`DESKTOP: snapshots ${counters.desktopSnapshots || 0} (acted on ${counters.desktopSnapshotsActedOn || 0}) · window clicks ${counters.desktopClicks || 0} (${counters.distinctWindowsInteracted || 0} windows) · keystrokes ${counters.desktopKeys || 0} · in-app control clicks ${counters.desktopClickControls || 0} · desktop screenshots ${counters.desktopScreenshots || 0}`);
+    lines.push(`DESKTOP: snapshots ${counters.desktopSnapshots || 0} (acted on ${counters.desktopSnapshotsActedOn || 0}) · window clicks ${counters.desktopClicks || 0} (${counters.distinctWindowsInteracted || 0} windows) · keystrokes ${counters.desktopKeys || 0} · in-app control clicks ${counters.desktopClickControls || 0} · desktop screenshots ${counters.desktopScreenshots || 0} · screen reads ${counters.seeScreens || 0} · coordinate clicks ${counters.desktopClickAts || 0} · visible terminal runs ${counters.desktopTerminals || 0}`);
   }
   return lines;
 }

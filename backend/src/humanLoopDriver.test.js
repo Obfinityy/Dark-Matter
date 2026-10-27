@@ -219,7 +219,7 @@ test('LOOP-4: Take Control pauses the loop’s GUI actions, non-GUI work continu
   const res = await s.run();
   assert.equal(res.cyclesRun, 2, 'the loop continues past the paused GUI turn');
   assert.equal(res.aiOk, true);
-  assert.deepEqual(s.guiCalls, ['snapshot', 'snapshot'], 'only the read-only turn-start snapshots ran — the click never executed');
+  assert.deepEqual(s.guiCalls, ['snapshot', 'snapshot', 'snapshot', 'snapshot'], 'only read-only snapshots ran — the click never executed (two turn-start snapshots + two per-turn desktop heartbeats, one per cycle)');
   assert.equal(s.recorded.filter((e) => e.type === 'control_pause').length, 1);
   assert.ok(s.recorded.some((e) => e.type === 'control_pause' && e.tool === 'desktop_click'));
   const execs = s.execCalls.filter(([k]) => k === 'exec').map(([, c]) => c);
