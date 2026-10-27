@@ -91,6 +91,24 @@ xfdesktop_alive() {
   ps -eo stat,comm 2>/dev/null | awk '$2 == "xfdesktop" && $1 !~ /^Z/ { found=1 } END { exit !found }'
 }
 
+# Publish the desktop session's D-Bus address for docker-exec launches
+# (tools-autonomy lane, 27 Oct 2026): apps started via `docker exec`
+# do NOT inherit the session env, so without this no GUI app can find
+# the accessibility bus at all — EC2 lab proved it (mousepad registered
+# in the AT-SPI tree only with the address exported). The file is read
+# by backend/src/toolLaunch.js launchCommand before every GUI launch;
+# the AT-SPI helper (desktopAtspi.py) does its own /proc scan, so it
+# works even when this file is missing. Best-effort, never fatal.
+publish_dbus_address() {
+  local pid addr
+  pid=$(pgrep -x xfce4-session | head -1) || return 0
+  [ -n "$pid" ] || return 0
+  addr=$(tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep '^DBUS_SESSION_BUS_ADDRESS=' | cut -d= -f2-)
+  [ -n "$addr" ] || return 0
+  printf '%s' "$addr" > /tmp/dm-dbus-address 2>/dev/null || true
+  log "dbus: published session bus address to /tmp/dm-dbus-address"
+}
+
 # Restart the backdrop manager so it re-reads the xfconf wallpaper.
 # xfdesktop 4.20 reads the backdrop once at its own startup: a session
 # that started with an empty image-path shows black and never picks up
@@ -251,6 +269,7 @@ apply_kali_theme() {
 
 if [ -f "$READY_FILE" ] && pgrep -x Xvfb >/dev/null 2>&1 && chromium_healthy && xfce_alive; then
   apply_kali_theme
+  publish_dbus_address
   echo "desktop already running"
   exit 0
 fi
@@ -308,6 +327,9 @@ if ! xfce_alive; then
   startxfce4 >>"$LOG_FILE" 2>&1 &
   sleep 2
 fi
+# The session is up — publish its bus address before anything else
+# launches a GUI app (see publish_dbus_address).
+publish_dbus_address
 
 # Real Kali look: enforce Kali-Dark + dragon wallpaper + dragon menu on the
 # live session (file defaults in /etc/xdg already do this for a fresh

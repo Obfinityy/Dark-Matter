@@ -115,10 +115,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # tesseract-ocr turns a scrot screenshot into words + coordinates (TSV),
 # which the text-only 8B brain reads as a screen map (backend/src/screenMap.js).
 # Own late RUN so it does not invalidate the layers above. AT-SPI
-# (at-spi2-core + python3-pyatspi + libatk-wrapper-java) is the pending owner
-# decision — when approved it arrives here, in this same layer, for
-# named-control clicks inside GUI apps (the OCR layer alone cannot name a
-# control or tell a button from a label).
+# (at-spi2-core + python3-pyatspi + libatk-wrapper-java) lives in its
+# own RUN at the TRUE END of this file (tools-autonomy lane, 27 Oct
+# 2026) — named-control clicks inside GUI apps need it, and the OCR
+# layer alone cannot name a control or tell a button from a label.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
@@ -253,5 +253,49 @@ WORKDIR /opt/hunt
 COPY docker/hunt-runner/ ./
 
 RUN chmod +x run.sh && npm install --omit=dev || true
+
+# --- AT-SPI (tools-autonomy lane, 27 Oct 2026 — owner order ~21:36 IST) ----
+# The brain addresses NAMED controls inside Burp/ZAP (desktop_click_control
+# via backend/src/desktopAtspi.py). Java apps need the Java Access Bridge
+# (libatk-wrapper-java) to expose any tree at all; the registry and the
+# Python binding come from at-spi2-core + python3-pyatspi. Own late RUN
+# at the TRUE END of this file (after the hunt-runner npm install), so
+# it invalidates nothing above — the tesseract RUN above is NOT last
+# (kali-themes, mitmproxy and the runner COPY follow it). Until this
+# rebuild lands, desktop_click_control degrades gracefully to
+# keyboard navigation and the OCR map stays the fallback.
+#
+# EC2 lab, 27 Oct 2026 (5 scratch-container rounds) — the three things
+# that make the bridge actually work, each proven separately:
+#   1. libatk-wrapper-java-jni — libatk-wrapper-java alone installs
+#      only the jar + a SYMLINK to /usr/lib/x86_64-linux-gnu/jni/
+#      libatk-wrapper.so; the target file itself lives in the -jni
+#      package. Without it the JVM dies with "Assistive Technology
+#      not found" / UnsatisfiedLinkError "no atk-wrapper in system
+#      library path" and Burp never starts.
+#   2. The bridge class is org.GNOME.Accessibility.AtkWrapper, NOT
+#      com.sun.java.accessibility.AccessBridge (that class is not in
+#      the jar — the JVM rejects it with "Assistive Technology not
+#      found"). It must be on the boot classpath: -jar launches
+#      ignore CLASSPATH, so JAVA_TOOL_OPTIONS carries it.
+#   3. The app needs DBUS_SESSION_BUS_ADDRESS — docker-exec shells
+#      do not inherit the desktop session's env, so no GUI app can
+#      find the accessibility bus at all (mousepad registered only
+#      with the address exported). hunt-desktop.sh publishes it to
+#      /tmp/dm-dbus-address; backend/src/toolLaunch.js launchCommand
+#      exports it for every GUI launch.
+# The RUN verifies the jar + the native lib exist (a dangling symlink
+# fails -f) so a broken bridge fails the BUILD, never a live hunt.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    at-spi2-core python3-pyatspi libatk-wrapper-java libatk-wrapper-java-jni \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* \
+    && test -f /usr/share/java/java-atk-wrapper.jar \
+    && test -f /usr/lib/x86_64-linux-gnu/jni/libatk-wrapper.so
+# Every Java GUI in the container gets the bridge (Burp, ZAP, anything
+# the brain launches from the shell). Same value as the guarded export
+# in backend/src/toolLaunch.js launchCommand — keep them in sync.
+# CLI java tools never touch AWT, so the property is inert for them
+# (only a "Picked up JAVA_TOOL_OPTIONS" line on stderr).
+ENV JAVA_TOOL_OPTIONS="-Djavax.accessibility.assistive_technologies=org.GNOME.Accessibility.AtkWrapper -Xbootclasspath/a:/usr/share/java/java-atk-wrapper.jar"
 
 ENTRYPOINT ["/opt/hunt/run.sh"]

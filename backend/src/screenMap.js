@@ -104,6 +104,45 @@ export function buildScreenMap(words, { width = 0, height = 0 } = {}) {
 }
 
 /**
+ * Build the same map shape from an AT-SPI control list
+ * ([{ name, role, rect: [x, y, w, h] }]) — the "second builder" the
+ * OCR lane left as a TODO. One line per control,
+ * `"Name" (role) at (cx, cy)` with the control's CENTRE — the point
+ * desktop_click_at aims at, and the name desktop_click_control
+ * presses. Same SCREEN_MAP_BUDGET cap and cut note as the OCR map,
+ * so the brain's actions do not change between sources. Controls
+ * without a name or rect are dropped; the list sorts top-to-bottom,
+ * then left-to-right. Pure.
+ */
+export function buildAtspiMap(controls, { width = 0, height = 0 } = {}) {
+  const list = (controls || []).filter((c) => c && c.name && Array.isArray(c.rect) && c.rect.length === 4);
+  const rows = list.map((c) => {
+    const [x, y, w, h] = c.rect.map(Number);
+    return {
+      text: `${String(c.name).trim()}${c.role ? ` (${String(c.role).trim()})` : ''}`,
+      cx: Math.round(x + w / 2),
+      cy: Math.round(y + h / 2),
+      top: y,
+      left: x,
+    };
+  }).filter((r) => [r.cx, r.cy, r.top, r.left].every(Number.isFinite));
+  rows.sort((a, b) => (a.top - b.top) || (a.left - b.left));
+  const header = width && height
+    ? `=== WHAT THE APP SHOWS — accessibility tree (${width}x${height}) ===`
+    : '=== WHAT THE APP SHOWS — accessibility tree ===';
+  const out = [header];
+  let cut = 0;
+  for (const r of rows) {
+    const line = `  "${r.text}" at (${r.cx}, ${r.cy})`;
+    if (out.join('\n').length + line.length + 1 > SCREEN_MAP_BUDGET) { cut++; continue; }
+    out.push(line);
+  }
+  if (!rows.length) out.push('  (no named controls in this window right now)');
+  if (cut > 0) out.push(`  ... (${cut} more control(s) cut — the window is dense; click what you need, then list again)`);
+  return out.join('\n');
+}
+
+/**
  * Validate a click target. Coordinates must be integers in [0, MAX_CLICK_COORD).
  * Anything else is refused BEFORE any exec — an unvalidated number would be an
  * injection into the xdotool command line. Returns { ok, x, y } or { ok, error }.

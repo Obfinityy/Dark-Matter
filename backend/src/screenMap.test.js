@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import {
   parseTesseractTsv,
   buildScreenMap,
+  buildAtspiMap,
   parseClickAt,
   desktopClickAtCommand,
   captureScreenMap,
@@ -137,4 +138,28 @@ test('screenMapErrorLine names each failure plainly', () => {
   assert.match(screenMapErrorLine('desktop_down'), /not running/);
   assert.match(screenMapErrorLine('ocr_missing'), /tesseract OCR is not installed/);
   assert.match(screenMapErrorLine('blank'), /no readable text/);
+});
+
+test('buildAtspiMap: controls become the same "text" at (x, y) lines the OCR map uses', () => {
+  const map = buildAtspiMap([
+    { name: 'Proxy', role: 'page tab', rect: [10, 40, 60, 24] },
+    { name: 'Send', role: 'push button', rect: [200, 300, 50, 24] },
+    { name: '', role: 'label', rect: [0, 0, 10, 10] },
+    { name: 'NoRect', role: 'label', rect: null },
+  ]);
+  assert.match(map, /accessibility tree/);
+  assert.match(map, /"Proxy \(page tab\)" at \(40, 52\)/);
+  assert.match(map, /"Send \(push button\)" at \(225, 312\)/);
+  assert.doesNotMatch(map, /NoRect/);
+  // Same shape as the OCR map: the brain's desktop_click_at works
+  // from either source without re-learning the format.
+  assert.match(map, /"[^"]+" at \(\d+, \d+\)/);
+});
+
+test('buildAtspiMap: empty tree says so; dense trees are capped like the OCR map', () => {
+  assert.match(buildAtspiMap([]), /no named controls/);
+  const many = Array.from({ length: 200 }, (_, i) => ({ name: `Button${i}`, role: 'push button', rect: [i * 5, i * 3, 40, 20] }));
+  const map = buildAtspiMap(many);
+  assert.ok(map.length <= SCREEN_MAP_BUDGET + 200, 'capped near the budget');
+  assert.match(map, /more control\(s\) cut/);
 });
