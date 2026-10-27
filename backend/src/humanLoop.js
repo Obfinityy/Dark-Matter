@@ -46,7 +46,7 @@ import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
 import { getRelevantMemories, formatGlobalMemoryForPrompt, readAllGlobalMemories } from './globalMemory.js';
 import { listSkills, loadSkill } from './skillCards.js';
-import { saveCredential, getCredential, generatePassword, generatePersonaUsername, scrubSecrets, touchCredential, markVerified, listCredentials } from './credentials.js';
+import { saveCredential, getCredential, generatePassword, generatePersonaUsername, scrubSecrets, touchCredential, markVerified, listCredentials, hostOf } from './credentials.js';
 import { createDetailRequest, getPendingRequests, listDetailRequests, getFilledValues, markDetailRequestUsed, detailValuesForScrub, detailsRequestScreenLines } from './userDetails.js';
 import { createInboxPreferred, pollForCode } from './tempmail.js';
 import {
@@ -1115,8 +1115,8 @@ function systemPromptFor(target, parsedScope) {
     'Your completed work is saved in your record: if you choose an action you already ran, the loop answers with the saved output instead of re-running it — act on that output. Re-run ONLY if something changed (the target changed, you need a different flag or scope, the saved output is incomplete for what you need now) — and say why: repeat the action with "force": true and "why": "<your reason>". A re-run without a reason is refused.',
     '{"action":"record_coverage","surface":"the page/endpoint/feature","class":"the vuln class","outcome":"probed_clean|confirmed|ruled_out|not_applicable|open_gap","evidence":"what you observed"} — account for a surface × class in your coverage ledger. Each pair is recorded exactly once; closing as ruled_out or not_applicable REQUIRES the evidence to name the control that stops the class. Add "update":true to change an existing row. Researched-but-unprobed classes are carried as open gaps automatically — closing them is how they leave your screen.',
     '{"action":"load_skill","skill":"sqli"} — pull one of your SKILL CARDS: a compact procedure for a vuln class (attack surface, detection channels, numbered testing steps, and the proof bar a claim must clear). Pull one when you OPEN a class, instead of searching the web — the card\'s steps end in a probe. The card index is on every screen; one card at a time.',
-    '{"action":"request_details","title":"Login for <site>","fields":[{"key":"email","label":"Login email","type":"email"},{"key":"password","label":"Password","type":"password"}]} — ASK THE OWNER for details you need (a login, an OTP, any field): a card appears below the chat and the owner fills it in. Wait for the next turn — the details arrive on your screen (one-turn only, never written to the record). Do NOT re-ask for the same details and do NOT re-attempt the blocked action while a request is open. Any field type works: text, email, password, otp, textarea.',
-    'ACCOUNTS — when a target needs an account, ask the owner FIRST with request_details — the owner gives you THEIR account in the chat. Only if the owner declines the request (or it is cancelled) create an account YOURSELF under the Obfinity persona — never the owner\'s identity, never another user\'s data, only in-scope targets. {"action":"save_credential","site":"https://target.example","username":"obfinity-xxxx"} — vault a credential for a site (omit "password" and the server generates a random 20-char one and shows it to you ONCE, this turn only — type it immediately with browser_type, then submit; it is never written to the permanent record, and neither is any password you invent: keep passwords OUT of your thinking and notes, the record keeps the handle only, e.g. cred:target.example:ab12cd34ef56). Saving also provisions your own temp-mail inbox for that site. {"action":"use_saved_credential","handle":"cred:...","usernameField":"Email","passwordField":"Password"} — fill a login form from the vault without the password ever appearing in text (give the two fields\' visible labels from a snapshot; omit them and you get the handle + username back to snapshot first). {"action":"fetch_verification_code","handle":"cred:..."} — poll your temp-mail inbox for that site\'s verification code (one-turn observation — type it immediately; if no mail arrives the observation says the domain may be blocked, so record that as a blocker and move on, never retry forever). If a signup demands a phone/SMS code or an interactive captcha your clicks cannot solve, that path is blocked — say so and move on; never use a third-party captcha solver.',
+    '{"action":"request_details","title":"Login for <site>","account":"owner","fields":[{"key":"email","label":"Login email","type":"email"},{"key":"password","label":"Password","type":"password"}]} — ASK THE OWNER for details you need (a login, an OTP, any field): a card appears below the chat and the owner fills it in. Wait for the next turn — the details arrive on your screen (one-turn only, never written to the record). Do NOT re-ask for the same details and do NOT re-attempt the blocked action while a request is open. Any field type works: text, email, password, otp, textarea. "account":"owner" means it is the OWNER\'s own existing account (ask first is correct there). "account":"fresh" (or omitted) means a NEW account you could create yourself — the server REFUSES a fresh ask until you have tried the self path first (save_credential, then use_saved_credential, then fetch_verification_code); ask only after that path fails, and say what failed.',
+    'ACCOUNTS — when a target needs an account, FIRST decide whose account it is. (A) THE OWNER\'S OWN EXISTING ACCOUNT (his personal login to a service he already has, e.g. his kSuite login): ask FIRST with request_details and "account":"owner" — the owner gives you THEIR account in the chat; do NOT create your own. (B) A FRESH ACCOUNT on a target (a training ground, or any site that allows self-registration): try YOURSELF first, in this order — (1) save_credential for the site (vaults the login AND provisions your own temp-mail inbox for verification mail), (2) use_saved_credential to fill the form from the vault, (3) fetch_verification_code to poll your temp-mail inbox for the code. Only if that path FAILS (the site blocks the temp-mail domain, no mail arrives, or it demands a phone/SMS code or an interactive captcha your clicks cannot solve) ask the owner with request_details and "account":"fresh" — and say what failed. The server REFUSES a fresh ask when you have not tried yourself first, so attempt the self path and record it before asking. Never the owner\'s identity, never another user\'s data, only in-scope targets. {"action":"save_credential","site":"https://target.example","username":"obfinity-xxxx"} — vault a credential for a site (omit "password" and the server generates a random 20-char one and shows it to you ONCE, this turn only — type it immediately with browser_type, then submit; it is never written to the permanent record, and neither is any password you invent: keep passwords OUT of your thinking and notes, the record keeps the handle only, e.g. cred:target.example:ab12cd34ef56). {"action":"use_saved_credential","handle":"cred:...","usernameField":"Email","passwordField":"Password"} — fill a login form from the vault without the password ever appearing in text (give the two fields\' visible labels from a snapshot; omit them and you get the handle + username back to snapshot first). {"action":"fetch_verification_code","handle":"cred:..."} — poll your temp-mail inbox for that site\'s verification code (one-turn observation — type it immediately; if no mail arrives the observation says the domain may be blocked, so record that as a blocker and move on, never retry forever). If a signup demands a phone/SMS code or an interactive captcha your clicks cannot solve, that path is blocked — say so and move on; never use a third-party captcha solver.',
     '{"action":"claim_finding","title":"...","class":"sqli","evidence":"the exact output that proves it","command":"the exact command that produced that evidence","counterevidence":"the control/baseline result that could have disproved it","confidence":"high|medium|low","confidence_rationale":"required when confidence is not high"} — claim a vulnerability. The filing is complete-the-proof gated: a claim missing any of title, class, a runnable reproduction ("command", or "poc" naming a proof script saved in this hunt), evidence, counterevidence, or confidence is bounced back UNRECORDED with the missing pieces named — complete the package and claim again. A complete claim goes to an independent verifier, which re-runs your command and checks the evidence; ONLY verified findings count. Never claim without reproduced evidence.',
     'Act like a person: if you need a tool, download it; if you don\'t know something, search; if output is interesting, dig; one step at a time — you will see the result on the next screen.',
     `Programme rules you must obey: ${rules.join('; ')}.`,
@@ -1990,6 +1990,26 @@ function gatedCandidate(kind, action) {
  * the figure the block observation, the dedup_block event and
  * Lane AD's settled lines have always carried.
  */
+// SELF-AUTH CHAIN (27 Oct 2026, owner order) — the actions that make an
+// account YOURSELF: vault a credential, fill a form from the vault, poll
+// your temp-mail inbox for the verification code.
+const SELF_AUTH_TOOLS = new Set(['save_credential', 'use_saved_credential', 'fetch_verification_code']);
+
+/**
+ * Has this hunt already tried to make the account itself for `site`?
+ * True when any tool_call in the hunt's events is a self-auth action whose
+ * recorded detail (the credential handle, cred:<host>:<hex>) names the
+ * site's host. Pure — the request_details guard and the tests share it.
+ */
+export function hasSelfAuthAttempt(events, site) {
+  const host = hostOf(String(site || ''));
+  if (!host) return false;
+  for (const e of Array.isArray(events) ? events : []) {
+    if (e && e.type === 'tool_call' && SELF_AUTH_TOOLS.has(e.tool) && String(e.detail || '').includes(host)) return true;
+  }
+  return false;
+}
+
 // Take Control of This Machine — the action kinds that DRIVE the
 // desktop (CDP browser actions + the vault fill that clicks/types).
 // While the owner holds the control lock these are skipped, never
@@ -4164,6 +4184,15 @@ export async function humanIteration(huntId, target, opts = {}) {
       const title = String(action.title || '').trim();
       const fields = Array.isArray(action.fields) ? action.fields : [];
       const site = String(action.site || target || '');
+      // SELF-AUTH CHAIN (27 Oct 2026, owner order): "account":"owner"
+      // means the OWNER's own existing account (ask first is correct).
+      // Anything else is a FRESH account the brain could create itself
+      // — the ask is refused until the self path has been tried for
+      // this site (save/use/fetch_verification_code in the hunt's
+      // events). The brain must attempt first, then ask.
+      const accountKind = String(action.account || 'fresh').trim().toLowerCase();
+      let history = [];
+      try { history = (typeof deps.readEvents === 'function' ? (deps.readEvents(huntId) || []) : []); } catch { history = []; }
       const pending = getPendingRequests(huntId);
       const already = listDetailRequests(huntId).find((r) =>
         (r.status === 'filled' || r.status === 'used') && r.title === title &&
@@ -4180,6 +4209,8 @@ export async function humanIteration(huntId, target, opts = {}) {
         } else {
           observation = `The owner already provided details for "${already.title}" but they are no longer available — ask again only if you still need them, with a fresh request_details.`;
         }
+      } else if (accountKind !== 'owner' && !hasSelfAuthAttempt(history, site)) {
+        observation = `Ask refused — you have not tried to make this account YOURSELF yet for ${site || 'this target'}. The order is: save_credential first (it vaults the login and provisions your temp-mail inbox), then use_saved_credential to fill the form, then fetch_verification_code for the verification mail. Only ask the owner AFTER that path fails — and say what failed. If this is the OWNER's own existing account (not a fresh one), re-ask with "account":"owner".`;
       } else {
         const created = createDetailRequest({ huntId, title, fields, site });
         if (!created.ok) {
