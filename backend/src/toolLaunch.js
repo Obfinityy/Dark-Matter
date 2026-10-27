@@ -464,9 +464,12 @@ export async function burpFirstUse(huntId, target, deps) {
   // necessarily the active window (EC2 lab 27 Oct 2026: Burp's main
   // window stayed active, so ctrl+l went to Burp, not the browser).
   // Wait for the NEW Chromium window and activate it before typing.
+  // Chromium's cold start is slow right after the project loads (EC2
+  // lab run 3: no window 30s after the click, although the click
+  // itself succeeded) — poll a full 90s before giving up.
   let browserWindow = null;
   if (browserOpened) {
-    for (let i = 0; i < 6 && !browserWindow; i++) {
+    for (let i = 0; i < 18 && !browserWindow; i++) {
       if (i > 0) await sleep(5000);
       const ids = parseWindowIds(await execQuiet(huntId, browserWindowIdsCommand(), 15000, deps));
       browserWindow = ids.find((id) => !beforeIds.has(id)) || null;
@@ -496,7 +499,7 @@ export async function burpFirstUse(huntId, target, deps) {
       notes.push('navigation keys failed — Burp browser is open, type the target yourself');
     }
   } else if (browserOpened) {
-    notes.push('Burp browser opened but its window never appeared within 30s — it may still be starting; open it from Proxy > Intercept');
+    notes.push('Burp browser opened but its window never appeared within 90s — it may still be starting; open it from Proxy > Intercept');
   } else {
     notes.push('"Open Browser" could not be pressed (no accessibility tree and no OCR match) — open it by hand from Proxy > Intercept');
   }
