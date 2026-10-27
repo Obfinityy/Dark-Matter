@@ -79,6 +79,39 @@ const post = (path, body, opts) => request('POST', path, body, opts);
 const put = (path, body) => request('PUT', path, body);
 const del = (path) => request('DELETE', path);
 
+// LIVE REPORT (27 Oct 2026, feat/live-report-fix): the report
+// endpoint returns raw `text/markdown`, NOT JSON — the generic
+// request() above parses every body with res.json(), which throws
+// on markdown, so fetchReportMarkdown silently got `data: null`
+// and the Reports page showed "No report generated yet" forever,
+// even though the backend returned a full report (HTTP 200).
+// Text endpoints must use this raw-text twin instead.
+async function requestText(method, path, opts = {}) {
+  try {
+    const headers = {};
+    const token = getAuthToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(apiUrl(path), {
+      method,
+      headers,
+      signal: opts.signal,
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      let error = `Request failed (${res.status})`;
+      try {
+        const data = JSON.parse(text);
+        if (data && (data.message || data.error)) error = data.message || data.error;
+      } catch { /* error body is not JSON — keep the status text */ }
+      return { ok: false, status: res.status, error };
+    }
+    return { ok: true, status: res.status, data: text };
+  } catch (err) {
+    if (err && err.name === 'AbortError') return { ok: false, error: 'aborted', aborted: true };
+    return { ok: false, error: 'Backend unreachable. Check Settings → backend connection.' };
+  }
+}
+
 // --- Auth (invite-only, username based) --------------------------------------
 export async function login(username, password) {
   return post('/api/v1/auth/login', { username, password });
@@ -345,13 +378,12 @@ export function controlWsUrl(huntId, ticket) {
 }
 
 export async function fetchReportMarkdown(id) {
-  const res = await get(`/api/v1/hunts/${encodeURIComponent(id)}/report?format=md`);
+  // The report endpoint returns raw text/markdown — fetch it as text.
+  // (The old code ran it through the JSON-only request(), which
+  // parsed the markdown body to null and returned an empty report.)
+  const res = await requestText('GET', `/api/v1/hunts/${encodeURIComponent(id)}/report?format=md`);
   if (!res.ok) return res;
-  const md =
-    typeof res.data === 'string'
-      ? res.data
-      : (res.data && (res.data.markdown || res.data.report || res.data.md)) || '';
-  return { ok: true, data: { markdown: md } };
+  return { ok: true, data: { markdown: typeof res.data === 'string' ? res.data : '' } };
 }
 
 // --- Plugins / providers -----------------------------------------------------

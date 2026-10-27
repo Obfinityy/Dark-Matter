@@ -199,9 +199,18 @@ export function panelFindings(findings) {
       row.title = title; // display the verified stamp's own casing
     }
     const detail = String(f.detail || '').trim();
-    if (detail && (!row.detail || countsAsVerified)) row.detail = detail;
-    if (f.verification && (!row.verification || countsAsVerified)) {
+    // LIVE REPORT (27 Oct 2026, feat/live-report-fix): a demoted row
+    // must never carry a "confirmed" note. The old rule copied ANY
+    // stamp's verification/detail onto an empty row — so a 404-stamped
+    // "verified" finding left 'confirmed (all 4 steps passed)' on the
+    // lead row's badge tooltip (and any detail carrying the same claim).
+    // Verification comes ONLY from a stamp that counts as verified;
+    // a detail that claims confirmation is dropped the same way.
+    if (countsAsVerified && f.verification && !row.verification) {
       row.verification = String(f.verification);
+    }
+    if (detail && (!row.detail || countsAsVerified) && (countsAsVerified || !/confirmed/i.test(detail))) {
+      row.detail = detail;
     }
   }
   return [...order.filter((r) => r.verified), ...order.filter((r) => !r.verified)];

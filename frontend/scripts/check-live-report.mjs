@@ -17,6 +17,10 @@ const root = dirname(fileURLToPath(import.meta.url));
 const huntCard = readFileSync(join(root, '..', 'src', 'components', 'HuntCard.jsx'), 'utf8');
 const reportsPage = readFileSync(join(root, '..', 'src', 'pages', 'ReportsPage.jsx'), 'utf8');
 const chatThread = readFileSync(join(root, '..', 'src', 'components', 'ChatThread.jsx'), 'utf8');
+const api = readFileSync(join(root, '..', 'src', 'lib', 'api.js'), 'utf8');
+const huntsRoute = readFileSync(join(root, '..', '..', 'backend', 'src', 'routes', 'hunts.js'), 'utf8');
+const chatRoute = readFileSync(join(root, '..', '..', 'backend', 'src', 'routes', 'chat.js'), 'utf8');
+const huntMemory = readFileSync(join(root, '..', '..', 'backend', 'src', 'huntMemory.js'), 'utf8');
 
 let failures = 0;
 function check(name, ok, detail = '') {
@@ -51,6 +55,44 @@ check(
 check(
   'ChatThread report link shows for running/paused hunts',
   chatThread.includes("msg.hunt.status !== 'idle'"),
+);
+
+// 4. The report endpoint returns text/markdown — the frontend must
+// fetch it as text, and the report must render the reconciled rows.
+// (27 Oct 2026, feat/live-report-fix: the JSON-only request()
+// parsed the markdown body to null, so fetchReportMarkdown always
+// returned '' and the page showed "No report generated yet" forever
+// even though the backend returned HTTP 200 with a full report.
+// The static checks below are the tripwire; the behavioural proof
+// is ~/workspace/dm-v2/probes/live-report-repro.mjs against the
+// real backend.)
+check(
+  'fetchReportMarkdown reads the report as text, not JSON',
+  /fetchReportMarkdown[\s\S]{0,400}requestText\('GET'/.test(api)
+    && !/fetchReportMarkdown[\s\S]{0,400}get\(`\/api\/v1\/hunts/.test(api),
+);
+check(
+  'requestText parses the body with res.text()',
+  api.includes('async function requestText') && api.includes('const text = await res.text();'),
+);
+check(
+  'ReportsPage surfaces a failed auto-refresh instead of swallowing it',
+  /if \(!res\.ok\) \{ setError\(res\.error/.test(reportsPage),
+);
+check(
+  'buildReportMarkdown renders reconciled panel rows, not raw events',
+  huntsRoute.includes('const rawFindings = applyRetractions(events);')
+    && huntsRoute.includes('const rows = panelFindings(rawFindings);')
+    && huntsRoute.includes('### Confirmed vulnerabilities')
+    && huntsRoute.includes('### Leads under investigation'),
+);
+check(
+  'confirmedTitles excludes error-page stamps (chat cannot quote false counts)',
+  /confirmedTitles[\s\S]{0,600}isErrorPageFinding\(f\)/.test(chatRoute),
+);
+check(
+  'panelFindings never copies a verification onto a demoted row',
+  huntMemory.includes('if (countsAsVerified && f.verification && !row.verification)'),
 );
 
 console.log(failures === 0 ? '\nAll live-report checks passed.' : `\n${failures} FAILURES`);

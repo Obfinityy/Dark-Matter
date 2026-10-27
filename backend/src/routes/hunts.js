@@ -50,7 +50,7 @@ import {
 import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience, resolveHuntMode, HUNT_MODES, MODE_ORDER, TIERS } from '../hunt-intel/index.js';
 import { getHuntCost, getUserCosts } from '../costTracker.js';
 import { parseBudgetUsd } from '../budgetCap.js';
-import { loadHuntMemory, panelFindings } from '../huntMemory.js';
+import { loadHuntMemory, panelFindings, applyRetractions, isErrorPageFinding, normTitle } from '../huntMemory.js';
 import { understandTarget } from '../targetIntel.js';
 import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
 import { getBalanceUsd } from '../billing/credits.js';
@@ -1088,7 +1088,30 @@ export function getCachedEvents(huntId) {
 export function buildReportMarkdown({ huntId, meta, events }) {
   const target = (meta && meta.target) || 'unknown target';
   const createdAt = (meta && meta.createdAt) || 'unknown';
-  const findings = events.filter((e) => e.type === 'finding');
+  // LIVE REPORT (27 Oct 2026, feat/live-report-fix): the report
+  // used to render RAW finding events — every stamp a finding,
+  // including the 5 "verified" 404-page stamps and their
+  // "PoC confirmed:" duplicates, with no confirmed/lead
+  // distinction. It now renders the same reconciled rows the hunt
+  // panel shows (panelFindings over retraction-filtered events):
+  // one row per unique title, error-page stamps demoted to leads,
+  // so the report can never contradict the panel or the chat.
+  const rawFindings = applyRetractions(events);
+  const rows = panelFindings(rawFindings);
+  const confirmedRows = rows.filter((r) => r.verified);
+  const leadRows = rows.filter((r) => !r.verified);
+  // Evidence/description/URL come from the underlying stamp: a
+  // genuine verified stamp for confirmed rows; any stamp's URL for
+  // leads (leads render no evidence block and no verification
+  // string — their evidence is what misled the verifier).
+  const genuineByTitle = new Map();
+  const anyByTitle = new Map();
+  for (const f of rawFindings) {
+    const key = normTitle(f.title || f.type || '');
+    if (!key) continue;
+    if (!anyByTitle.has(key)) anyByTitle.set(key, f);
+    if (f.verified && !isErrorPageFinding(f) && !genuineByTitle.has(key)) genuineByTitle.set(key, f);
+  }
   const toolCalls = events.filter((e) => e.type === 'tool_call');
   const thinking = events.filter((e) => e.type === 'thinking');
   const statuses = events.filter((e) => e.type === 'status');
@@ -1100,27 +1123,52 @@ export function buildReportMarkdown({ huntId, meta, events }) {
   lines.push(`- **Target:** ${target}`);
   lines.push(`- **Created:** ${createdAt}`);
   lines.push(`- **Latest status:** ${lastStatus ? (lastStatus.state || JSON.stringify(lastStatus)) : 'n/a'}`);
-  lines.push(`- **Events cached:** ${events.length} (${thinking.length} thinking, ${toolCalls.length} tool calls, ${findings.length} findings)`);
+  lines.push(`- **Events cached:** ${events.length} (${thinking.length} thinking, ${toolCalls.length} tool calls, ${rows.length} unique findings: ${confirmedRows.length} confirmed, ${leadRows.length} under investigation)`);
   lines.push(`- **Generated:** ${new Date().toISOString()} (report may reflect a mid-hunt snapshot)`);
   lines.push('');
   lines.push('## Findings');
   lines.push('');
-  if (!findings.length) {
+  if (!rows.length) {
     lines.push('_No findings recorded yet._');
   } else {
     // Infinity analysis: chains, confirmation, exploitability, variant probes.
+    // Chains build on GENUINE confirmed findings only — a 404 stamp
+    // must never seed an exploit chain.
     try {
-      lines.push(chainsMarkdown(analyzeFindings(findings)));
+      lines.push(chainsMarkdown(analyzeFindings(rawFindings.filter((f) => f.verified && !isErrorPageFinding(f)))));
     } catch {
       // intel layer is best-effort; raw findings still render below
     }
-    for (const f of findings) {
-      const sev = f.severity || f.level || 'info';
-      const title = f.title || f.name || f.type || 'finding';
-      lines.push(`### [${String(sev).toUpperCase()}] ${title}`);
-      if (f.description) lines.push('', String(f.description));
-      if (f.evidence) lines.push('', '**Evidence:**', '', '```', String(f.evidence).slice(0, 2000), '```');
-      if (f.url) lines.push('', `**URL:** ${f.url}`);
+    lines.push('### Confirmed vulnerabilities');
+    lines.push('');
+    if (!confirmedRows.length) {
+      lines.push('_No confirmed vulnerabilities yet._');
+    } else {
+      for (const r of confirmedRows) {
+        const sev = String(r.severity || 'info');
+        const stamp = genuineByTitle.get(normTitle(r.title)) || {};
+        lines.push(`#### [${sev.toUpperCase()}] ${r.title}`);
+        if (r.verification) lines.push('', `**Verification:** ${r.verification}`);
+        if (r.detail) lines.push('', String(r.detail));
+        if (stamp.description) lines.push('', String(stamp.description));
+        if (stamp.evidence) lines.push('', '**Evidence:**', '', '```', String(typeof stamp.evidence === 'string' ? stamp.evidence : JSON.stringify(stamp.evidence)).slice(0, 2000), '```');
+        const url = stamp.url || r.url;
+        if (url) lines.push('', `**URL:** ${url}`);
+        lines.push('');
+      }
+    }
+    lines.push('### Leads under investigation');
+    lines.push('');
+    if (!leadRows.length) {
+      lines.push('_No leads under investigation._');
+    } else {
+      for (const r of leadRows) {
+        const sev = String(r.severity || 'info');
+        const stamp = anyByTitle.get(normTitle(r.title)) || {};
+        const url = stamp.url || r.url;
+        lines.push(`- **[${sev.toUpperCase()}] ${r.title}** — under investigation (not confirmed).${url ? ` ${url}` : ''}`);
+        if (r.detail) lines.push(`  ${String(r.detail)}`);
+      }
       lines.push('');
     }
   }
