@@ -16,8 +16,36 @@
 // like a human hacker's brain directing their hands on the keyboard.
 
 import { execInHuntContainer } from './huntRunner.js';
-import { appendHuntEvent, readHuntMeta, writeHuntMeta } from './store.js';
+import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint } from './store.js';
 import { think } from './huntAgent.js';
+
+/**
+ * Merge persisted orchestrator state with this instance's — UNION,
+ * never replace. A fresh orchestrator (resume, backend restart, mode
+ * conversion) starts with findings: [] — persisting that over the
+ * stored list wiped verified findings from meta.json (observed live:
+ * 2 → 0 between 21:19 and 21:28 IST, 27 Oct 2026). Pure, for tests.
+ * Dedupes by (title, url) for findings and (worker, mission) for
+ * missions; the first copy wins on a key collision.
+ */
+export function mergeOrchestratorState(prev, next) {
+  const p = (prev && typeof prev === 'object') ? prev : {};
+  const n = (next && typeof next === 'object') ? next : {};
+  const union = (list, keyFn) => {
+    const seen = new Map();
+    for (const item of Array.isArray(list) ? list : []) {
+      if (!item || typeof item !== 'object') continue;
+      const k = keyFn(item);
+      if (k && !seen.has(k)) seen.set(k, item);
+    }
+    return [...seen.values()];
+  };
+  return {
+    missions: union([...(p.missions || []), ...(n.missions || [])], (m) => `${m.worker || ''}|${m.mission || ''}`),
+    findings: union([...(p.findings || []), ...(n.findings || [])], (f) => `${f.title || ''}|${f.url || ''}`),
+    updatedAt: new Date().toISOString(),
+  };
+}
 
 export const WORKER_ROLES = {
   recon: {
@@ -157,14 +185,15 @@ export class HuntOrchestrator {
   saveState() {
     try {
       const meta = readHuntMeta(this.huntId) || {};
-      writeHuntMeta(this.huntId, {
-        ...meta,
-        orchestrator: {
-          missions: this.missions,
-          findings: this.findings,
-          updatedAt: new Date().toISOString(),
-        },
+      // MERGE, never replace (zero-genuine lane): a fresh instance's
+      // empty findings must never wipe the persisted list — and the
+      // guarded checkpoint writer (not wholesale writeHuntMeta) keeps
+      // an owner-set pause/stop hold intact.
+      const merged = mergeOrchestratorState(meta.orchestrator, {
+        missions: this.missions,
+        findings: this.findings,
       });
+      writeHuntMetaCheckpoint(this.huntId, { orchestrator: merged });
     } catch { /* best-effort */ }
   }
 }

@@ -25,6 +25,7 @@ import {
   dockerAvailable,
 } from './huntRunner.js';
 import { HuntOrchestrator } from './orchestrator.js';
+import { findWrongTargetPaths } from './knownApps.js';
 
 // Active orchestrators by huntId — so assessResult can report verified
 // findings to the head even though it doesn't receive it as a parameter.
@@ -429,7 +430,14 @@ async function waitWhilePaused(huntId) {
 }
 
 /** Infer what the app DOES from endpoints + HTML (problem #6). */
-function inferAppPurpose(endpoints, html) {
+function inferAppPurpose(endpoints, html, knownApp = null) {
+  // KNOWN APP (zero-genuine lane): the fingerprint names the app —
+  // keyword regexes must never override it. The DVWA login page
+  // matches "social platform" (a POST form) and the leaked Juice
+  // Shop endpoints match "ecommerce store"; both mis-models sent
+  // the brain hunting the wrong app.
+  if (knownApp === 'dvwa') return 'deliberately vulnerable lab (DVWA)';
+  if (knownApp === 'juice-shop') return 'ecommerce store (OWASP Juice Shop)';
   const text = [...(endpoints || []), String(html || '').slice(0, 5000)].join(' ').toLowerCase();
   const purposes = [
     ['ecommerce store', /cart|checkout|product|shop|order|payment/i],
@@ -540,9 +548,18 @@ async function reconPhase(huntId, target) {
     // INTELLIGENT TECH DETECTION — think first, then act
     try {
       const { detectTechnologies, getToolChain, buildIntelligentPrompt } = await import('./toolChains.js');
-      const detection = detectTechnologies(headerPart || '', bodyPart || html);
+      const detection = detectTechnologies(headerPart || '', bodyPart || html, target);
       recon.detection = detection;
       recon.intelligentPrompt = buildIntelligentPrompt(detection, target, []);
+      // KNOWN APP (zero-genuine lane): the fingerprint names the app —
+      // persisted on recon (checkpoint write at resume) so every later
+      // iteration, and the human loop, can gate on it. The purpose is
+      // recomputed from the fingerprint: keyword regexes over a
+      // leaked-endpoint list mis-modelled DVWA as an ecommerce store.
+      recon.knownApp = detection.app || null;
+      if (recon.knownApp) {
+        recon.purpose = inferAppPurpose(recon.endpoints, bodyPart || html, recon.knownApp);
+      }
       
       const techList = detection.techs.length ? detection.techs.join(', ') : 'unknown';
       const dbInfo = detection.database ? `Database: ${detection.database}` : 'No database detected';
@@ -806,7 +823,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // assessResult (which has no recon) can attribute findings via hunt meta.
   let appFingerprint = { appType: 'unknown', techStack: [] };
   try {
-    const appModel = buildAppModel(recon.endpoints || [], recon.detection?.techs || [], recon.profile || '');
+    const appModel = buildAppModel(recon.endpoints || [], recon.detection?.techs || [], recon.profile || '', recon.knownApp || null);
     appModelSection = formatAppModelForPrompt(appModel);
     appFingerprint = {
       appType: appModel.appType || 'unknown',
@@ -896,6 +913,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       findings: readHuntEvents(huntId).filter((e) => e.type === 'finding'),
       chainContext: metaNow.chainContext || null,
       budgetChars: Math.max(3000, MAX_PROMPT_CHARS - 12000 - retrievedSection.length),
+      knownApp: recon.knownApp || null,
     });
     fullHistorySection = built.text;
     fullHistoryStats = built.stats;
@@ -1047,46 +1065,68 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // model cooperated. An elite hunter tests the login form even when inspiration
   // fails; the mandatory tests are independent of model output.
   try {
-    const authEndpoints = (recon.endpoints || []).filter((ep) =>
-      /login|auth|signin|session|token/i.test(ep)
-    // FIX (19 Oct 2026, solver #6): Validate endpoint is a real path, not a
-    // terminal artifact. Recon from older hunts may contain MOTD lines (e.g.,
-    // '┗━(Run: "touch ~/.hushlogin"...)' matched /login/ via "hushlogin",
-    // corrupting the SQLi test URL). Only accept path-like endpoints.
-    ).filter((ep) => /^\/(api|rest|v\d+|admin|graphql|internal)/.test(ep.trim()));
+    // APP-AWARE LOGIN (zero-genuine lane): the mandatory login tests
+    // must hit THIS app's real login endpoint. On DVWA the endpoint
+    // is /login.php (a form-encoded PHP login) — the old code only
+    // accepted /api|rest|... paths and posted a Juice Shop JSON body
+    // to /rest/user/login, so every "SQLi on login" failure on DVWA
+    // was a 404 against the wrong app, and the DOSSIER retired the
+    // premise as DEAD. No NoSQL test on DVWA: it is MySQL, not MongoDB.
+    const baseUrl = target.replace(/\/$/, '');
+    const isDvwa = recon.knownApp === 'dvwa';
     const plansMentionAuth = plans.some((p) => {
       const text = `${p.test || ''} ${p.command || ''}`;
       // FIX (19 Oct 2026, solver #7): The old /login|auth|signin/ regex was too broad —
       // "authorization bypass" contains "auth" as a substring, suppressing the mandatory
       // login tests even though the model's plan doesn't actually test the login form.
       // Only suppress if the model targets a real login endpoint.
-      return /\/rest\/user\/login|\/api\/[^"'\s]*login|signin/i.test(text);
+      return isDvwa
+        ? /login\.php/i.test(text)
+        : /\/rest\/user\/login|\/api\/[^"'\s]*login|signin/i.test(text);
     });
-    if (authEndpoints.length && !plansMentionAuth) {
-      // FIX (19 Oct 2026, solver #7): Prefer the actual login endpoint, not just
-      // the first auth-matching endpoint. /rest/user/authentication-details/
-      // matches /auth/ but it's not the login form — the SQLi payload needs
-      // the real login endpoint to work.
-      const loginEp = authEndpoints.find((ep) => /\/login\/?$/i.test(ep.trim())) ||
-                      authEndpoints.find((ep) => /signin/i.test(ep)) ||
-                      authEndpoints[0];
-      const baseUrl = target.replace(/\/$/, '');
-      const authTests = [
-        {
+    if (!plansMentionAuth) {
+      if (isDvwa) {
+        plans.unshift({
           test: 'SQLi authentication bypass on login',
-          command: `curl -sk -X POST "${baseUrl}${loginEp}" -H "Content-Type: application/json" -d '{"email":"admin@juice-sh.op'"'"' OR 1=1--","password":"x"}' | head -c 2000`,
-          why: 'Classic SQL injection in login — tests if authentication can be bypassed',
+          command: `curl -sk -X POST "${baseUrl}/login.php" -d "username=admin' OR '1'='1&password=x&Login=Login" | head -c 2000`,
+          why: 'Classic SQL injection in the DVWA login form (MySQL) — tests if authentication can be bypassed',
           hypothesis: 'Login endpoint may be vulnerable to SQL injection',
-        },
-        {
-          test: 'NoSQL injection on login',
-          command: `curl -sk -X POST "${baseUrl}${loginEp}" -H "Content-Type: application/json" -d '{"email":{"$ne":null},"password":{"$ne":null}}' | head -c 2000`,
-          why: 'NoSQL injection bypass — tests for MongoDB-style auth flaws',
-          hypothesis: 'Login may use NoSQL backend vulnerable to operator injection',
-        },
-      ];
-      plans.unshift(...authTests);
-      think(huntId, `Mandatory auth tests injected for ${loginEp} (model overlooked auth)`);
+        });
+        think(huntId, 'Mandatory auth tests injected for /login.php (model overlooked auth)');
+      } else {
+        const authEndpoints = (recon.endpoints || []).filter((ep) =>
+          /login|auth|signin|session|token/i.test(ep)
+        // FIX (19 Oct 2026, solver #6): Validate endpoint is a real path, not a
+        // terminal artifact. Recon from older hunts may contain MOTD lines (e.g.,
+        // '┗━(Run: "touch ~/.hushlogin"...)' matched /login/ via "hushlogin",
+        // corrupting the SQLi test URL). Only accept path-like endpoints.
+        ).filter((ep) => /^\/(api|rest|v\d+|admin|graphql|internal)/.test(ep.trim()));
+        if (authEndpoints.length) {
+          // FIX (19 Oct 2026, solver #7): Prefer the actual login endpoint, not just
+          // the first auth-matching endpoint. /rest/user/authentication-details/
+          // matches /auth/ but it's not the login form — the SQLi payload needs
+          // the real login endpoint to work.
+          const loginEp = authEndpoints.find((ep) => /\/login\/?$/i.test(ep.trim())) ||
+                          authEndpoints.find((ep) => /signin/i.test(ep)) ||
+                          authEndpoints[0];
+          const authTests = [
+            {
+              test: 'SQLi authentication bypass on login',
+              command: `curl -sk -X POST "${baseUrl}${loginEp}" -H "Content-Type: application/json" -d '{"email":"admin@juice-sh.op'"'"' OR 1=1--","password":"x"}' | head -c 2000`,
+              why: 'Classic SQL injection in login — tests if authentication can be bypassed',
+              hypothesis: 'Login endpoint may be vulnerable to SQL injection',
+            },
+            {
+              test: 'NoSQL injection on login',
+              command: `curl -sk -X POST "${baseUrl}${loginEp}" -H "Content-Type: application/json" -d '{"email":{"$ne":null},"password":{"$ne":null}}' | head -c 2000`,
+              why: 'NoSQL injection bypass — tests for MongoDB-style auth flaws',
+              hypothesis: 'Login may use NoSQL backend vulnerable to operator injection',
+            },
+          ];
+          plans.unshift(...authTests);
+          think(huntId, `Mandatory auth tests injected for ${loginEp} (model overlooked auth)`);
+        }
+      }
     }
   } catch { /* mandatory tests are best-effort */ }
 
@@ -1328,7 +1368,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
         // retired — a retired premise re-executed is a burned iteration.
         // Verified hypotheses are NOT filtered: chains legitimately build on
         // verified findings; only dead premises are blocked.
-        const deadKeys = new Set(getHypothesisLedger(huntId).dead.map((d) => normalizeHypothesis(d.text)));
+        const deadKeys = new Set(getHypothesisLedger(huntId, { knownApp: recon.knownApp || null }).dead.map((d) => normalizeHypothesis(d.text)));
         const liveChainTests = chainTests.filter((t) => {
           if (deadKeys.has(normalizeHypothesis(t.hypothesis))) {
             think(huntId, `Chain pursuit SKIPPED (ledger-retired premise): ${t.test}`);
@@ -1458,7 +1498,7 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // gates, and assessResult untouched — this only stops dead premises from
   // reaching executeWithEvasion.
   try {
-    const deadKeys = new Set(getHypothesisLedger(huntId).dead.map((d) => normalizeHypothesis(d.text)));
+    const deadKeys = new Set(getHypothesisLedger(huntId, { knownApp: recon.knownApp || null }).dead.map((d) => normalizeHypothesis(d.text)));
     // VERIFIED-INSTANCE ENFORCEMENT (19 Oct 2026, elite-gap cycle): the prompt
     // ban does not bind the 8B — "SQLi authentication bypass on login"
     // re-verified 3x in the 14 min AFTER the e5ef526 ledger deployed, and
@@ -1498,6 +1538,28 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
       plans = kept;
     }
   } catch { /* ledger enforcement is best-effort — never break the hunt */ }
+
+  // WRONG-TARGET PLAN FILTER (zero-genuine lane): drop model plans
+  // whose test/command names another app's endpoints for this
+  // target's known app — executing them burns a slot on a 404 and,
+  // worse, their failures feed the ledger and retire premises that
+  // were never tested on the real target. Deterministic/sweep probes
+  // (detId) are exempt: they are machine-grounded in recon.
+  try {
+    const knownApp = recon.knownApp || null;
+    if (knownApp && plans.length) {
+      const kept = plans.filter((p) => {
+        if (p.detId) return true;
+        const bad = findWrongTargetPaths(knownApp, `${p.test || ''} ${p.command || ''} ${p.hypothesis || ''}`);
+        if (bad.length) {
+          think(huntId, `Plan SKIPPED (wrong-target endpoint for ${knownApp}: ${bad.join(', ')}): ${p.test || p.hypothesis || 'unnamed'}`);
+          return false;
+        }
+        return true;
+      });
+      plans = kept;
+    }
+  } catch { /* wrong-target filter is best-effort — never break the hunt */ }
 
   // Execute up to 3 hypotheses (multi-hypothesis > single guess)
   let best = null;
@@ -2451,6 +2513,21 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
     const head = new HuntOrchestrator(huntId, target, mode);
     orchestrators.set(huntId, head);
     think(huntId, `Head online: I am the lead hacker. Target: ${target}. Assembling my team.`);
+
+    // FINDINGS RESTORE (zero-genuine lane): a fresh orchestrator starts
+    // with findings: [] — restore the persisted list (plus verified
+    // finding events, which the store carries even if meta was
+    // clobbered) so saveState()'s union has something to merge.
+    try {
+      const persisted = ((readHuntMeta(huntId) || {}).orchestrator || {}).findings || [];
+      const verifiedEvents = readHuntEvents(huntId).filter((e) => e.type === 'finding' && e.verified);
+      const seenKeys = new Set();
+      for (const f of [...persisted, ...verifiedEvents]) {
+        const k = `${f.title || ''}|${f.url || ''}`;
+        if (k && !seenKeys.has(k)) { seenKeys.add(k); head.findings.push(f); }
+      }
+      if (head.findings.length) think(huntId, `Restored ${head.findings.length} persisted finding(s) into the head.`);
+    } catch { /* findings restore is best-effort */ }
 
     // Phase 1: recon — head spawns a recon specialist worker.
     // FIX (19 Oct 2026, solver #3): recon was never persisted to meta.json —

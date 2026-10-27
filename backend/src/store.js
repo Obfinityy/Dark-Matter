@@ -190,15 +190,24 @@ export function listHuntMetas() {
 
 /** Normalize a target URL/host to a safe folder name. */
 export function targetFolderName(target) {
-  const host = String(target || '')
+  // ORIGIN-KEYED (zero-genuine lane): the folder names the target's
+  // ORIGIN, not just its host. 172.17.0.1 serves DVWA on :3100 AND
+  // Juice Shop on :3000 — keying by host alone merged Juice Shop's
+  // /rest/* endpoints into the DVWA hunt's recon, and the brain
+  // modelled (and probed) the wrong app. A non-default port joins
+  // the folder name; default ports (80/443) keep the old name, so
+  // existing plain-host folders are unaffected.
+  const hostport = String(target || '')
     .replace(/^https?:\/\//i, '')
     .split('/')[0]
-    .split(':')[0]
-    .toLowerCase()
+    .toLowerCase();
+  const [host, port] = hostport.split(':');
+  const portSuffix = port && port !== '80' && port !== '443' ? `-${port}` : '';
+  const name = `${host || 'unknown-target'}${portSuffix}`
     .replace(/[^a-z0-9.-]/g, '-')
     .replace(/-+/g, '-')
     .slice(0, 100);
-  return host || 'unknown-target';
+  return name || 'unknown-target';
 }
 
 export function targetDir(target) {

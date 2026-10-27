@@ -134,8 +134,12 @@ export function recordGlobalLearning(entry) {
 /**
  * HUMAN-BRAIN (26 Oct 2026, owner order: PER-HUNT MEMORY ISOLATION).
  * Two targets are the same target when their folder names match
- * (targetFolderName: full host, lowercased — different hosts never
- * collide; an empty/unknown target never matches anything).
+ * (targetFolderName: ORIGIN — host + non-default port, lowercased.
+ * Zero-genuine lane, 27 Oct 2026: a host-only key merged DVWA
+ * (:3100) and Juice Shop (:3000) into one target, so Juice Shop
+ * endpoints leaked into the DVWA hunt. Different ports are
+ * different targets; an empty/unknown target never matches
+ * anything).
  */
 export function sameTargetFolder(a, b) {
   const fa = targetFolderName(a || '');
