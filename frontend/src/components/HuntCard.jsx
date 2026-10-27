@@ -129,8 +129,13 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   const [budgetInput, setBudgetInput] = useState('');
   const [budgetBusy, setBudgetBusy] = useState(false);
   const refreshCost = () => {
-    getHuntCost(hunt.huntId).then((res) => {
-      if (res.ok) setCost(res);
+    // COST ENVELOPE (27 Oct 2026): api.js wraps every response as
+    // {ok, status, data} — the cost payload lives in res.data.
+    // Storing the envelope made cost.budgetUsd undefined forever, so
+    // the "Budget $X" chip and the "Spent $X of $Y" line could never
+    // render and the input fell back to a literal '10' placeholder.
+    return getHuntCost(hunt.huntId).then((res) => {
+      if (res.ok && res.data) setCost(res.data);
     }).catch(() => {});
   };
   const saveBudget = async (value) => {
@@ -138,7 +143,21 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
     const res = await setHuntBudget(hunt.huntId, value);
     setBudgetBusy(false);
     if (res.ok) {
-      setBudgetInput('');
+      // Apply the POST response at once — the owner sees the new cap
+      // immediately instead of waiting for the next 30s cost poll.
+      // POST returns {budgetUsd, spentUsd}; map spentUsd onto the
+      // GET shape's totalUsd so the "Spent $X of $Y" line is right.
+      if (res.data) {
+        setCost((prev) => ({
+          ...(prev || {}),
+          budgetUsd: typeof res.data.budgetUsd === 'number' ? res.data.budgetUsd : null,
+          totalUsd: typeof res.data.spentUsd === 'number' ? res.data.spentUsd : (prev && prev.totalUsd) || 0,
+        }));
+      }
+      // Leave the saved value visible in the input; only a clear
+      // blanks it. Clearing the input after a save is what made $5
+      // look like it had reverted to 10.
+      setBudgetInput(value === null ? '' : String((res.data && typeof res.data.budgetUsd === 'number') ? res.data.budgetUsd : value));
       refreshCost();
       toast(value === null ? 'Budget cleared.' : `Budget set to $${Number(value).toFixed(2)} — the hunt auto-pauses there.`, 'success');
     } else {
@@ -335,7 +354,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   useEffect(() => {
     let cancelled = false;
     getHuntCost(hunt.huntId).then((res) => {
-      if (!cancelled && res.ok) setCost(res);
+      if (!cancelled && res.ok && res.data) setCost(res.data);
     }).catch(() => {});
     import('../lib/api').then(({ getPaymentStatus }) =>
       getPaymentStatus().then((res) => {
@@ -344,7 +363,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
     );
     const t = setInterval(() => {
       getHuntCost(hunt.huntId).then((res) => {
-        if (!cancelled && res.ok) setCost(res);
+        if (!cancelled && res.ok && res.data) setCost(res.data);
       }).catch(() => {});
       import('../lib/api').then(({ getPaymentStatus }) =>
         getPaymentStatus().then((res) => {
@@ -530,7 +549,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
             min="0"
             step="0.01"
             inputMode="decimal"
-            placeholder={budgetUsd !== null ? `Current $${budgetUsd.toFixed(2)}` : '10'}
+            placeholder={budgetUsd !== null ? `Current $${budgetUsd.toFixed(2)}` : 'No budget set'}
             value={budgetInput}
             onChange={(e) => setBudgetInput(e.target.value)}
             disabled={budgetBusy}
