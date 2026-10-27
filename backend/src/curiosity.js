@@ -20,7 +20,7 @@
  * A human looks at endpoints and thinks "ah, it's a shop" — then knows
  * instinctively where the money and trust boundaries are.
  */
-export function buildAppModel(endpoints = [], techs = [], profile = '') {
+export function buildAppModel(endpoints = [], techs = [], profile = '', knownApp = null) {
   const eps = (endpoints || []).join(' ').toLowerCase();
   const model = {
     appType: 'unknown',
@@ -33,6 +33,34 @@ export function buildAppModel(endpoints = [], techs = [], profile = '') {
   };
 
   const has = (...words) => words.some((w) => eps.includes(w));
+
+  // KNOWN APP (zero-genuine lane): the fingerprint names the app, so
+  // keyword guessing never overrides it. The DVWA hunt modelled an
+  // "ecommerce" shop from Juice Shop endpoints that leaked into the
+  // endpoint list, then spent ~160 calls probing a shop that does
+  // not exist. A known app returns its own model immediately.
+  if (knownApp === 'dvwa') {
+    model.appType = 'dvwa';
+    model.valueFlows.push('auth: login form → session → vulnerability modules (SQLi, XSS, upload, file inclusion)');
+    model.valueFlows.push('security level: low/medium/high/impossible changes every module');
+    model.trustBoundaries.push('authentication: the login form gates every module');
+    model.trustBoundaries.push('security level: the level is a server-side setting, not a client choice');
+    model.instincts.push('Log in first (admin/password), set security to low, then hunt the modules.');
+    model.instincts.push('Can the login form be bypassed with SQL injection?');
+    model.instincts.push('Which /vulnerabilities/* module breaks first at low security?');
+    return model;
+  }
+  if (knownApp === 'juice-shop') {
+    model.appType = 'juice-shop';
+    model.valueFlows.push('money: product prices → basket → checkout → payment');
+    model.valueFlows.push('inventory: stock quantities, product IDs');
+    model.trustBoundaries.push('users must only see/modify their OWN basket and orders');
+    model.trustBoundaries.push('prices should come from the server, never the client');
+    model.instincts.push('Can I change the price in the basket?');
+    model.instincts.push('Can I see or modify someone else\'s order?');
+    model.instincts.push('Can I apply a coupon twice?');
+    return model;
+  }
 
   // E-commerce / shop
   if (has('product', 'basket', 'cart', 'order', 'checkout', 'shop') || profile === 'ecommerce') {

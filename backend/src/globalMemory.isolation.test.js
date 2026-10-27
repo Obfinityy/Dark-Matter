@@ -12,7 +12,9 @@
 //          x.com technique survives only as a nameless rate line.
 //   ISO-3  searchRecall with a target: an x.com endpoint hit never
 //          surfaces on y.com; a same-target hit does.
-//   ISO-4  sameTargetFolder: host match is case/host exact;
+//   ISO-4  sameTargetFolder: origin match is case/origin exact
+//          (host + non-default port — DVWA :3100 and Juice Shop
+//          :3000 on one host are different targets);
 //          empty/unknown never matches.
 //   ISO-5  retrieveEpisodes with crossHunt + target: only episodes
 //          from hunts on THAT target are returned; without a target
@@ -103,9 +105,15 @@ test('ISO-3: recall on y.com never surfaces an x.com endpoint', () => {
   assert.ok(same.text.includes('/search?q= (y.com)'), 'same-target recall shows its own detail');
 });
 
-test('ISO-4: same-target matching is host-exact; unknown never matches', () => {
+test('ISO-4: same-target matching is origin-exact; unknown never matches', () => {
   assert.ok(sameTargetFolder('https://X.com/', 'https://x.com'));
-  assert.ok(sameTargetFolder('https://x.com:8443/a', 'http://x.com/b'), 'same host, different scheme/port, is the same target');
+  assert.ok(sameTargetFolder('http://172.17.0.1:3100/', 'http://172.17.0.1:3100/login.php'), 'same host + same port is the same target');
+  // Zero-genuine lane (27 Oct 2026): a host-only key merged DVWA
+  // (:3100) and Juice Shop (:3000) into one target, so Juice Shop
+  // endpoints leaked into the DVWA hunt. Same host, different port
+  // is a DIFFERENT target now.
+  assert.ok(!sameTargetFolder('https://x.com:8443/a', 'http://x.com/b'), 'same host, different port, is a different target');
+  assert.ok(!sameTargetFolder('http://172.17.0.1:3100/', 'http://172.17.0.1:3000/'), 'DVWA :3100 and Juice Shop :3000 never share memory');
   assert.ok(!sameTargetFolder('https://x.com', 'https://y.com'));
   assert.ok(!sameTargetFolder('https://a.x.com', 'https://x.com'), 'a subdomain is not its parent');
   assert.ok(!sameTargetFolder('', 'https://x.com'));

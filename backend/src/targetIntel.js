@@ -6,6 +6,7 @@
 // makes "just put the link" work — no manual recon needed.
 
 import { appendHuntEvent } from './store.js';
+import { detectKnownApp } from './knownApps.js';
 
 const TECH_SIGNATURES = [
   { name: 'WordPress', header: /wp-/i, html: /wp-content|wp-includes/i },
@@ -144,6 +145,16 @@ export async function understandTarget(huntId, target) {
     profile.tech = detectTech(headers, html);
     profile.endpoints = extractEndpoints(html, url);
     profile.forms = (html.match(/<form/gi) || []).length;
+    // KNOWN-APP FINGERPRINT (zero-genuine lane): what the target
+    // itself served names the app — the served page (final URL after
+    // redirects + HTML) wins over the header/tech guess above.
+    try {
+      const known = detectKnownApp({ url: res.url || url, html });
+      if (known) {
+        profile.app = known.app;
+        profile.appConfidence = known.confidence;
+      }
+    } catch { /* fingerprint is best-effort */ }
   } catch (err) {
     profile.error = String(err.message || err).slice(0, 200);
   }

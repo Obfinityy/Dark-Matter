@@ -13,6 +13,7 @@ import fs from 'fs';
 import path from 'path';
 import { dataDir } from './store.js';
 import { scopeGlobalMemoriesForTarget } from './globalMemory.js';
+import { findWrongTargetPaths } from './knownApps.js';
 
 function reasoningFile(huntId) {
   return path.join(dataDir(), 'hunts', huntId, 'reasoning.jsonl');
@@ -156,19 +157,42 @@ function readAllReasoning(huntId) {
 }
 
 /**
+ * True when a reasoning row's action names another app's endpoints.
+ * The row's action carries the executed command (or the brain's own
+ * label for it); the why and hypothesis name the premise.
+ */
+function isWrongTargetRow(knownApp, row) {
+  const text = `${row.action || ''} ${row.why || ''} ${row.hypothesis || ''}`;
+  return findWrongTargetPaths(knownApp, text).length > 0;
+}
+
+/**
  * Compute the hypothesis ledger: which hypotheses are VERIFIED (closed for
  * same-instance re-testing) and which are DEAD (failed FAIL_DEATH_TOLL+ times
  * with zero verifications — forced pivot). Retirement bookkeeping rows
  * (action 'hypothesis-retirement') are excluded so the ledger can't feed
  * back into itself.
+ * knownApp: when the hunt's app is known, rows recorded against ANOTHER
+ * app's endpoints count toward neither verified nor failed (zero-genuine
+ * lane) — a premise can never be retired on wrong-target evidence.
  */
-export function getHypothesisLedger(huntId) {
+export function getHypothesisLedger(huntId, { knownApp = null } = {}) {
   const rows = readAllReasoning(huntId);
   const byHyp = new Map();
+  let wrongTargetSkipped = 0;
   for (const r of rows) {
     if (r.action === 'hypothesis-retirement') continue;
     const key = normalizeHypothesis(r.hypothesis);
     if (!key) continue;
+    // WRONG-TARGET ROWS (zero-genuine lane): a row recorded against
+    // another app's endpoints never tested the real target — it counts
+    // toward neither verified nor failed, so the premise can never be
+    // retired on wrong-target evidence ("SQLi on login" died on the
+    // live hunt after 5 failures, all against /rest/user/login).
+    if (knownApp && isWrongTargetRow(knownApp, r)) {
+      wrongTargetSkipped++;
+      continue;
+    }
     if (!byHyp.has(key)) {
       byHyp.set(key, { text: String(r.hypothesis).slice(0, 140), verified: 0, failed: 0, titles: [] });
     }
@@ -191,7 +215,7 @@ export function getHypothesisLedger(huntId) {
   // Most-burned first — the model should see its worst loops at the top.
   verified.sort((a, b) => b.verified - a.verified);
   dead.sort((a, b) => b.failed - a.failed);
-  return { verified, dead };
+  return { verified, dead, wrongTargetSkipped };
 }
 
 /**
@@ -223,9 +247,9 @@ export function getVerifiedPairs(huntId) {
  * row to reasoning.jsonl for each newly-retired hypothesis (once each —
  * the RETIRED marker in the result makes it idempotent).
  */
-export function formatLedgerForPrompt(huntId) {
-  const { verified, dead } = getHypothesisLedger(huntId);
-  if (!verified.length && !dead.length) return '';
+export function formatLedgerForPrompt(huntId, { knownApp = null } = {}) {
+  const { verified, dead, wrongTargetSkipped } = getHypothesisLedger(huntId, { knownApp });
+  if (!verified.length && !dead.length && !wrongTargetSkipped) return '';
 
   // Failure-pivot rule: log the forced hypothesis change. Idempotent — a
   // hypothesis already carrying a RETIRED marker is never logged twice.
@@ -261,6 +285,9 @@ export function formatLedgerForPrompt(huntId) {
     for (const d of dead.slice(0, 8)) {
       s += `  - "${d.text}" (failed ${d.failed}x)\n`;
     }
+  }
+  if (wrongTargetSkipped > 0) {
+    s += `NOTE — ${wrongTargetSkipped} row(s) probed another app's endpoints, not this target's. They do not count toward any premise: a hypothesis "retired" on those rows is NOT dead — re-test it on the real target's surface.\n`;
   }
   return s;
 }
@@ -311,16 +338,22 @@ const clip = (s, n) => {
  *   the outer bound).
  * @returns {{text: string, stats: {actions:number, shown:number, summarised:number, findings:number, verified:number, deadEnds:number}}}
  */
-export function buildFullHistoryLedger({ reasoningRows = [], findings = [], chainContext = null, budgetChars = 12000 } = {}) {
+export function buildFullHistoryLedger({ reasoningRows = [], findings = [], chainContext = null, budgetChars = 12000, knownApp = null } = {}) {
   const rows = (reasoningRows || []).filter((r) => r && r.action !== 'hypothesis-retirement');
   const verifiedFindings = (findings || []).filter((f) => f && f.verified);
   const otherFindings = (findings || []).filter((f) => f && !f.verified);
 
   // Dead ends: same rule as the hypothesis ledger (failed >= toll, never verified).
+  // Wrong-target rows never count (zero-genuine lane) — see getHypothesisLedger.
   const byHyp = new Map();
+  let wrongTargetSkipped = 0;
   for (const r of rows) {
     const key = normalizeHypothesis(r.hypothesis);
     if (!key) continue;
+    if (knownApp && isWrongTargetRow(knownApp, r)) {
+      wrongTargetSkipped++;
+      continue;
+    }
     if (!byHyp.has(key)) byHyp.set(key, { text: clip(r.hypothesis, 100), verified: 0, failed: 0 });
     const e = byHyp.get(key);
     const o = reasoningOutcome(r);
@@ -359,6 +392,9 @@ export function buildFullHistoryLedger({ reasoningRows = [], findings = [], chai
   if (dead.length) {
     fixed.push(`DEAD ENDS (premises exhausted — do not retry): ${dead.map((d) => `"${d.text}" ×${d.failed}`).join('; ')}`);
   }
+  if (wrongTargetSkipped > 0) {
+    fixed.push(`WRONG-TARGET ROWS (${wrongTargetSkipped}) do not count toward dead premises — they probed another app's endpoints; re-test those premises on the real target.`);
+  }
 
   // Action lines: one per executed action, chronological. Fill the budget
   // with the NEWEST lines; summarise the oldest overflow by outcome.
@@ -395,6 +431,7 @@ export function buildFullHistoryLedger({ reasoningRows = [], findings = [], chai
       findings: findings.length,
       verified: verifiedFindings.length,
       deadEnds: dead.length,
+      wrongTargetSkipped,
     },
   };
 }

@@ -46,6 +46,8 @@ import { normalisedActionDetail, actionSignature, contentHash } from './actionId
 import { recallById, firstRunNumber, parseRecallId, formatFullRecord } from './actionIndex.js';
 import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
+import { findWrongTargetPaths, knownAppOf, knownAppSOMLines } from './knownApps.js';
+import { runLabLoginFirst } from './labLogin.js';
 import { getRelevantMemories, formatGlobalMemoryForPrompt, readAllGlobalMemories } from './globalMemory.js';
 import { listSkills, loadSkill } from './skillCards.js';
 import { saveCredential, getCredential, generatePassword, generatePersonaUsername, scrubSecrets, touchCredential, markVerified, listCredentials, hostOf } from './credentials.js';
@@ -1065,6 +1067,7 @@ export function buildMemoryBriefing(huntId, target, meta) {
       findings,
       chainContext: (meta && meta.chainContext) || (memory.meta && memory.meta.chainContext) || null,
       budgetChars: ledgerBudget,
+      knownApp: knownAppOf(meta, target),
     });
     return assembleMemoryBriefing({
       deadEnds,
@@ -3084,6 +3087,14 @@ export async function humanIteration(huntId, target, opts = {}) {
     // per-turn screen carries the same facts in its own never-
     // trimmed blocks (exhausted + page state), so nothing is lost.
     const extra = [];
+    // KNOWN APP (zero-genuine lane): the fingerprint + the lab auth
+    // state ride the SOM, so the brain never re-derives the app from
+    // leaked endpoints — on DVWA the lines name the login-first
+    // state and the wrong-app boundary every turn.
+    try {
+      const appLines = knownAppSOMLines({ knownApp: knownAppOf(meta, target), auth: (meta && meta.auth) || null });
+      if (appLines.length) extra.push('', ...appLines);
+    } catch { /* known-app lines are best-effort */ }
     try {
       const pending = pendingPlannedProbeLines({ events: memory.events, reasoningRows: memory.reasoningRows });
       if (pending.length) extra.push('', ...pending);
@@ -3400,6 +3411,31 @@ export async function humanIteration(huntId, target, opts = {}) {
     }
   } catch { /* best-effort: a failed snapshot leaves the seed */ }
 
+  // LOGIN-FIRST (zero-genuine lane): on a known lab app the hunt
+  // starts behind its login wall — every real module sits behind
+  // auth. Log in once per session (default lab credentials via the
+  // vault), set security low, verify the session, and record it
+  // before the first brain turn. A failed login is a recorded
+  // auth_block blocker, never a silent skip. Best-effort: a failed
+  // login never breaks the session — the brain is told on its first
+  // screen and hunts unauthenticated.
+  try {
+    const login = await runLabLoginFirst(huntId, target, {
+      gui: getGui(),
+      saveCredential,
+      getCredential,
+      readMeta: deps.readMeta,
+      writeMeta: deps.writeMeta,
+      record: deps.record,
+      note,
+      addSecret: (s) => sessionSecrets.add(s),
+      say,
+    });
+    if (login && !login.ok && login.reason && login.reason !== 'not-needed') {
+      say(`Login-first blocked: ${login.reason} — hunting continues unauthenticated.`);
+    }
+  } catch { /* login-first is best-effort */ }
+
   for (let turn = 1; turn <= turns; turn++) {
     // Operator control: a pause/stop landed mid-session — hold position.
     try {
@@ -3707,6 +3743,15 @@ export async function humanIteration(huntId, target, opts = {}) {
     // (currentPageUrl, falling back to the parsed page state),
     // never the page the hunter believes it is on.
     const exhaustedHit = exhaustedSurfaceHit(kind, action, currentPageUrl, surfaceCounts, sessionPageState);
+    // WRONG-TARGET GATE (zero-genuine lane): the action names another
+    // app's endpoints for this target's known app — executing it
+    // burns a turn on a 404 and its failure retires premises never
+    // tested on the real target. Judged after the exhausted gate (a
+    // closed surface is the stronger statement) and before dedupe.
+    const knownAppNow = (() => { try { return knownAppOf(deps.readMeta(huntId) || {}, target); } catch { return null; } })();
+    const wrongTargetHit = (kind === 'shell' || kind === 'browser_open') && knownAppNow
+      ? findWrongTargetPaths(knownAppNow, JSON.stringify(action || {}))
+      : [];
     const controlHit = GUI_CONTROL_KINDS.has(kind) && deps.machineControlled(huntId);
     if (controlHit) {
       // TAKE-CONTROL GATE — checked FIRST, before the auth and dedupe
@@ -3751,6 +3796,16 @@ export async function humanIteration(huntId, target, opts = {}) {
       say(`Exhausted surface — ${exhaustedHit.tool} ${exhaustedHit.payloadClass} on ${exhaustedHit.pageHost} already blocked ×${exhaustedHit.count}.`);
       observation = exhaustedBlockObservation(exhaustedHit, { target, credential: credentialState, events: turnEvents });
       note({ action: `exhausted_block: ${exhaustedHit.tool} ${exhaustedHit.payloadClass} on ${exhaustedHit.pageHost}`, why: thinkingText, result: `surface closed — blocked ×${exhaustedHit.count}`, learned: 'A surface blocked 3 times is closed; the way forward is a different page, a different payload class, or the account/recon routes.' });
+    } else if (wrongTargetHit.length) {
+      // WRONG-TARGET GATE (zero-genuine lane) — after the exhausted
+      // gate, before dedupe: the action targets another app's
+      // endpoints (e.g. /rest/* on a DVWA target). It was NOT
+      // executed — a 404 against the wrong app proves nothing, and
+      // its failure would retire a premise never tested.
+      try { deps.record(huntId, { type: 'wrong_target_block', tool: kind, detail: wrongTargetHit.join(', '), via: 'human-mode' }); } catch { /* best-effort */ }
+      say(`Wrong-target action blocked: ${wrongTargetHit.join(', ')} belongs to another app, not this target.`);
+      observation = `BLOCKED — WRONG TARGET: ${wrongTargetHit.join(', ')} ${wrongTargetHit.length > 1 ? 'are' : 'is'} another app's endpoint${wrongTargetHit.length > 1 ? 's' : ''} — this target is ${knownAppNow}, and ${wrongTargetHit.length > 1 ? 'they do' : 'it does'} not exist here. It was NOT executed — a 404 against the wrong app proves nothing. Hunt THIS app's surface instead.`;
+      note({ action: `wrong_target_block: ${kind} ${wrongTargetHit.join(', ')}`, why: thinkingText, result: 'blocked — wrong-target endpoint', learned: 'Endpoints from another app do not exist on this target; hunt the app in front of you.' });
     } else if (gateHit) {
       try { deps.record(huntId, { type: 'dedup_block', tool: gateHit.tool, detail: scrub(gateHit.detail), count: gateHit.count, via: 'human-mode' }); } catch { /* best-effort */ }
       say(`Already-done gate stopped a repeat: ${gateHit.tool} ${gateHit.detail.slice(0, 120)} — already run ×${gateHit.count} in this hunt.`);
