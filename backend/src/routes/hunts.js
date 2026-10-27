@@ -47,7 +47,7 @@ import {
   startControlDesktop,
   stopControlDesktop,
 } from '../machineControl.js';
-import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience, getMode, HUNT_MODES, MODE_ORDER, TIERS } from '../hunt-intel/index.js';
+import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience, resolveHuntMode, HUNT_MODES, MODE_ORDER, TIERS } from '../hunt-intel/index.js';
 import { getHuntCost, getUserCosts } from '../costTracker.js';
 import { parseBudgetUsd } from '../budgetCap.js';
 import { loadHuntMemory, panelFindings } from '../huntMemory.js';
@@ -225,7 +225,12 @@ router.post('/', requireAuth, async (req, res) => {
   // authorization checkbox (confirmedAuthorized) is sufficient — no
   // ALLOWED_TARGETS restriction.
   // Control-level enforcement BEFORE creating anything: minimal users get Normal/Medium only.
-  const huntMode = getMode(mode);
+  // HUMAN MODE (27 Oct 2026, mode fix): 'human' is a first-class mode,
+  // not one of the six intensity modes — resolveHuntMode preserves it
+  // (getMode would silently map it to 'normal', so a human-mode hunt
+  // could never be created through the API).
+  const huntMode = resolveHuntMode(mode);
+  const isHumanMode = huntMode.id === 'human';
   const control = req.user.control || 'minimal';
   if (control === 'minimal' && !['normal', 'medium'].includes(huntMode.id)) {
     return res.status(403).json({
@@ -372,11 +377,28 @@ router.post('/', requireAuth, async (req, res) => {
       scope: scope || null,
       parsedScope,
       mode: huntMode.id,
+      // HUMAN MODE: flag both keys the human path checks
+      // (huntAgent.js: meta.humanMode === true || mode/meta.mode ===
+      // 'human'), matching drive-human.mjs + the lab scripts.
+      ...(isHumanMode ? { humanMode: true } : {}),
       userId: req.user.id,
       createdAt: new Date().toISOString(),
       authorized: true,
     });
     appendHuntEvent(huntId, { type: 'status', state: 'created', target, mode: huntMode.id });
+    // HUMAN LOOP (27 Oct 2026, mode fix): a human-mode hunt runs the
+    // continuous loop driver — enable its loop state at creation so
+    // the driver starts with an explicit record (mirrors what resumed
+    // human hunts carry). Best-effort: a loop-state failure must never
+    // break hunt creation; the driver also defaults to enabled.
+    if (isHumanMode) {
+      try {
+        const { startHumanLoop } = await import('../humanLoopDriver.js');
+        startHumanLoop(huntId);
+      } catch (err) {
+        console.warn(`[hunts] could not enable human loop for ${huntId}: ${err.message}`);
+      }
+    }
     // AI understands the target first (async, non-blocking): tech stack,
     // endpoints, forms — becomes hunt context for the engine + chat.
     understandTarget(huntId, target).catch(() => {});
@@ -418,6 +440,12 @@ router.get('/', requireAuth, async (req, res) => {
         huntId: m.huntId,
         target: m.target,
         scope: m.scope || null,
+        // MODE FIX (27 Oct 2026): the list used to omit mode, so the
+        // frontend could never inherit a hunt's real mode — "Start
+        // from scratch" on a human-mode hunt always fell back to
+        // 'normal'. Hunts created before mode was recorded report
+        // 'normal', the historical default.
+        mode: m.mode || 'normal',
         createdAt: m.createdAt || null,
         status,
       };

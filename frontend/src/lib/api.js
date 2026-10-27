@@ -185,6 +185,12 @@ export async function listHunts() {
   return get('/api/v1/hunts');
 }
 
+/** One hunt's full stored record (host-side hunts return the whole meta,
+ *  including mode). Used when a hunt card predates the list carrying mode. */
+export async function getHunt(id) {
+  return get(`/api/v1/hunts/${encodeURIComponent(id)}`);
+}
+
 /** Cached agent activity (thinking, tool calls, findings) for a hunt. */
 export async function getHuntEvents(huntId, limit = 200) {
   return get(`/api/v1/hunts/${encodeURIComponent(huntId)}/events?limit=${limit}`);
