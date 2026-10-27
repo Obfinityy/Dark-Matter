@@ -33,6 +33,8 @@ import {
   recordToolState,
   burpFirstUseDone,
   burpFirstUse,
+  burpBrowserLaunchCommand,
+  parseBurpBrowserLaunch,
 } from './toolLaunch.js';
 
 const ATSPI_LIST_OK = JSON.stringify({
@@ -99,6 +101,19 @@ test('BURP_WIZARD_CLICKS: the v2026.9 edition chooser is in the walk (EC2 lab 27
   // missing from the list: after Accept, Burp shows "Continue with
   // Burp Suite Community Edition", not Next/Start Burp.
   assert.deepEqual(BURP_WIZARD_CLICKS, ['Accept', 'I Accept', 'Continue with Burp Suite Community Edition', 'Start Burp', 'Next']);
+});
+
+test('burpBrowserLaunchCommand/parseBurpBrowserLaunch: Burp\'s own binary, own profile, Burp\'s proxy, --no-sandbox', () => {
+  const cmd = burpBrowserLaunchCommand(8080);
+  assert.match(cmd, /BurpSuite\/burpbrowser\/\*\/chrome/);
+  assert.match(cmd, /--user-data-dir=\/tmp\/dm-burp-browser/);
+  assert.match(cmd, /--no-sandbox/);
+  assert.match(cmd, /--proxy-server=127\.0\.0\.1:8080/);
+  assert.match(cmd, /browser_started:/);
+  assert.match(cmd, /__NO_BURP_BROWSER__/);
+  assert.equal(parseBurpBrowserLaunch('browser_started:999\n').ok, true);
+  assert.equal(parseBurpBrowserLaunch('__NO_BURP_BROWSER__\n').ok, false);
+  assert.equal(parseBurpBrowserLaunch('').ok, false);
 });
 
 test('resolveTool: unknown ids are refused with the available list', () => {
@@ -297,7 +312,7 @@ test('recordToolState + burpFirstUseDone: checkpoint-merge write, no full meta w
 test('burpFirstUse: happy path — launch, wizard, proxy, browser, target confirmed', async () => {
   let probes = 0;
   let proxyProbes = 0;
-  let browserClicked = false;
+  let browserLaunched = false;
   // The real wizard (EC2 lab, 27 Oct 2026): EULA → edition chooser →
   // project → config → start. Each button exists only on its own page.
   let wizardStep = 0; // 0=EULA, 1=edition, 2=project, 3=config, 4=start, 5=done
@@ -317,8 +332,8 @@ test('burpFirstUse: happy path — launch, wizard, proxy, browser, target confir
     ["python3 - 'click' 'Next'", wizardClick('Next')],
     ["python3 - 'click' 'Start Burp'", wizardClick('Start Burp')],
     ['ss -ltn', () => (++proxyProbes === 1 ? 'proxy_down\n' : 'proxy_up\n')],
-    ["xdotool search --onlyvisible --name 'Chromium'", () => (browserClicked ? '67890\n' : '')],
-    ["python3 - 'click' 'Open Browser'", () => { browserClicked = true; return ATSPI_CLICK_OK('Open Browser'); }],
+    ["xdotool search --onlyvisible --name 'Chromium'", () => (browserLaunched ? '67890\n' : '')],
+    ['burpbrowser', () => { browserLaunched = true; return 'browser_started:999\n'; }],
     ['windowactivate --sync 67890', 'activated\n'],
     ['xdotool key', 'key_sent\n'],
     ['xdotool type', 'typed\n'],
@@ -338,15 +353,13 @@ test('burpFirstUse: happy path — launch, wizard, proxy, browser, target confir
   assert.match(res.observation, /target visible in the Burp browser/);
 });
 
-test('burpFirstUse: "Open Browser" is retried until the project finishes loading', async () => {
-  // EC2 lab run 4: the proxy was up but the main window was still on
-  // "Starting project, please wait ..." — the first click attempts
-  // found no "Open Browser" control at all. A single attempt fails
-  // the whole first-use; the retry waits the load out.
+test('burpFirstUse: missing browser binary is an honest partial failure (proxy up, browser not opened)', async () => {
+  // Burp extracts its browser on first run; if the binary is not
+  // there, the launch reports it plainly instead of pretending the
+  // "Open Browser" button worked (it is a no-op as root — EC2 lab
+  // 27 Oct 2026 — so it is not clicked at all).
   let probes = 0;
   let proxyProbes = 0;
-  let browserClicked = false;
-  let openAttempts = 0;
   let wizardStep = 0; // 0=EULA, 1=edition, 2=project, 3=config, 4=start, 5=done
   const wizardClick = (name) => () => {
     if (name === 'Accept' && wizardStep === 0) { wizardStep = 1; return ATSPI_CLICK_OK('Accept'); }
@@ -364,25 +377,13 @@ test('burpFirstUse: "Open Browser" is retried until the project finishes loading
     ["python3 - 'click' 'Next'", wizardClick('Next')],
     ["python3 - 'click' 'Start Burp'", wizardClick('Start Burp')],
     ['ss -ltn', () => (++proxyProbes === 1 ? 'proxy_down\n' : 'proxy_up\n')],
-    ["xdotool search --onlyvisible --name 'Chromium'", () => (browserClicked ? '67890\n' : '')],
-    ["python3 - 'click' 'Open Browser'", () => {
-      openAttempts += 1;
-      if (openAttempts < 3) return JSON.stringify({ ok: false, error: 'no control named "Open Browser" found in Burp Suite Community Edition v2026.9 — the app may expose no accessibility tree (Java apps need the Java Access Bridge), or the control is named differently; list the window\'s controls first' });
-      browserClicked = true;
-      return ATSPI_CLICK_OK('Open Browser');
-    }],
-    ['windowactivate --sync 67890', 'activated\n'],
-    ['xdotool key', 'key_sent\n'],
-    ['xdotool type', 'typed\n'],
-    ['scrot', 'captured'],
-    ['getdisplaygeometry', '1280 800'],
-    ['tesseract', TSV_HOST],
+    ['burpbrowser', '__NO_BURP_BROWSER__\n'],
   ]);
   const res = await burpFirstUse('h_x', 'http://172.17.0.1:3100/', { execRaw, sleep: noSleep });
-  assert.equal(res.ok, true);
-  assert.equal(openAttempts, 3, 'the click was retried until the control existed');
-  assert.equal(res.state.browserOpened, true);
-  assert.equal(res.state.targetLoaded, true);
+  assert.equal(res.ok, true, 'first-use still counts: the interceptable part (proxy) is up');
+  assert.equal(res.state.proxyUp, true);
+  assert.equal(res.state.browserOpened, false);
+  assert.match(res.notes.join(' '), /Burp browser could not be launched/);
 });
 
 test('burpFirstUse: proxy never listens — honest partial failure, launch still recorded', async () => {
@@ -392,7 +393,7 @@ test('burpFirstUse: proxy never listens — honest partial failure, launch still
     ["python3 - 'click' 'Start Burp'", JSON.stringify({ ok: false, error: 'no control named "Start Burp" found' })],
     ["python3 - 'click' 'Next'", JSON.stringify({ ok: false, error: 'no control named "Next" found' })],
     ['ss -ltn', 'proxy_down\n'],
-    ["python3 - 'click' 'Open Browser'", JSON.stringify({ ok: false, error: 'no control named "Open Browser" found' })],
+    ['burpbrowser', '__NO_BURP_BROWSER__\n'],
     ['scrot', 'captured'],
     ['getdisplaygeometry', '1280 800'],
     ['tesseract', TSV_HOST],

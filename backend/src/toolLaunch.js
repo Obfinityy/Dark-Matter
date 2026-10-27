@@ -85,6 +85,11 @@ export const BURP_WIZARD_CLICKS = ['Accept', 'I Accept', 'Continue with Burp Sui
 // config, start); 6 rounds bounds a click that keeps "succeeding".
 export const BURP_WIZARD_MAX_CLICKS = 6;
 // The button that opens Burp's embedded browser (Proxy > Intercept).
+// NOT clicked by burpFirstUse: in this container (root) the button is
+// a silent no-op — Burp launches its bundled Chromium without
+// --no-sandbox and Chromium refuses to start as root (EC2 lab 27 Oct
+// 2026). burpFirstUse launches the same binary directly instead (see
+// burpBrowserLaunchCommand). Kept so the name stays in one place.
 export const BURP_OPEN_BROWSER_CONTROL = 'Open Browser';
 
 // ---------------------------------------------------------------------------
@@ -212,7 +217,31 @@ export function windowActivateCommand(id) {
   return `DISPLAY=${DESKTOP_DISPLAY} xdotool windowactivate --sync ${id} 2>/dev/null && echo activated || echo activate_failed`;
 }
 
-/** Listener probe for a proxy port (Burp's intercept listener). */
+/** Burp's bundled browser binary, extracted by Burp on first run
+ * (~/.BurpSuite/burpbrowser/<version>/chrome). Launch it directly:
+ * Burp's "Open browser" button is a silent no-op in this container
+ * (EC2 lab 27 Oct 2026, proven three ways — AT-SPI click, real mouse
+ * click at the button's rect centre, 180s of watching: no window, no
+ * process, no new tab): Burp launches its bundled Chromium WITHOUT
+ * --no-sandbox, and as root Chromium refuses to start ("Running as
+ * root without --no-sandbox is not supported"; the setuid
+ * chrome-sandbox does not help here). So launch the same binary
+ * ourselves, with the flags Burp itself would use plus --no-sandbox,
+ * its own profile (so it does not merge into the driver's Chromium
+ * session through the singleton lock), and Burp's intercept proxy —
+ * the traffic is intercepted exactly as if Burp had opened it. */
+export function burpBrowserLaunchCommand(port = 8080) {
+  const p = Math.max(1, Number(port) || 8080);
+  return `BROWSER_BIN=$(ls -dv ~/.BurpSuite/burpbrowser/*/chrome 2>/dev/null | tail -1); if [ -n "$BROWSER_BIN" ]; then DISPLAY=${DESKTOP_DISPLAY} nohup "$BROWSER_BIN" --user-data-dir=/tmp/dm-burp-browser --no-sandbox --disable-gpu --disable-dev-shm-usage --no-first-run --proxy-server=127.0.0.1:${p} about:blank >/tmp/dm-burp-browser.log 2>&1 & echo browser_started:$!; else echo __NO_BURP_BROWSER__; fi`;
+}
+
+/** Parse the browser launch output. */
+export function parseBurpBrowserLaunch(stdout) {
+  const text = String(stdout || '');
+  if (text.includes('__NO_BURP_BROWSER__')) return { ok: false, error: 'no Burp browser binary found (Burp extracts it on first run)' };
+  if (/browser_started:\d+/.test(text)) return { ok: true };
+  return { ok: false, error: 'Burp browser launch produced no output' };
+}
 export function proxyCheckCommand(port) {
   const p = Math.max(1, Number(port) || 8080);
   return `(ss -ltn 2>/dev/null || netstat -ltn 2>/dev/null) | grep -E ':${p}[[:space:]]' >/dev/null && echo proxy_up || echo proxy_down`;
@@ -434,50 +463,24 @@ export async function burpFirstUse(huntId, target, deps) {
   }
   notes.push(state.proxyUp ? 'proxy listening on 127.0.0.1:8080' : 'proxy NOT listening after 60s');
 
-  // (3) Open the target in Burp's own browser.
-  // Snapshot the Chromium windows FIRST: the hunt's own driver
-  // browser is also a Chromium window, so the new one is the id that
-  // appears only AFTER the click.
+  // (3) Open the target in Burp's own browser (direct launch — see
+  // burpBrowserLaunchCommand for why the "Open Browser" button is
+  // not clicked). Snapshot the Chromium windows FIRST: the hunt's
+  // own driver browser is also a Chromium window, so the new one is
+  // the id that appears only AFTER the launch.
   const beforeIds = new Set(parseWindowIds(await execQuiet(huntId, browserWindowIdsCommand(), 15000, deps)));
-  // The click is retried: the proxy listener comes up while the
-  // project is still loading ("Starting project, please wait ..."),
-  // and until the main window finishes loading there is no
-  // "Open Browser" control to click (EC2 lab run 4: single attempt
-  // failed right after the proxy came up; the control appeared
-  // later). Each attempt re-reads the tree, so a success means the
-  // control really existed at click time.
-  let browserOpened = false;
-  for (let i = 0; i < 12 && !browserOpened; i++) {
-    if (i > 0) await sleep(5000);
-    const obOut = await execQuiet(huntId, clickControlCommand(BURP_OPEN_BROWSER_CONTROL, 'Burp Suite'), 20000, deps);
-    browserOpened = parseAtspiOutput(obOut).ok;
-  }
-  if (!browserOpened) {
-    // OCR fallback: find "Open Browser" on the screen map and click it.
-    try {
-      const shot = await captureScreenMap(huntId, deps);
-      if (shot.ok) {
-        const line = String(shot.map).split('\n').find((l) => /open browser/i.test(l));
-        const m = line && /\((\d+),\s*(\d+)\)/.exec(line);
-        if (m) {
-          const clickOut = await execQuiet(
-            huntId,
-            `DISPLAY=${DESKTOP_DISPLAY} xdotool mousemove ${m[1]} ${m[2]} click 1 2>/dev/null && echo clicked || echo click_failed`,
-            15000,
-            deps,
-          );
-          browserOpened = String(clickOut).includes('clicked');
-        }
-      }
-    } catch { /* browser stays closed — reported below */ }
+  const launchOut = await execQuiet(huntId, burpBrowserLaunchCommand(8080), 20000, deps);
+  const browserLaunch = parseBurpBrowserLaunch(launchOut);
+  const browserOpened = browserLaunch.ok;
+  if (!browserLaunch.ok) {
+    notes.push(`Burp browser could not be launched (${browserLaunch.error}) — open it from Proxy > Intercept`);
   }
   // The Burp browser opens as its own Chromium window, which is NOT
   // necessarily the active window (EC2 lab 27 Oct 2026: Burp's main
   // window stayed active, so ctrl+l went to Burp, not the browser).
   // Wait for the NEW Chromium window and activate it before typing.
-  // Chromium's cold start is slow right after the project loads (EC2
-  // lab run 3: no window 30s after the click, although the click
-  // itself succeeded) — poll a full 90s before giving up.
+  // Chromium's cold start is slow (EC2 lab run 3: no window 30s
+  // after a successful launch) — poll a full 90s before giving up.
   let browserWindow = null;
   if (browserOpened) {
     for (let i = 0; i < 18 && !browserWindow; i++) {
@@ -510,10 +513,9 @@ export async function burpFirstUse(huntId, target, deps) {
       notes.push('navigation keys failed — Burp browser is open, type the target yourself');
     }
   } else if (browserOpened) {
-    notes.push('Burp browser opened but its window never appeared within 90s — it may still be starting; open it from Proxy > Intercept');
-  } else {
-    notes.push('"Open Browser" could not be pressed (no accessibility tree and no OCR match) — open it by hand from Proxy > Intercept');
+    notes.push('Burp browser launched but its window never appeared within 90s — it may still be starting; open it from Proxy > Intercept');
   }
+  // (when the launch itself failed, the note above already says so)
 
   state.firstUseDone = state.running && state.proxyUp;
   const observation =

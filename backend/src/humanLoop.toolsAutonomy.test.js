@@ -106,7 +106,7 @@ function burpExec() {
   const calls = [];
   let probes = 0;
   let proxyProbes = 0;
-  let browserClicked = false;
+  let browserLaunched = false;
   // Wizard state machine (EC2 lab, 27 Oct 2026): EULA → edition
   // chooser → project → config → start. Each button exists only on
   // its own page.
@@ -128,8 +128,8 @@ function burpExec() {
     if (c.includes("python3 - 'click' 'Continue with Burp Suite Community Edition'")) return { stdout: wizardClick('Continue with Burp Suite Community Edition'), stderr: '', code: 0 };
     if (c.includes("python3 - 'click' 'Next'")) return { stdout: wizardClick('Next'), stderr: '', code: 0 };
     if (c.includes("python3 - 'click' 'Start Burp'")) return { stdout: wizardClick('Start Burp'), stderr: '', code: 0 };
-    if (c.includes("xdotool search --onlyvisible --name 'Chromium'")) return { stdout: (browserClicked ? '67890\n' : ''), stderr: '', code: 0 };
-    if (c.includes("python3 - 'click' 'Open Browser'")) { browserClicked = true; return { stdout: ATSPI_CLICK_OK('Open Browser'), stderr: '', code: 0 }; }
+    if (c.includes("xdotool search --onlyvisible --name 'Chromium'")) return { stdout: (browserLaunched ? '67890\n' : ''), stderr: '', code: 0 };
+    if (c.includes('burpbrowser')) { browserLaunched = true; return { stdout: 'browser_started:999\n', stderr: '', code: 0 }; }
     if (c.includes('windowactivate --sync 67890')) return { stdout: 'activated\n', stderr: '', code: 0 };
     if (c.includes('ss -ltn')) return { stdout: (++proxyProbes === 1 ? 'proxy_down\n' : 'proxy_up\n'), stderr: '', code: 0 };
     if (c.includes('xdotool key')) return { stdout: 'key_sent\n', stderr: '', code: 0 };
