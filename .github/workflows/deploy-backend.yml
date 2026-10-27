@@ -12,6 +12,11 @@
 #   EC2_SSH_KEY  the PRIVATE key that can SSH into that box (the whole
 #                -----BEGIN ... PRIVATE KEY----- ... -----END block).
 #                Use a dedicated deploy key if you can; keep it out of chat.
+#   META_API_KEY the Meta Model API key for the hunt brain (the owner
+#                sets it in repo Settings — never in chat). Written
+#                into /opt/Dark-Matter/backend/.env by the workflow
+#                step below, before the backend restarts. Optional:
+#                the step skips cleanly while the secret is unset.
 #
 # The deploy user needs passwordless sudo for systemctl, or run the service
 # restart via a sudoers rule, e.g. on EC2:
@@ -31,6 +36,42 @@ jobs:
     name: Pull + restart on EC2
     runs-on: ubuntu-latest
     steps:
+      # META_API_KEY (27 Oct 2026, owner decision): the Meta model key
+      # lives as a GitHub repo secret of that name (the owner sets it
+      # in repo Settings — never in chat). This step writes it into
+      # /opt/Dark-Matter/backend/.env on EC2 BEFORE the deploy step,
+      # so a restarted backend reads it. The secret is piped to ssh
+      # on stdin and read by `cat` on the far side — it never appears
+      # in the command string, and nothing here ever prints it; the
+      # only output is the COUNT of META_API_KEY lines (1 = present).
+      # Idempotent: any existing line is removed first, then exactly
+      # one is appended (the .env file itself is never replaced, so
+      # its owner/permissions survive). If the secret is not set yet,
+      # the step skips cleanly. If the write fails, it warns and lets
+      # the deploy continue — a missing optional key must never block
+      # a code deploy.
+      - name: Write Meta API key to EC2 .env
+        env:
+          META_API_KEY: ${{ secrets.META_API_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${META_API_KEY:-}" ]; then
+            echo "META_API_KEY secret not set — skipping (backend keeps its existing .env)"
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          printf '%s' "$EC2_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          trap 'rm -f ~/.ssh/deploy_key' EXIT
+          if printf '%s' "$META_API_KEY" | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o BatchMode=yes "$EC2_USER@$EC2_HOST" \
+            'key=$(cat); envfile=/opt/Dark-Matter/backend/.env; touch "$envfile"; tmpfile=$(mktemp); grep -v "^META_API_KEY[[:space:]]*=" "$envfile" > "$tmpfile"; printf "META_API_KEY=%s\n" "$key" >> "$tmpfile"; cat "$tmpfile" > "$envfile"; rm -f "$tmpfile"; echo "META_API_KEY lines: $(grep -c "^META_API_KEY[[:space:]]*=" "$envfile")"'; then
+            echo "META_API_KEY written to EC2 .env"
+          else
+            echo "::warning::META_API_KEY could not be written to EC2 .env — the deploy continues without it; set the secret and re-run, or write the key by hand"
+          fi
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:

@@ -62,6 +62,7 @@ import { dataDir, readHuntEvents, readHuntMeta, listHuntMetas, targetFolderName 
 import { getAllReasoning, getHypothesisLedger } from './reasoningMemory.js';
 import { loadCoverage, emptyCoverage, classLabelFor } from './coverageLedger.js';
 import { getRuledOut } from './episodeStore.js';
+import { buildActionIndex, indexLines } from './actionIndex.js';
 
 const clip = (s, n) => {
   const t = String(s || '').replace(/\s+/g, ' ').trim();
@@ -627,6 +628,27 @@ export function buildStateOfMind(memory, { topicStats = [], endpoints = [] } = {
     if (Array.isArray(lo.openThreads) && lo.openThreads.length) {
       sections.push({ kind: 'threads', lines: [`Open threads you left (${lo.openThreads.length}): ${lo.openThreads.slice(0, 3).map((t) => clip(String(t).replace(/^-\s*/, ''), 130)).join(' · ')}`] });
     }
+  }
+
+  // KEYWORD-INDEX (27 Oct 2026): the current task + the Action
+  // Index. The current task is the hunt's live state — what is
+  // running RIGHT NOW — from meta.humanLoop (written by the loop's
+  // checkpoint from the brain's task block). The index is the
+  // complete map of what is done: one line per action, numbered,
+  // capped at 2,000 chars, never trimmed by the section trimmers
+  // (the hard total-budget clip still guards the sum).
+  const hl = (memory.meta && memory.meta.humanLoop) || {};
+  if (hl.currentTask && (hl.currentTask.task || hl.currentTask.goal)) {
+    const ct = hl.currentTask;
+    sections.push({ kind: 'currenttask', lines: [`ABHI YE CHAL RAHA HAI: ${clip(ct.task || ct.goal, 200)}${ct.goal && ct.task ? ` — goal: ${clip(ct.goal, 160)}` : ''}${ct.progress ? ` — progress: ${clip(ct.progress, 160)}` : ''}`] });
+  }
+  if (hl.lastCompletedTask && (hl.lastCompletedTask.task || hl.lastCompletedTask.summary)) {
+    const lt = hl.lastCompletedTask;
+    sections.push({ kind: 'currenttask', lines: [`LAST COMPLETED TASK: ${clip(lt.task || lt.summary, 200)}${lt.summary && lt.task ? ` — ${clip(lt.summary, 160)}` : ''}`] });
+  }
+  const indexEntries = buildActionIndex(events, rows);
+  if (indexEntries.length) {
+    sections.push({ kind: 'index', lines: indexLines(indexEntries) });
   }
 
   // (b) WHAT I HAVE DONE SO FAR — rollups, not raw lines.

@@ -42,6 +42,8 @@ import { webSearch } from './webSearch.js';
 import { writeArtifact, spillOutput, artifactInfo, writeFileObservation } from './artifacts.js';
 import { isMachineControlled, getControl } from './machineControl.js';
 import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents } from './store.js';
+import { normalisedActionDetail, actionSignature, contentHash } from './actionIdentity.js';
+import { recallById, firstRunNumber, parseRecallId, formatFullRecord } from './actionIndex.js';
 import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
 import { getRelevantMemories, formatGlobalMemoryForPrompt, readAllGlobalMemories } from './globalMemory.js';
@@ -369,10 +371,42 @@ function heavyScanViolation(command, parsedScope) {
 }
 
 /**
+ * The task block beside the action (KEYWORD-INDEX, 27 Oct 2026):
+ * what the brain is doing right now, what it achieves, how far it
+ * is — the hunt's current state, so the next turn resumes it instead
+ * of starting fresh. Accepts the block nested under "task" or as
+ * sibling fields of the action object. Validated: strings ≤300 chars,
+ * status in_progress|complete (default in_progress). A malformed
+ * block returns null and never breaks the action.
+ */
+export function extractTaskBlock(obj) {
+  if (!obj || typeof obj !== 'object') return null;
+  let src = null;
+  const t = obj.task;
+  if (typeof t === 'string') src = { task: t };
+  else if (t && typeof t === 'object') src = t;
+  else if (typeof obj.goal === 'string' || typeof obj.progress === 'string' || typeof obj.status === 'string' || typeof obj.summary === 'string') {
+    src = { task: '', goal: obj.goal, progress: obj.progress, status: obj.status, summary: obj.summary };
+  }
+  if (!src) return null;
+  const out = {};
+  if (typeof src.task === 'string' && src.task.trim()) out.task = src.task.trim().slice(0, 300);
+  if (typeof src.goal === 'string' && src.goal.trim()) out.goal = src.goal.trim().slice(0, 300);
+  if (typeof src.progress === 'string' && src.progress.trim()) out.progress = src.progress.trim().slice(0, 300);
+  if (typeof src.summary === 'string' && src.summary.trim()) out.summary = src.summary.trim().slice(0, 300);
+  const status = typeof src.status === 'string' ? src.status.trim().toLowerCase() : '';
+  if (status === 'complete' || status === 'in_progress') out.status = status;
+  if (!out.task && !out.goal && !out.progress && !out.summary && !out.status) return null;
+  if (!out.status) out.status = 'in_progress';
+  return out;
+}
+
+/**
  * Parse the model's action: the LAST JSON object in the reply that
  * carries an "action" string. Tolerant by design (the 8B wraps JSON
  * in prose and code fences): scan balanced {...} spans, try each from
- * the end. Returns { action, jsonStart } or null.
+ * the end. Returns { action, jsonStart, task } or null — `task` is
+ * the task block beside the action, when the brain sent one.
  */
 export function parseHumanAction(reply) {
   if (!reply) return null;
@@ -408,7 +442,7 @@ export function parseHumanAction(reply) {
     try {
       const obj = JSON.parse(text.slice(s, e + 1));
       if (obj && typeof obj.action === 'string' && obj.action) {
-        return { action: obj, jsonStart: s };
+        return { action: obj, jsonStart: s, task: extractTaskBlock(obj) };
       }
     } catch { /* try the previous span */ }
   }
@@ -1117,6 +1151,15 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"intercept_replay","index":3,"headers":{"X-Test":"1"},"body":"changed=1","url":"http://target.test/other"} — resend a captured request from your machine, optionally with a changed URL, extra/changed headers (a null value removes a header), or a changed body. This is Burp Repeater work: change ONE thing at a time and compare the response. The URL is scope-checked like any other action.',
     '{"action":"note","text":"..."} — write a note in your own notebook (your memory is permanent)',
     '{"action":"recall","query":"..."} — search YOUR OWN memory: this hunt\'s full record, what earlier hunts on THIS target learned, and generic technique rates from other targets (never their endpoints or payloads — each target\'s memory stays its own). Use it whenever your briefing mentions something you need in detail — an exact result, a payload you tried, a lesson — instead of re-doing the work; remembering is free and instant.',
+    // KEYWORD-INDEX (27 Oct 2026): recall by sequential id + the
+    // task block beside the action. The Action Index on every screen
+    // lists one line per action, numbered #1, #2, #3… — the number IS
+    // the lookup. The task block is the hunt's current state: the
+    // backend records it, and the next turn resumes it instead of
+    // starting fresh.
+    '{"action":"recall","id":7} — fetch the FULL stored record of action #7 from your Action Index (one line per action, numbered #1, #2, #3… — the number is the lookup, no search needed). Use it when you need an exact result, a payload you tried, or an output — instead of re-doing the work. Out of range, the observation says how many actions the index holds.',
+    'Your reply may carry a task block beside the action: {"task":"<what you are doing right now>","goal":"<what it achieves>","progress":"<how far you are>","status":"in_progress"} — I record it as your current task, so the next turn resumes it instead of starting fresh. When a task is DONE, send the block with "status":"complete" and a one-line "summary" of what it produced — its input and output are saved to your record then. A task is a goal plus its actions; finishing one is how the hunt moves forward.',
+    'Your screen carries an ACTION INDEX — one line per action you have taken in THIS hunt, numbered #1, #2, #3… with a one-word outcome each. It is your complete map of what is done: read it before choosing, so you never redo a finished action and you can see which variants are still open.',
     // HUNTER-MIND (26 Oct 2026): the plan is the hunter's own
     // instructions — it writes them, works them step by step, and
     // checks steps off with evidence. And the output ledger: an
@@ -1619,7 +1662,10 @@ function detailForAction(kind, action) {
     case 'browser_click': return String(action.text || '').slice(0, 120);
     case 'browser_type': return String(action.text || '').slice(0, 80);
     case 'claim_finding': return String(action.title || '').slice(0, 160);
-    case 'recall': return String(action.query || '').slice(0, 160);
+    case 'recall': {
+      const id = parseRecallId(action.id);
+      return id != null ? `#${id}` : String(action.query || '').slice(0, 160);
+    }
     case 'record_coverage': return `${String(action.surface || '').slice(0, 100)} ${String(action.class || '').slice(0, 40)} ${String(action.outcome || '').slice(0, 30)}`.trim().slice(0, 160);
     case 'hunt_plan': {
       if (Array.isArray(action.steps)) return `plan: ${action.steps.length} step(s)`.slice(0, 160);
@@ -1829,44 +1875,12 @@ const DEDUP_THRESHOLD = 2; // an action already run this many times is not run a
 const DEGRADED_THRESHOLD = 4; // fallback executions of one signature (since the last full one) before the gate blocks
 
 /**
- * The normalised detail of an action — the part of its identity that
- * survives superficial respelling. Deliberately conservative: only
- * differences that cannot change the result are erased.
- *   browser_open — URL scheme/host case and a trailing slash on the
- *     path ('https://X.test/login/' IS 'https://x.test/login');
- *   search — query lowercased, whitespace collapsed (a search engine
- *     treats those alike);
- *   shell / browser_click / browser_type — trimmed only (commands
- *     and labels are case-sensitive; never fold them).
- * The detail is first cut to the 300 chars the tool_call record
- * itself keeps, so a candidate action is judged on exactly the bytes
- * history was recorded with.
+ * Canonical action identity lives in actionIdentity.js (moved there
+ * verbatim in the keyword-index lane, 27 Oct 2026, so the gate and
+ * the Action Index share one definition of "the same action").
+ * Re-exported here so the import surface is unchanged.
  */
-export function normalisedActionDetail(tool, detail) {
-  const t = String(tool || '').toLowerCase();
-  let d = String(detail || '').slice(0, 300);
-  if (t === 'browser_open') {
-    const raw = d.trim();
-    try {
-      const u = new URL(raw);
-      let p = u.pathname || '/';
-      if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
-      return `${u.protocol.toLowerCase()}//${u.host.toLowerCase()}${p}${u.search || ''}`;
-    } catch {
-      d = raw.toLowerCase();
-      if (d.length > 1 && d.endsWith('/')) d = d.slice(0, -1);
-      return d;
-    }
-  }
-  if (t === 'search') return d.trim().toLowerCase().replace(/\s+/g, ' ');
-  return d.trim();
-}
-
-/** Canonical identity of one executed action: `tool|normalised detail`. */
-export function actionSignature(tool, detail) {
-  const t = String(tool || '').toLowerCase();
-  return `${t}|${normalisedActionDetail(t, detail)}`;
-}
+export { normalisedActionDetail, actionSignature } from './actionIdentity.js';
 
 /**
  * The hunt's executed-action history, built from its recorded
@@ -3349,6 +3363,12 @@ export async function humanIteration(huntId, target, opts = {}) {
   lastObservation = lastActionResultOfLeftOff((memory0 && memory0.leftOff) || (meta0.humanLoop && meta0.humanLoop.leftOff));
   let sessionLastThinking = '';
   let sessionLastNote = '';
+  // KEYWORD-INDEX: the task block of this session. sessionTaskSeen
+  // marks that a block arrived at all, so the checkpoints can clear
+  // a stale currentTask (null) instead of leaving it standing.
+  let sessionCurrentTask = null;
+  let sessionLastCompletedTask = null;
+  let sessionTaskSeen = false;
 
   say(`Human mode session: ${turns} turns at my own machine. Target: ${target}.`);
 
@@ -3596,6 +3616,24 @@ export async function humanIteration(huntId, target, opts = {}) {
     }
     try { deps.record(huntId, { type: 'thinking', text: scrub(replyText), via: 'human-mode', turn }); } catch { /* best-effort */ }
 
+    // KEYWORD-INDEX: the task block beside the action is the hunt's
+    // current state — recorded, never re-derived. A complete task
+    // saves its input/output to disk NOW (task_complete event) and
+    // becomes lastCompletedTask; an in-progress task becomes
+    // currentTask, so the next screen resumes it instead of
+    // starting fresh.
+    if (parsed && parsed.task) {
+      sessionTaskSeen = true;
+      const tb = parsed.task;
+      if (tb.status === 'complete') {
+        try { deps.record(huntId, { type: 'task_complete', task: tb.task || '', goal: tb.goal || '', progress: tb.progress || '', summary: tb.summary || '', via: 'human-mode' }); } catch { /* best-effort */ }
+        sessionLastCompletedTask = { ...tb, completedAt: new Date().toISOString() };
+        sessionCurrentTask = null;
+      } else {
+        sessionCurrentTask = { ...tb, status: 'in_progress', updatedAt: new Date().toISOString() };
+      }
+    }
+
     if (!parsed) {
       sessionLastThinking = replyText.trim().slice(0, 400);
       lastObservation =
@@ -3707,8 +3745,16 @@ export async function humanIteration(huntId, target, opts = {}) {
     } else if (gateHit) {
       try { deps.record(huntId, { type: 'dedup_block', tool: gateHit.tool, detail: scrub(gateHit.detail), count: gateHit.count, via: 'human-mode' }); } catch { /* best-effort */ }
       say(`Already-done gate stopped a repeat: ${gateHit.tool} ${gateHit.detail.slice(0, 120)} — already run ×${gateHit.count} in this hunt.`);
+      // KEYWORD-INDEX: the block names WHERE the repeat already lives
+      // — its index number and content-hash — so the brain can fetch
+      // the saved output instead of just being refused.
+      let firstRunNote = '';
+      try {
+        const firstN = firstRunNumber(turnEvents, gateHit.tool, gateHit.detail);
+        if (firstN != null) firstRunNote = ` It first ran as #${firstN} in your Action Index (hash ${contentHash(gateHit.tool, gateHit.detail)}) — recall #${firstN} for its saved output.`;
+      } catch { /* index lookup is best-effort */ }
       observation =
-        `BLOCKED — ALREADY DONE: you have already performed this exact action ${gateHit.count} times in this hunt (${gateHit.tool}: ${gateHit.detail}).` +
+        `BLOCKED — ALREADY DONE: you have already performed this exact action ${gateHit.count} times in this hunt (${gateHit.tool}: ${gateHit.detail}).${firstRunNote}` +
         (gateHit.lastResult ? ` Last result: ${gateHit.lastResult}` : '') +
         ' It was NOT executed again — an identical repeat returns the identical result and only burns a turn. Choose a DIFFERENT action: a page you have not visited, a search you have not run, a probe you have not tried — or act on what you already learned.' +
         // Lane AF: for a blocked page-open, name the two variations
@@ -3862,14 +3908,29 @@ export async function humanIteration(huntId, target, opts = {}) {
       // Lane I: deliberate remembering. NOT dedupe-gated (remembering
       // is free) and NOT scope-gated (it reads only the hunter's own
       // memory — no traffic leaves the machine).
-      const query = String(action.query || '').slice(0, 200);
-      toolCall('recall', query);
-      try {
-        observation = String(await deps.recall(huntId, query) || '').slice(0, 1500) || 'Recall returned nothing.';
-      } catch {
-        observation = 'Recall failed this time — your briefing still carries the distilled memory.';
+      // KEYWORD-INDEX: recall by sequential id returns the full
+      // stored record of that action — O(1), this hunt only.
+      // Query-recall stays for meaning-based search.
+      const id = parseRecallId(action.id);
+      if (id != null) {
+        toolCall('recall', `#${id}`);
+        try {
+          const rec = recallById(deps.readEvents(huntId) || [], getAllReasoning(huntId) || [], id);
+          observation = formatFullRecord(rec);
+        } catch {
+          observation = 'Recall failed this time — your briefing still carries the distilled memory.';
+        }
+        note({ action: `recall: #${id}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      } else {
+        const query = String(action.query || '').slice(0, 200);
+        toolCall('recall', query);
+        try {
+          observation = String(await deps.recall(huntId, query) || '').slice(0, 1500) || 'Recall returned nothing.';
+        } catch {
+          observation = 'Recall failed this time — your briefing still carries the distilled memory.';
+        }
+        note({ action: `recall: ${query}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
       }
-      note({ action: `recall: ${query}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'record_coverage') {
       // Lane L: the hunter accounts for a surface × class in its
       // own coverage ledger. NOT dedupe-gated (accounting is free,
@@ -4774,6 +4835,13 @@ export async function humanIteration(huntId, target, opts = {}) {
           turnsTotal: sessionBaseTurns + turnsRun,
           lastTurnAt: new Date().toISOString(),
           ...(turnCounters ? { loopCounters: turnCounters } : {}),
+          // KEYWORD-INDEX: the current task rides the per-turn
+          // checkpoint (writeHuntMetaCheckpoint preserves an
+          // owner pause/stop hold around it, like every progress
+          // field). sessionTaskSeen lets a completed task CLEAR
+          // the stale currentTask instead of leaving it standing.
+          ...(sessionTaskSeen ? { currentTask: sessionCurrentTask } : {}),
+          ...(sessionLastCompletedTask ? { lastCompletedTask: sessionLastCompletedTask } : {}),
         },
         checkpointAt: new Date().toISOString(),
       });
@@ -4897,6 +4965,12 @@ export async function humanIteration(huntId, target, opts = {}) {
         lastActions: log.slice(-6).map((l) => l.action),
         leftOff,
         ...(endCounters ? { loopCounters: endCounters } : {}),
+        // KEYWORD-INDEX: the session-end checkpoint rebuilds the
+        // humanLoop object, so the current task must be carried
+        // explicitly — this session's block when one arrived, else
+        // the previous session's standing task.
+        ...(sessionTaskSeen ? { currentTask: sessionCurrentTask } : (prev.currentTask ? { currentTask: prev.currentTask } : {})),
+        ...(sessionLastCompletedTask ? { lastCompletedTask: sessionLastCompletedTask } : (prev.lastCompletedTask ? { lastCompletedTask: prev.lastCompletedTask } : {})),
       },
     });
   } catch { /* checkpoint is best-effort */ }
