@@ -603,6 +603,71 @@ button { font-family: inherit; }
   gap: 24px;
 }
 
+/* ---------- Dynamic details request card (27 Oct 2026, owner order) ------ */
+/* The agent asks the owner for details (a login, an OTP, any field); the
+   card sits below the chat thread, above the composer. Uses the same
+   surface/border/text tokens as the rest of the chat UI. */
+.details-request-card {
+  max-width: 770px;
+  margin: 0 auto 12px;
+  padding: 16px 18px;
+  background: var(--dm-surface);
+  border: 1px solid var(--dm-border);
+  border-radius: var(--dm-radius);
+  box-sizing: border-box;
+}
+.details-request-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.details-request-sub {
+  font-size: 13px;
+  color: var(--dm-secondary);
+  margin: 0 0 4px;
+  line-height: 1.5;
+}
+.details-request-fields { margin-top: 4px; }
+.details-request-field-row { display: flex; gap: 8px; align-items: center; }
+.details-request-field-row .text-input { flex: 1; }
+.details-request-show {
+  border: none;
+  background: transparent;
+  color: var(--dm-blue);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 2px;
+  flex-shrink: 0;
+}
+.details-request-show:disabled { opacity: 0.4; cursor: default; }
+.details-request-error {
+  color: var(--dm-red);
+  font-size: 13px;
+  margin: 8px 0 0;
+}
+.details-request-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.details-request-cancel {
+  border: none;
+  background: transparent;
+  color: var(--dm-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 2px;
+  text-decoration: underline;
+}
+.details-request-cancel:disabled { opacity: 0.4; cursor: default; }
+.details-request-done {
+  font-size: 14px;
+  color: var(--dm-secondary);
+  margin: 0;
+}
+
 /* Empty state */
 
 /* ---------- Messages ---------- */

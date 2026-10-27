@@ -5,6 +5,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ChatThread from '../components/ChatThread';
 import ChatInput from '../components/ChatInput';
+import DetailsRequestCard from '../components/DetailsRequestCard';
 import NewHuntModal from '../components/NewHuntModal';
 import VoiceMode from '../components/VoiceMode';
 import { sendChat, startHunt } from '../lib/api';
@@ -401,6 +402,7 @@ export default function ChatPage({
             />
             <div ref={threadEndRef} />
           </div>
+          <DetailsRequestCard huntId={voiceHuntIdOverride || voiceHuntId} />
           {composer}
         </>
       )}

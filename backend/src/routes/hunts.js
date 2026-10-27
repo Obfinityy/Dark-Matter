@@ -53,6 +53,7 @@ import { getBalanceUsd } from '../billing/credits.js';
 import { hasActiveAccessById } from '../access.js';
 import { teardownHuntContainer, huntDesktopScreenshot } from '../huntRunner.js';
 import { listBrainModels, getBrainState, setBrainModel, metaAvailable } from '../brainProvider.js';
+import { listDetailRequests, submitDetailRequest, cancelDetailRequest, getDetailRequest } from '../userDetails.js';
 
 /** Reject unless the hunt belongs to the authenticated user.
  *  Hunts without a userId are orphaned (pre-isolation) — admin only. */
@@ -649,6 +650,56 @@ router.post('/:id/steer', requireAuth, async (req, res) => {
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
+});
+
+// ---- Dynamic details requests (27 Oct 2026, owner order) ------------------
+// The agent asks the owner for details it needs (a login, an OTP, any
+// field) instead of creating its own account. The frontend shows one
+// "Enter details to go forward" card below the chat for a pending request.
+// SECURITY: responses carry the PUBLIC form only — values NEVER leave the
+// server-side vault (user-details.json). The recorded events carry the
+// request title + field KEYS only, never values.
+router.get('/:id/detail-requests', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  res.json({ ok: true, huntId: req.params.id, requests: listDetailRequests(req.params.id) });
+});
+
+router.post('/:id/detail-requests/:requestId/submit', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const huntId = req.params.id;
+  const rec = getDetailRequest(req.params.requestId);
+  if (!rec || rec.huntId !== huntId) return res.status(404).json({ ok: false, error: 'request_not_found' });
+  const values = (req.body && req.body.values) || {};
+  const result = submitDetailRequest(req.params.requestId, values);
+  if (!result.ok) return res.status(400).json({ ok: false, error: result.error });
+  // Event carries title + field keys ONLY — never values.
+  appendHuntEvent(huntId, {
+    type: 'details_filled',
+    requestId: rec.id,
+    title: rec.title,
+    fields: (rec.fields || []).map((f) => f.key),
+    at: new Date().toISOString(),
+  });
+  res.json({ ok: true, request: result.request });
+});
+
+router.post('/:id/detail-requests/:requestId/cancel', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const huntId = req.params.id;
+  const rec = getDetailRequest(req.params.requestId);
+  if (!rec || rec.huntId !== huntId) return res.status(404).json({ ok: false, error: 'request_not_found' });
+  const result = cancelDetailRequest(req.params.requestId);
+  if (!result.ok) return res.status(400).json({ ok: false, error: result.error });
+  appendHuntEvent(huntId, {
+    type: 'details_cancelled',
+    requestId: rec.id,
+    title: rec.title,
+    at: new Date().toISOString(),
+  });
+  res.json({ ok: true, request: result.request });
 });
 
 // ---- Report: works ANY time, even mid-hunt --------------------------------

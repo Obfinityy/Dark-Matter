@@ -47,6 +47,7 @@ import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall 
 import { getRelevantMemories, formatGlobalMemoryForPrompt, readAllGlobalMemories } from './globalMemory.js';
 import { listSkills, loadSkill } from './skillCards.js';
 import { saveCredential, getCredential, generatePassword, generatePersonaUsername, scrubSecrets, touchCredential, markVerified, listCredentials } from './credentials.js';
+import { createDetailRequest, getPendingRequests, listDetailRequests, getFilledValues, markDetailRequestUsed, detailValuesForScrub, detailsRequestScreenLines } from './userDetails.js';
 import { createInboxPreferred, pollForCode } from './tempmail.js';
 import {
   loadCoverage,
@@ -1114,7 +1115,8 @@ function systemPromptFor(target, parsedScope) {
     'Your completed work is saved in your record: if you choose an action you already ran, the loop answers with the saved output instead of re-running it — act on that output. Re-run ONLY if something changed (the target changed, you need a different flag or scope, the saved output is incomplete for what you need now) — and say why: repeat the action with "force": true and "why": "<your reason>". A re-run without a reason is refused.',
     '{"action":"record_coverage","surface":"the page/endpoint/feature","class":"the vuln class","outcome":"probed_clean|confirmed|ruled_out|not_applicable|open_gap","evidence":"what you observed"} — account for a surface × class in your coverage ledger. Each pair is recorded exactly once; closing as ruled_out or not_applicable REQUIRES the evidence to name the control that stops the class. Add "update":true to change an existing row. Researched-but-unprobed classes are carried as open gaps automatically — closing them is how they leave your screen.',
     '{"action":"load_skill","skill":"sqli"} — pull one of your SKILL CARDS: a compact procedure for a vuln class (attack surface, detection channels, numbered testing steps, and the proof bar a claim must clear). Pull one when you OPEN a class, instead of searching the web — the card\'s steps end in a probe. The card index is on every screen; one card at a time.',
-    'ACCOUNTS — you are the Obfinity persona, a person with your own accounts. When a target needs an account, create it YOURSELF — never the owner\'s identity, never another user\'s data, only in-scope targets. {"action":"save_credential","site":"https://target.example","username":"obfinity-xxxx"} — vault a credential for a site (omit "password" and the server generates a random 20-char one and shows it to you ONCE, this turn only — type it immediately with browser_type, then submit; it is never written to the permanent record, and neither is any password you invent: keep passwords OUT of your thinking and notes, the record keeps the handle only, e.g. cred:target.example:ab12cd34ef56). Saving also provisions your own temp-mail inbox for that site. {"action":"use_saved_credential","handle":"cred:...","usernameField":"Email","passwordField":"Password"} — fill a login form from the vault without the password ever appearing in text (give the two fields\' visible labels from a snapshot; omit them and you get the handle + username back to snapshot first). {"action":"fetch_verification_code","handle":"cred:..."} — poll your temp-mail inbox for that site\'s verification code (one-turn observation — type it immediately; if no mail arrives the observation says the domain may be blocked, so record that as a blocker and move on, never retry forever). If a signup demands a phone/SMS code or an interactive captcha your clicks cannot solve, that path is blocked — say so and move on; never use a third-party captcha solver.',
+    '{"action":"request_details","title":"Login for <site>","fields":[{"key":"email","label":"Login email","type":"email"},{"key":"password","label":"Password","type":"password"}]} — ASK THE OWNER for details you need (a login, an OTP, any field): a card appears below the chat and the owner fills it in. Wait for the next turn — the details arrive on your screen (one-turn only, never written to the record). Do NOT re-ask for the same details and do NOT re-attempt the blocked action while a request is open. Any field type works: text, email, password, otp, textarea.',
+    'ACCOUNTS — when a target needs an account, ask the owner FIRST with request_details — the owner gives you THEIR account in the chat. Only if the owner declines the request (or it is cancelled) create an account YOURSELF under the Obfinity persona — never the owner\'s identity, never another user\'s data, only in-scope targets. {"action":"save_credential","site":"https://target.example","username":"obfinity-xxxx"} — vault a credential for a site (omit "password" and the server generates a random 20-char one and shows it to you ONCE, this turn only — type it immediately with browser_type, then submit; it is never written to the permanent record, and neither is any password you invent: keep passwords OUT of your thinking and notes, the record keeps the handle only, e.g. cred:target.example:ab12cd34ef56). Saving also provisions your own temp-mail inbox for that site. {"action":"use_saved_credential","handle":"cred:...","usernameField":"Email","passwordField":"Password"} — fill a login form from the vault without the password ever appearing in text (give the two fields\' visible labels from a snapshot; omit them and you get the handle + username back to snapshot first). {"action":"fetch_verification_code","handle":"cred:..."} — poll your temp-mail inbox for that site\'s verification code (one-turn observation — type it immediately; if no mail arrives the observation says the domain may be blocked, so record that as a blocker and move on, never retry forever). If a signup demands a phone/SMS code or an interactive captcha your clicks cannot solve, that path is blocked — say so and move on; never use a third-party captcha solver.',
     '{"action":"claim_finding","title":"...","class":"sqli","evidence":"the exact output that proves it","command":"the exact command that produced that evidence","counterevidence":"the control/baseline result that could have disproved it","confidence":"high|medium|low","confidence_rationale":"required when confidence is not high"} — claim a vulnerability. The filing is complete-the-proof gated: a claim missing any of title, class, a runnable reproduction ("command", or "poc" naming a proof script saved in this hunt), evidence, counterevidence, or confidence is bounced back UNRECORDED with the missing pieces named — complete the package and claim again. A complete claim goes to an independent verifier, which re-runs your command and checks the evidence; ONLY verified findings count. Never claim without reproduced evidence.',
     'Act like a person: if you need a tool, download it; if you don\'t know something, search; if output is interesting, dig; one step at a time — you will see the result on the next screen.',
     `Programme rules you must obey: ${rules.join('; ')}.`,
@@ -1617,6 +1619,7 @@ function detailForAction(kind, action) {
     case 'load_skill': return String(action.skill || '').slice(0, 120);
     case 'save_credential': return String(action.site || '').slice(0, 120);
     case 'use_saved_credential': return String(action.handle || '').slice(0, 120);
+    case 'request_details': return String(action.title || '').slice(0, 120);
     case 'desktop_click_control': return String(action.control || '').slice(0, 120);
     // HUMAN-BRAIN: the visible terminal run keys on its command —
     // the same identity the shell branch records, so the dedupe
@@ -2798,7 +2801,7 @@ export function skillCardLines() {
   }
 }
 
-function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [], stateOfMind = [], followThrough = [], settled = [], pageState = [], exhausted = [], desktopState = [], chatQuestions = [], huntPlan = [] }) {
+function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [], stateOfMind = [], followThrough = [], settled = [], pageState = [], exhausted = [], desktopState = [], chatQuestions = [], huntPlan = [], detailsRequest = [] }) {
   const confirmed = (findings || []).filter((f) => f.verified);
   const unconfirmed = (findings || []).filter((f) => !f.verified);
   const findLines = [
@@ -2837,6 +2840,14 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
     // a chat_answers field; the loop delivers the answer and the
     // question leaves the screen.
     ...(chatQuestions && chatQuestions.length ? ['', ...chatQuestions] : []),
+    // DYNAMIC DETAILS (27 Oct 2026, owner order): the owner's answers
+    // to your details requests sit in the same never-trimmed continuity
+    // region as the owner's questions — a filled request's values ride
+    // here for exactly one turn (they are never written to the record;
+    // the session secret set scrubs them from every recorded surface),
+    // and a pending request's wait instruction sits here until it is
+    // answered or declined, so you never re-ask or re-attempt blind.
+    ...(detailsRequest && detailsRequest.length ? ['', ...detailsRequest] : []),
     // HUNTER-MIND (26 Oct 2026): the brain's OWN hunt plan sits in
     // the same never-trimmed continuity region, directly under the
     // owner's questions — the plan is the hunter's own instructions,
@@ -3059,6 +3070,10 @@ export async function humanIteration(huntId, target, opts = {}) {
   // brain for its next action, and the screen is never written
   // to disk. The vault file is the only place secrets persist.
   const sessionSecrets = new Set();
+  // DYNAMIC DETAILS (27 Oct 2026): values the owner already gave for
+  // this hunt join the secret set up front, so any quoting or typing
+  // of them is scrubbed from the record from the first turn on.
+  try { for (const v of detailValuesForScrub(huntId)) sessionSecrets.add(v); } catch { /* a broken details store never breaks the turn */ }
   const scrub = (s) => scrubSecrets(String(s ?? ''), sessionSecrets);
   const scrubEntry = (entry) => {
     if (!entry || typeof entry !== 'object') return entry;
@@ -3430,6 +3445,7 @@ export async function humanIteration(huntId, target, opts = {}) {
     let desktopStateLinesOut = [];
     let chatQuestionLinesOut = [];
     let planLinesOut = [];
+    let detailsRequestLinesOut = [];
     let pendingChat = [];
     let credentialState = { saved: false };
     try {
@@ -3470,6 +3486,14 @@ export async function humanIteration(huntId, target, opts = {}) {
       try {
         planLinesOut = huntPlanLines(sessionPlan, { stuck: planStuck(log), outputsSaved: outputCount(sessionOutputs) });
       } catch { /* a broken plan file never breaks the turn */ }
+      // DYNAMIC DETAILS (27 Oct 2026): the owner's details requests,
+      // refreshed every turn from the user-details store (same
+      // discipline as the queued questions) — a pending request says
+      // WAIT, a newly-filled request's values ride the screen for
+      // exactly one turn, a recent decline says so once.
+      try {
+        detailsRequestLinesOut = detailsRequestScreenLines(huntId, sessionSecrets);
+      } catch { /* a broken details store never breaks the turn */ }
     } catch { /* exhausted/page-state/counters are best-effort perception */ }
     const screen = buildScreen({
       target,
@@ -3498,6 +3522,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       desktopState: desktopStateLinesOut,
       chatQuestions: chatQuestionLinesOut,
       huntPlan: planLinesOut,
+      detailsRequest: detailsRequestLinesOut,
     });
 
     // THINK: one brain call. Full reply is recorded verbatim (total
@@ -4128,6 +4153,43 @@ export async function humanIteration(huntId, target, opts = {}) {
         }
       }
       note({ action: `fetch_verification_code: ${handle}`, why: thinkingText, result: 'verification-code poll completed (code itself never recorded)', learned: '' });
+    } else if (kind === 'request_details') {
+      // DYNAMIC DETAILS (27 Oct 2026, owner order): the agent ASKS the
+      // owner for details it needs instead of creating its own account.
+      // The request appears as a card below the chat; the owner fills
+      // it and the values arrive on the next screen (one-turn only).
+      // Only the request id/title are ever recorded — never the fields'
+      // values. A pending request refuses a second one; a re-ask for
+      // details already provided re-shows them instead of asking again.
+      const title = String(action.title || '').trim();
+      const fields = Array.isArray(action.fields) ? action.fields : [];
+      const site = String(action.site || target || '');
+      const pending = getPendingRequests(huntId);
+      const already = listDetailRequests(huntId).find((r) =>
+        (r.status === 'filled' || r.status === 'used') && r.title === title &&
+        Array.isArray(r.fields) && r.fields.length === fields.length &&
+        r.fields.every((f, i) => f.key === String(fields[i]?.key || '')));
+      if (pending && pending.length) {
+        observation = `A details request ("${pending[0].title}") is already open in the chat — wait for the owner to answer it. Do NOT re-request and do NOT re-attempt the blocked action this turn.`;
+      } else if (already) {
+        const values = getFilledValues(already.id);
+        if (values) {
+          for (const v of Object.values(values)) if (typeof v === 'string' && v) sessionSecrets.add(v);
+          const shown = already.fields.map((f) => `${f.label}: ${values[f.key] ?? ''}`).join('; ');
+          observation = `The owner ALREADY gave you these details for "${already.title}" (one-turn only — use them NOW with browser_type; they will not be shown again and are never written to the record): ${shown} — do NOT ask again.`;
+        } else {
+          observation = `The owner already provided details for "${already.title}" but they are no longer available — ask again only if you still need them, with a fresh request_details.`;
+        }
+      } else {
+        const created = createDetailRequest({ huntId, title, fields, site });
+        if (!created.ok) {
+          observation = `Could not ask the owner for details: ${created.error}. Note it and move on — do NOT retry the same request this turn.`;
+        } else {
+          toolCall('request_details', created.request.id);
+          observation = `Your details request "${created.request.title}" is now open in the chat below — the owner will fill it in. WAIT for the next turn: the details arrive on your screen (one-turn only, never written to the record). Do NOT re-attempt the blocked action this turn.`;
+        }
+      }
+      note({ action: `request_details: ${title.slice(0, 120)}`, why: thinkingText, result: 'details request opened for the owner (values never recorded)', learned: '' });
     } else if (kind === 'browser_open') {
       const url = String(action.url || '');
       const bad = scopeViolation(url, target, parsedScope);
