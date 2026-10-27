@@ -2,7 +2,7 @@
 // Status line ("Hunting <target>…"), expandable event feed, findings stream,
 // and Pause/Resume/Stop pill buttons. All stream/control logic unchanged.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { pauseHunt, resumeHunt, stopHunt, getHuntCost, getHuntEvents, steerHunt, listHunts, getHuntBrain, setHuntBrain } from '../lib/api';
+import { pauseHunt, resumeHunt, stopHunt, getHuntCost, setHuntBudget, getHuntEvents, steerHunt, listHunts, getHuntBrain, setHuntBrain } from '../lib/api';
 import { HuntStreamClient, createSimulatedStream, isDemoMode } from '../lib/huntStream';
 import { toast } from '../lib/toast';
 
@@ -86,7 +86,7 @@ import HuntPiP from './HuntPiP';
 import HuntTerminalModal from './HuntTerminalModal';
 import LiveMachine from './LiveMachine';
 
-export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, onGetReport }) {
+export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, onTalkWithAI, onGetReport }) {
   const [status, setStatus] = useState(hunt.status || 'idle');
   // MODEL-SWITCHER: model id -> display label. The loaded brain
   // state carries the list; the static map covers the render
@@ -120,6 +120,31 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
   const [showTerminalModal, setShowTerminalModal] = useState(false);
   const [cost, setCost] = useState(null);
   const [balance, setBalance] = useState(null);
+  // BUDGET CAP (27 Oct 2026, owner order): the user's per-hunt spend
+  // cap. The cost endpoint carries budgetUsd + pausedReason, refreshed
+  // every 30s with the spend, so the display stays live.
+  const budgetUsd = cost && typeof cost.budgetUsd === 'number' ? cost.budgetUsd : null;
+  const spentUsd = cost && cost.totalUsd ? cost.totalUsd : 0;
+  const isBudgetPaused = isPaused && cost && cost.pausedReason === 'budget_reached';
+  const [budgetInput, setBudgetInput] = useState('');
+  const [budgetBusy, setBudgetBusy] = useState(false);
+  const refreshCost = () => {
+    getHuntCost(hunt.huntId).then((res) => {
+      if (res.ok) setCost(res);
+    }).catch(() => {});
+  };
+  const saveBudget = async (value) => {
+    setBudgetBusy(true);
+    const res = await setHuntBudget(hunt.huntId, value);
+    setBudgetBusy(false);
+    if (res.ok) {
+      setBudgetInput('');
+      refreshCost();
+      toast(value === null ? 'Budget cleared.' : `Budget set to $${Number(value).toFixed(2)} — the hunt auto-pauses there.`, 'success');
+    } else {
+      toast((res.data && (res.data.message || res.data.error)) || res.error || 'Could not set the budget.', 'error');
+    }
+  };
   const ITERATION_PRICE = { normal: 0.1, medium: 0.15, high: 0.25, ultra_high: 0.4, max: 0.6, infinity: 1.0 };
   const perIter = ITERATION_PRICE[hunt.mode] || ITERATION_PRICE.normal;
   const [logs, setLogs] = useState(hunt.logs || []);
@@ -470,6 +495,13 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
         )}
       </div>
 
+      {isBudgetPaused && (
+        <div className="hunt-budget-banner">
+          ⏸ Paused — budget reached (${budgetUsd !== null ? `$${budgetUsd.toFixed(2)}` : 'budget'}). Spent ${spentUsd.toFixed(2)}.
+          Raise the budget above ${spentUsd.toFixed(2)}, then press Resume — the hunt continues from its checkpoint, never from scratch.
+        </div>
+      )}
+
       {streamError && (
         <div className="hunt-stream-warning">
           Live stream unavailable — control buttons still work, but live output will not update.
@@ -484,7 +516,40 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
         <div className="hunt-money-strip" title="Wallet balance, money burnt on this hunt, and burn rate per iteration">
           <span className="hunt-money">💰 {balance === null ? '…' : `$${Number(balance).toFixed(2)}`} balance</span>
           <span className="hunt-money">🔥 ${cost && cost.totalUsd ? cost.totalUsd.toFixed(2) : '0.00'} burnt</span>
+          {budgetUsd !== null && (
+            <span className="hunt-money" title="Spend cap for this hunt — the hunt auto-pauses at the budget">🎯 Budget ${budgetUsd.toFixed(2)}</span>
+          )}
           <span className="hunt-money hunt-burn-rate">⚡ ${perIter.toFixed(2)}/iter</span>
+        </div>
+        <div className="hunt-budget-row" title="Spend cap for this hunt — at the budget the hunt auto-pauses with a checkpoint; Resume continues from there">
+          <label className="hunt-budget-label" htmlFor={`budget-${hunt.huntId}`}>Budget $</label>
+          <input
+            id={`budget-${hunt.huntId}`}
+            className="hunt-budget-input"
+            type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            placeholder={budgetUsd !== null ? `Current $${budgetUsd.toFixed(2)}` : '10'}
+            value={budgetInput}
+            onChange={(e) => setBudgetInput(e.target.value)}
+            disabled={budgetBusy}
+          />
+          <button
+            className="btn btn-sm"
+            disabled={budgetBusy || budgetInput.trim() === ''}
+            onClick={() => saveBudget(budgetInput.trim())}
+          >
+            Set
+          </button>
+          {budgetUsd !== null && (
+            <button className="btn btn-ghost btn-sm" disabled={budgetBusy} onClick={() => saveBudget(null)}>
+              Clear
+            </button>
+          )}
+          {budgetUsd !== null && (
+            <span className="hunt-budget-spent">Spent ${spentUsd.toFixed(2)} of ${budgetUsd.toFixed(2)}</span>
+          )}
         </div>
         <div className="hunt-feed" ref={logEndRef} aria-live="polite">
           {logs.length === 0 && <div className="empty-hint">{historyLoaded ? 'Waiting for hunt output…' : 'Loading hunt history…'}</div>}
@@ -580,6 +645,19 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onTalkWithAI, 
             title="Start a fresh hunt against the same target"
           >
             ↻ Re-run
+          </button>
+        )}
+        {isPaused && onStartFresh && (
+          <button
+            className="hunt-pill-btn"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              onStartFresh(hunt).finally(() => setBusy(false));
+            }}
+            title="Start a brand-new hunt against the same target — fresh memory, the paused hunt stays untouched with its checkpoint"
+          >
+            ↻ Start from scratch
           </button>
         )}
         {onTalkWithAI && (

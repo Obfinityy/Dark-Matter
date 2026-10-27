@@ -241,14 +241,15 @@ export default function ChatPage({
     setVoiceHuntIdOverride(null);
   }
 
-  async function handleStartHunt(target, scope, mode, confirmed, forceNew = false) {
+  async function handleStartHunt(target, scope, mode, confirmed, forceNew = false, fresh = false) {
     if (!ensureHuntAuth()) return;
     // Dedup: if a hunt already exists for this target, go to its chat instead
     // of creating a duplicate. (The backend enforces the same rule on
     // POST /api/v1/hunts and is the authority; this pre-check just avoids a
     // needless round-trip. NOTE: the hunts API returns `status`, not
     // `state` — checking h.state here silently never matched.)
-    if (!forceNew) {
+    // fresh:true (Start from scratch) bypasses this like forceNew does.
+    if (!forceNew && !fresh) {
       try {
         const { listHunts } = await import('../lib/api');
         const hr = await listHunts();
@@ -274,7 +275,7 @@ export default function ChatPage({
       } catch { /* best-effort, proceed to create */ }
     }
     setLaunching(true);
-    const res = await startHunt(target, scope, mode, confirmed, forceNew);
+    const res = await startHunt(target, scope, mode, confirmed, forceNew, fresh);
     setLaunching(false);
     if (!res.ok || !res.data.huntId) {
       if (res.status === 401 || res.error === 'auth_required') {
@@ -327,6 +328,15 @@ export default function ChatPage({
     // The target was already authorized when the original hunt was started.
     // forceNew is the explicit fresh-run bypass of the dedupe redirect.
     await handleStartHunt(hunt.target, hunt.scope || '', hunt.mode || 'normal', true, true);
+  }
+
+  /** Start from scratch (27 Oct 2026, budget cap): a brand-new hunt
+   *  against the same target — new huntId, fresh memory. The paused
+   *  hunt stays untouched with its checkpoint. fresh:true bypasses
+   *  the dedupe redirect on the backend (and the frontend one here). */
+  async function handleStartFreshHunt(hunt) {
+    if (!ensureHuntAuth()) return;
+    await handleStartHunt(hunt.target, hunt.scope || '', hunt.mode || 'normal', true, false, true);
   }
 
   const [editText, setEditText] = useState(null);
@@ -397,6 +407,7 @@ export default function ChatPage({
               onOpenReports={onOpenReports}
               onEditMessage={(msg) => setEditText(msg.text)}
               onRerunHunt={handleRerunHunt}
+              onStartFreshHunt={handleStartFreshHunt}
               onTalkWithAI={handleTalkWithAI}
               onGetReport={handleGetReport}
             />

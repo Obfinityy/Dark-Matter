@@ -145,7 +145,7 @@ function formatMsgTime(ts) {
   }
 }
 
-export default function ChatThread({ messages, streaming, thinking, onHuntStatusChange, onOpenReports, onEditMessage, onRerunHunt, onTalkWithAI, onGetReport }) {
+export default function ChatThread({ messages, streaming, thinking, onHuntStatusChange, onOpenReports, onEditMessage, onRerunHunt, onStartFreshHunt, onTalkWithAI, onGetReport }) {
   // FIX (24 Oct 2026): while a chat reply is being fetched from the
   // backend (sendChat can take 10s+ while it consults the hunt brain),
   // the thread used to show NOTHING — no assistant message exists yet,
@@ -169,7 +169,7 @@ export default function ChatThread({ messages, streaming, thinking, onHuntStatus
         if (msg.role === 'hunt') {
           return (
             <div key={msg.id} className="message message-hunt">
-              <HuntCard hunt={msg.hunt} onStatusChange={onHuntStatusChange} onRerun={onRerunHunt} onTalkWithAI={onTalkWithAI} onGetReport={onGetReport} />
+              <HuntCard hunt={msg.hunt} onStatusChange={onHuntStatusChange} onRerun={onRerunHunt} onStartFresh={onStartFreshHunt} onTalkWithAI={onTalkWithAI} onGetReport={onGetReport} />
               {['done', 'stopped', 'failed', 'error'].includes(msg.hunt.status) && (
                 <button className="btn btn-ghost btn-sm report-link" onClick={() => onOpenReports(msg.hunt.huntId)}>
                   📄 View report →

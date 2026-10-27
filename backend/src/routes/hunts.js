@@ -3,6 +3,8 @@
 //   POST /api/v1/hunts {target, scope, confirmedAuthorized}
 //   GET  /api/v1/hunts                    -> the user's hunts (re-attach after browser close)
 //   POST /api/v1/hunts/:id/pause | /resume | /stop
+//   POST /api/v1/hunts/:id/budget {budgetUsd} — per-hunt spend cap (auto-pause)
+//   POST /api/v1/hunts {fresh:true} — brand-new hunt for a hunted target
 //   GET  /api/v1/hunts/:id               -> engine status (502 if engine down)
 //   GET  /api/v1/hunts/:id/report?format=md|pdf  (works any time, even mid-hunt)
 //   GET  /api/v1/hunts/:id/desktop.jpg   -> latest frame of the hunt machine's GUI (Live Machine)
@@ -33,6 +35,7 @@ import {
   appendHuntEvent,
   readHuntEvents,
   writeHuntMeta,
+  writeHuntMetaCheckpoint,
   readHuntMeta,
   listHuntMetas,
 } from '../store.js';
@@ -46,6 +49,7 @@ import {
 } from '../machineControl.js';
 import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience, getMode, HUNT_MODES, MODE_ORDER, TIERS } from '../hunt-intel/index.js';
 import { getHuntCost, getUserCosts } from '../costTracker.js';
+import { parseBudgetUsd } from '../budgetCap.js';
 import { loadHuntMemory, panelFindings } from '../huntMemory.js';
 import { understandTarget } from '../targetIntel.js';
 import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
@@ -167,7 +171,7 @@ export function isTargetAllowed(target) {
 // target checks below. Everything else (chat, plugins, reports, health,
 // browsing) stays public.
 router.post('/', requireAuth, async (req, res) => {
-  const { target, scope, confirmedAuthorized, mode, forceNew } = req.body || {};
+  const { target, scope, confirmedAuthorized, mode, forceNew, fresh } = req.body || {};
   console.log(`[hunts] CREATE attempt by ${req.user.username} (${req.user.id}): target=${target}, mode=${mode}, confirmed=${confirmedAuthorized}`);
   if (typeof target !== 'string' || !target.trim()) {
     return res.status(400).json({
@@ -253,7 +257,10 @@ router.post('/', requireAuth, async (req, res) => {
   // it from its checkpoint. Matching is canonical (normalizeTargetKey), so
   // scheme / "www." / trailing-slash variants of a target cannot slip past.
   // { forceNew: true } (the UI's explicit Re-run action) is the only bypass.
-  if (forceNew !== true) {
+  // { fresh: true } (the "Start from scratch" button, 27 Oct 2026) is the
+  // same bypass for the budget lane: a brand-new hunt for the same target
+  // with a new huntId and fresh memory — the old hunt stays untouched.
+  if (forceNew !== true && fresh !== true) {
     try {
       const existing = pickExistingHunt(listHuntMetas(), req.user.id, target);
       if (existing) {
@@ -379,7 +386,7 @@ router.post('/', requireAuth, async (req, res) => {
     runAutonomousHunt(huntId, target, huntMode.id, req.user.id).catch((err) => {
       appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
     });
-    res.status(201).json({ ok: true, huntId });
+    res.status(201).json({ ok: true, huntId, ...(fresh === true ? { fresh: true } : {}) });
   } catch (err) {
     engineErrorResponse(res, err);
   }
@@ -945,11 +952,45 @@ router.get('/:id/memory', requireAuth, (req, res) => {
   res.send(JSON.stringify(memory, null, 2));
 });
 
-// ---- Money burnt on this hunt (Bedrock tokens + EC2).
+// ---- Money burnt on this hunt (Bedrock tokens + EC2) + its budget.
 router.get('/:id/cost', requireAuth, (req, res) => {
   const meta = requireHuntOwner(req, res);
   if (!meta) return;
-  res.json({ ok: true, ...getHuntCost(req.params.id) });
+  res.json({
+    ok: true,
+    ...getHuntCost(req.params.id),
+    budgetUsd: typeof meta.budgetUsd === 'number' ? meta.budgetUsd : null,
+    pausedReason: meta.pausedReason || null,
+  });
+});
+
+// ---- Per-hunt spend budget (27 Oct 2026, owner order) --------------------
+// POST /:id/budget {budgetUsd} — set the spend cap for this hunt;
+// null/0 clears it. At the cap the hunt auto-PAUSES (checkpoint,
+// resume from here) — it never stops and never restarts from scratch.
+// A budget raised above current spend (or cleared) lifts a stale
+// budget_reached hold so the UI stops showing it at once.
+router.post('/:id/budget', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const huntId = req.params.id;
+  const parsed = parseBudgetUsd((req.body || {}).budgetUsd);
+  if (!parsed.ok) {
+    return res.status(400).json({
+      ok: false,
+      error: 'invalid_budget',
+      message: 'budgetUsd must be a number between 0 and 10000, or null to clear it.',
+    });
+  }
+  const budgetUsd = parsed.budgetUsd;
+  const spentUsd = getHuntCost(huntId).totalUsd || 0;
+  const next = { ...meta, huntId, budgetUsd };
+  if ((budgetUsd === null || spentUsd < budgetUsd) && meta.pausedReason === 'budget_reached') {
+    next.pausedReason = null;
+  }
+  writeHuntMeta(huntId, next);
+  appendHuntEvent(huntId, { type: 'status', state: 'budget_set', budgetUsd, spentUsd, at: new Date().toISOString() });
+  res.json({ ok: true, huntId, budgetUsd, spentUsd });
 });
 
 // ---- Infinity analysis: chains, confirmation, exploitability, variant probes.
