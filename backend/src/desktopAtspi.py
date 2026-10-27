@@ -83,7 +83,7 @@ def walk(acc, out, depth=0):
         rect = None
     try:
         state = acc.getState()
-        showing = state.contains(9)  # STATE_SHOWING
+        showing = state.contains(pyatspi.STATE_SHOWING)  # 25 — NOT 9 (9 is EXPANDABLE; the old literal silently dropped every non-expandable control, so list/click always came back empty)
     except Exception:
         showing = True
     if name and rect and showing:
