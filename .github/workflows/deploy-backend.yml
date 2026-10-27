@@ -63,7 +63,10 @@ jobs:
             exit 0
           fi
           mkdir -p ~/.ssh
-          printf '%s' "$EC2_SSH_KEY" > ~/.ssh/deploy_key
+          # NOTE: the key file MUST end with a newline — `printf '%s'`
+          # writes the secret verbatim, and a key without its trailing
+          # newline fails to load ("error in libcrypto", run 40523127223).
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           trap 'rm -f ~/.ssh/deploy_key' EXIT
           if printf '%s' "$META_API_KEY" | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o BatchMode=yes "$EC2_USER@$EC2_HOST" \
