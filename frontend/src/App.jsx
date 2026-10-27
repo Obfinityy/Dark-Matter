@@ -95,6 +95,9 @@ function AppInner() {
   // first message or starts a hunt (ChatGPT-style).
   const [draftChat, setDraftChat] = useState(null);
   const [activeChatId, setActiveChatId] = useState(null);
+  // Hunts whose LIVE backend state is running — the sidebar's
+  // "Currently Running" section reads this, never chat activity.
+  const [runningHunts, setRunningHunts] = useState([]);
 
   // CHATS: Backend is the single source of truth. On login/account change,
   // fetch the chat list fresh from the backend. localStorage is NOT used for
@@ -107,6 +110,7 @@ function AppInner() {
       setChats([]);
       setDraftChat(null);
       setActiveChatId(null);
+      setRunningHunts([]);
       return;
     }
     // Clear any stale localStorage chat data (migration to backend-only).
@@ -233,6 +237,13 @@ function AppInner() {
         const { listHunts, getChatMessages, getChatTitles } = await import('./lib/api');
         const res = await listHunts();
         if (cancelled || !res.ok || !res.data || !Array.isArray(res.data.hunts)) return;
+        // LIVE running state (backend is the source of truth) — the
+        // sidebar's "Currently Running" section.
+        setRunningHunts(
+          res.data.hunts
+            .filter((h) => h && String(h.status || '').toLowerCase() === 'running')
+            .map((h) => ({ huntId: h.huntId, target: h.target || '' })),
+        );
         // Respect user deletions: don't restore chats for hunts whose chat was deleted.
         let deletedHuntIds = new Set();
         try {
@@ -594,6 +605,28 @@ function AppInner() {
             : c,
         ),
       );
+      // Keep the sidebar's "Currently Running" section in step with a
+      // pause/resume/stop the user just made — the backend is the source
+      // of truth, this mirrors the change just applied there.
+      setRunningHunts((prev) => {
+        const exists = prev.some((h) => h.huntId === huntId);
+        if (status === 'running' && !exists) {
+          const chat = (chatsRef.current || []).find((c) => c.id === chatId);
+          let target = '';
+          const hm = chat && (chat.messages || []).find(
+            (m) => m.role === 'hunt' && m.hunt && m.hunt.huntId === huntId,
+          );
+          if (hm && hm.hunt.target) target = hm.hunt.target;
+          else if (chat && typeof chat.title === 'string' && chat.title.startsWith('Hunt: ')) {
+            target = chat.title.slice('Hunt: '.length);
+          }
+          return [...prev, { huntId, target }];
+        }
+        if (status !== 'running' && exists) {
+          return prev.filter((h) => h.huntId !== huntId);
+        }
+        return prev;
+      });
     },
     [],
   );
@@ -671,6 +704,7 @@ function AppInner() {
       <div className={`app${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
         <Sidebar
           chats={chats}
+          runningHunts={runningHunts}
           activeChatId={activeChatId}
           activePage={page}
           onSelectChat={setActiveChatId}
@@ -701,6 +735,7 @@ function AppInner() {
     <div className={`app${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
       <Sidebar
         chats={chats}
+        runningHunts={runningHunts}
         activeChatId={activeChatId}
         activePage={page}
         onSelectChat={setActiveChatId}

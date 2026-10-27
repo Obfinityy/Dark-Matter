@@ -391,6 +391,15 @@ button { font-family: inherit; }
 }
 .history-group-label:first-child { padding-top: 4px; }
 
+/* "Currently Running" — live green dot on a running hunt's entry. */
+.running-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+}
+
 .history-item {
   position: relative;
   display: flex;

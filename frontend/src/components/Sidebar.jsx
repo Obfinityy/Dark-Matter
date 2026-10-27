@@ -79,7 +79,7 @@ function groupLabel(createdAt) {
   return 'Previous 30 days';
 }
 
-function HistoryItem({ chat, active, onSelect, onRename, onDelete }) {
+function HistoryItem({ chat, active, running, onSelect, onRename, onDelete }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(chat.title || 'Untitled chat');
@@ -137,7 +137,10 @@ function HistoryItem({ chat, active, onSelect, onRename, onDelete }) {
           onBlur={commitRename}
         />
       ) : (
-        <span className="history-title">{chat.title || 'Untitled chat'}</span>
+        <>
+          {running && <span className="running-dot" aria-label="Running" title="Running" />}
+          <span className="history-title">{chat.title || 'Untitled chat'}</span>
+        </>
       )}
       {!renaming && (
         <div style={{ position: 'relative' }} ref={menuRef}>
@@ -187,6 +190,7 @@ function HistoryItem({ chat, active, onSelect, onRename, onDelete }) {
 
 export default function Sidebar({
   chats,
+  runningHunts = [],
   activeChatId,
   activePage,
   onSelectChat,
@@ -242,20 +246,43 @@ export default function Sidebar({
     if (searchOpen && searchRef.current) searchRef.current.focus();
   }, [searchOpen]);
 
+  // "Currently Running" (owner order 27 Oct 2026): hunts whose LIVE
+  // backend state is running sit at the very top, above the date groups,
+  // and must NOT also appear under Today/Yesterday/Previous — no
+  // duplication. Matching: deterministic chat id `hunt-<huntId>`, the
+  // hunt card in the chat's messages, or the `Hunt: <target>` title.
+  // Chat activity or message timestamps are NEVER the signal.
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = q
       ? chats.filter((c) => String(c.title || '').toLowerCase().includes(q))
       : chats;
+    if (q) return [{ label: 'Results', items: list }];
+    const isRunningChat = (c) => {
+      if (!c) return false;
+      if (typeof c.id === 'string' && c.id.startsWith('hunt-')) {
+        if (runningHunts.some((h) => h.huntId === c.id.slice('hunt-'.length))) return true;
+      }
+      if ((c.messages || []).some(
+        (m) => m && m.role === 'hunt' && m.hunt && runningHunts.some((h) => h.huntId === m.hunt.huntId),
+      )) return true;
+      return runningHunts.some((h) => h.target && c.title === `Hunt: ${h.target}`);
+    };
+    const running = list.filter(isRunningChat);
+    const rest = list.filter((c) => !isRunningChat(c));
     const map = new Map();
-    for (const c of list) {
-      const g = q ? 'Results' : groupLabel(c.updatedAt || c.createdAt);
+    for (const c of rest) {
+      const g = groupLabel(c.updatedAt || c.createdAt);
       if (!map.has(g)) map.set(g, []);
       map.get(g).push(c);
     }
-    const order = q ? ['Results'] : GROUP_ORDER;
-    return order.filter((g) => map.has(g)).map((g) => ({ label: g, items: map.get(g) }));
-  }, [chats, query]);
+    const out = [];
+    if (running.length > 0) out.push({ label: 'Currently Running', items: running, running: true });
+    for (const g of GROUP_ORDER) {
+      if (map.has(g)) out.push({ label: g, items: map.get(g) });
+    }
+    return out;
+  }, [chats, query, runningHunts]);
 
   // Auto-close the sidebar on navigation — mobile only (<=768px).
   function closeIfMobile() {
@@ -362,6 +389,7 @@ export default function Sidebar({
                 key={chat.id}
                 chat={chat}
                 active={chat.id === activeChatId}
+                running={!!g.running}
                 onSelect={() => selectChat(chat.id)}
                 onRename={onRenameChat}
                 onDelete={onDeleteChat}
