@@ -59,8 +59,15 @@ export default function ReportsPage({ preselectedHuntId }) {
     let cancelled = false;
     const refresh = async () => {
       const res = await fetchReportMarkdown(selectedId).catch(() => null);
-      if (cancelled || !res || !res.ok) return;
+      if (cancelled) return;
+      // LIVE REPORT (27 Oct 2026, feat/live-report-fix): a failed
+      // refresh used to be swallowed silently, so a broken report
+      // fetch looked identical to "no report yet". Surface the real
+      // reason; the next 20 s tick retries and clears it on success.
+      if (!res) { setError('Backend unreachable. The report will retry automatically.'); return; }
+      if (!res.ok) { setError(res.error || 'Could not generate the report.'); return; }
       if (res.data.markdown) { setMarkdown(res.data.markdown); setError(''); }
+      else { setError('The backend returned an empty report. Try again once the hunt has progressed.'); }
     };
     refresh();
     const timer = setInterval(refresh, 20000);

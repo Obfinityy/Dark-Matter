@@ -27,7 +27,7 @@ import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
 import { isInferenceActive } from '../llm.js';
 import { callChatMeta, metaAvailable } from '../brainProvider.js';
 import { analyzeFindings } from '../hunt-intel/index.js';
-import { loadHuntMemory, normTitle, findingCounts } from '../huntMemory.js';
+import { loadHuntMemory, normTitle, findingCounts, isErrorPageFinding } from '../huntMemory.js';
 import { pageUrlFromObservation } from '../humanLoop.js';
 import {
   queueChatQuestion,
@@ -50,6 +50,14 @@ export function confirmedTitles(findings) {
   const seen = new Map();
   for (const f of findings || []) {
     if (!f || !f.verified) continue;
+    // LIVE REPORT (27 Oct 2026, feat/live-report-fix): a stamp
+    // whose evidence is an HTTP error page is demoted read-time
+    // everywhere else (panelFindings, the brain's VERIFIED list) —
+    // but this count read f.verified raw, so the deterministic
+    // summary path still told the owner "5 confirmed
+    // vulnerabilities" for the 404-stamped DVWA findings. Same
+    // demotion here: an error-page stamp is never confirmed.
+    if (isErrorPageFinding(f)) continue;
     const raw = f.title || f.type || 'finding';
     const key = normTitle(raw);
     if (!seen.has(key)) seen.set(key, raw);
