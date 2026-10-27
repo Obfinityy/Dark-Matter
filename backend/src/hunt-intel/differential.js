@@ -227,6 +227,36 @@ export function executionFailed(result, outputText = '') {
   return /Command failed:|DM_CONTAINER_MISSING/.test(out);
 }
 
+// ---- HTTP error-page detector (27 Oct 2026, 404-verified audit) -------------
+// The verifier's remaining false-accept family: a probe whose response is
+// an HTTP error page (404 Not Found for /rest/admin/* on DVWA) still
+// "verifies" — curl without -f exits 0 on a 404, the 404 body contains
+// the signal word ("admin"), and a 404 reproduces deterministically, so
+// sig1 === sig2 "confirms" it. An error page is not evidence of a
+// vulnerability: no status code was ever checked anywhere in the verify
+// path. These detectors read the status from the response text itself
+// (status line when the probe captured headers, <title> / Apache body
+// when it captured the body only) — the same evidence the verifier
+// already holds, no extra probe needed.
+//   httpErrorStatus(text) -> 0 (not an error page) or the 4xx/5xx code.
+//   isHttpErrorPage(text) -> boolean.
+// Tightening only: a 200-class page is completely unaffected.
+export function httpErrorStatus(text) {
+  const s = String(text || '');
+  if (!s) return 0;
+  let m = /^HTTP\/\d+(?:\.\d+)?\s+([45]\d\d)\b/m.exec(s);
+  if (m) return Number(m[1]);
+  m = /<title>\s*([45]\d\d)\s+(not found|forbidden|internal server error|bad gateway|service unavailable|method not allowed|gone|conflict|unauthorized|too many requests|bad request)[^<]{0,60}<\/title>/i.exec(s);
+  if (m) return Number(m[1]);
+  if (/The requested URL [^\n]{0,200} was not found on this server/i.test(s)) return 404;
+  if (/<h1>\s*Not Found\s*<\/h1>/i.test(s) && /404/.test(s)) return 404;
+  return 0;
+}
+
+export function isHttpErrorPage(text) {
+  return httpErrorStatus(text) > 0;
+}
+
 // ---- Content-relevance judgement (solver #454, Job 7 item C) ----------------
 // The execution gate above answers "did the probe run?" — it cannot answer
 // "does this output actually prove THIS claim about THIS target?" The
@@ -435,6 +465,14 @@ export function extractLinkedAssetUrls(html, baseUrl, maxAssets = 8) {
  * @returns {{relevant: boolean, reason: string}}
  */
 export function assessContentRelevance({ command, target, output, baselines } = {}) {
+  // Limb 0 — ERROR PAGE (27 Oct 2026, 404-verified audit): an HTTP
+  // error page is not evidence, however many signal words it carries.
+  // Runs first: a 404 body contains "admin", so limbs 1-3 all pass on
+  // it. Tightening only — a 200-class response is unaffected.
+  const errStatus = httpErrorStatus(output);
+  if (errStatus) {
+    return { relevant: false, reason: `PoC response is an HTTP ${errStatus} error page, not the vulnerability` };
+  }
   // Limb 1 — host binding.
   const refs = commandHostRefs(command);
   const tRef = targetHostRef(target);

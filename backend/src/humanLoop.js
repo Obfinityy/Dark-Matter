@@ -189,6 +189,7 @@ import {
   retractedFindingCount,
   extractDossierBriefing,
   deadEndLines,
+  isErrorPageFinding,
   SOM_TOTAL_BUDGET,
 } from './huntMemory.js';
 
@@ -1745,7 +1746,7 @@ async function defaultRecallMemory(huntId, query) {
  * append never blocks the event, and the queue mark is what
  * stops the re-ask. Returns true when the event was recorded.
  */
-export async function defaultDeliverChatAnswer(huntId, { q, answer, question = {} } = {}) {
+export async function defaultDeliverChatAnswer(huntId, { q, answer, question = {} } = {}, { via = 'human-mode' } = {}) {
   let recorded = false;
   try {
     appendHuntEvent(huntId, {
@@ -1754,7 +1755,7 @@ export async function defaultDeliverChatAnswer(huntId, { q, answer, question = {
       chatId: question.chatId || '',
       question: String(question.text || '').slice(0, 500),
       answer: String(answer || '').slice(0, 2000),
-      via: 'human-mode',
+      via,
     });
     recorded = true;
   } catch { /* the record is best-effort */ }
@@ -2856,12 +2857,20 @@ export function skillCardLines() {
 }
 
 function buildScreen({ target, parsedScope, briefing, findings, machineState, lastObservation, turn, turns, scopeHosts = [], facts = [], repetition = [], explored = [], leftOff = [], journal = [], retractedCount = 0, leads = [], coverage = [], skills = [], stateOfMind = [], followThrough = [], settled = [], pageState = [], exhausted = [], desktopState = [], chatQuestions = [], huntPlan = [], detailsRequest = [] }) {
-  const confirmed = (findings || []).filter((f) => f.verified);
+  // ERROR-PAGE DEMOTION (27 Oct 2026, 404-verified audit): a
+  // "verified" stamp whose evidence is an HTTP error page is not a
+  // finding — it must not appear on the screen's VERIFIED list, or
+  // the brain quotes it back to the owner as real ("5 verified
+  // vulnerabilities" was read straight off this list).
+  const confirmed = (findings || []).filter((f) => f.verified && !isErrorPageFinding(f));
   const unconfirmed = (findings || []).filter((f) => !f.verified);
   const findLines = [
     ...confirmed.slice(-8).map((f) => `- VERIFIED: ${f.title} (${f.severity || '?'})`),
     ...unconfirmed.slice(-4).map((f) => `- unverified claim: ${f.title} — ${String(f.verification || 'pending').slice(0, 120)}`),
   ];
+  if (findLines.length) {
+    findLines.unshift('A finding counts as VERIFIED only if its proof response was a real page (HTTP 200-class) — an error page (404/500) is never proof. Do not quote a verified count you have not earned.');
+  }
   const rpm = parsedScope && parsedScope.rules ? parsedScope.rules.maxRequestsPerMin : null;
   return [
     '=== YOUR MACHINE (Kali) ===',

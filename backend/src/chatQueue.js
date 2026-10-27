@@ -160,6 +160,29 @@ export function extractChatAnswers(action, pending) {
   return out;
 }
 
+/**
+ * Parse the normal-mode brain's chat answers from its raw reply text
+ * (27 Oct 2026, chat-gate fix). The normal-mode pipeline speaks a
+ * JSON array of plans, not an action JSON, so its answers ride after
+ * the array as one line per question:
+ *   CHAT_ANSWER <question-id>: <answer in the user's language>
+ * Only lines in that exact shape parse; everything else in the reply
+ * is untouched. Pure — feed the result to extractChatAnswers with
+ * the pending list to validate ids, exactly like the human loop.
+ * @returns {Array<{ q: string, answer: string }>}
+ */
+export function parseChatAnswerLines(replyText) {
+  const out = [];
+  for (const line of String(replyText || '').split('\n')) {
+    const m = /^\s*CHAT_ANSWER\s+(\S+)\s*:\s*(.+?)\s*$/.exec(line);
+    if (!m) continue;
+    const answer = String(m[2] || '').trim().slice(0, CHAT_ANSWER_MAX_CHARS);
+    if (!answer) continue;
+    out.push({ q: m[1], answer });
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // The honest acknowledgement — REAL-HUMAN lane.
 //

@@ -16,7 +16,7 @@
 // like a human hacker's brain directing their hands on the keyboard.
 
 import { execInHuntContainer } from './huntRunner.js';
-import { appendHuntEvent, readHuntMeta, writeHuntMeta } from './store.js';
+import { appendHuntEvent, writeHuntMetaCheckpoint } from './store.js';
 import { think } from './huntAgent.js';
 
 export const WORKER_ROLES = {
@@ -153,12 +153,16 @@ export class HuntOrchestrator {
     };
   }
 
-  /** Persist orchestrator state to the hunt meta for resume. */
+  /** Persist orchestrator state to the hunt meta for resume.
+   * Merges via writeHuntMetaCheckpoint (27 Oct 2026, 404-verified
+   * audit): the old wholesale writeHuntMeta spread a snapshot read
+   * before long awaited work and wrote the whole stale object back —
+   * on resume that clobbered meta.orchestrator.findings (2 → 0) and
+   * could clobber any field set in the meantime. The checkpoint
+   * writer merges over the meta as it exists at write time. */
   saveState() {
     try {
-      const meta = readHuntMeta(this.huntId) || {};
-      writeHuntMeta(this.huntId, {
-        ...meta,
+      writeHuntMetaCheckpoint(this.huntId, {
         orchestrator: {
           missions: this.missions,
           findings: this.findings,

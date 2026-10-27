@@ -11,16 +11,15 @@ import {
 /**
  * LiveMachine — picture-in-picture view of the hunt machine's GUI desktop.
  *
- * COLLAPSED BY DEFAULT (25 Oct 2026, owner order): the hunt view opens
- * with a single-line bar (● LIVE + Open + ✕) and NO live machine — no
- * desktop image, no polling, no connection — until the user asks for it.
- * Open mounts the fixed bottom-right PiP card (~320x180) that refreshes
- * the desktop frame every 3 seconds via GET /api/v1/hunts/:id/desktop.jpg
- * (JWT-authenticated fetch, blob URL); clicking the PiP (or ⛶) expands
- * the same stream full-screen. ✕ on the bar dismisses to the minimised
- * chip; ✕ on the PiP does the same; the chip restores the PiP. Closing
- * the view stops the poller (the effect cleanup clears the interval and
- * revokes the frame URL) — nothing stays connected while hidden.
+ * ALWAYS OPEN FOR THE RUNNING HUNT (21:55 IST 27 Oct 2026, owner
+ * order — supersedes the 25 Oct collapsed-by-default order): the
+ * hunt view opens with the live PiP mounted and polling at once —
+ * the running hunt's machine stays visible live the whole time, no
+ * placeholder while the brain is acting. The bar/chip still exist:
+ * ✕ on the PiP minimises to the chip, and the chip restores the
+ * PiP — the owner can hide it, but it never starts hidden. This
+ * is safe to default open because HuntCard mounts <LiveMachine>
+ * ONLY for a running hunt (paused hunts mount none at all).
  *
  * TAKE CONTROL OF THIS MACHINE: the expanded overlay bar carries a
  * "Take Control of This Machine" button (owner order 25 Oct 2026 — the
@@ -40,13 +39,12 @@ import {
  * has not started its desktop), the card shows a placeholder instead of
  * a broken image.
  *
- * STACKING: every active hunt card renders its own LiveMachine, and all
- * of them are position:fixed bottom-right. Without an offset they land
- * on the exact same spot, so with N active hunts only the topmost card
- * is visible and the rest look missing. Each mounted card therefore
- * claims a slot from a shared registry (freed slots are reused, so
- * remaining cards never shift and two cards never share a slot) and
- * stacks upward from the bottom-right corner, one card height apart.
+ * STACKING: only the running hunt's card mounts a LiveMachine now
+ * (paused hunts mount none — 27 Oct 2026, live-machine fix), so at
+ * most one live panel exists and exactly one slot is ever claimed.
+ * The shared registry below is kept as a belt-and-braces for that
+ * single card: it claims slot 0 and stacks upward from the
+ * bottom-right corner if a second panel ever mounts again.
  */
 const REFRESH_MS = 3000;
 const STACK_STEP_PX = 224;
@@ -107,11 +105,12 @@ export default function LiveMachine({ huntId, target }) {
   // COLLAPSED BY DEFAULT (25 Oct 2026, owner order): the hunt view
   // opens with a single-line bar (LIVE + Open + ✕) and NO live
   // machine — no desktop image, no poll, no connection — until the
-  // user opens the PiP. Open → PiP; ✕ on the bar → the minimised
-  // chip (the same hidden state as ✕ on the PiP; the chip restores
-  // the PiP). The bar and the chip are two doors to the same hidden
-  // state, never shown at once.
-  const [collapsed, setCollapsed] = useState(true);
+  // ALWAYS OPEN (21:55 IST 27 Oct 2026, owner order): the PiP mounts
+  // open for the running hunt — the panel stays visible live the whole
+  // time. The owner can still ✕ it to the minimised chip; the chip
+  // restores the PiP. The bar and the chip are two doors to the same
+  // hidden state, never shown at once.
+  const [collapsed, setCollapsed] = useState(false);
   // Take Control state: off | taking | taken | on | error.
   // 'taking' = the take POST is in flight (the lock is NOT held yet);
   // 'taken' = the lock is held, the channel is mounting; 'on' means
@@ -423,10 +422,11 @@ export default function LiveMachine({ huntId, target }) {
     );
   }
 
-  // Collapsed by default: one line, no stream. Open mounts the PiP
-  // (which starts the poller); ✕ dismisses to the minimised chip.
-  // The Take Control button is deliberately NOT here — it appears
-  // only in the expanded view (owner order 25 Oct 2026).
+  // Collapsed only when the owner closes the PiP to the bar: one line,
+  // no stream. Open mounts the PiP (which starts the poller); ✕
+  // dismisses to the minimised chip. The Take Control button is
+  // deliberately NOT here — it appears only in the expanded view
+  // (owner order 25 Oct 2026).
   if (collapsed) {
     return (
       <div

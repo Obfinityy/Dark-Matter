@@ -26,6 +26,7 @@ const {
   markChatAnswered,
   chatQuestionScreenLines,
   extractChatAnswers,
+  parseChatAnswerLines,
   busyAck,
   queueFullLine,
 } = await import('./chatQueue.js');
@@ -149,4 +150,36 @@ test('busyAck: unknown page is admitted, never invented', () => {
 test('busyAck: multiple waiting questions are named', () => {
   const ack = busyAck({ lang: 'english', doing: 'probing the reset flow', pendingCount: 3 });
   assert.match(ack, /3 waiting/);
+});
+
+// CHAT_ANSWER line parser (27 Oct 2026, chat-gate fix): the
+// normal-mode pipeline speaks a JSON array of plans, not an action
+// JSON, so its chat answers ride after the array as one
+// CHAT_ANSWER line per question.
+test('parseChatAnswerLines: one answer per line after the plans array', () => {
+  const reply = '[{"test":"xss probe","command":"curl -sk http://x/","why":"y"}]\nCHAT_ANSWER q_aaa: Bhai abhi recon kar raha hun\nCHAT_ANSWER q_bbb: Abhi tak 0 verified hain';
+  const parsed = parseChatAnswerLines(reply);
+  assert.equal(parsed.length, 2);
+  assert.equal(parsed[0].q, 'q_aaa');
+  assert.match(parsed[0].answer, /recon/);
+  assert.equal(parsed[1].q, 'q_bbb');
+});
+
+test('parseChatAnswerLines: ignores non-matching lines, [] for plans-only replies', () => {
+  const parsed = parseChatAnswerLines('[{"test":"x"}]\nnot an answer line\nCHAT_ANSWER q_aaa: ok');
+  assert.equal(parsed.length, 1);
+  assert.equal(parsed[0].q, 'q_aaa');
+  assert.deepEqual(parseChatAnswerLines('[{"test":"x","command":"curl http://x/"}]'), []);
+  assert.deepEqual(parseChatAnswerLines(''), []);
+});
+
+test('parseChatAnswerLines + extractChatAnswers: unknown ids are dropped', () => {
+  const pending = [
+    { id: 'q_aaa', text: 'abhi kya kr rha hai bhai', lang: 'hinglish', status: 'pending' },
+  ];
+  const parsed = parseChatAnswerLines('CHAT_ANSWER q_zzz: hello\nCHAT_ANSWER q_aaa: ok');
+  assert.equal(parsed.length, 2);
+  const answers = extractChatAnswers({ chat_answers: parsed }, pending);
+  assert.equal(answers.length, 1);
+  assert.equal(answers[0].q, 'q_aaa');
 });
