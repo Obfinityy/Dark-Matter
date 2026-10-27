@@ -9,6 +9,7 @@ import DetailsRequestCard from '../components/DetailsRequestCard';
 import NewHuntModal from '../components/NewHuntModal';
 import VoiceMode from '../components/VoiceMode';
 import { sendChat, startHunt } from '../lib/api';
+import { resolveHuntMode } from '../lib/huntMode';
 import { streamReveal } from '../lib/streaming';
 import { useAuth, openAuthModal } from '../lib/auth';
 import { toast } from '../lib/toast';
@@ -305,6 +306,10 @@ export default function ChatPage({
       huntId: res.data.huntId,
       target,
       scope,
+      // MODE FIX (27 Oct 2026): carry the mode on the local card too —
+      // without it, a "Start from scratch" on this card before the
+      // next list sync would fall back to 'normal' and lose the mode.
+      mode,
       status: 'idle',
       logs: [],
       findings: [],
@@ -327,7 +332,9 @@ export default function ChatPage({
     if (!ensureHuntAuth()) return;
     // The target was already authorized when the original hunt was started.
     // forceNew is the explicit fresh-run bypass of the dedupe redirect.
-    await handleStartHunt(hunt.target, hunt.scope || '', hunt.mode || 'normal', true, true);
+    // MODE FIX (27 Oct 2026): inherit the old hunt's real mode — the
+    // list used to omit mode, so this always fell back to 'normal'.
+    await handleStartHunt(hunt.target, hunt.scope || '', await resolveHuntMode(hunt), true, true);
   }
 
   /** Start from scratch (27 Oct 2026, budget cap): a brand-new hunt
@@ -336,7 +343,10 @@ export default function ChatPage({
    *  the dedupe redirect on the backend (and the frontend one here). */
   async function handleStartFreshHunt(hunt) {
     if (!ensureHuntAuth()) return;
-    await handleStartHunt(hunt.target, hunt.scope || '', hunt.mode || 'normal', true, false, true);
+    // MODE FIX (27 Oct 2026): inherit the old hunt's real mode (see
+    // resolveHuntMode) — a human-mode hunt re-created in 'normal'
+    // loses the whole human loop.
+    await handleStartHunt(hunt.target, hunt.scope || '', await resolveHuntMode(hunt), true, false, true);
   }
 
   const [editText, setEditText] = useState(null);

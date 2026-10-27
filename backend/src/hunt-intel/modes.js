@@ -74,6 +74,19 @@ export function getMode(id) {
   return HUNT_MODES[id] || HUNT_MODES.normal;
 }
 
+/**
+ * Creation-time mode resolution (27 Oct 2026, mode fix). 'human' is a
+ * first-class hunt mode — the free perceive-think-act-observe loop
+ * (humanLoop.js) — but it is NOT one of the six intensity modes, so
+ * getMode() would silently map it to 'normal' and a human-mode hunt
+ * could never be created through the API. Preserve it; everything
+ * else resolves through getMode() exactly as before.
+ */
+export function resolveHuntMode(id) {
+  if (id === 'human') return { id: 'human', name: 'Human' };
+  return getMode(id);
+}
+
 /** Premium tiers and which modes they unlock. */
 export const TIERS = {
   free: { id: 'free', name: 'Free', price: '$0', modes: ['normal', 'medium'] },
