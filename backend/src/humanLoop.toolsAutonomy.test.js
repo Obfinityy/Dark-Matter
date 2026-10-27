@@ -106,13 +106,16 @@ function burpExec() {
   const calls = [];
   let probes = 0;
   let proxyProbes = 0;
-  // Wizard state machine (EC2 lab, 27 Oct 2026): EULA → project →
-  // config → start. Each button exists only on its own page.
-  let wizardStep = 0; // 0=EULA, 1=project, 2=config, 3=start, 4=done
+  let browserClicked = false;
+  // Wizard state machine (EC2 lab, 27 Oct 2026): EULA → edition
+  // chooser → project → config → start. Each button exists only on
+  // its own page.
+  let wizardStep = 0; // 0=EULA, 1=edition, 2=project, 3=config, 4=start, 5=done
   const wizardClick = (name) => {
     if (name === 'Accept' && wizardStep === 0) { wizardStep = 1; return ATSPI_CLICK_OK('Accept'); }
-    if (name === 'Next' && (wizardStep === 1 || wizardStep === 2)) { wizardStep += 1; return ATSPI_CLICK_OK('Next'); }
-    if (name === 'Start Burp' && wizardStep === 3) { wizardStep = 4; return ATSPI_CLICK_OK('Start Burp'); }
+    if (name === 'Continue with Burp Suite Community Edition' && wizardStep === 1) { wizardStep = 2; return ATSPI_CLICK_OK('Continue with Burp Suite Community Edition'); }
+    if (name === 'Next' && (wizardStep === 2 || wizardStep === 3)) { wizardStep += 1; return ATSPI_CLICK_OK('Next'); }
+    if (name === 'Start Burp' && wizardStep === 4) { wizardStep = 5; return ATSPI_CLICK_OK('Start Burp'); }
     return JSON.stringify({ ok: false, error: `no control named "${name}" found` });
   };
   const execRaw = async (h, cmd) => {
@@ -122,9 +125,12 @@ function burpExec() {
     if (c.includes('nohup burpsuite')) return { stdout: 'started:123\n', stderr: '', code: 0 };
     if (c.includes("python3 - 'list'")) return { stdout: ATSPI_LIST_OK, stderr: '', code: 0 };
     if (c.includes("python3 - 'click' 'Accept'")) return { stdout: wizardClick('Accept'), stderr: '', code: 0 };
+    if (c.includes("python3 - 'click' 'Continue with Burp Suite Community Edition'")) return { stdout: wizardClick('Continue with Burp Suite Community Edition'), stderr: '', code: 0 };
     if (c.includes("python3 - 'click' 'Next'")) return { stdout: wizardClick('Next'), stderr: '', code: 0 };
     if (c.includes("python3 - 'click' 'Start Burp'")) return { stdout: wizardClick('Start Burp'), stderr: '', code: 0 };
-    if (c.includes("python3 - 'click' 'Open Browser'")) return { stdout: ATSPI_CLICK_OK('Open Browser'), stderr: '', code: 0 };
+    if (c.includes("xdotool search --onlyvisible --name 'Chromium'")) return { stdout: (browserClicked ? '67890\n' : ''), stderr: '', code: 0 };
+    if (c.includes("python3 - 'click' 'Open Browser'")) { browserClicked = true; return { stdout: ATSPI_CLICK_OK('Open Browser'), stderr: '', code: 0 }; }
+    if (c.includes('windowactivate --sync 67890')) return { stdout: 'activated\n', stderr: '', code: 0 };
     if (c.includes('ss -ltn')) return { stdout: (++proxyProbes === 1 ? 'proxy_down\n' : 'proxy_up\n'), stderr: '', code: 0 };
     if (c.includes('xdotool key')) return { stdout: 'key_sent\n', stderr: '', code: 0 };
     if (c.includes('xdotool type')) return { stdout: 'typed\n', stderr: '', code: 0 };

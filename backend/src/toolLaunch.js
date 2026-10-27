@@ -71,15 +71,18 @@ export const TOOL_IDS = Object.keys(TOOL_REGISTRY);
 // Burp's first-run wizard buttons, tried in order (AT-SPI click by
 // name). EC2 lab, 27 Oct 2026, scratch container from the live
 // image: the FIRST screen is the EULA ("Terms and Conditions" with
-// Accept / Decline), then the project-setup pages ("Next" — it
-// appears on more than one page), then "Start Burp". The walk is a
-// loop (see burpFirstUse): each round clicks the first candidate
-// that exists right now, and ends when a whole round finds nothing.
-// If no candidate exists the wizard is already past — that is a
-// success, not a failure.
-export const BURP_WIZARD_CLICKS = ['Accept', 'I Accept', 'Start Burp', 'Next'];
-// The wizard has at most 4 real pages (EULA, project, config,
-// start); 6 rounds bounds a click that keeps "succeeding".
+// Accept / Decline), then the EDITION chooser ("Continue with Burp
+// Suite Community Edition" — v2026.9; the lane's first lab missed
+// this page entirely, so the walk ended at the EULA and the proxy
+// never started), then the project-setup pages ("Next" — it appears
+// on more than one page), then "Start Burp". The walk is a loop (see
+// burpFirstUse): each round clicks the first candidate that exists
+// right now, and ends when a whole round finds nothing. If no
+// candidate exists the wizard is already past — that is a success,
+// not a failure.
+export const BURP_WIZARD_CLICKS = ['Accept', 'I Accept', 'Continue with Burp Suite Community Edition', 'Start Burp', 'Next'];
+// The wizard has at most 5 real pages (EULA, edition, project,
+// config, start); 6 rounds bounds a click that keeps "succeeding".
 export const BURP_WIZARD_MAX_CLICKS = 6;
 // The button that opens Burp's embedded browser (Proxy > Intercept).
 export const BURP_OPEN_BROWSER_CONTROL = 'Open Browser';
@@ -192,6 +195,21 @@ export function parseDownloadResult(entry, stdout) {
   if (entry.method === 'apt') return { ok: true, detail: `installed ${entry.package} (${entry.bin} is on PATH)` };
   const m = /(\d+)\s+\S+\s+\d+\s+\d+:\d+\s+\S+/.exec(text);
   return { ok: true, detail: `downloaded ${entry.dest} (${m ? `${m[1]} bytes` : 'size shown in listing'})` };
+}
+
+/** xdotool probe for visible Chromium windows (Burp's embedded browser is one). */
+export function browserWindowIdsCommand() {
+  return `DISPLAY=${DESKTOP_DISPLAY} xdotool search --onlyvisible --name 'Chromium' 2>/dev/null`;
+}
+
+/** Window ids from the probe output (numbers only, in listed order). */
+export function parseWindowIds(stdout) {
+  return String(stdout || '').split('\n').map((l) => l.trim()).filter((l) => /^\d+$/.test(l));
+}
+
+/** Bring a window to the front (waits until it is active). */
+export function windowActivateCommand(id) {
+  return `DISPLAY=${DESKTOP_DISPLAY} xdotool windowactivate --sync ${id} 2>/dev/null && echo activated || echo activate_failed`;
 }
 
 /** Listener probe for a proxy port (Burp's intercept listener). */
@@ -407,15 +425,20 @@ export async function burpFirstUse(huntId, target, deps) {
   if (!state.wizardHandled) notes.push('wizard: no "Accept"/"Start Burp"/"Next" button found — already past it, or AT-SPI unavailable');
 
   // (2) Intercept proxy listening on 127.0.0.1:8080 (poll — the
-  // listener comes up after the JVM finishes starting Burp).
-  for (let i = 0; i < 6 && !state.proxyUp; i++) {
+  // listener comes up after the JVM finishes starting Burp; EC2 lab
+  // 27 Oct 2026: ~60s on a loaded box, so poll a full minute).
+  for (let i = 0; i < 12 && !state.proxyUp; i++) {
     if (i > 0) await sleep(5000);
     const out = await execQuiet(huntId, proxyCheckCommand(8080), 15000, deps);
     state.proxyUp = parseProxyCheck(out);
   }
-  notes.push(state.proxyUp ? 'proxy listening on 127.0.0.1:8080' : 'proxy NOT listening after 30s');
+  notes.push(state.proxyUp ? 'proxy listening on 127.0.0.1:8080' : 'proxy NOT listening after 60s');
 
   // (3) Open the target in Burp's own browser.
+  // Snapshot the Chromium windows FIRST: the hunt's own driver
+  // browser is also a Chromium window, so the new one is the id that
+  // appears only AFTER the click.
+  const beforeIds = new Set(parseWindowIds(await execQuiet(huntId, browserWindowIdsCommand(), 15000, deps)));
   const obOut = await execQuiet(huntId, clickControlCommand(BURP_OPEN_BROWSER_CONTROL, 'Burp Suite'), 20000, deps);
   let browserOpened = parseAtspiOutput(obOut).ok;
   if (!browserOpened) {
@@ -437,10 +460,25 @@ export async function burpFirstUse(huntId, target, deps) {
       }
     } catch { /* browser stays closed — reported below */ }
   }
+  // The Burp browser opens as its own Chromium window, which is NOT
+  // necessarily the active window (EC2 lab 27 Oct 2026: Burp's main
+  // window stayed active, so ctrl+l went to Burp, not the browser).
+  // Wait for the NEW Chromium window and activate it before typing.
+  let browserWindow = null;
   if (browserOpened) {
+    for (let i = 0; i < 6 && !browserWindow; i++) {
+      if (i > 0) await sleep(5000);
+      const ids = parseWindowIds(await execQuiet(huntId, browserWindowIdsCommand(), 15000, deps));
+      browserWindow = ids.find((id) => !beforeIds.has(id)) || null;
+    }
+    if (browserWindow) {
+      await execQuiet(huntId, windowActivateCommand(browserWindow), 15000, deps);
+    }
+  }
+  if (browserOpened && browserWindow) {
     state.browserOpened = true;
-    notes.push("Burp browser opened");
-    await sleep(5000);
+    notes.push('Burp browser opened');
+    await sleep(2000);
     // Navigate: address bar, type the target, Return — then look.
     try {
       await execQuiet(huntId, desktopKeyCommand('ctrl+l'), 15000, deps);
@@ -457,6 +495,8 @@ export async function burpFirstUse(huntId, target, deps) {
     } catch {
       notes.push('navigation keys failed — Burp browser is open, type the target yourself');
     }
+  } else if (browserOpened) {
+    notes.push('Burp browser opened but its window never appeared within 30s — it may still be starting; open it from Proxy > Intercept');
   } else {
     notes.push('"Open Browser" could not be pressed (no accessibility tree and no OCR match) — open it by hand from Proxy > Intercept');
   }

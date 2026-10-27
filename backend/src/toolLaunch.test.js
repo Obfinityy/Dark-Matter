@@ -10,11 +10,15 @@ import {
   TOOL_IDS,
   DOWNLOAD_REGISTRY,
   DOWNLOAD_IDS,
+  BURP_WIZARD_CLICKS,
   resolveTool,
   resolveDownloadTool,
   launchCommand,
   windowPresentCommand,
   parseWindowPresent,
+  browserWindowIdsCommand,
+  parseWindowIds,
+  windowActivateCommand,
   cliCheckCommand,
   parseCliCheck,
   downloadCommand,
@@ -81,6 +85,20 @@ test('registry: Burp first, then ZAP, nmap, nikto, nuclei, sqlmap — all presen
   assert.equal(TOOL_REGISTRY.burp.proxyPort, 8080);
   assert.equal(TOOL_REGISTRY.nmap.kind, 'cli');
   assert.deepEqual(TOOL_IDS, Object.keys(TOOL_REGISTRY));
+});
+
+test('browserWindowIdsCommand/parseWindowIds/windowActivateCommand: the new Chromium window is found and focused', () => {
+  assert.match(browserWindowIdsCommand(), /xdotool search --onlyvisible --name 'Chromium'/);
+  assert.deepEqual(parseWindowIds('111\n222\nnot-a-window\n'), ['111', '222']);
+  assert.deepEqual(parseWindowIds(''), []);
+  assert.match(windowActivateCommand('67890'), /xdotool windowactivate --sync 67890/);
+});
+
+test('BURP_WIZARD_CLICKS: the v2026.9 edition chooser is in the walk (EC2 lab 27 Oct 2026)', () => {
+  // The first EC2 lab run stalled at the EULA because this page was
+  // missing from the list: after Accept, Burp shows "Continue with
+  // Burp Suite Community Edition", not Next/Start Burp.
+  assert.deepEqual(BURP_WIZARD_CLICKS, ['Accept', 'I Accept', 'Continue with Burp Suite Community Edition', 'Start Burp', 'Next']);
 });
 
 test('resolveTool: unknown ids are refused with the available list', () => {
@@ -279,13 +297,15 @@ test('recordToolState + burpFirstUseDone: checkpoint-merge write, no full meta w
 test('burpFirstUse: happy path — launch, wizard, proxy, browser, target confirmed', async () => {
   let probes = 0;
   let proxyProbes = 0;
-  // The real wizard (EC2 lab, 27 Oct 2026): EULA → project →
-  // config → start. Each button exists only on its own page.
-  let wizardStep = 0; // 0=EULA, 1=project, 2=config, 3=start, 4=done
+  let browserClicked = false;
+  // The real wizard (EC2 lab, 27 Oct 2026): EULA → edition chooser →
+  // project → config → start. Each button exists only on its own page.
+  let wizardStep = 0; // 0=EULA, 1=edition, 2=project, 3=config, 4=start, 5=done
   const wizardClick = (name) => () => {
     if (name === 'Accept' && wizardStep === 0) { wizardStep = 1; return ATSPI_CLICK_OK('Accept'); }
-    if (name === 'Next' && (wizardStep === 1 || wizardStep === 2)) { wizardStep += 1; return ATSPI_CLICK_OK('Next'); }
-    if (name === 'Start Burp' && wizardStep === 3) { wizardStep = 4; return ATSPI_CLICK_OK('Start Burp'); }
+    if (name === 'Continue with Burp Suite Community Edition' && wizardStep === 1) { wizardStep = 2; return ATSPI_CLICK_OK('Continue with Burp Suite Community Edition'); }
+    if (name === 'Next' && (wizardStep === 2 || wizardStep === 3)) { wizardStep += 1; return ATSPI_CLICK_OK('Next'); }
+    if (name === 'Start Burp' && wizardStep === 4) { wizardStep = 5; return ATSPI_CLICK_OK('Start Burp'); }
     return JSON.stringify({ ok: false, error: `no control named "${name}" found` });
   };
   const { execRaw } = stubExec([
@@ -293,10 +313,13 @@ test('burpFirstUse: happy path — launch, wizard, proxy, browser, target confir
     ['nohup burpsuite', 'started:123\n'],
     ["python3 - 'list'", ATSPI_LIST_OK],
     ["python3 - 'click' 'Accept'", wizardClick('Accept')],
+    ["python3 - 'click' 'Continue with Burp Suite Community Edition'", wizardClick('Continue with Burp Suite Community Edition')],
     ["python3 - 'click' 'Next'", wizardClick('Next')],
     ["python3 - 'click' 'Start Burp'", wizardClick('Start Burp')],
     ['ss -ltn', () => (++proxyProbes === 1 ? 'proxy_down\n' : 'proxy_up\n')],
-    ["python3 - 'click' 'Open Browser'", ATSPI_CLICK_OK('Open Browser')],
+    ["xdotool search --onlyvisible --name 'Chromium'", () => (browserClicked ? '67890\n' : '')],
+    ["python3 - 'click' 'Open Browser'", () => { browserClicked = true; return ATSPI_CLICK_OK('Open Browser'); }],
+    ['windowactivate --sync 67890', 'activated\n'],
     ['xdotool key', 'key_sent\n'],
     ['xdotool type', 'typed\n'],
     ['scrot', 'captured'],
@@ -305,8 +328,8 @@ test('burpFirstUse: happy path — launch, wizard, proxy, browser, target confir
   ]);
   const res = await burpFirstUse('h_x', 'http://172.17.0.1:3100/', { execRaw, sleep: noSleep });
   assert.equal(res.ok, true);
-  assert.equal(wizardStep, 4, 'the wizard walk finished in page order (Accept, Next, Next, Start Burp)');
-  assert.match(res.notes.join(' '), /wizard: clicked "Accept".*wizard: clicked "Next".*wizard: clicked "Next".*wizard: clicked "Start Burp"/);
+  assert.equal(wizardStep, 5, 'the wizard walk finished in page order (Accept, Community Edition, Next, Next, Start Burp)');
+  assert.match(res.notes.join(' '), /wizard: clicked "Accept".*wizard: clicked "Continue with Burp Suite Community Edition".*wizard: clicked "Next".*wizard: clicked "Next".*wizard: clicked "Start Burp"/);
   assert.deepEqual(
     { running: res.state.running, proxyUp: res.state.proxyUp, browserOpened: res.state.browserOpened, targetLoaded: res.state.targetLoaded, firstUseDone: res.state.firstUseDone },
     { running: true, proxyUp: true, browserOpened: true, targetLoaded: true, firstUseDone: true },
