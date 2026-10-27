@@ -20,6 +20,7 @@ import {
   desktopClickAtCommand,
   captureScreenMap,
   screenMapErrorLine,
+  parseScreenMapLines,
   SCREEN_MAP_BUDGET,
 } from './screenMap.js';
 
@@ -137,4 +138,21 @@ test('screenMapErrorLine names each failure plainly', () => {
   assert.match(screenMapErrorLine('desktop_down'), /not running/);
   assert.match(screenMapErrorLine('ocr_missing'), /tesseract OCR is not installed/);
   assert.match(screenMapErrorLine('blank'), /no readable text/);
+});
+
+test('parseScreenMapLines parses a map back into lines with coordinates', () => {
+  const map = [
+    '=== WHAT THE SCREEN SHOWS (1280x800) ===',
+    '  "u ername" at (640, 300)',
+    '  "pa word" at (640, 340)',
+    '  "Login" at (640, 380)',
+    '  ... (2 more line(s) cut — the screen is dense; click what you need, then see_screen again)',
+  ].join('\n');
+  assert.deepEqual(parseScreenMapLines(map), [
+    { text: 'u ername', x: 640, y: 300 },
+    { text: 'pa word', x: 640, y: 340 },
+    { text: 'Login', x: 640, y: 380 },
+  ]);
+  assert.deepEqual(parseScreenMapLines(''), []);
+  assert.deepEqual(parseScreenMapLines(null), []);
 });

@@ -125,6 +125,25 @@ export function desktopClickAtCommand(x, y) {
   return `DISPLAY=${DESKTOP_DISPLAY} xdotool mousemove ${x} ${y} click 1 2>/dev/null && echo clicked || echo click_failed`;
 }
 
+/**
+ * Parse a screen map (buildScreenMap output) back into its lines:
+ * [{ text, x, y }] with the (x, y) centre each line was drawn
+ * from. The map format is `"text" at (cx, cy)` — one line per
+ * text line. Lines that do not match are skipped, never thrown
+ * on. Pure. Used by the login's coordinates fallback: when a
+ * label click misses, the closest map line's coordinates are
+ * clicked directly instead of failing the whole login.
+ */
+export function parseScreenMapLines(mapText) {
+  const lines = [];
+  for (const raw of String(mapText || '').split('\n')) {
+    const m = /^\s*"(.+)" at \((\d+),\s*(\d+)\)\s*$/.exec(raw);
+    if (!m) continue;
+    lines.push({ text: m[1], x: Number(m[2]), y: Number(m[3]) });
+  }
+  return lines;
+}
+
 /** Screen size via xdotool (for the map header). */
 export function screenGeometryCommand() {
   return `DISPLAY=${DESKTOP_DISPLAY} xdotool getdisplaygeometry 2>/dev/null`;

@@ -70,13 +70,19 @@ const NOT_AVAILABLE =
 //            label, or a label that itself ends with "/<requested>"
 //            (a path-rendered label for a bare filename request);
 //   tier 3 — the same candidate forms, compared case-insensitively.
+//   tier 4 — normalised exact: spaces/punctuation stripped,
+//            case-insensitive ("user name" -> "username").
+//   tier 5 — fuzzy: small edit distance on the normalised forms
+//            ("u ername" -> "uername", 1 from "username"; "pa word"
+//            -> "paword", 2 from "password"), threshold a quarter
+//            of the wanted length, strictly-closest only.
 //
-// Safety: tiers 2 and 3 must match EXACTLY ONE element — an ambiguous
+// Safety: tiers 2–5 must match EXACTLY ONE element — an ambiguous
 // tier is skipped, never guessed. There is deliberately NO substring
 // or contains matching anywhere: a request either names an element
-// (exactly, up to path prefix or case) or it fails, and the failure
-// carries the page's actual clickable labels so the hunter's next
-// turn can pick one verbatim.
+// (exactly, up to path prefix, case, OCR splits, or a small edit
+// distance) or it fails, and the failure carries the page's actual
+// clickable labels so the hunter's next turn can pick one verbatim.
 //
 // resolveClickTarget is PURE and self-contained on purpose: the CDP
 // driver script embeds this very function's source (see CDP_SCRIPT),
@@ -128,6 +134,62 @@ export function resolveClickTarget(requested, labels) {
   // Tier 3 — the same forms, case-insensitive; unique only.
   const t3 = fallbackHits(true);
   if (t3.length === 1) return { status: 'resolved', tier: 3, index: t3[0], label: labs[t3[0]], candidates: listing };
+  // Tier 4 — NORMALISED exact: strip spaces/punctuation and
+  // compare case-insensitively ("user name" -> "username"). OCR
+  // splits labels ("u ername"); the split form is the same label
+  // once whitespace is gone. Unique only.
+  // Tier 5 — FUZZY: small edit distance on the normalised forms
+  // ("u ername" -> "uername" is 1 from "username"; "pa word" ->
+  // "paword" is 2 from "password"). The threshold is a quarter
+  // of the wanted label's length (min 1); the best match must be
+  // strictly closer than the runner-up — never a guess between
+  // equals. (Live failure 22:50 IST 27 Oct 2026: the DVWA login
+  // died because tiers 1–3 could not match the OCR map's
+  // "u ername" / "pa word" — one OCR misread killed the login.)
+  // NOTE: this logic is duplicated inline because the function's
+  // source is embedded into the CDP driver — the canonical
+  // implementation is labelMatch.js, and guiTools.click.test.js
+  // asserts the two agree on a fixed case table.
+  const flat = (s) => String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const flatReq = flat(req);
+  if (flatReq) {
+    const t4 = [];
+    for (let i = 0; i < labs.length; i++) {
+      if (labs[i] && flat(labs[i]) === flatReq) t4.push(i);
+    }
+    if (t4.length === 1) return { status: 'resolved', tier: 4, index: t4[0], label: labs[t4[0]], candidates: listing };
+    const lev = (x, y) => {
+      if (x === y) return 0;
+      if (!x.length) return y.length;
+      if (!y.length) return x.length;
+      let prev = new Array(y.length + 1);
+      let cur = new Array(y.length + 1);
+      for (let j = 0; j <= y.length; j++) prev[j] = j;
+      for (let i = 1; i <= x.length; i++) {
+        cur[0] = i;
+        for (let j = 1; j <= y.length; j++) {
+          const cost = x[i - 1] === y[j - 1] ? 0 : 1;
+          const del = prev[j] + 1;
+          const ins = cur[j - 1] + 1;
+          const sub = prev[j - 1] + cost;
+          cur[j] = del < ins ? (del < sub ? del : sub) : (ins < sub ? ins : sub);
+        }
+        const tmp = prev; prev = cur; cur = tmp;
+      }
+      return prev[y.length];
+    };
+    const threshold = Math.max(1, Math.floor(flatReq.length / 4));
+    let best = -1; let bestD = Infinity; let secondD = Infinity;
+    for (let i = 0; i < labs.length; i++) {
+      if (!labs[i] || !flat(labs[i])) continue;
+      const d = lev(flatReq, flat(labs[i]));
+      if (d < bestD) { secondD = bestD; bestD = d; best = i; }
+      else if (d < secondD) { secondD = d; }
+    }
+    if (best >= 0 && bestD <= threshold && bestD < secondD) {
+      return { status: 'resolved', tier: 5, index: best, label: labs[best], candidates: listing };
+    }
+  }
   return none;
 }
 

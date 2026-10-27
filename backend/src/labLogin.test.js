@@ -17,6 +17,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { needsLabLogin, runLabLoginFirst } from './labLogin.js';
+import { resolveClickTarget } from './guiTools.js';
 
 const TARGET = 'http://172.17.0.1:3100/';
 const LOGIN_SNAP = 'Page: Login :: Damn Vulnerable Web Application\nUsername\nPassword\nLogin';
@@ -145,6 +146,7 @@ test('happy path: vaults the default, fills from the vault, verifies, sets low',
   assert.equal(run.vault.getCredential(handle).username, 'admin');
   assert.equal(run.meta.auth.dvwa.loggedIn, true);
   assert.equal(run.meta.auth.dvwa.securityLevel, 'low');
+  assert.equal(run.meta.auth.dvwa.via, 'gui');
   assert.ok(run.meta.auth.dvwa.verifiedAt);
   assert.ok(run.recorded.some((e) => e.type === 'status' && e.state === 'dvwa_logged_in'));
   assert.ok(run.gui.calls.some(([k, v]) => k === 'open' && String(v).endsWith('/login.php')));
@@ -189,4 +191,105 @@ test('login-page-not-seen: snapshot without fields — auth_block, no vault writ
   assert.equal(res.reason, 'login-page-not-seen');
   assert.equal(run.vault.size, 0);
   assert.ok(run.recorded.some((e) => e.type === 'auth_block'));
+});
+
+// --- OCR-mangled labels (27 Oct 2026, live 22:50 failure) ------------------
+
+// A fake visible browser whose CLICKABLE labels come from the REAL
+// click resolver (resolveClickTarget) against a mangled label list —
+// exactly the live failure: the OCR map reads "Username" as
+// "u ername" and "Password" as "pa word". The snapshot TEXT stays
+// correct DOM text (the live step-2 check passed; only the element
+// labels were mangled).
+function stubMangledGui({ loginLabels, securityLabels = ['low', 'medium', 'high', 'impossible', 'Submit'] } = {}) {
+  const calls = [];
+  let stage = 'login';
+  let lowSelected = false;
+  const snapFor = () => {
+    if (stage === 'login') return { ok: true, observation: LOGIN_SNAP, snapshot: SNAP };
+    if (stage === 'loggedin') return { ok: true, observation: LOGGED_IN_SNAP, snapshot: SNAP };
+    if (stage === 'security') return { ok: true, observation: SECURITY_SNAP, snapshot: SNAP };
+    return { ok: true, observation: SECURITY_DONE_SNAP, snapshot: SNAP };
+  };
+  return {
+    calls,
+    open: async (h, url) => {
+      calls.push(['open', url]);
+      if (String(url).includes('/security.php')) stage = 'security';
+      else if (String(url).includes('/login.php')) stage = 'login';
+      return { ok: true, observation: `opened ${url}`, snapshot: SNAP };
+    },
+    snapshot: async () => {
+      calls.push(['snapshot', stage]);
+      return snapFor();
+    },
+    click: async (h, text) => {
+      calls.push(['click', text]);
+      const labels = (stage === 'security' || stage === 'security-done') ? securityLabels : loginLabels;
+      const verdict = resolveClickTarget(text, labels);
+      if (verdict.status === 'none' || !labels[verdict.index]) {
+        return { ok: false, observation: `Click failed: no clickable element matches "${text}" — clickable labels on this page: ${labels.map((l) => `"${l}"`).join(', ')}`, snapshot: SNAP };
+      }
+      const hit = labels[verdict.index];
+      if (hit === 'Login') stage = 'loggedin';
+      if (hit === 'low' && stage === 'security') lowSelected = true;
+      if (hit === 'Submit' && stage === 'security' && lowSelected) stage = 'security-done';
+      return { ok: true, observation: `clicked ${hit}`, snapshot: SNAP };
+    },
+    type: async () => {
+      calls.push(['type']);
+      return { ok: true, observation: 'Typed.', snapshot: SNAP };
+    },
+  };
+}
+
+test('OCR-mangled labels: "u ername"/"pa word" still log in (fuzzy tier), via gui', async () => {
+  const gui = stubMangledGui({ loginLabels: ['u ername', 'pa word', 'Login'] });
+  const run = stubRun({ meta: DVWA_META, gui });
+  const res = await runLabLoginFirst('h_test', TARGET, run.deps);
+  assert.equal(res.ok, true);
+  assert.equal(res.securityLevel, 'low');
+  assert.equal(run.meta.auth.dvwa.loggedIn, true);
+  assert.equal(run.meta.auth.dvwa.via, 'gui');
+  assert.ok(run.gui.calls.some(([k, v]) => k === 'click' && v === 'Username'));
+  assert.ok(run.gui.calls.some(([k, v]) => k === 'click' && v === 'Password'));
+  assert.ok(run.gui.calls.some(([k, v]) => k === 'click' && v === 'Login'));
+});
+
+test('coordinates fallback: a label too mangled for fuzzy still logs in via the map', async () => {
+  // 'uname' is distance 3 from 'Username' — past the fuzzy
+  // threshold (2) — so the label click misses, and the login must
+  // fall back to the screen map's coordinates for that field.
+  const gui = stubMangledGui({ loginLabels: ['uname', 'pa word', 'Login'] });
+  const run = stubRun({ meta: DVWA_META, gui });
+  const mapLines = [
+    { text: 'uname', x: 640, y: 300 },
+    { text: 'pa word', x: 640, y: 340 },
+    { text: 'Login', x: 640, y: 380 },
+  ];
+  const clickAts = [];
+  run.deps.screenMap = async () => ({ ok: true, lines: mapLines });
+  run.deps.clickAt = async (x, y) => {
+    clickAts.push([x, y]);
+    return { ok: true };
+  };
+  const res = await runLabLoginFirst('h_test', TARGET, run.deps);
+  assert.equal(res.ok, true);
+  assert.equal(res.securityLevel, 'low');
+  assert.equal(run.meta.auth.dvwa.loggedIn, true);
+  assert.equal(run.meta.auth.dvwa.via, 'gui');
+  assert.deepEqual(clickAts, [[640, 300]], 'the Username field was clicked at its map coordinates');
+});
+
+test('coordinates fallback absent: a too-mangled label still fails honestly (fill-failed)', async () => {
+  // Without screenMap/clickAt deps there is no second chance — the
+  // login fails exactly as before, with the original click error.
+  const gui = stubMangledGui({ loginLabels: ['uname', 'pa word', 'Login'] });
+  const run = stubRun({ meta: DVWA_META, gui });
+  const res = await runLabLoginFirst('h_test', TARGET, run.deps);
+  assert.equal(res.ok, false);
+  assert.equal(res.reason, 'fill-failed');
+  assert.match(res.detail, /click Username/);
+  assert.equal(run.meta.auth.dvwa.loginFailed, true);
+  assert.equal(run.meta.auth.dvwa.via, 'gui');
 });

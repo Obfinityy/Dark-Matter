@@ -126,8 +126,10 @@ test('HL-6 (wire-up): the turn-start snapshot seeds the session, so the first ty
   );
   const res = await s.run();
   // Without the turn-start snapshot this type would be
-  // empty_snapshot-blocked (lastObservation starts as '').
-  assert.deepEqual(s.guiCalls, [['snapshot'], ['type', 'test@example.com']]);
+  // empty_snapshot-blocked (lastObservation starts as ''). The
+  // second snapshot is the per-turn desktop heartbeat (read-only,
+  // same as the turn-start one).
+  assert.deepEqual(s.guiCalls, [['snapshot'], ['snapshot'], ['type', 'test@example.com']]);
   assert.ok(!s.recorded.some((e) => e.type === 'auth_block'), 'no auth_block for a type after a real snapshot');
   assert.ok(res.log.some((e) => String(e.observation || '').includes('Typed.')), 'the type observation must reach the log');
 });
