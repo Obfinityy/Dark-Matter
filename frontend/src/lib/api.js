@@ -190,6 +190,22 @@ export async function getHuntEvents(huntId, limit = 200) {
   return get(`/api/v1/hunts/${encodeURIComponent(huntId)}/events?limit=${limit}`);
 }
 
+// --- Dynamic details requests (27 Oct 2026, owner order) -------------------
+// The agent asks the owner for details it needs (a login, an OTP, any
+// field) instead of creating its own account. Responses carry the PUBLIC
+// form only — values are never returned by the backend.
+export async function getDetailRequests(huntId) {
+  return get(`/api/v1/hunts/${encodeURIComponent(huntId)}/detail-requests`);
+}
+
+export async function submitDetailRequest(huntId, requestId, values) {
+  return post(`/api/v1/hunts/${encodeURIComponent(huntId)}/detail-requests/${encodeURIComponent(requestId)}/submit`, { values });
+}
+
+export async function cancelDetailRequest(huntId, requestId) {
+  return post(`/api/v1/hunts/${encodeURIComponent(huntId)}/detail-requests/${encodeURIComponent(requestId)}/cancel`, {});
+}
+
 export async function getHuntCost(huntId) {
   return get(`/api/v1/hunts/${encodeURIComponent(huntId)}/cost`);
 }
