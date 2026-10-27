@@ -2247,11 +2247,81 @@ export function searchRepeatHit(query, history) {
 //     fields. Typing a DIFFERENT text (e.g. the password after the
 //     username) is a different action and is never blocked by this
 //     gate; non-login pages are never gated by it either.
+//
+//  3. FRESH ATTEMPT (visible-desktop lane, 27 Oct 2026 — live
+//     DVWA hunt h_830317bdc184, 23:44-23:48 IST): the brain typed
+//     'admin' (22:50 IST), typed 'password' (23:06 IST), snapshotted
+//     the form ("username field looking doubled up"), reloaded it
+//     (browser_open login.php), worked shell login scripts for ~20
+//     min, then came back to the GUI and typed 'admin' again —
+//     into a form the reload had emptied. The gate blocked it 3x
+//     as auth_loop, because limb 2 counts ANY prior identical type
+//     in the hunt's whole record, however old, and knows nothing
+//     about what happened since: no fresh look, no sequence
+//     advance, no reload. The brain fell back to shell curls and
+//     the visible login never happened. So a re-type is a loop
+//     ONLY when nothing fresh happened since the last identical
+//     type: a fresh screen read (browser_snapshot / see_screen /
+//     desktop_snapshot), a click into the form, or typing a
+//     DIFFERENT text since then makes it a fresh attempt, not a
+//     loop — the brain looked again / moved the login forward.
+//     browser_open deliberately does NOT exempt: the open that
+//     first puts the brain on the login page is not a reset
+//     (AJ-11), and shell/search/recall change nothing about the
+//     form. The dedupe gate (Lane F, threshold 2) stays the
+//     backstop: even a fresh attempt is never executed a third
+//     time, so the worst case is one extra type, never a loop.
 // ---------------------------------------------------------------------------
 
 const LOGIN_PAGE_RE = /\/login|\/authorize|login\.|sign[\s-]?in/i;
 
-export function authGateHit(kind, action, history, lastObservation) {
+// Tools whose recorded execution after the last identical type
+// proves the brain looked at the form again or moved the login
+// forward — a fresh screen read, or a click into the form.
+// (A different browser_type is handled separately below: it is
+// the login sequence advancing past this text.)
+const FRESH_ATTEMPT_TOOLS = new Set([
+  'browser_snapshot',
+  'see_screen',
+  'desktop_snapshot',
+  'browser_click',
+  'desktop_click',
+  'desktop_click_at',
+  'desktop_click_control',
+]);
+
+/**
+ * True when the hunt's ordered record shows fresh GUI work after
+ * the last identical browser_type (signature `sig`): the brain
+ * looked at the screen again, clicked in the form, or typed a
+ * DIFFERENT text. A re-type after such work is a fresh attempt at
+ * the login — e.g. the form was reloaded and emptied since the
+ * last type — not a blind repeat. False when the last identical
+ * type is the latest GUI work (a genuine loop), or when the record
+ * does not contain that type at all (conservative: the caller
+ * falls back to the history count alone).
+ */
+export function freshAttemptSinceType(events, sig) {
+  const list = Array.isArray(events) ? events : [];
+  let lastTypeIdx = -1;
+  for (let i = 0; i < list.length; i++) {
+    const e = list[i];
+    if (!e || e.type !== 'tool_call') continue;
+    if (String(e.tool || '').toLowerCase() !== 'browser_type') continue;
+    if (actionSignature('browser_type', String(e.detail || '')) === sig) lastTypeIdx = i;
+  }
+  if (lastTypeIdx < 0) return false;
+  for (let i = lastTypeIdx + 1; i < list.length; i++) {
+    const e = list[i];
+    if (!e || e.type !== 'tool_call') continue;
+    const t = String(e.tool || '').toLowerCase();
+    if (FRESH_ATTEMPT_TOOLS.has(t)) return true;
+    if (t === 'browser_type' && actionSignature('browser_type', String(e.detail || '')) !== sig) return true;
+  }
+  return false;
+}
+
+export function authGateHit(kind, action, history, lastObservation, ctx) {
   const k = String(kind || '').toLowerCase();
   if (k !== 'browser_type' && k !== 'browser_click') return null;
   const obs = String(lastObservation || '');
@@ -2276,9 +2346,18 @@ export function authGateHit(kind, action, history, lastObservation) {
   if (k === 'browser_type' && LOGIN_PAGE_RE.test(obs)) {
     const text = String((action && action.text) || '').trim();
     if (!text) return null;
-    const entry = (history || new Map()).get(actionSignature('browser_type', text.slice(0, 80)));
+    const sig = actionSignature('browser_type', text.slice(0, 80));
+    const entry = (history || new Map()).get(sig);
     const typedBefore = entry ? (entry.fullCount != null ? entry.fullCount : entry.count) : 0;
-    if (typedBefore >= 1) {
+    // FRESH ATTEMPT (see header note 3): a re-type is a loop only
+    // when the last identical type is still the latest GUI work.
+    // When the record shows the brain looked at the form again,
+    // clicked into it, or typed a different text since then, the
+    // retry is a fresh attempt — the form may have been reloaded
+    // and emptied in between — and the gate stands aside. Without
+    // an events record (ctx absent) the old behaviour holds: any
+    // prior identical type on the sign-in page is a loop.
+    if (typedBefore >= 1 && !freshAttemptSinceType(ctx && ctx.events, sig)) {
       return {
         reason: 'auth_loop',
         tool: 'browser_type',
@@ -3857,7 +3936,7 @@ export async function humanIteration(huntId, target, opts = {}) {
     // different words. Judged only when the exact gate did not
     // already fire (an exact repeat is the stronger statement).
     const searchHit = !gateHit && kind === 'search' ? searchRepeatHit(action.query, actionHistory) : null;
-    const authHit = authGateHit(kind, action, actionHistory, lastObservation);
+    const authHit = authGateHit(kind, action, actionHistory, lastObservation, { events: turnEvents });
     // INFINITY LEVEL: the exhausted-surface gate — the (page,
     // payload class) combination has already been blocked >=
     // EXHAUSTED_MIN_BLOCKS times, so no wording of the payload

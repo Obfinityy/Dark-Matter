@@ -164,3 +164,37 @@ test('buildReportMarkdown: a hunt with no findings yet still renders', () => {
   assert.match(md, /_No findings recorded yet\._/);
   assert.match(md, /0 unique findings: 0 confirmed, 0 under investigation/);
 });
+
+// INFINITY-ANALYSIS COUNTS (auth-gate lane, 27 Oct 2026 — live
+// verification 23:51 IST): the report showed 'Findings: 0 raw → 0
+// unique → 0 confirmed → 0 likely exploitable' next to the
+// reconciled headline '6 unique findings: 0 confirmed, 6 under
+// investigation'. The counts line came from analyzeFindings run on
+// the GENUINE-only subset (so chains never seed from a 404 stamp),
+// but it read as the hunt's overall counts. It must agree with the
+// reconciled rows.
+test('buildReportMarkdown: Infinity-analysis counts agree with the reconciled rows', () => {
+  const events = liveShapeFindings();
+  const md = buildReportMarkdown({
+    huntId: 'h_lab_report',
+    meta: { target: 'http://172.17.0.1:3100/', createdAt: '2026-10-27T15:00:00.000Z' },
+    events,
+  });
+  // 12 raw stamps → 7 unique rows, 1 confirmed: the analysis line
+  // must say so, not "1 raw → 1 unique" (the genuine-only subset
+  // the chains are built on).
+  assert.match(md, /- \*\*Findings:\*\* 12 raw → 7 unique → 1 confirmed → \d+ likely exploitable/);
+  assert.doesNotMatch(md, /1 raw → 1 unique/);
+});
+
+test('buildReportMarkdown: live shape with 0 genuine — no "0 raw → 0 unique" line', () => {
+  const events = liveShapeFindings().filter((f) => f.title !== 'reflected xss in search parameter');
+  const md = buildReportMarkdown({
+    huntId: 'h_lab_report_live',
+    meta: { target: 'http://172.17.0.1:3100/', createdAt: '2026-10-27T15:00:00.000Z' },
+    events,
+  });
+  assert.match(md, /6 unique findings: 0 confirmed, 6 under investigation/);
+  assert.match(md, /- \*\*Findings:\*\* 11 raw → 6 unique → 0 confirmed → 0 likely exploitable/);
+  assert.doesNotMatch(md, /0 raw → 0 unique/);
+});

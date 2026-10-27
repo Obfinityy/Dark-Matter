@@ -1135,7 +1135,24 @@ export function buildReportMarkdown({ huntId, meta, events }) {
     // Chains build on GENUINE confirmed findings only — a 404 stamp
     // must never seed an exploit chain.
     try {
-      lines.push(chainsMarkdown(analyzeFindings(rawFindings.filter((f) => f.verified && !isErrorPageFinding(f)))));
+      // The Infinity-analysis counts line must agree with the
+      // reconciled rows above: analyzeFindings runs on the
+      // GENUINE-only subset (chains must never seed from a 404
+      // stamp), but its summary then reads "0 raw → 0 unique" on
+      // a hunt with 6 reconciled leads — contradicting the
+      // report's own "6 unique findings" headline (live, 27 Oct
+      // 23:51 IST verification). Override the counts with the
+      // reconciled numbers; likely-exploitable stays the genuine
+      // analysis's own count (leads are unconfirmed, so they can
+      // never be likely exploitable).
+      const analysis = analyzeFindings(rawFindings.filter((f) => f.verified && !isErrorPageFinding(f)));
+      analysis.summary = {
+        ...analysis.summary,
+        raw: rawFindings.length,
+        unique: rows.length,
+        confirmed: confirmedRows.length,
+      };
+      lines.push(chainsMarkdown(analysis));
     } catch {
       // intel layer is best-effort; raw findings still render below
     }

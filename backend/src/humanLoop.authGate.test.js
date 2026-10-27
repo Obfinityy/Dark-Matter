@@ -167,3 +167,111 @@ test('AJ-11 (precedence): when dedupe AND auth both apply, the auth redirect win
   assert.ok(recorded.some((e) => e.type === 'auth_block'), 'an auth_block event must be recorded');
   assert.ok(!recorded.some((e) => e.type === 'dedup_block'), 'no dedup_block for the turn the auth gate took');
 });
+
+// FRESH ATTEMPT (visible-desktop lane, 27 Oct 2026 — live DVWA hunt
+// h_830317bdc184, 23:44-23:48 IST): the brain typed 'admin' (22:50
+// IST), typed 'password' (23:06 IST), snapshotted the form, reloaded
+// it (browser_open login.php), worked shell login scripts for ~20
+// min, then came back to the GUI and typed 'admin' again — into a
+// form the reload had emptied. The gate blocked it 3x as auth_loop
+// and the brain fell back to shell curls. A re-type after fresh GUI
+// work (a fresh screen read, a click into the form, or a different
+// text typed since) is a fresh attempt, not a loop.
+const DVWA_LOGIN_EVENTS = [
+  { type: 'tool_call', tool: 'browser_type', detail: 'admin' },
+  { type: 'tool_call', tool: 'browser_type', detail: 'password' },
+  { type: 'tool_call', tool: 'browser_snapshot', detail: '' },
+  { type: 'tool_call', tool: 'browser_open', detail: 'http://172.17.0.1:3100/login.php' },
+];
+
+test('AJ-13: re-typing the username after the live DVWA fresh-look sequence is NOT blocked', () => {
+  const history = buildActionHistory(DVWA_LOGIN_EVENTS);
+  const hit = authGateHit('browser_type', { text: 'admin' }, history, LOGIN_OBS, { events: DVWA_LOGIN_EVENTS });
+  assert.equal(hit, null, 'snapshot + password-type + reload since the last type = fresh attempt');
+});
+
+test('AJ-14: re-typing after typing a DIFFERENT text (password) is NOT blocked', () => {
+  const events = [
+    { type: 'tool_call', tool: 'browser_type', detail: 'admin' },
+    { type: 'tool_call', tool: 'browser_type', detail: 'password' },
+  ];
+  const history = buildActionHistory(events);
+  const hit = authGateHit('browser_type', { text: 'admin' }, history, LOGIN_OBS, { events });
+  assert.equal(hit, null, 'the login sequence advanced past the username');
+});
+
+test('AJ-15: a re-type with only a page open since is STILL blocked (genuine loop)', () => {
+  const events = [
+    { type: 'tool_call', tool: 'browser_type', detail: 'admin' },
+    { type: 'tool_call', tool: 'browser_open', detail: 'https://ksuite.infomaniak.com/dashboard' },
+  ];
+  const history = buildActionHistory(events);
+  const hit = authGateHit('browser_type', { text: 'admin' }, history, LOGIN_OBS, { events });
+  assert.ok(hit, 'an open that first shows the login page is not a reset');
+  assert.equal(hit.reason, 'auth_loop');
+});
+
+test('AJ-16: without an events record the old rule holds (no ctx)', () => {
+  const history = historyOf(['browser_type', 'admin']);
+  const hit = authGateHit('browser_type', { text: 'admin' }, history, LOGIN_OBS);
+  assert.ok(hit);
+  assert.equal(hit.reason, 'auth_loop');
+});
+
+test('AJ-17: a shell detour alone does NOT make a re-type fresh', () => {
+  const events = [
+    { type: 'tool_call', tool: 'browser_type', detail: 'admin' },
+    { type: 'tool_call', tool: 'shell', detail: 'curl -s http://172.17.0.1:3100/login.php' },
+    { type: 'tool_call', tool: 'recall', detail: '#71' },
+  ];
+  const history = buildActionHistory(events);
+  const hit = authGateHit('browser_type', { text: 'admin' }, history, LOGIN_OBS, { events });
+  assert.ok(hit, 'shell/recall change nothing about the form');
+  assert.equal(hit.reason, 'auth_loop');
+});
+
+test('AJ-18: a re-type after a fresh see_screen is NOT blocked', () => {
+  const events = [
+    { type: 'tool_call', tool: 'browser_type', detail: 'admin' },
+    { type: 'tool_call', tool: 'see_screen', detail: '' },
+  ];
+  const history = buildActionHistory(events);
+  const hit = authGateHit('browser_type', { text: 'admin' }, history, LOGIN_OBS, { events });
+  assert.equal(hit, null, 'the brain looked at the desktop again before re-typing');
+});
+
+test('AJ-19 (wire-up): the DVWA fresh-attempt GUI login retry executes — gui.type runs, no auth_block', async () => {
+  const recorded = [];
+  const typeCalls = [];
+  const LOGIN_OPEN_OBS =
+    'Opened http://172.17.0.1:3100/login.php in your desktop browser.\n' +
+    'Page: Login:: Damn Vulnerable Web Application — http://172.17.0.1:3100/login.php';
+  const replies = [
+    'I will reload the login page clean.\n{"action":"browser_open","url":"http://172.17.0.1:3100/login.php"}',
+    'The form is empty after the reload — I will type the username again.\n{"action":"browser_type","text":"admin","submit":false}',
+  ];
+  let n = 0;
+  const res = await humanIteration('h_test_aj19', 'http://172.17.0.1:3100/', {
+    turns: 2,
+    deps: {
+      chat: async () => replies[n++],
+      gui: {
+        open: async () => ({ observation: LOGIN_OPEN_OBS }),
+        snapshot: async () => ({ observation: LOGIN_OPEN_OBS }),
+        click: async () => ({ observation: 'clicked' }),
+        type: async (h, text) => { typeCalls.push(text); return { observation: 'Typed.' }; },
+        screenshot: async () => ({ observation: 'shot' }),
+      },
+      execRaw: async () => ({ stdout: '', stderr: '' }),
+      record: (h, e) => { recorded.push(e); },
+      recordNote: () => {},
+      readMeta: () => ({}),
+      readEvents: () => DVWA_LOGIN_EVENTS,
+      buildBriefing: async () => '',
+      assess: null,
+    },
+  });
+  assert.deepEqual(typeCalls, ['admin'], 'the fresh-attempt re-type must execute');
+  assert.ok(!recorded.some((e) => e.type === 'auth_block'), 'no auth_block for the fresh-attempt re-type');
+  assert.ok(res.log.some((e) => String(e.observation || '').includes('Typed.')), 'the turn observation must carry the executed type');
+});
