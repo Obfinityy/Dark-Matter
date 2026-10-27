@@ -2425,6 +2425,26 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
     writeHuntMetaCheckpoint(huntId, { container, state: 'running' });
     appendHuntEvent(huntId, { type: 'status', state: 'container_spawned', container });
 
+    // TARGET-OPEN ON RESUME (27 Oct 2026, SEE-AND-CONTROL): the loop
+    // driver opens the target in the container browser before the
+    // first cycle, so the brain's first screen is the real target
+    // instead of about:blank. Driver scaffolding only — the brain
+    // still chooses everything it does with the target. The
+    // container is freshly spawned on every resume/start, so one
+    // open per driver run can never yank a mid-run navigation.
+    // Human mode only; best-effort — a failed open never blocks
+    // the hunt (the brain can open the target itself).
+    try {
+      const metaNow = readHuntMeta(huntId) || {};
+      const isHuman = metaNow.humanMode === true || mode === 'human' || metaNow.mode === 'human';
+      if (isHuman) {
+        const { openTargetOnResume } = await import('./humanLoopDriver.js');
+        await openTargetOnResume(huntId, target, { think: (h, t) => think(h, t) });
+      }
+    } catch (err) {
+      think(huntId, `Target auto-open skipped (${String((err && err.message) || err).slice(0, 160)}) — the brain can open the target with browser_open.`);
+    }
+
     // ORCHESTRATOR: the head of the hunt team. It plans, spawns specialist
     // workers, reviews their work, and writes the final report.
     const head = new HuntOrchestrator(huntId, target, mode);

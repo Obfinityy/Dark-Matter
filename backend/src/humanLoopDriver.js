@@ -40,7 +40,7 @@
 // turn sessions. The turn loop is never deleted: it IS the fallback
 // driver whenever the loop is disabled.
 
-import { humanIteration } from './humanLoop.js';
+import { humanIteration, targetHostsFor } from './humanLoop.js';
 import { readHuntMeta, writeHuntMetaCheckpoint, appendHuntEvent } from './store.js';
 
 /** Cycles per driver invocation — billing parity: 1 charge per 6 cycles, as 1 charge per 6-turn session today. */
@@ -51,6 +51,10 @@ export const LOOP_INTER_CYCLE_MS_DEFAULT = 2000;
 export const LOOP_NOREPLY_BACKOFF_MS_DEFAULT = 30000;
 /** Consecutive failed cycles before the driver gives up the run. */
 export const LOOP_MAX_FAILED_CYCLES_DEFAULT = 5;
+/** Attempts to open the target in the container browser on resume/start before giving up (best-effort). */
+export const TARGET_OPEN_MAX_ATTEMPTS_DEFAULT = 6;
+/** Pause between target-open attempts — the container browser may still be starting. */
+export const TARGET_OPEN_RETRY_MS_DEFAULT = 10000;
 
 /** In-memory registry of running drivers: huntId -> { startedAt, cyclesRun, stopRequested }. */
 const activeLoops = new Map();
@@ -135,6 +139,68 @@ export function stopHumanLoop(huntId, { reason = 'stopped', readMeta, writeMeta,
     recordLoopEvent(huntId, { state: 'loop_stopped', reason }, { record });
   }
   return loopStateFor(huntId, (readMeta || readHuntMeta)(huntId) || {}, { registry: reg });
+}
+
+/**
+ * TARGET-OPEN ON RESUME (27 Oct 2026, SEE-AND-CONTROL): open the
+ * target URL in the container browser once, before the first cycle
+ * of a resume/start — so the brain's first screen is the real
+ * target instead of about:blank. Driver scaffolding only: the
+ * brain still chooses everything it does with the target, and the
+ * open uses the exact same guiBrowserOpen the brain's browser_open
+ * uses, so the browser state is identical.
+ *
+ * Why once per driver run is safe: spawnHuntContainer always
+ * creates a FRESH container on every resume/start, so a new driver
+ * run always starts from a blank browser — this open can never
+ * yank a mid-run navigation the brain chose. The caller invokes
+ * it once, before the cycle loop.
+ *
+ * A degraded (headless look-only) success does NOT count — the
+ * VISIBLE browser is still blank then. The browser may still be
+ * starting when the container spawns, so transient failures are
+ * retried (bounded). A permanent failure never throws and never
+ * blocks the hunt: the brain can open the target itself.
+ * Only a real open records a tool_call (via driver-target-open,
+ * so reports can tell it apart from a brain action).
+ *
+ * Returns { opened, attempts }.
+ */
+async function defaultGuiOpen(huntId, url, targetHosts) {
+  const { guiBrowserOpen, resetGuiProbeCache } = await import('./guiTools.js');
+  try { resetGuiProbeCache(); } catch { /* best-effort — a stale probe must not stick to the new container */ }
+  return guiBrowserOpen(huntId, url, { targetHosts, targetUrl: url });
+}
+
+export async function openTargetOnResume(huntId, target, opts = {}) {
+  const guiOpen = opts.guiOpen || defaultGuiOpen;
+  const sleep = opts.sleep || ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const record = opts.record || appendHuntEvent;
+  const think = opts.think || ((h, text) => { try { record(h, { type: 'thinking', text }); } catch { /* best-effort */ } });
+  const maxAttempts = Math.max(1, Number(opts.maxAttempts ?? TARGET_OPEN_MAX_ATTEMPTS_DEFAULT) || TARGET_OPEN_MAX_ATTEMPTS_DEFAULT);
+  const retryMs = Math.max(0, Number(opts.retryMs ?? TARGET_OPEN_RETRY_MS_DEFAULT) || 0);
+  const targetHosts = opts.targetHosts || targetHostsFor(target);
+
+  let attempts = 0;
+  let lastError = '';
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    attempts = attempt;
+    let res = null;
+    try {
+      res = await guiOpen(huntId, target, targetHosts);
+    } catch (err) {
+      res = { ok: false, observation: String((err && err.message) || err) };
+    }
+    if (res && res.ok === true && res.degraded !== true) {
+      try { record(huntId, { type: 'tool_call', tool: 'browser_open', detail: String(target).slice(0, 300), via: 'driver-target-open' }); } catch { /* best-effort */ }
+      think(huntId, `Opened the target in the browser (${target}) — the first screen is the real target, not a blank page.`);
+      return { opened: true, attempts };
+    }
+    lastError = String((res && (res.observation || res.error)) || 'browser not ready').slice(0, 200);
+    if (attempt < maxAttempts && retryMs > 0) await sleep(retryMs);
+  }
+  think(huntId, `Could not open the target in the browser after ${attempts} attempts (${lastError}) — the brain can open it with browser_open.`);
+  return { opened: false, attempts };
 }
 
 /**
