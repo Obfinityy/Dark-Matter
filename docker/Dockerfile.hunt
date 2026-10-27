@@ -110,6 +110,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nuclei gobuster hydra \
     && rm -rf /var/lib/apt/lists/*
 
+# --- Screen-seeing OCR (owner order 27 Oct 2026, ~13:45 IST) ----------------
+# The agent looks at the screen itself and controls from what it sees.
+# tesseract-ocr turns a scrot screenshot into words + coordinates (TSV),
+# which the text-only 8B brain reads as a screen map (backend/src/screenMap.js).
+# Own late RUN so it does not invalidate the layers above. AT-SPI
+# (at-spi2-core + python3-pyatspi + libatk-wrapper-java) is the pending owner
+# decision — when approved it arrives here, in this same layer, for
+# named-control clicks inside GUI apps (the OCR layer alone cannot name a
+# control or tell a button from a label).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/*
+
 # --- FULL Kali toolset (owner order 25 Oct 2026, ~21:50 IST) ---------------
 # The owner tested the desktop himself: "Kali jaisa nahi lag raha" — this
 # was a minimal Kali, not real Kali. This lane installs the standard Kali

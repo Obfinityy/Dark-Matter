@@ -114,6 +114,15 @@ import {
   desktopTerminalWrapCommand,
   parseTerminalExit,
 } from './desktopControl.js';
+// SCREEN-SEEING (27 Oct 2026, owner order): the text-only brain reads the
+// desktop through a TEXT MAP (screenshot -> OCR words + coordinates) and
+// clicks at map coordinates — see_screen + desktop_click_at.
+import {
+  captureScreenMap,
+  parseClickAt,
+  desktopClickAtCommand,
+  screenMapErrorLine,
+} from './screenMap.js';
 // REAL-HUMAN (26 Oct 2026): the owner's queued questions (the
 // brain answers them in-turn — see chatQueue.js) and in-app
 // clicking via the AT-SPI accessibility tree (desktopAtspi.js).
@@ -1063,7 +1072,7 @@ function systemPromptFor(target, parsedScope) {
     // canned order; the test asserts this line is present and that
     // no fixed-sequence wording exists anywhere in the prompt.
     'There is no fixed order of operations — no recon→scan→exploit script, no checklist to work through. Decide each step fresh from what you remember and what you just observed; a different target or a different memory means a different first move. Your plan is yours, and it changes when the evidence changes.',
-    'You also have a real desktop with a Chromium browser on this machine: you can open pages, SEE them (browser_snapshot gives you the page text and its clickable elements), click and type like a person at a computer, and take screenshots. The desktop itself is yours too — the whole XFCE desktop, not just the browser: desktop_snapshot shows you its windows, desktop_click focuses a window by title, desktop_key sends keys to the focused window, and desktop_screenshot captures the whole desktop. GUI apps (Burp, ZAP, Wireshark, the terminal) launch from the shell; focus one with desktop_click, then work it with the keyboard.',
+    'You also have a real desktop with a Chromium browser on this machine: you can open pages, SEE them (browser_snapshot gives you the page text and its clickable elements), click and type like a person at a computer, and take screenshots. The desktop itself is yours too — the whole XFCE desktop, not just the browser: desktop_snapshot shows you its windows, desktop_click focuses a window by title, desktop_key sends keys to the focused window, and desktop_screenshot captures the whole desktop. GUI apps (Burp, ZAP, Wireshark, the terminal) launch from the shell; focus one with desktop_click, then work it with the keyboard. You SEE the desktop itself with see_screen: it reads the screen into a text map — every visible word with its (x, y) position — and you click what you see with desktop_click_at. Look, then act, then look again to confirm the screen changed.',
     // HUNTER-MIND (26 Oct 2026): narration — the owner watches the
     // thinking and wants it to read like a hunter thinking aloud
     // ("abhi main nmap chala ke subdomain enum karta hoon"), in the
@@ -1092,6 +1101,8 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"desktop_click_control","control":"Repeater","window":"Burp Suite"} — click a NAMED CONTROL inside a GUI app (a tab, a button, a menu item) by its visible name: the loop finds it in the app\'s accessibility tree and clicks it. Give the control\'s visible name ("Repeater", "Send", "Proxy"), and "window" when more than one app is open. This is how you press a button inside Burp/ZAP/Wireshark — desktop_click only focuses a window, it never presses a button inside it. If the app has no accessibility tree (or AT-SPI is not installed in this image), the observation says so — fall back to desktop_key keyboard navigation.',
     '{"action":"desktop_key","keys":"ctrl+l"} — send keys to the focused window: modifiers ctrl/alt/shift/super/meta plus one key (Return, Tab, Escape, space, BackSpace, Delete, arrows, Home, End, Page_Up, Page_Down, F1-F12, or a single letter/digit). Or {"action":"desktop_key","text":"nmap -sV target"} to type literal text into the focused window. This is how you work inside GUI apps after focusing them.',
     '{"action":"desktop_screenshot"} — capture the WHOLE desktop (not just the browser) to a JPG artifact; you also get the desktop state text',
+    '{"action":"see_screen"} — LOOK at the desktop yourself: read the whole screen into a text map — every visible word with its (x, y) position, e.g. `"Log in" at (1240, 310)`. This is how you see what is on screen (you never see the image itself). Use it before clicking anything on the desktop, and again after acting to confirm the screen changed. If it says OCR is not installed, the image rebuild has not landed yet — use desktop_snapshot instead.',
+    '{"action":"desktop_click_at","x":1240,"y":310} — click at a point FROM THE SCREEN MAP (see_screen first; never guess coordinates). The mouse moves to (x, y) and clicks. Then see_screen again to confirm what changed.',
     // HUMAN-BRAIN (26 Oct 2026, owner order: GUI-VISIBLE TERMINAL).
     // Terminal work happens in a terminal window ON the GUI desktop
     // so the owner watches it live — this action opens xfce4-terminal
@@ -1621,6 +1632,9 @@ function detailForAction(kind, action) {
     case 'use_saved_credential': return String(action.handle || '').slice(0, 120);
     case 'request_details': return String(action.title || '').slice(0, 120);
     case 'desktop_click_control': return String(action.control || '').slice(0, 120);
+    // SCREEN-SEEING (27 Oct 2026): a coordinate click keys on its point —
+    // the same (x, y) clicked twice is the same action for the dedupe gate.
+    case 'desktop_click_at': return `${String(action.x ?? '')},${String(action.y ?? '')}`;
     // HUMAN-BRAIN: the visible terminal run keys on its command —
     // the same identity the shell branch records, so the dedupe
     // gate and the output ledger treat a visible run and a headless
@@ -1790,7 +1804,7 @@ export function repetitionLines(events) {
 // browser_snapshot.
 // ---------------------------------------------------------------------------
 
-const GATED_TOOLS = new Set(['shell', 'search', 'browser_open', 'browser_click', 'browser_type', 'intercept_replay', 'desktop_click', 'desktop_key', 'desktop_click_control']);
+const GATED_TOOLS = new Set(['shell', 'search', 'browser_open', 'browser_click', 'browser_type', 'intercept_replay', 'desktop_click', 'desktop_key', 'desktop_click_control', 'desktop_click_at']);
 const DEDUP_THRESHOLD = 2; // an action already run this many times is not run again
 
 // Lane AF (24 Oct 2026): DEGRADED executions — a browser action
@@ -1970,6 +1984,7 @@ function gatedCandidate(kind, action) {
     case 'desktop_click': return { tool: 'desktop_click', detail: String(action.window || '') };
     case 'desktop_key': return { tool: 'desktop_key', detail: String(action.keys || action.text || '').slice(0, 80) };
     case 'desktop_click_control': return { tool: 'desktop_click_control', detail: String(action.control || '').slice(0, 120) };
+    case 'desktop_click_at': return { tool: 'desktop_click_at', detail: `${String(action.x ?? '')},${String(action.y ?? '')}` };
     // HUMAN-BRAIN: a visible terminal run IS a shell run for
     // dedupe — same command, same candidate, whichever channel ran
     // it first. (The gate compares like with like: the shell
@@ -2014,6 +2029,11 @@ export const GUI_CONTROL_KINDS = new Set([
   // GUI app drives the same X server — it pauses under Take
   // Control exactly like the other desktop actions.
   'desktop_click_control',
+  // SCREEN-SEEING (27 Oct 2026): reading the screen (scrot) and
+  // clicking at map coordinates drive the same X server — they
+  // pause under Take Control exactly like the other desktop actions.
+  'see_screen',
+  'desktop_click_at',
   // HUMAN-BRAIN (26 Oct 2026): the visible terminal types into the
   // same X server — it pauses under Take Control like the other
   // desktop actions.
@@ -4358,6 +4378,44 @@ export async function humanIteration(huntId, target, opts = {}) {
         observation = `Desktop screenshot failed: ${err.message || err}.`;
       }
       note({ action: 'desktop_screenshot', why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'see_screen') {
+      // SCREEN-SEEING (27 Oct 2026, owner order): the brain LOOKS at
+      // the desktop itself — screenshot -> OCR words + coordinates ->
+      // a text map it can read and click from. Perception, like
+      // desktop_snapshot, so it is NOT dedup-gated (looking twice is
+      // how the brain confirms the screen changed). A missing OCR
+      // install is a named state, not a silent empty map.
+      toolCall('see_screen', '');
+      try {
+        const res = await captureScreenMap(huntId, deps);
+        observation = res.ok
+          ? `${res.map}\n(To act on what you see: desktop_click_at with the (x, y) from the map, or desktop_key to type. Then see_screen again to confirm the screen changed.)`
+          : screenMapErrorLine(res.error);
+      } catch (err) {
+        observation = `Could not read the screen: ${err.message || err}. Take desktop_snapshot instead.`;
+      }
+      note({ action: 'see_screen', why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'desktop_click_at') {
+      // SCREEN-SEEING: click at a point FROM THE SCREEN MAP. The
+      // coordinates are validated BEFORE any exec (parseClickAt) — an
+      // unvalidated number would be an injection into xdotool. The
+      // tool_call records the validated point, so the dedupe gate's
+      // candidate (same point) matches the history exactly.
+      const parsed = parseClickAt(action);
+      if (!parsed.ok) {
+        observation = `Click not sent — ${parsed.error}. Take see_screen first and use a point from the map.`;
+      } else {
+        toolCall('desktop_click_at', `${parsed.x},${parsed.y}`);
+        try {
+          const res = await deps.execRaw(huntId, desktopClickAtCommand(parsed.x, parsed.y), 15000, { bypassTmux: true });
+          observation = String((res && res.stdout) || '').includes('clicked')
+            ? `Clicked at (${parsed.x}, ${parsed.y}). Take see_screen to confirm what changed.`
+            : `Click at (${parsed.x}, ${parsed.y}) may not have landed (xdotool reported ${String((res && res.stderr) || 'failure').slice(0, 160)}). Take see_screen to check the screen.`;
+        } catch (err) {
+          observation = `Desktop click failed: ${err.message || err}. Take see_screen to check the screen.`;
+        }
+      }
+      note({ action: `desktop_click_at: ${String(action.x ?? '')},${String(action.y ?? '')}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'desktop_terminal') {
       // HUMAN-BRAIN (26 Oct 2026): GUI-VISIBLE TERMINAL — the
       // command runs in a terminal window ON the GUI desktop, typed
