@@ -210,6 +210,13 @@ export async function getHuntCost(huntId) {
   return get(`/api/v1/hunts/${encodeURIComponent(huntId)}/cost`);
 }
 
+// BUDGET CAP (27 Oct 2026, owner order): per-hunt spend cap. Set with a
+// number (USD), clear with null. At the cap the hunt auto-pauses with a
+// checkpoint; Resume continues from there — never from scratch.
+export async function setHuntBudget(id, budgetUsd) {
+  return post(`/api/v1/hunts/${encodeURIComponent(id)}/budget`, { budgetUsd });
+}
+
 export async function getNotifications() {
   return get('/api/v1/notifications');
 }
@@ -222,8 +229,8 @@ export async function getTotalCosts() {
   return get('/api/v1/hunts/costs');
 }
 
-export async function startHunt(target, scope, mode, confirmedAuthorized, forceNew = false) {
-  const res = await post('/api/v1/hunts', { target, scope, mode, confirmedAuthorized: !!confirmedAuthorized, ...(forceNew ? { forceNew: true } : {}) });
+export async function startHunt(target, scope, mode, confirmedAuthorized, forceNew = false, fresh = false) {
+  const res = await post('/api/v1/hunts', { target, scope, mode, confirmedAuthorized: !!confirmedAuthorized, ...(forceNew ? { forceNew: true } : {}), ...(fresh ? { fresh: true } : {}) });
   if (!res.ok) return res;
   const d = res.data || {};
   // Pass the dedupe/queue outcome through: when the target was already
@@ -236,6 +243,7 @@ export async function startHunt(target, scope, mode, confirmedAuthorized, forceN
       reused: !!d.reused,
       resumed: !!d.resumed,
       queued: !!d.queued,
+      fresh: !!d.fresh,
       position: d.position,
       state: d.state,
       message: d.message,

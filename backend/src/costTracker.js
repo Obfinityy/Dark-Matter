@@ -1,8 +1,10 @@
 // Dark Matter — cost / burn tracker.
 //
-// Records every dollar burnt: Bedrock tokens (per model pricing) and an
-// optional EC2 hourly rate for the hunt engine. Backs the "money burnt"
-// display in the UI — per hunt and lifetime total.
+// Records every dollar burnt: Bedrock tokens, Meta Model API tokens
+// (per model pricing) and an optional EC2 hourly rate for the hunt
+// engine. Backs the "money burnt" display in the UI — per hunt and
+// lifetime total. The per-hunt totals are what the budget cap
+// (budgetCap.js) compares against the user's budget.
 //
 // Storage: JSON file under DATA_DIR (same durability story as hunts).
 
@@ -10,7 +12,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { dataDir } from './store.js';
 
-// USD per 1M tokens — update when AWS changes pricing.
+// USD per 1M tokens — update when a provider changes pricing.
+// Meta Spark 1.3 (Standard): $1.25 in / $4.25 out; contributor tier
+// $0.10 in / $0.20 out (public Meta rate card, Sep 2026).
 const MODEL_PRICING = {
   'anthropic.claude-3-5-sonnet-20241022-v2:0': { input: 3.0, output: 15.0 },
   'anthropic.claude-3-5-sonnet-20240620-v1:0': { input: 3.0, output: 15.0 },
@@ -18,6 +22,8 @@ const MODEL_PRICING = {
   'amazon.nova-micro-v1:0': { input: 0.035, output: 0.14 },
   'amazon.nova-lite-v1:0': { input: 0.06, output: 0.24 },
   'amazon.nova-pro-v1:0': { input: 0.8, output: 3.2 },
+  'muse-spark-1.3': { input: 1.25, output: 4.25 },
+  'muse-spark-1.3-contributor': { input: 0.1, output: 0.2 },
 };
 
 const DEFAULT_PRICING = { input: 3.0, output: 15.0 }; // assume Sonnet if unknown
@@ -47,13 +53,14 @@ export function modelCostUsd(model, inputTokens, outputTokens) {
 }
 
 /**
- * Record a spend event.
- * @param {{userId, huntId?, kind: 'bedrock'|'ec2'|'ollama', model?, inputTokens?, outputTokens?, amountUsd?, note?}} evt
+ * Record a spend event. Token-priced kinds ('bedrock', 'meta') price
+ * from MODEL_PRICING; other kinds carry an explicit amountUsd.
+ * @param {{userId, huntId?, kind: 'bedrock'|'meta'|'ec2'|'ollama', model?, inputTokens?, outputTokens?, amountUsd?, note?}} evt
  */
 export function recordCost(evt) {
   const data = readCosts();
   let amountUsd = evt.amountUsd;
-  if (evt.kind === 'bedrock') {
+  if (evt.kind === 'bedrock' || evt.kind === 'meta') {
     amountUsd = modelCostUsd(evt.model, evt.inputTokens, evt.outputTokens);
   }
   data.entries.push({
@@ -86,10 +93,12 @@ export function getUserCosts(userId) {
     byHunt[e.huntId] = (byHunt[e.huntId] || 0) + (e.amountUsd || 0);
   }
   const bedrock = sumFor(mine.filter((e) => e.kind === 'bedrock'));
+  const meta = sumFor(mine.filter((e) => e.kind === 'meta'));
   const ec2 = sumFor(mine.filter((e) => e.kind === 'ec2'));
   return {
     totalUsd: sumFor(mine),
     bedrockUsd: bedrock,
+    metaUsd: meta,
     ec2Usd: ec2,
     hunts: Object.fromEntries(
       Object.entries(byHunt).map(([k, v]) => [k, Number(v.toFixed(4))]),
@@ -105,6 +114,7 @@ export function getHuntCost(huntId) {
     huntId,
     totalUsd: sumFor(mine),
     bedrockUsd: sumFor(mine.filter((e) => e.kind === 'bedrock')),
+    metaUsd: sumFor(mine.filter((e) => e.kind === 'meta')),
     ec2Usd: sumFor(mine.filter((e) => e.kind === 'ec2')),
     events: mine.length,
   };

@@ -907,6 +907,41 @@ button { font-family: inherit; }
 }
 .hunt-money { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .hunt-burn-rate { margin-left: auto; opacity: 0.85; }
+/* BUDGET CAP (27 Oct 2026): per-hunt spend cap row + paused banner. */
+.hunt-budget-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--dm-secondary);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
+}
+.hunt-budget-label { white-space: nowrap; }
+.hunt-budget-input {
+  width: 88px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.hunt-budget-input:disabled { opacity: 0.5; }
+.hunt-budget-spent { font-variant-numeric: tabular-nums; opacity: 0.9; }
+.hunt-budget-banner {
+  margin: 10px 14px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  border-radius: 10px;
+  background: rgba(234, 179, 8, 0.1);
+  color: #eab308;
+  font-size: 13px;
+  line-height: 1.45;
+}
 .hunt-timer {
   font-variant-numeric: tabular-nums;
   font-size: 13px;

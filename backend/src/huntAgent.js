@@ -166,6 +166,7 @@ import { recordGlobalLearning, getRelevantMemories, formatGlobalMemoryForPrompt,
 import { webSearch, searchCVE } from './webSearch.js';
 import { runBrowserTask, crawlScript } from './browserAgent.js';
 import { getHuntCost } from './costTracker.js';
+import { checkBudget } from './budgetCap.js';
 import { appendHuntEvent, writeHuntMeta, writeHuntMetaCheckpoint, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel, huntDir } from './store.js';
 import { episodeLedgerEnabled, retrieveEpisodes, formatRetrievalForPrompt, recordRuledOut, getRuledOutCounts, formatLessonsForPrompt, RETRY_BUDGET, recordFact } from './episodeStore.js';
 import { proposePlaybook, formatPlaybookForPrompt } from './playbook.js';
@@ -2572,6 +2573,12 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
 
       // Credits gate: each iteration costs a little; pause when the wallet is empty.
       if (!chargeIteration(huntId, userId, mode, i)) break;
+
+      // BUDGET CAP (27 Oct 2026, owner order): pause when the hunt's
+      // recorded spend reaches the user's per-hunt budget — never
+      // stop, never restart from scratch. Resume continues from the
+      // checkpoint (meta.iteration + 1, findings rebuilt).
+      if (!checkBudget(huntId, { thinkFn: (h, t) => think(h, t) })) break;
 
       // CIRCUIT BREAKER: if the AI brain fails repeatedly (Ollama too slow
       // on 2vCPU, model down, etc.), pause the hunt with a clear message
