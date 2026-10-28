@@ -894,6 +894,96 @@ button { font-family: inherit; }
 }
 .finding-verified { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.4); }
 .finding-unverified { background: rgba(234, 179, 8, 0.12); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.35); }
+/* FINDING DETAIL (28 Oct 2026): the list rows are buttons that open
+   the detail modal — pointer cursor, hover affordance, focus ring.
+   The detail span drops to its own line inside the wrapped row. */
+.finding-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.finding-row:hover { background: var(--dm-surface); }
+.finding-row:focus-visible { outline: 2px solid var(--dm-blue); outline-offset: 2px; }
+.finding-view-hint {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--dm-blue);
+  white-space: nowrap;
+}
+.finding-row .finding-detail { display: block; flex-basis: 100%; }
+
+/* ---------- Finding detail modal (28 Oct 2026) ---------- */
+.finding-detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+.finding-detail-panel {
+  background: #fff;
+  border: 1px solid var(--dm-border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: var(--dm-shadow);
+  padding: 18px 20px;
+}
+.finding-detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.finding-detail-title-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.finding-detail-sev {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dm-faint);
+  font-weight: 600;
+}
+.finding-detail-title { margin: 0; font-size: 17px; font-weight: 600; word-break: break-word; }
+.finding-detail-close {
+  flex: none;
+  background: none;
+  border: 1px solid var(--dm-border);
+  border-radius: 999px;
+  color: var(--dm-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+.finding-detail-close:hover { background: var(--dm-surface); color: var(--dm-text); }
+.finding-detail-status { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.finding-detail-status .finding-badge { margin-left: 0; }
+.finding-detail-verification { font-size: 13px; color: var(--dm-secondary); }
+.finding-detail-section { margin-top: 14px; }
+.finding-detail-section-title { font-size: 12px; font-weight: 600; color: var(--dm-secondary); margin-bottom: 6px; }
+.finding-detail-text { margin: 0; font-size: 14px; line-height: 1.5; word-break: break-word; }
+.finding-detail-evidence {
+  margin: 0;
+  padding: 10px 12px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--dm-surface);
+  border: 1px solid var(--dm-border);
+  border-radius: 8px;
+}
+.finding-detail-recorded { font-size: 13px; color: var(--dm-secondary); font-variant-numeric: tabular-nums; }
+.finding-detail-empty { font-size: 13px; color: var(--dm-faint); font-style: italic; }
+.finding-detail-error { font-size: 13px; color: var(--dm-red); margin-top: 10px; line-height: 1.5; }
+.finding-detail-footer { display: flex; justify-content: flex-end; margin-top: 18px; }
 .hunt-money-strip {
   display: flex;
   gap: 16px;
