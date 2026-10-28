@@ -1284,6 +1284,47 @@ button { font-family: inherit; }
   background: #fff;
 }
 .brain-composer { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+/* BRAIN JSON (28 Oct 2026): form / JSON composer tabs + JSON pane. */
+.brain-composer-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.brain-composer-tab {
+  background: #fff;
+  border: 1px solid var(--dm-border);
+  border-radius: 999px;
+  color: var(--dm-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+}
+.brain-composer-tab:hover { background: var(--dm-surface); color: var(--dm-text); }
+.brain-composer-tab.active { background: var(--dm-text); border-color: var(--dm-text); color: #fff; }
+.brain-json { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+.brain-json-main { flex: 1; min-width: 260px; display: flex; flex-direction: column; gap: 8px; }
+.brain-json-textarea { font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.5; min-height: 180px; }
+.brain-json-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.brain-schema { flex: 1; min-width: 240px; font-size: 12px; }
+.brain-schema summary { cursor: pointer; font-weight: 600; color: var(--dm-secondary); }
+.brain-schema-note { color: var(--dm-secondary); margin: 6px 0; line-height: 1.5; }
+.brain-schema pre {
+  margin: 6px 0 0;
+  padding: 10px;
+  background: var(--dm-surface);
+  border: 1px solid var(--dm-border);
+  border-radius: 8px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.brain-process-status { font-weight: 700; }
+.brain-process-status.running { color: var(--dm-yellow); }
+.brain-process-status.complete { color: var(--dm-green); }
+.brain-process-status.failed { color: var(--dm-red); }
+.brain-process-status.idle { color: var(--dm-faint); font-weight: 500; }
+.brain-process-error { color: var(--dm-red); font-size: 12px; }
 .brain-composer-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--dm-secondary); }
 .brain-composer-field.brain-composer-wide { flex: 1; min-width: 220px; }
 .brain-composer-select {

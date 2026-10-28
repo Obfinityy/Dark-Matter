@@ -58,6 +58,8 @@ import { hasActiveAccessById } from '../access.js';
 import { teardownHuntContainer, huntDesktopScreenshot } from '../huntRunner.js';
 import { listBrainModels, getBrainState, setBrainModel, metaAvailable } from '../brainProvider.js';
 import { getBrainMode, setBrainMode, listBrainActions, outputByHash, deriveProcessState, executeBrainAction } from '../brainMode.js';
+import { validateBrainReply, brainReplyToAction } from '../brainReply.js';
+import { recallByHash, recallById, formatFullRecord } from '../actionIndex.js';
 import { getAllReasoning } from '../reasoningMemory.js';
 import { listDetailRequests, submitDetailRequest, cancelDetailRequest, getDetailRequest } from '../userDetails.js';
 
@@ -1020,6 +1022,77 @@ router.post('/:id/brain-action', requireAuth, async (req, res) => {
     return res.status(status).json(result);
   }
   res.json(result);
+});
+
+// ---- Be a Brain, as JSON (brain-json lane, 28 Oct 2026) ------------------
+// POST /:id/brain-action-json {reply} — the SAME parent action as
+// POST /:id/brain-action, but as one structured JSON reply:
+//   {reply: {task, goal, progress, recall?, action: {type, ...}}}
+// (contract: backend/src/brainReply.schema.json, enforced by
+// backend/src/brainReply.js — the reply carries titles/hashes only,
+// never full memory.) The flow, in order:
+//   1. validate the reply's shape (400 invalid_reply, naming the
+//      bad field, when it fails — nothing executes);
+//   2. if `recall` is present, fetch that past action FIRST (its
+//      full stored record is returned as `recalled`; an unknown
+//      hash/id is 404 unknown_hash and nothing executes);
+//   3. dispatch the action through the EXISTING executeBrainAction
+//      — the same guards as the form composer (scope, claim
+//      completeness gate, pipeline verifier, 404 error-page
+//      protection), nothing bypassed or weakened;
+//   4. a JSON reply IS one finished step: once its action completes,
+//      the reply's task/goal/progress is recorded as task_complete
+//      (and the persisted block flips to complete), so the live
+//      process view shows the step done. A refused step is already
+//      recorded failed by executeBrainAction itself.
+// The response is the brain-action shape {ok, hash, output, entry}
+// (+ verified/finding for claims, + recalled when recall was used).
+// 409 brain_mode_ai while the AI is the brain, like brain-action.
+router.post('/:id/brain-action-json', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const huntId = req.params.id;
+  if (getBrainMode(meta) !== 'parent') {
+    return res.status(409).json({
+      ok: false,
+      error: 'brain_mode_ai',
+      message: 'The AI is the brain right now — switch to parent mode (POST /:id/brain-mode {mode:"parent"}) before submitting an action.',
+    });
+  }
+  const reply = (req.body && req.body.reply) || null;
+  const validation = validateBrainReply(reply);
+  if (!validation.ok) {
+    return res.status(400).json({ ok: false, error: 'invalid_reply', errors: validation.errors });
+  }
+  let recalled = null;
+  if (reply.recall) {
+    const rec = reply.recall.hash
+      ? recallByHash(readHuntEvents(huntId), getAllReasoning(huntId), reply.recall.hash)
+      : recallById(readHuntEvents(huntId), getAllReasoning(huntId), reply.recall.id);
+    if (!rec || rec.error) {
+      return res.status(404).json({ ok: false, error: 'unknown_hash', message: String((rec && rec.error) || 'nothing recalled') });
+    }
+    recalled = { hash: rec.entry.hash, id: rec.entry.n, output: formatFullRecord(rec) };
+  }
+  const dispatched = brainReplyToAction(reply);
+  const result = await executeBrainAction(huntId, dispatched.action);
+  if (!result.ok) {
+    const status = result.error === 'out_of_scope' ? 403 : result.error === 'claim_incomplete' ? 422 : 400;
+    return res.status(status).json({ ...result, ...(recalled ? { recalled } : {}) });
+  }
+  // The reply's step is done: record it complete, with the same
+  // task/goal/progress the reply carried, so GET /:id/process shows
+  // this step as done (not still running, and not forgotten).
+  try {
+    appendHuntEvent(huntId, {
+      type: 'task_complete', task: reply.task, goal: reply.goal, progress: reply.progress,
+      summary: (result.entry && result.entry.label) || dispatched.action.action || '', via: 'brain-json',
+    });
+    writeHuntMetaCheckpoint(huntId, {
+      currentTask: { task: reply.task, goal: reply.goal, progress: reply.progress, status: 'complete', updatedAt: new Date().toISOString() },
+    });
+  } catch { /* process recording is best-effort */ }
+  res.json({ ...result, ...(recalled ? { recalled } : {}) });
 });
 
 // ---- Agent activity log: whatever the agent did, when --------------------------------

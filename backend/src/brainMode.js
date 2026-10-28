@@ -40,6 +40,7 @@ import {
   parseRecallId,
   formatFullRecord,
   contentHash,
+  titleFor,
 } from './actionIndex.js';
 import {
   appendHuntEvent,
@@ -241,7 +242,9 @@ function publicEntry(entry, status) {
     n: entry.n,
     hash: entry.hash,
     tool: entry.tool,
+    title: entry.title || entry.label,
     label: entry.label,
+    variant: entry.variant && entry.variant !== '—' ? entry.variant : undefined,
     detail: entry.detail,
     at: entry.at || '',
     outcome: entry.outcome || '',
@@ -292,6 +295,13 @@ export function outputByHash(events, reasoningRows = [], hash) {
 // task block is persisted to meta.currentTask via the guarded
 // checkpoint writer, and a complete one is recorded as a
 // task_complete event — the same two places the AI loop writes.
+// Brain-json lane: the same writer also records a task_failed
+// event (with the error) when a submitted step is refused, and
+// marks the persisted block failed, so a failed process reports
+// failed WITH its error instead of vanishing; deriveProcessState
+// reads the persisted block's own status (complete/failed/
+// in_progress) and exposes a one-word processStatus
+// (running/failed/done/pending) alongside the existing fields.
 
 export function deriveProcessState(huntId, { meta = {}, events = [], reasoningRows = [] } = {}) {
   const brainMode = getBrainMode(meta);
@@ -304,22 +314,36 @@ export function deriveProcessState(huntId, { meta = {}, events = [], reasoningRo
   let progress = null;
   let summary = null;
   let taskStatus = null;
+  let taskError = null;
   const current = meta.currentTask && typeof meta.currentTask === 'object' ? meta.currentTask : null;
   if (current && (current.task || current.goal)) {
     task = current.task || null;
     goal = current.goal || null;
     progress = current.progress || null;
     summary = current.summary || null;
-    taskStatus = 'in_progress';
+    // The persisted status is authoritative: a completed or failed
+    // step must not keep reporting as in_progress (the old code
+    // forced every currentTask to 'in_progress', so a finished or
+    // failed process showed as still running — or, once the task
+    // cleared, as "Nothing reported yet").
+    if (current.status === 'complete') taskStatus = 'complete';
+    else if (current.status === 'failed') { taskStatus = 'failed'; taskError = current.error || null; }
+    else taskStatus = 'in_progress';
   } else {
+    // No live task: the NEWEST terminal event wins — a task_failed
+    // after a task_complete means the latest step failed, and vice
+    // versa. A failed process is reported failed WITH its error,
+    // never silently retired to "Nothing reported yet".
     for (let i = (events || []).length - 1; i >= 0; i--) {
       const e = events[i];
-      if (e && e.type === 'task_complete') {
+      if (!e) continue;
+      if (e.type === 'task_complete' || e.type === 'task_failed') {
         task = e.task || null;
         goal = e.goal || null;
         progress = e.progress || null;
         summary = e.summary || null;
-        taskStatus = 'complete';
+        if (e.type === 'task_failed') { taskStatus = 'failed'; taskError = e.error || null; }
+        else taskStatus = 'complete';
         break;
       }
     }
@@ -331,6 +355,18 @@ export function deriveProcessState(huntId, { meta = {}, events = [], reasoningRo
     .map((p) => `${p.topic.label} — skill "${p.skill}" pulled ${p.when}, no probe sent yet`)
     .slice(0, 20);
 
+  // One-word live state for the UI (independent of the hunt's
+  // running flag — a parent-brain hunt is paused, yet its current
+  // step is still 'running' until it finishes or fails):
+  //   running — a step is in progress (task/goal/progress shown)
+  //   failed  — the latest step failed (error shown)
+  //   done    — the latest step completed
+  //   pending — no step on record at all ("Nothing reported yet"
+  //             is only honest here: there genuinely is no process)
+  const processStatus = taskStatus === 'failed' ? 'failed'
+    : taskStatus === 'in_progress' ? 'running'
+    : taskStatus === 'complete' ? 'done' : 'pending';
+
   return {
     ok: true,
     running,
@@ -339,6 +375,8 @@ export function deriveProcessState(huntId, { meta = {}, events = [], reasoningRo
     progress,
     summary,
     taskStatus,
+    processStatus,
+    error: taskError,
     done,
     pending,
     brainMode,
@@ -470,18 +508,53 @@ export async function executeBrainAction(huntId, action, deps = {}) {
   // the AI's (humanLoop.js ~4200): complete -> task_complete event
   // now; in_progress -> meta.currentTask, so the process state and
   // the next AI screen resume it instead of starting fresh.
+  // Brain-json lane: EVERY submitted action is a process step, not
+  // just one carrying a task block. A bare action (no block) gets a
+  // synthesised step from the action itself, so the process view
+  // never says "Nothing reported yet" while a step is running; the
+  // synthesised step completes when its action finishes (finish()),
+  // while an explicit in_progress block spans several actions and
+  // stays in_progress until the brain marks it complete — that is
+  // the existing contract (brainMode.test.js (e)). A refused step
+  // (scope, claim gate, empty command, unknown recall) is recorded
+  // as task_failed with its error, so the process view shows it
+  // failed instead of silently dropping it.
+  const detail = detailForAction(kind, action);
   const taskBlock = extractTaskBlock(action);
+  const explicitTask = Boolean(taskBlock);
+  const processTask = taskBlock || {
+    task: `${kind}: ${String(detail || '').slice(0, 200) || kind}`,
+    goal: '',
+    progress: '',
+    status: 'in_progress',
+  };
+  const failProcess = (error, message) => {
+    try {
+      record(huntId, {
+        type: 'task_failed', task: processTask.task || '', goal: processTask.goal || '',
+        progress: processTask.progress || '', error: String(error || ''),
+        message: String(message || '').slice(0, 300), via: 'be-a-brain',
+      });
+    } catch { /* best-effort */ }
+    try {
+      writeMetaCheckpoint(huntId, { currentTask: { ...processTask, status: 'failed', error: String(error || ''), updatedAt: new Date().toISOString() } });
+    } catch { /* best-effort */ }
+  };
   if (taskBlock) {
     try {
       if (taskBlock.status === 'complete') {
         record(huntId, { type: 'task_complete', task: taskBlock.task || '', goal: taskBlock.goal || '', progress: taskBlock.progress || '', summary: taskBlock.summary || '', via: 'be-a-brain' });
+        writeMetaCheckpoint(huntId, { currentTask: { ...taskBlock, status: 'complete', updatedAt: new Date().toISOString() } });
       } else {
         writeMetaCheckpoint(huntId, { currentTask: { ...taskBlock, status: 'in_progress', updatedAt: new Date().toISOString() } });
       }
     } catch { /* task-block persistence is best-effort */ }
+  } else {
+    try {
+      writeMetaCheckpoint(huntId, { currentTask: { ...processTask, status: 'in_progress', updatedAt: new Date().toISOString() } });
+    } catch { /* best-effort */ }
   }
 
-  const detail = detailForAction(kind, action);
   const tool = kind;
   let observation = '';
   let verified = undefined;
@@ -504,6 +577,22 @@ export async function executeBrainAction(huntId, action, deps = {}) {
     } catch { /* best-effort */ }
   };
   const finish = () => {
+    // A synthesised one-action step completes with its action (the
+    // task_complete event + the persisted block both flip to
+    // complete, so the process view shows the step done with its
+    // task/goal/progress). An explicit in_progress block is left
+    // alone — it spans actions and only the brain completes it.
+    if (!explicitTask) {
+      try {
+        // The summary is the action's TITLE only — the process view
+        // never embeds output (full output stays in the action
+        // record, fetchable by hash).
+        record(huntId, { type: 'task_complete', task: processTask.task || '', goal: processTask.goal || '', progress: processTask.progress || '', summary: titleFor(tool, String(detail || ''), 'done'), via: 'be-a-brain' });
+      } catch { /* best-effort */ }
+      try {
+        writeMetaCheckpoint(huntId, { currentTask: { ...processTask, status: 'complete', updatedAt: new Date().toISOString() } });
+      } catch { /* best-effort */ }
+    }
     const hash = contentHash(tool, String(detail || '').slice(0, 300));
     let entry = null;
     try {
@@ -515,7 +604,7 @@ export async function executeBrainAction(huntId, action, deps = {}) {
       ok: true,
       hash,
       output: observation,
-      entry: entry || { n: null, hash, tool, label: `${tool} | — | ${String(detail || '').slice(0, 40)} | done`, detail, at: '', outcome: 'done', status: 'done' },
+      entry: entry || { n: null, hash, tool, title: titleFor(tool, String(detail || ''), 'done'), label: `${tool} | — | ${String(detail || '').slice(0, 40)} | done`, detail, at: '', outcome: 'done', status: 'done' },
       ...(verified !== undefined ? { verified } : {}),
       ...(finding ? { finding } : {}),
     };
@@ -523,7 +612,7 @@ export async function executeBrainAction(huntId, action, deps = {}) {
 
   if (kind === 'shell') {
     const command = String(action.command || '').slice(0, COMMAND_CAP);
-    if (!command.trim()) return { ok: false, error: 'empty_command', message: 'shell needs a command.' };
+    if (!command.trim()) { failProcess('empty_command', 'shell needs a command.'); return { ok: false, error: 'empty_command', message: 'shell needs a command.' }; }
     const badUrl = (() => {
       try {
         const urls = command.match(/https?:\/\/[^\s'"<>)|\]]+/gi) || [];
@@ -537,6 +626,7 @@ export async function executeBrainAction(huntId, action, deps = {}) {
     if (badUrl) {
       const msg = `BLOCKED — OUT OF SCOPE: ${badUrl} is not part of this programme. Only test ${target} and its listed assets. Nothing was sent.`;
       try { record(huntId, { type: 'scope_block', tool: 'shell', detail: command.slice(0, 300), via: 'be-a-brain' }); } catch { /* best-effort */ }
+      failProcess('out_of_scope', msg);
       return { ok: false, error: 'out_of_scope', output: msg };
     }
     // The tool_call + note are recorded AFTER execution (recordExecuted
@@ -558,11 +648,12 @@ export async function executeBrainAction(huntId, action, deps = {}) {
 
   if (kind === 'browser_open') {
     const url = String(action.url || '');
-    if (!url.trim()) return { ok: false, error: 'empty_command', message: 'browser_open needs a url.' };
+    if (!url.trim()) { failProcess('empty_command', 'browser_open needs a url.'); return { ok: false, error: 'empty_command', message: 'browser_open needs a url.' }; }
     const bad = scopeViolation(url, target, parsedScope);
     if (bad) {
       const msg = `BLOCKED — OUT OF SCOPE: ${bad} is not part of this programme. Nothing was opened.`;
       try { record(huntId, { type: 'scope_block', tool: 'browser_open', detail: url.slice(0, 300), via: 'be-a-brain' }); } catch { /* best-effort */ }
+      failProcess('out_of_scope', msg);
       return { ok: false, error: 'out_of_scope', output: msg };
     }
     const gui = await defaultGui(huntId, target, parsedScope, d);
@@ -575,7 +666,7 @@ export async function executeBrainAction(huntId, action, deps = {}) {
 
   if (kind === 'browser_click' || kind === 'browser_type') {
     const text = String(action.text || '');
-    if (!text.trim()) return { ok: false, error: 'empty_command', message: `${kind} needs text.` };
+    if (!text.trim()) { failProcess('empty_command', `${kind} needs text.`); return { ok: false, error: 'empty_command', message: `${kind} needs text.` }; }
     const gui = await defaultGui(huntId, target, parsedScope, d);
     let res = null;
     try {
@@ -593,14 +684,16 @@ export async function executeBrainAction(huntId, action, deps = {}) {
     const idRaw = action.id;
     if (idRaw !== undefined && idRaw !== null && String(idRaw).trim() !== '') {
       const n = parseRecallId(idRaw);
-      if (n == null) return { ok: false, error: 'unknown_action', message: 'recall needs an id like 7 or "#7", or a hash.' };
+      if (n == null) { failProcess('unknown_action', 'recall needs an id like 7 or "#7", or a hash.'); return { ok: false, error: 'unknown_action', message: 'recall needs an id like 7 or "#7", or a hash.' }; }
       rec = recallById(readEvents(huntId) || [], readReasoning(huntId) || [], n);
     } else if (action.hash) {
       rec = recallByHash(readEvents(huntId) || [], readReasoning(huntId) || [], action.hash);
     } else {
+      failProcess('unknown_action', 'recall needs {id: N} or {hash: "..."}.');
       return { ok: false, error: 'unknown_action', message: 'recall needs {id: N} or {hash: "..."}.' };
     }
     if (!rec || rec.error) {
+      failProcess('unknown_hash', String(rec && rec.error ? rec.error : 'nothing recalled'));
       return { ok: false, error: 'unknown_hash', output: String(rec && rec.error ? rec.error : 'nothing recalled') };
     }
     observation = formatFullRecord(rec);
@@ -645,6 +738,7 @@ export async function executeBrainAction(huntId, action, deps = {}) {
     });
     if (!gate.ok) {
       try { record(huntId, { type: 'claim_bounce', tool: 'claim_finding', detail: title, missing: gate.missing.map((x) => x.field), via: 'be-a-brain' }); } catch { /* best-effort */ }
+      failProcess('claim_incomplete', 'CLAIM NOT RECORDED — the proof package is incomplete. Missing: ' + gate.missing.map((x) => x.field).join(', ') + '.');
       return {
         ok: false,
         error: 'claim_incomplete',

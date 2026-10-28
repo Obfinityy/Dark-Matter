@@ -101,6 +101,12 @@ function classifyOutcome(tool, note) {
 // (the query, the payload shape, the command, the clicked text); the
 // where is the surface it touched. Nothing is invented: a field the
 // record does not have renders as '—'.
+//
+// labelParts is the structured form (what/where/variant/outcome);
+// titleFor is the human title for the same action — the one-line
+// name the process view and the action list show ("SQL Injection
+// UNION dump", not a bare tool name). Both are pure over
+// (tool, detail, outcome).
 
 function hostPathOf(url) {
   try {
@@ -116,7 +122,34 @@ function hostOfHandle(handle) {
   return m ? m[1] : '';
 }
 
-export function labelFor(tool, detail, outcome) {
+// Payload class of a shell command, from the command text alone —
+// the short phrase that says WHAT the probe was trying. Only the
+// patterns below are named; anything else falls through to the
+// command's own tokens, never to an invented label.
+function shellPayloadLabel(d) {
+  if (/union(\s|\+|%20)+select/i.test(d)) return 'UNION SELECT dump';
+  if (/<script/i.test(d)) return 'script-tag payload';
+  if (/['"]\s*or\s+['"]?1['"]?\s*=\s*['"]?1/i.test(d)) return "' OR 1=1 probe";
+  if (/\.\.\/|\.\.\\/.test(d)) return 'traversal payload';
+  if (/\bselect\b.+\bfrom\b/i.test(d)) return 'SELECT probe';
+  return null;
+}
+
+function shellParts(d) {
+  const urlMatch = String(d || '').match(/https?:\/\/[^\s'"<>)|\]]+/i);
+  const where = urlMatch ? clip(hostPathOf(urlMatch[0]) || urlMatch[0], 60) : '—';
+  let variant = shellPayloadLabel(d);
+  if (!variant && urlMatch) {
+    try {
+      const u = new URL(urlMatch[0]);
+      variant = u.search ? clip(u.search, 40) : clip(u.pathname, 40);
+    } catch { variant = null; }
+  }
+  if (!variant) variant = clip(String(d || '').split(/\s+/).slice(0, 2).join(' '), 40);
+  return { where, variant: variant || '—' };
+}
+
+export function labelParts(tool, detail, outcome) {
   const t = String(tool || '?');
   const d = String(detail || '');
   let where = '—';
@@ -135,7 +168,7 @@ export function labelFor(tool, detail, outcome) {
   } else if (t === 'desktop_click_control') {
     variant = clip(d, 40);
   } else if (t === 'shell' || t === 'desktop_terminal') {
-    variant = clip(d.split(/\s+/).slice(0, 2).join(' '), 40);
+    ({ where, variant } = shellParts(d));
   } else if (t === 'search' || t === 'browser_type' || t === 'recall' || t === 'claim_finding' || t === 'load_skill' || t === 'request_details' || t === 'hunt_plan' || t === 'task_complete') {
     variant = clip(d, 40);
   } else if (t === 'save_credential') {
@@ -145,7 +178,48 @@ export function labelFor(tool, detail, outcome) {
   } else {
     variant = clip(d, 40);
   }
-  return `${t} | ${where} | ${variant} | ${outcome}`;
+  return { what: t, where, variant, outcome };
+}
+
+export function labelFor(tool, detail, outcome) {
+  const p = labelParts(tool, detail, outcome);
+  return `${p.what} | ${p.where} | ${p.variant} | ${p.outcome}`;
+}
+
+/**
+ * The human title of one action — what the list and the process
+ * view show first. A shell probe names its payload class and
+ * surface ("SQL Injection UNION dump"), a browser step names its
+ * target ("Open 172.17.0.1:3100/vulnerabilities/sqli/"), a claim
+ * IS its title. A bare tool name is never a title: anything the
+ * patterns do not recognise falls back to the tool + its detail.
+ */
+export function titleFor(tool, detail, outcome) {
+  const t = String(tool || '?');
+  const d = String(detail || '').trim();
+  if (t === 'shell' || t === 'desktop_terminal') {
+    if (/union(\s|\+|%20)+select/i.test(d)) return 'SQL Injection UNION dump';
+    if (/<script/i.test(d)) return 'XSS probe (script tag)';
+    if (/['"]\s*or\s+['"]?1['"]?\s*=\s*['"]?1/i.test(d)) return 'SQL Injection auth-bypass probe';
+    if (/\.\.\/|\.\.\\/.test(d)) return 'Path traversal probe';
+    if (/\bselect\b.+\bfrom\b/i.test(d)) return 'SQL Injection probe';
+    const urlMatch = d.match(/https?:\/\/[^\s'"<>)|\]]+/i);
+    if (urlMatch) {
+      const hp = hostPathOf(urlMatch[0]) || urlMatch[0];
+      return `Fetch ${clip(hp, 60)}`;
+    }
+    const first = d.split(/\s+/)[0] || t;
+    return `Run ${clip(d.split(/\s+/).slice(0, 3).join(' '), 60) || first}`;
+  }
+  if (t === 'browser_open') return `Open ${clip(hostPathOf(d) || d, 60)}`;
+  if (t === 'browser_click' || t === 'desktop_click') return `Click "${clip(d, 50)}"`;
+  if (t === 'browser_type') return `Type "${clip(d, 50)}"`;
+  if (t === 'recall') return `Recall ${clip(d, 40)}`;
+  if (t === 'claim_finding') return clip(d, 80) || 'Claim a finding';
+  if (t === 'task_complete') return clip(d, 80) || 'Task complete';
+  if (t === 'search') return `Search "${clip(d, 50)}"`;
+  if (t === 'see_screen') return 'See the screen';
+  return clip(d, 80) ? `${t}: ${clip(d, 60)}` : t;
 }
 
 // --- note matching --------------------------------------------------------
@@ -195,12 +269,15 @@ export function buildActionIndex(events, reasoningRows = []) {
       const { note, next } = matchNote(notes, cursor, tool, detail);
       cursor = next;
       const outcome = classifyOutcome(tool, note);
+      const parts = labelParts(tool, detail, outcome);
       entries.push({
         n: entries.length + 1,
         tool,
         detail,
         hash: contentHash(tool, detail),
         label: labelFor(tool, detail, outcome),
+        title: titleFor(tool, detail, outcome),
+        variant: parts.variant,
         outcome,
         at: e.cachedAt || '',
         event: e,
@@ -214,6 +291,8 @@ export function buildActionIndex(events, reasoningRows = []) {
         detail: task,
         hash: contentHash('task_complete', task),
         label: labelFor('task_complete', task, 'done'),
+        title: titleFor('task_complete', task, 'done'),
+        variant: labelParts('task_complete', task, 'done').variant,
         outcome: 'done',
         at: e.cachedAt || '',
         event: e,
