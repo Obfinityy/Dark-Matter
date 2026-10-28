@@ -22,6 +22,7 @@ const {
   classifyPayloadClass,
   isProbeDetail,
   surfaceBlockCounts,
+  surfacePageOfUrl,
   exhaustedSurfaceHit,
   exhaustedSurfaceLines,
   exhaustedBlockObservation,
@@ -67,6 +68,8 @@ test('classifyPayloadClass: plain, encoded and SQLi payloads; credentials are no
   assert.equal(classifyPayloadClass(XSS), 'xss');
   assert.equal(classifyPayloadClass(XSS_ENCODED), 'xss', 'the live loop\'s dodge — an encoded variant is still XSS');
   assert.equal(classifyPayloadClass(`' OR 1=1--`), 'sqli');
+  assert.equal(classifyPayloadClass(`1' AND 1=1--`), 'sqli', 'a boolean AND probe is SQLi, not a credential');
+  assert.equal(classifyPayloadClass(`1' OR '1'='2'--`), 'sqli', 'the false-control OR probe is SQLi, not a credential');
   assert.equal(classifyPayloadClass('obfinity-hunter@example.com'), 'credential');
   assert.equal(classifyPayloadClass(''), 'credential');
 });
@@ -78,7 +81,7 @@ test('isProbeDetail matches any probe class', () => {
   assert.equal(isProbeDetail(''), false);
 });
 
-test('surfaceBlockCounts groups auth/dedupe blocks by (tool, page host, payload class)', () => {
+test('surfaceBlockCounts groups auth/dedupe blocks by (tool, page, payload class)', () => {
   const events = [
     { type: 'tool_call', tool: 'browser_open', detail: LOGIN_URL },
     { type: 'auth_block', tool: 'browser_type', detail: XSS },
@@ -88,8 +91,8 @@ test('surfaceBlockCounts groups auth/dedupe blocks by (tool, page host, payload 
     { type: 'auth_block', tool: 'browser_type', detail: XSS },
   ];
   const counts = surfaceBlockCounts({ events, reasoningRows: [] });
-  assert.equal(counts.get('browser_type|login.infomaniak.com|xss').count, 3);
-  assert.equal(counts.get('browser_type|ksuite.infomaniak.com|xss').count, 1);
+  assert.equal(counts.get('browser_type|login.infomaniak.com|/login|xss').count, 3);
+  assert.equal(counts.get('browser_type|ksuite.infomaniak.com|/dashboard|xss').count, 1);
   assert.equal(EXHAUSTED_MIN_BLOCKS, 3);
 });
 
@@ -102,27 +105,30 @@ test('surfaceBlockCounts counts WRONG PAGE executions from the paired reasoning 
     { action: 'browser_type', result: `WRONG PAGE — you are on ${LOGIN_URL}, which is NOT your target.` },
   ];
   const counts = surfaceBlockCounts({ events, reasoningRows: rows });
-  assert.equal(counts.get('browser_type|login.infomaniak.com|xss').count, 1);
+  assert.equal(counts.get('browser_type|login.infomaniak.com|/login|xss').count, 1);
 });
 
 test('exhaustedSurfaceHit fires at 3 blocks on the live page, never on another page or kind', () => {
   const counts = new Map([
-    ['browser_type|login.infomaniak.com|xss', { tool: 'browser_type', pageHost: 'login.infomaniak.com', payloadClass: 'xss', count: 3 }],
-    ['browser_type|ksuite.infomaniak.com|xss', { tool: 'browser_type', pageHost: 'ksuite.infomaniak.com', payloadClass: 'xss', count: 2 }],
+    ['browser_type|login.infomaniak.com|/login|xss', { tool: 'browser_type', pageHost: 'login.infomaniak.com', pagePath: '/login', page: 'login.infomaniak.com/login', payloadClass: 'xss', count: 3 }],
+    ['browser_type|ksuite.infomaniak.com|/dashboard|xss', { tool: 'browser_type', pageHost: 'ksuite.infomaniak.com', pagePath: '/dashboard', page: 'ksuite.infomaniak.com/dashboard', payloadClass: 'xss', count: 2 }],
   ]);
   const hit = exhaustedSurfaceHit('browser_type', { text: XSS_ENCODED }, LOGIN_URL, counts);
   assert.ok(hit);
   assert.equal(hit.count, 3);
   assert.equal(hit.pageHost, 'login.infomaniak.com');
+  assert.equal(hit.pagePath, '/login');
+  assert.equal(hit.page, 'login.infomaniak.com/login');
   assert.equal(hit.payloadClass, 'xss');
   assert.equal(exhaustedSurfaceHit('browser_type', { text: XSS }, 'https://ksuite.infomaniak.com/dashboard', counts), null, 'a different page is a different surface');
+  assert.equal(exhaustedSurfaceHit('browser_type', { text: XSS }, 'https://login.infomaniak.com/signup', counts), null, 'the same host on a different path is a different surface');
   assert.equal(exhaustedSurfaceHit('browser_click', { text: 'Sign in' }, LOGIN_URL, counts), null, 'the gate is browser_type only');
   assert.equal(exhaustedSurfaceHit('browser_type', { text: XSS }, '', counts), null, 'an unknown page gates nothing');
 });
 
 test('exhaustedSurfaceLines closes the surface and names the auth-wall routes', () => {
   const counts = new Map([
-    ['browser_type|login.infomaniak.com|xss', { tool: 'browser_type', pageHost: 'login.infomaniak.com', payloadClass: 'xss', count: 4 }],
+    ['browser_type|login.infomaniak.com|/login|xss', { tool: 'browser_type', pageHost: 'login.infomaniak.com', pagePath: '/login', page: 'login.infomaniak.com/login', payloadClass: 'xss', count: 4 }],
   ]);
   const lines = exhaustedSurfaceLines({ counts, target: TARGET, credential: null, events: [] });
   assert.ok(lines.some((l) => l.includes('EXHAUSTED: typing XSS payloads on login.infomaniak.com')));
@@ -160,6 +166,88 @@ test('exhaustedBlockObservation names the open routes (auth vs non-auth)', () =>
   );
   assert.match(other, /different page, a different payload class/);
   assert.doesNotMatch(other, /save_credential/);
+  // DVWA shape: the login page is an auth surface by its PATH —
+  // the host 172.17.0.1 carries no login marker, so the old
+  // host-only check would have missed the auth wall entirely.
+  const dvwaLogin = exhaustedBlockObservation(
+    { tool: 'browser_type', pageHost: '172.17.0.1', pagePath: '/login.php', page: '172.17.0.1/login.php', payloadClass: 'credential', count: 3 },
+    { target: 'http://172.17.0.1:3100/', credential: null, events: [] },
+  );
+  assert.match(dvwaLogin, /BLOCKED — EXHAUSTED SURFACE/);
+  assert.match(dvwaLogin, /172\.17\.0\.1\/login\.php/);
+  assert.match(dvwaLogin, /save_credential/);
+});
+
+test('surfacePageOfUrl strips query/hash and trailing slashes; bad URLs name no page', () => {
+  assert.deepEqual(surfacePageOfUrl('http://172.17.0.1:3100/vulnerabilities/sqli/?id=1#top'), { host: '172.17.0.1', path: '/vulnerabilities/sqli' });
+  assert.deepEqual(surfacePageOfUrl('http://172.17.0.1:3100/vulnerabilities/sqli/'), { host: '172.17.0.1', path: '/vulnerabilities/sqli' });
+  assert.deepEqual(surfacePageOfUrl('http://172.17.0.1:3100/login.php'), { host: '172.17.0.1', path: '/login.php' });
+  assert.deepEqual(surfacePageOfUrl('http://172.17.0.1:3100/'), { host: '172.17.0.1', path: '/' });
+  assert.deepEqual(surfacePageOfUrl('not a url'), { host: '', path: '' });
+  assert.deepEqual(surfacePageOfUrl(''), { host: '', path: '' });
+});
+
+// ---------------------------------------------------------------------------
+// DVWA live shape (28 Oct 2026, 01:00-02:16 IST): the login-page
+// credential budget must not close the SQLi page the brain is
+// already logged into — same host, different page.
+// ---------------------------------------------------------------------------
+
+const DVWA_LOGIN = 'http://172.17.0.1:3100/login.php';
+const DVWA_SQLI = 'http://172.17.0.1:3100/vulnerabilities/sqli/';
+const DVWA_SQLI_UNION = `1' UNION SELECT user,password FROM users#`;
+
+function dvwaLoginBlockedEvents() {
+  return [
+    { type: 'tool_call', tool: 'browser_open', detail: DVWA_LOGIN },
+    { type: 'tool_call', tool: 'browser_type', detail: 'admin' }, // 22:50:05 executed
+    { type: 'tool_call', tool: 'browser_open', detail: DVWA_LOGIN }, // 23:22:25 reload
+    { type: 'tool_call', tool: 'browser_type', detail: 'password' }, // 23:06:49 executed
+    { type: 'auth_block', tool: 'browser_type', detail: 'admin' }, // 23:44:28
+    { type: 'auth_block', tool: 'browser_type', detail: 'admin' }, // 23:45:13
+    { type: 'auth_block', tool: 'browser_type', detail: 'admin' }, // 23:48:22
+    { type: 'tool_call', tool: 'browser_open', detail: DVWA_SQLI }, // brain on the SQLi page, logged in
+  ];
+}
+
+test('DVWA live shape: login-page blocks do not close the SQLi page on the same host', () => {
+  const counts = surfaceBlockCounts({ events: dvwaLoginBlockedEvents(), reasoningRows: [] });
+  // The login budget lives on the login page only.
+  assert.equal(counts.get('browser_type|172.17.0.1|/login.php|credential').count, 3);
+  assert.equal(counts.get('browser_type|172.17.0.1|/vulnerabilities/sqli|credential'), undefined);
+  // Payload typing on the SQLi page is allowed — baseline, boolean
+  // probe, UNION probe, false control.
+  assert.equal(exhaustedSurfaceHit('browser_type', { text: '1' }, DVWA_SQLI, counts), null, 'the baseline must reach the SQLi page');
+  assert.equal(exhaustedSurfaceHit('browser_type', { text: `1' AND 1=1 --` }, DVWA_SQLI, counts), null);
+  assert.equal(exhaustedSurfaceHit('browser_type', { text: DVWA_SQLI_UNION }, DVWA_SQLI, counts), null);
+  assert.equal(exhaustedSurfaceHit('browser_type', { text: `1' OR '1'='2' --` }, DVWA_SQLI, counts), null);
+  // The same text on another page of the same host is a different surface.
+  assert.equal(exhaustedSurfaceHit('browser_type', { text: 'admin' }, 'http://172.17.0.1:3100/index.php', counts), null);
+  // But the login re-type on the login page is still refused — the
+  // loop protection the gate exists for.
+  const loginHit = exhaustedSurfaceHit('browser_type', { text: 'admin' }, DVWA_LOGIN, counts);
+  assert.ok(loginHit, 'the login re-type must stay blocked');
+  assert.equal(loginHit.key, 'browser_type|172.17.0.1|/login.php|credential');
+  assert.equal(loginHit.count, 3);
+});
+
+test('DVWA live shape: a true repeat loop on the SQLi page itself still closes that page', () => {
+  const events = [
+    { type: 'tool_call', tool: 'browser_open', detail: DVWA_SQLI },
+    { type: 'dedup_block', tool: 'browser_type', detail: '1' },
+    { type: 'dedup_block', tool: 'browser_type', detail: '1' },
+    { type: 'auth_block', tool: 'browser_type', detail: '1' },
+  ];
+  const counts = surfaceBlockCounts({ events, reasoningRows: [] });
+  const hit = exhaustedSurfaceHit('browser_type', { text: '1' }, DVWA_SQLI, counts);
+  assert.ok(hit, 'three blocks on the SQLi page close the SQLi credential surface');
+  assert.equal(hit.key, 'browser_type|172.17.0.1|/vulnerabilities/sqli|credential');
+  assert.equal(hit.count, 3);
+  // A different payload class on the same page is still open — the
+  // gate closes a (page, class), never the whole page.
+  assert.equal(exhaustedSurfaceHit('browser_type', { text: DVWA_SQLI_UNION }, DVWA_SQLI, counts), null);
+  // And the login page is untouched by SQLi-page blocks.
+  assert.equal(exhaustedSurfaceHit('browser_type', { text: 'admin' }, DVWA_LOGIN, counts), null);
 });
 
 // ---------------------------------------------------------------------------
@@ -403,4 +491,53 @@ test('EX-9: a repeated desktop_click on the same window is deduped', async () =>
   // DEDUP_THRESHOLD is 2: the first two clicks execute, the third is blocked.
   assert.equal(s.execCalls.filter((c) => c.includes('windowactivate')).length, 2);
   assert.match(res.log[3].observation, /BLOCKED — ALREADY DONE/);
+});
+
+test('EX-10: DVWA live shape end-to-end — the baseline probe on the SQLi page executes after 3 login-page blocks', async () => {
+  // The live record: three auth_loop blocks on 'admin' (login page,
+  // 23:44-23:48 IST), the brain already logged in and on the SQLi
+  // page. The baseline '1' must EXECUTE — the login-page budget
+  // does not close the SQLi page — and no exhausted_block is
+  // recorded. Meta says logged in, so login-first stays out.
+  const SQLI_SNAP = {
+    url: DVWA_SQLI,
+    title: 'SQL Injection',
+    text: 'SQL Injection User ID Submit',
+    elements: [
+      { label: 'User ID', tag: 'input', type: 'text', id: 'id' },
+      { label: 'Submit', tag: 'button', id: 'submit' },
+    ],
+  };
+  const guiCalls = [];
+  const recorded = [];
+  const res = await humanIteration('h_test_dvwa_exhausted', 'http://172.17.0.1:3100/', {
+    turns: 1,
+    deps: {
+      chat: async () => `I will send the baseline probe.\n{"action":"browser_type","text":"1"}`,
+      gui: {
+        open: async () => { guiCalls.push('open'); return { observation: 'opened', snapshot: SQLI_SNAP }; },
+        snapshot: async () => { guiCalls.push('snapshot'); return { observation: `Page: SQL Injection — ${DVWA_SQLI}\nUser ID: [ ] Submit`, snapshot: SQLI_SNAP }; },
+        click: async () => { guiCalls.push('click'); return { ok: true, observation: 'clicked', snapshot: SQLI_SNAP }; },
+        type: async () => { guiCalls.push('type'); return { ok: true, observation: 'Typed.', snapshot: SQLI_SNAP }; },
+        screenshot: async () => { guiCalls.push('screenshot'); return { observation: 'shot', snapshot: SQLI_SNAP }; },
+      },
+      execRaw: async (h, cmd) => {
+        if (String(cmd || '').includes('xdotool search')) return { stdout: WINDOWS_OUT, stderr: '', code: 0 };
+        return { stdout: '', stderr: '' };
+      },
+      desktopScreenshot: async () => ({ ok: true, name: 'desktop-20261028120000.jpg' }),
+      record: (h, e) => { recorded.push(e); },
+      recordNote: () => {},
+      readMeta: () => ({ auth: { dvwa: { loggedIn: true } } }),
+      readEvents: () => dvwaLoginBlockedEvents(),
+      buildBriefing: async () => '',
+      machineControlled: () => false,
+      assess: null,
+    },
+  });
+  assert.equal(res.turnsRun, 1);
+  assert.ok(guiCalls.includes('type'), 'the baseline probe must execute — the login-page budget does not close the SQLi page');
+  assert.ok(!recorded.some((e) => e.type === 'exhausted_block'), 'no exhausted_block may be recorded for the SQLi-page type');
+  assert.match(res.log[0].observation, /Typed/);
+  assert.doesNotMatch(res.log[0].observation, /BLOCKED — EXHAUSTED SURFACE/);
 });

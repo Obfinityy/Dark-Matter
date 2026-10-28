@@ -539,7 +539,7 @@ const normTitle = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim
 export const PROBE_TOPICS = [
   { id: 'ssti', label: 'SSTI (template injection)', re: /\bssti\b|template injection/i, probes: [/\{\{[^}]{0,60}\}\}/, /\$\{[^}]{0,60}\}/, /\{%[^%]{0,60}%}/], testValue: '{{7*7}}', testNote: 'if the response shows 49, the template engine evaluated your input' },
   { id: 'xss', label: 'XSS (cross-site scripting)', re: /\bxss\b|cross[- ]site scripting/i, probes: [/<script\b/i, /\balert\s*\(/, /\bonerror\s*=/i, /<svg\b/i, /\bprompt\s*\(/], testValue: '<script>alert(1)</script>', testNote: 'then check whether your marker comes back in the page unescaped' },
-  { id: 'sqli', label: 'SQL injection', re: /\bsqli\b|sql injection/i, probes: [/\bunion\s+(all\s+)?select\b/i, /'\s*or\s+('?1'?|\d+)\s*=\s*\1/i, /'\s*(--|#)/, /\b(sleep|benchmark)\s*\(\s*\d/i], testValue: "' OR 1=1", testNote: "compare with the same request using ' OR 1=2 — if the two answers differ, the input reaches the query" },
+  { id: 'sqli', label: 'SQL injection', re: /\bsqli\b|sql injection/i, probes: [/\bunion\s+(all\s+)?select\b/i, /'\s*(or|and)\s+('?[\w-]+'?|\d+)\s*=\s*('?[\w-]+'?|\d+)/i, /'\s*(--|#)/, /\b(sleep|benchmark)\s*\(\s*\d/i], testValue: "' OR 1=1", testNote: "compare with the same request using ' OR 1=2 — if the two answers differ, the input reaches the query" },
   { id: 'ssrf', label: 'SSRF', re: /\bssrf\b|server[- ]side request forgery/i, probes: [/169\.254\.169\.254/, /metadata\.google/i, /100\.100\.100\.200/, /\bgopher:\/\//i], testValue: 'http://169.254.169.254/latest/meta-data/', testNote: 'watch whether the server fetches it or the answer changes' },
   { id: 'xxe', label: 'XXE', re: /\bxxe\b|xml external entit/i, probes: [/<!ENTITY/i, /<!DOCTYPE[^>]*\[/], testValue: 'an XML body declaring <!ENTITY xxe SYSTEM "file:///etc/passwd">', testNote: "if the response contains the file's contents, the parser resolved your entity" },
   { id: 'lfi', label: 'LFI / path traversal', re: /\blfi\b|path traversal|directory traversal|local file inclusion/i, probes: [/\.\.[/\\]\.\.[/\\]/, /\/etc\/passwd/, /%2e%2e(%2f|\/)/i], testValue: '../../etc/passwd', testNote: "if the response contains 'root:' lines, the server read the file" },
@@ -2431,7 +2431,7 @@ export function authGateHit(kind, action, history, lastObservation, ctx) {
 //
 // So the combination itself is tracked, deterministically, from
 // the hunt's own record — auth_block + dedup_block + WRONG PAGE
-// refusals grouped by (tool, page host, payload class) — and at
+// refusals grouped by (tool, page, payload class) — and at
 // EXHAUSTED_MIN_BLOCKS blocks the surface is CLOSED: the gate
 // below refuses ANY further attempt on it, whatever the payload
 // wording. The brain still chooses everything else; the dead loop
@@ -2456,7 +2456,7 @@ export function classifyPayloadClass(text) {
   // Encoded variants the probe shapes miss (the live loop's dodge):
   // %3cscript, &lt;script, unicode-escaped <script.
   if (/%3c\s*script|&lt;\s*script|\\u003c\s*script/i.test(t)) return 'xss';
-  if (/%27\s*or\s+|%27\s*(--|#)/i.test(t)) return 'sqli';
+  if (/%27\s*(or|and)\s+|%27\s*(--|#)/i.test(t)) return 'sqli';
   return 'credential';
 }
 
@@ -2494,8 +2494,8 @@ export function credentialStateFor({ events = [], target = '' } = {}) {
   return { saved: true, handle: saved.handle, verified: !!saved.verified, used };
 }
 
-function surfaceKey(tool, pageHost, payloadClass) {
-  return `${String(tool || '').toLowerCase()}|${String(pageHost || '').toLowerCase()}|${String(payloadClass || '')}`;
+function surfaceKey(tool, pageHost, pagePath, payloadClass) {
+  return `${String(tool || '').toLowerCase()}|${String(pageHost || '').toLowerCase()}|${String(pagePath || '')}|${String(payloadClass || '')}`;
 }
 
 function hostOfUrl(u) {
@@ -2507,7 +2507,33 @@ function hostOfUrl(u) {
 }
 
 /**
- * Block counts per (tool, page host, payload class), purely from
+ * The page a URL names, for the exhaustion key: host + pathname.
+ * The pathname carries the page — /login.php and
+ * /vulnerabilities/sqli/ on the same host are DIFFERENT surfaces
+ * (DVWA, live 28 Oct 2026: the host-only key let three login-page
+ * auth_blocks close the SQLi page the brain was already logged
+ * into, so its baseline '1' and its boolean probes were refused
+ * as exhausted_block 18 times). Query + hash are stripped: they
+ * name the same page with different input, and keeping them would
+ * let each query variant dodge the surface that just closed.
+ * Trailing slash stripped so /sqli/ and /sqli are one page.
+ */
+export function surfacePageOfUrl(u) {
+  let host = '';
+  let path = '';
+  try {
+    const parsed = new URL(String(u || ''));
+    host = parsed.hostname.toLowerCase();
+    path = parsed.pathname || '/';
+  } catch {
+    return { host: '', path: '' };
+  }
+  if (path.length > 1) path = path.replace(/\/+$/, '');
+  return { host, path: path || '/' };
+}
+
+/**
+ * Block counts per (tool, page, payload class), purely from
  * the hunt's record. Page attribution walks the event stream in
  * order, tracking the live page from browser_open URLs; a WRONG
  * PAGE execution names its own page in the paired reasoning row.
@@ -2518,10 +2544,10 @@ function hostOfUrl(u) {
  */
 export function surfaceBlockCounts({ events = [], reasoningRows = [] } = {}) {
   const counts = new Map();
-  const bump = (tool, pageHost, payloadClass) => {
+  const bump = (tool, pageHost, pagePath, payloadClass) => {
     if (!pageHost) return;
-    const key = surfaceKey(tool, pageHost, payloadClass);
-    const cur = counts.get(key) || { tool: String(tool).toLowerCase(), pageHost, payloadClass, count: 0 };
+    const key = surfaceKey(tool, pageHost, pagePath, payloadClass);
+    const cur = counts.get(key) || { tool: String(tool).toLowerCase(), pageHost, pagePath, page: pageHost + pagePath, payloadClass, count: 0 };
     cur.count++;
     counts.set(key, cur);
   };
@@ -2531,20 +2557,20 @@ export function surfaceBlockCounts({ events = [], reasoningRows = [] } = {}) {
     if (e && e.type === 'tool_call' && String(e.tool || '').toLowerCase() === 'browser_type') typeCalls.push(e);
   }
   let typeIdx = 0;
-  let currentHost = '';
+  let currentPage = { host: '', path: '' };
   for (const e of events || []) {
     if (!e) continue;
     if (e.type === 'tool_call' && String(e.tool || '').toLowerCase() === 'browser_open') {
-      const h = hostOfUrl(e.detail);
-      if (h) currentHost = h;
+      const pg = surfacePageOfUrl(e.detail);
+      if (pg.host) currentPage = pg;
       continue;
     }
     if (e.type === 'auth_block' && String(e.tool || '').toLowerCase() === 'browser_type') {
-      bump('browser_type', currentHost, classifyPayloadClass(e.detail));
+      bump('browser_type', currentPage.host, currentPage.path, classifyPayloadClass(e.detail));
       continue;
     }
     if (e.type === 'dedup_block' && String(e.tool || '').toLowerCase() === 'browser_type') {
-      bump('browser_type', currentHost, classifyPayloadClass(e.detail));
+      bump('browser_type', currentPage.host, currentPage.path, classifyPayloadClass(e.detail));
       continue;
     }
   }
@@ -2554,10 +2580,10 @@ export function surfaceBlockCounts({ events = [], reasoningRows = [] } = {}) {
     const result = String(r.result || '');
     if (!result.startsWith('WRONG PAGE')) continue;
     const m = /WRONG PAGE — you are on (\S+),/.exec(result);
-    const pageHost = m ? hostOfUrl(m[1]) : currentHost;
+    const pg = m ? surfacePageOfUrl(m[1]) : currentPage;
     const call = typeCalls[typeIdx];
     typeIdx++;
-    if (call) bump('browser_type', pageHost, classifyPayloadClass(call.detail));
+    if (call) bump('browser_type', pg.host, pg.path, classifyPayloadClass(call.detail));
   }
   return counts;
 }
@@ -2574,12 +2600,13 @@ export function surfaceBlockCounts({ events = [], reasoningRows = [] } = {}) {
 export function exhaustedSurfaceHit(kind, action, currentPage, counts, pageState = null) {
   if (String(kind || '').toLowerCase() !== 'browser_type') return null;
   const page = String(currentPage || (pageState && pageState.currentUrl) || '');
-  const pageHost = hostOfUrl(page);
+  const { host: pageHost, path: pagePath } = surfacePageOfUrl(page);
   if (!pageHost) return null;
   const cls = classifyPayloadClass(action && action.text);
-  const entry = (counts || new Map()).get(surfaceKey('browser_type', pageHost, cls));
+  const key = surfaceKey('browser_type', pageHost, pagePath, cls);
+  const entry = (counts || new Map()).get(key);
   if (!entry || entry.count < EXHAUSTED_MIN_BLOCKS) return null;
-  return { tool: 'browser_type', pageHost, payloadClass: cls, count: entry.count, key: surfaceKey('browser_type', pageHost, cls) };
+  return { tool: 'browser_type', pageHost, pagePath, page: pageHost + pagePath, payloadClass: cls, count: entry.count, key };
 }
 
 function isAuthSurface(pageHost, pageType) {
@@ -2603,9 +2630,9 @@ export function exhaustedSurfaceLines({ counts = null, target = '', credential =
   if (!rows.length) return [];
   const lines = ['=== EXHAUSTED — THESE SURFACES ARE CLOSED (your own record) ==='];
   for (const r of rows.slice(0, 5)) {
-    lines.push(`- EXHAUSTED: typing ${r.payloadClass === 'credential' ? 'credentials' : `${r.payloadClass.toUpperCase()} payloads`} on ${r.pageHost} — blocked ×${r.count} (auth/dedupe/wrong-page). Closed: the gate refuses any further attempt here, whatever the payload wording.`);
+    lines.push(`- EXHAUSTED: typing ${r.payloadClass === 'credential' ? 'credentials' : `${r.payloadClass.toUpperCase()} payloads`} on ${r.page || r.pageHost} — blocked ×${r.count} (auth/dedupe/wrong-page). Closed: the gate refuses any further attempt here, whatever the payload wording.`);
   }
-  const authRows = rows.filter((r) => isAuthSurface(r.pageHost));
+  const authRows = rows.filter((r) => isAuthSurface(r.page || r.pageHost));
   if (authRows.length) {
     const total = authRows.reduce((n, r) => n + r.count, 0);
     lines.push('=== AUTH WALL — LOGIN/SIGNUP SURFACE EXHAUSTED ===');
@@ -2626,8 +2653,8 @@ export function exhaustedSurfaceLines({ counts = null, target = '', credential =
 /** The observation a blocked exhausted-surface attempt gets: what closed, how many blocks, and the routes that are still open (auth wall → account route + recon; anything else → a different page/class, or act on what is already known). */
 export function exhaustedBlockObservation(hit, { target = '', credential = null, events = [] } = {}) {
   const kind = hit.payloadClass === 'credential' ? 'credentials' : `${hit.payloadClass.toUpperCase()} payloads`;
-  let out = `BLOCKED — EXHAUSTED SURFACE: typing ${kind} on ${hit.pageHost} has already been blocked ×${hit.count} (auth/dedupe/wrong-page). This surface is closed — the gate refuses any further attempt here, whatever the payload wording. `;
-  if (isAuthSurface(hit.pageHost)) {
+  let out = `BLOCKED — EXHAUSTED SURFACE: typing ${kind} on ${hit.page || hit.pageHost} has already been blocked ×${hit.count} (auth/dedupe/wrong-page). This surface is closed — the gate refuses any further attempt here, whatever the payload wording. `;
+  if (isAuthSurface(hit.page || hit.pageHost)) {
     if (credential && credential.saved) {
       out += `The way through is the saved credential (${credential.handle}${credential.verified ? ', verified' : ', not yet verified'}) — use_saved_credential with the field labels from a snapshot, then browser_click the submit button. `;
     } else {
@@ -4037,9 +4064,9 @@ export async function humanIteration(huntId, target, opts = {}) {
       // A different page is a different surface: the gate lifts
       // the moment the page changes.
       try { deps.record(huntId, { type: 'exhausted_block', tool: exhaustedHit.tool, detail: exhaustedHit.key, count: exhaustedHit.count, via: 'human-mode' }); } catch { /* best-effort */ }
-      say(`Exhausted surface — ${exhaustedHit.tool} ${exhaustedHit.payloadClass} on ${exhaustedHit.pageHost} already blocked ×${exhaustedHit.count}.`);
+      say(`Exhausted surface — ${exhaustedHit.tool} ${exhaustedHit.payloadClass} on ${exhaustedHit.page} already blocked ×${exhaustedHit.count}.`);
       observation = exhaustedBlockObservation(exhaustedHit, { target, credential: credentialState, events: turnEvents });
-      note({ action: `exhausted_block: ${exhaustedHit.tool} ${exhaustedHit.payloadClass} on ${exhaustedHit.pageHost}`, why: thinkingText, result: `surface closed — blocked ×${exhaustedHit.count}`, learned: 'A surface blocked 3 times is closed; the way forward is a different page, a different payload class, or the account/recon routes.' });
+      note({ action: `exhausted_block: ${exhaustedHit.tool} ${exhaustedHit.payloadClass} on ${exhaustedHit.page}`, why: thinkingText, result: `surface closed — blocked ×${exhaustedHit.count}`, learned: 'A surface blocked 3 times is closed; the way forward is a different page, a different payload class, or the account/recon routes.' });
     } else if (wrongTargetHit.length) {
       // WRONG-TARGET GATE (zero-genuine lane) — after the exhausted
       // gate, before dedupe: the action targets another app's
