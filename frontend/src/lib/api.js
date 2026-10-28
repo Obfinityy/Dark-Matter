@@ -229,6 +229,16 @@ export async function getHuntEvents(huntId, limit = 200) {
   return get(`/api/v1/hunts/${encodeURIComponent(huntId)}/events?limit=${limit}`);
 }
 
+// --- Finding detail (28 Oct 2026, finding-detail lane) -----------------------
+// One finding's full recorded detail — evidence, verification, stamps —
+// from the backend's single read path. The panel list rows carry only
+// {title, severity, verified, detail, verification, stamps}; everything
+// else (evidence, reproduction, timestamps) comes from here. 404 is
+// {ok:false, error:'unknown_finding'} — the caller says so honestly.
+export async function getFindingDetail(huntId, title) {
+  return get(`/api/v1/hunts/${encodeURIComponent(huntId)}/findings/${encodeURIComponent(title)}`);
+}
+
 // --- Dynamic details requests (27 Oct 2026, owner order) -------------------
 // The agent asks the owner for details it needs (a login, an OTP, any
 // field) instead of creating its own account. Responses carry the PUBLIC

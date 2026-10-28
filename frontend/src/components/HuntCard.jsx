@@ -86,6 +86,7 @@ import HuntPiP from './HuntPiP';
 import HuntTerminalModal from './HuntTerminalModal';
 import LiveMachine from './LiveMachine';
 import BrainConsole from './BrainConsole';
+import FindingDetail from './FindingDetail';
 
 export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, onTalkWithAI, onGetReport }) {
   const [status, setStatus] = useState(hunt.status || 'idle');
@@ -112,6 +113,10 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   // silent Meta), fallback, and the model list with availability.
   const [brain, setBrain] = useState(null);
   const [brainBusy, setBrainBusy] = useState(false);
+  // FINDING DETAIL (28 Oct 2026): the title of the finding whose
+  // detail modal is open, or null. Opening/closing it changes NO
+  // hunt state — it only fetches that one finding's recorded detail.
+  const [selectedFindingTitle, setSelectedFindingTitle] = useState(null);
   // BE A BRAIN (28 Oct 2026, owner order): who is the brain — 'ai'
   // (the loop drives) or 'parent' (the owner drives from the Brain
   // Console). null = unknown yet (backend predates the lane or the
@@ -673,13 +678,25 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
           {totalFindings > 0 && (
           <ul className="findings-list">
             {verifiedFindings.map((f, idx) => (
-              <li key={idx} className={`finding ${SEVERITY_CLASS[f.severity] || 'sev-low'}`}>
-                <span className="finding-sev">{f.severity}</span>
-                <span className="finding-title">{f.title}</span>
-                <span className="finding-badge finding-verified" title={f.verification || 'Verified'}>
-                  ✓ verified
-                </span>
-                {f.detail && <div className="finding-detail">{f.detail}</div>}
+              <li key={idx} className="finding-item">
+                {/* FINDING DETAIL (28 Oct 2026): rows are buttons —
+                    clicking one opens the detail modal for that
+                    title. Row content is unchanged. */}
+                <button
+                  type="button"
+                  className={`finding finding-row ${SEVERITY_CLASS[f.severity] || 'sev-low'}`}
+                  onClick={() => setSelectedFindingTitle(f.title)}
+                  title={`View detail — ${f.title}`}
+                  aria-label={`View detail for ${f.title}`}
+                >
+                  <span className="finding-sev">{f.severity}</span>
+                  <span className="finding-title">{f.title}</span>
+                  <span className="finding-badge finding-verified" title={f.verification || 'Verified'}>
+                    ✓ verified
+                  </span>
+                  <span className="finding-view-hint" aria-hidden="true">View detail →</span>
+                  {f.detail && <span className="finding-detail">{f.detail}</span>}
+                </button>
               </li>
             ))}
           </ul>
@@ -687,18 +704,37 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
           {unverifiedCount > 0 && (
           <ul className="findings-list findings-leads">
             {unverifiedFindings.map((f, idx) => (
-              <li key={`lead-${idx}`} className={`finding finding-lead ${SEVERITY_CLASS[f.severity] || 'sev-low'}`}>
-                <span className="finding-sev">{f.severity}</span>
-                <span className="finding-title">{f.title}</span>
-                <span className="finding-badge finding-unverified" title={f.verification || 'Under investigation'}>
-                  under investigation
-                </span>
-                {f.detail && <div className="finding-detail">{f.detail}</div>}
+              <li key={`lead-${idx}`} className="finding-item">
+                <button
+                  type="button"
+                  className={`finding finding-row finding-lead ${SEVERITY_CLASS[f.severity] || 'sev-low'}`}
+                  onClick={() => setSelectedFindingTitle(f.title)}
+                  title={`View detail — ${f.title}`}
+                  aria-label={`View detail for ${f.title}`}
+                >
+                  <span className="finding-sev">{f.severity}</span>
+                  <span className="finding-title">{f.title}</span>
+                  <span className="finding-badge finding-unverified" title={f.verification || 'Under investigation'}>
+                    under investigation
+                  </span>
+                  <span className="finding-view-hint" aria-hidden="true">View detail →</span>
+                  {f.detail && <span className="finding-detail">{f.detail}</span>}
+                </button>
               </li>
             ))}
           </ul>
           )}
         </div>
+      )}
+
+      {/* FINDING DETAIL (28 Oct 2026): the modal for the selected
+          row. Closing it returns to the list with no state change. */}
+      {selectedFindingTitle && (
+        <FindingDetail
+          huntId={hunt.huntId}
+          title={selectedFindingTitle}
+          onClose={() => setSelectedFindingTitle(null)}
+        />
       )}
 
       <div className="hunt-controls">

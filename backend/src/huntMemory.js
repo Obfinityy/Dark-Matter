@@ -217,6 +217,91 @@ export function panelFindings(findings) {
 }
 
 /**
+ * Full detail record for ONE finding title — the read behind
+ * GET /:id/findings/:title (finding-detail lane, 28 Oct 2026).
+ * Groups stamps by the SAME normalised title panelFindings uses
+ * ("PoC confirmed:" collapses, case/whitespace-insensitive), so
+ * the detail view can never disagree with the panel row for the
+ * same title. Returns null when no stamp matches.
+ *
+ * Shape: { title, severity, verified, verification, detail,
+ * evidence, stamps, at, firstSeen, lastSeen }.
+ *   verified — true when ANY surviving stamp counts as verified
+ *     (verified AND not an error-page stamp, exactly the
+ *     panelFindings rule).
+ *   severity/verification/detail — from a verified stamp when one
+ *     exists, else the first honest value (same precedence as
+ *     panelFindings: a demoted error-page stamp's "confirmed"
+ *     verification/detail never leaks onto the record).
+ *   evidence — the verified stamp's evidence as stored (object or
+ *     string, returned as-is); for an unverified title, the most
+ *     recent stamp's evidence if any, else null. Missing fields
+ *     are '' or null — never invented.
+ *   at — the verified stamp's timestamp (cachedAt or at), else ''.
+ *   firstSeen/lastSeen — first/last stamp timestamps for the
+ *     title, else ''. Pure over the findings array.
+ */
+export function findingDetail(findings, title) {
+  const key = normTitle(title);
+  if (!key) return null;
+  let slot = null;
+  for (const f of findings || []) {
+    if (!f) continue;
+    const fTitle = String(f.title || f.type || 'Finding').trim() || 'Finding';
+    if (normTitle(fTitle) !== key) continue;
+    if (!slot) {
+      slot = {
+        record: {
+          title: fTitle, severity: 'low', verified: false,
+          verification: '', detail: '', evidence: null,
+          stamps: 0, at: '', firstSeen: '', lastSeen: '',
+        },
+        sevFromVerified: false,
+        sevSet: false,
+        verifiedStamp: null,
+        latestWithEvidence: null,
+      };
+    }
+    const rec = slot.record;
+    rec.stamps += 1;
+    const ts = eventTs(f);
+    if (ts) {
+      if (!rec.firstSeen) rec.firstSeen = ts;
+      rec.lastSeen = ts;
+    }
+    const countsAsVerified = Boolean(f.verified) && !isErrorPageFinding(f);
+    const sev = String(f.severity || '').toLowerCase();
+    if (PANEL_SEVERITIES.has(sev)) {
+      if (countsAsVerified) { rec.severity = sev; slot.sevFromVerified = true; slot.sevSet = true; }
+      else if (!slot.sevFromVerified && !slot.sevSet) { rec.severity = sev; slot.sevSet = true; }
+    }
+    if (countsAsVerified && !slot.verifiedStamp) {
+      slot.verifiedStamp = f;
+      rec.verified = true;
+      rec.title = fTitle; // display the verified stamp's own casing
+      if (f.verification) rec.verification = String(f.verification);
+      if (ts) rec.at = ts;
+    }
+    const detail = String(f.detail || '').trim();
+    // Same leak rule as panelFindings: verification comes ONLY from
+    // a stamp that counts as verified; a detail that claims
+    // confirmation is dropped the same way.
+    if (detail && (!rec.detail || countsAsVerified) && (countsAsVerified || !/confirmed/i.test(detail))) {
+      rec.detail = detail;
+    }
+    if (f.evidence !== undefined && f.evidence !== null && f.evidence !== '') {
+      slot.latestWithEvidence = f.evidence;
+    }
+  }
+  if (!slot) return null;
+  const rec = slot.record;
+  rec.evidence = slot.verifiedStamp && slot.verifiedStamp.evidence !== undefined && slot.verifiedStamp.evidence !== null
+    ? slot.verifiedStamp.evidence
+    : slot.latestWithEvidence;
+  return rec;
+}
+
+/**
  * The two counts every surface quotes, in panelFindings' unit —
  * ONE unique title each: `confirmed` counts titles with at least
  * one verified surviving stamp, `leads` counts the rest. Derived

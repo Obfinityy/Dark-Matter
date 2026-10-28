@@ -50,7 +50,7 @@ import {
 import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience, resolveHuntMode, HUNT_MODES, MODE_ORDER, TIERS } from '../hunt-intel/index.js';
 import { getHuntCost, getUserCosts } from '../costTracker.js';
 import { parseBudgetUsd } from '../budgetCap.js';
-import { loadHuntMemory, panelFindings, applyRetractions, isErrorPageFinding, normTitle } from '../huntMemory.js';
+import { loadHuntMemory, panelFindings, findingDetail, applyRetractions, isErrorPageFinding, normTitle } from '../huntMemory.js';
 import { understandTarget } from '../targetIntel.js';
 import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
 import { getBalanceUsd } from '../billing/credits.js';
@@ -1040,6 +1040,34 @@ router.get('/:id/events', requireAuth, (req, res) => {  const meta = requireHunt
   let findings = [];
   try { findings = panelFindings(loadHuntMemory(req.params.id).findings); } catch { findings = []; }
   res.json({ ok: true, huntId: req.params.id, events: events.slice(-limit), findings });
+});
+
+// ---- Finding detail: the full record behind one panel row --------
+// GET /:id/findings/:title — one finding title's complete record
+// (verified stamp's evidence as stored, timestamps, stamp count).
+// The panel rows (GET /:id/events -> panelFindings) drop the raw
+// evidence, so the detail view cannot be served from them, and the
+// action index only covers tool_call/task_complete events, so the
+// output-by-hash route cannot serve it either. Read-only: the same
+// retraction-filtered loadHuntMemory record the events route uses,
+// grouped by the same normalised title. :title is URL-encoded by
+// the caller (encodeURIComponent); Express decodes %2F back to '/'
+// before matching the param, so titles containing '/' still match.
+// Owner-only, like the events route. 404 unknown_finding when no
+// stamp of that title survives on this hunt.
+router.get('/:id/findings/:title', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  let detail = null;
+  try { detail = findingDetail(loadHuntMemory(req.params.id).findings, req.params.title); } catch { detail = null; }
+  if (!detail) {
+    return res.status(404).json({
+      ok: false,
+      error: 'unknown_finding',
+      message: `No finding titled "${req.params.title}" on this hunt.`,
+    });
+  }
+  res.json({ ok: true, huntId: req.params.id, finding: detail });
 });
 
 // ---- Download full hunt memory: meta + all events + findings as JSON.
