@@ -1064,6 +1064,158 @@ button { font-family: inherit; }
   color: var(--dm-red);
   font-weight: 600;
 }
+/* BE A BRAIN (28 Oct 2026): the "You are the brain" badge in the hunt
+   status line, the takeover pill next to the Brain selector, and the
+   Brain Console panel — same light ChatGPT idiom as the hunt card
+   (hairline borders, pill buttons, 12px radius). */
+.brain-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dm-green);
+  background: rgba(26, 127, 75, 0.1);
+  border: 1px solid rgba(26, 127, 75, 0.35);
+  border-radius: 999px;
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+.hunt-pill-btn.brain-takeover {
+  color: var(--dm-brand, #b8860b);
+  border-color: rgba(184, 134, 11, 0.45);
+  font-weight: 600;
+}
+.hunt-pill-btn.brain-takeover:hover:not(:disabled) {
+  background: var(--dm-brand-soft, #f5ead0);
+}
+.brain-console {
+  margin: 0 18px 14px;
+  border: 1px solid var(--dm-border);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+.brain-console-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--dm-surface);
+  border-bottom: 1px solid var(--dm-border);
+  flex-wrap: wrap;
+}
+.brain-console-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.brain-console-badge {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--dm-green);
+}
+.brain-console-sub { font-size: 12px; color: var(--dm-secondary); }
+.brain-console-header-btns { display: flex; align-items: center; gap: 8px; }
+.brain-console-close {
+  background: none;
+  border: 1px solid var(--dm-border);
+  border-radius: 999px;
+  color: var(--dm-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+.brain-console-close:hover { background: var(--dm-surface); color: var(--dm-text); }
+.brain-console-section { padding: 12px 14px; border-top: 1px solid var(--dm-border); }
+.brain-console-section:first-of-type { border-top: none; }
+.brain-console-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.brain-console-count, .brain-console-iter, .brain-console-state {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--dm-secondary);
+  background: var(--dm-surface);
+  border: 1px solid var(--dm-border);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.brain-console-error { font-size: 12px; color: var(--dm-red); margin-top: 6px; }
+.brain-console-empty { font-size: 12px; color: var(--dm-faint); font-style: italic; }
+.brain-process { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.brain-process-row { display: flex; gap: 10px; align-items: baseline; }
+.brain-process-label { flex: none; width: 100px; font-size: 12px; font-weight: 600; color: var(--dm-secondary); }
+.brain-process-lists { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 4px; }
+.brain-process-list { flex: 1; min-width: 200px; }
+.brain-process-list-title { font-size: 12px; font-weight: 600; color: var(--dm-secondary); margin-bottom: 4px; }
+.brain-process-list ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.brain-process-list li { margin: 2px 0; }
+.brain-action-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.brain-action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--dm-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--dm-text);
+}
+.brain-action-row:hover { background: var(--dm-surface); }
+.brain-action-row.selected { border-color: var(--dm-blue); background: var(--dm-accent); }
+.brain-action-n { flex: none; font-weight: 600; color: var(--dm-secondary); }
+.brain-action-hash { flex: none; font-family: ui-monospace, monospace; color: var(--dm-blue); }
+.brain-action-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brain-action-time { flex: none; font-variant-numeric: tabular-nums; color: var(--dm-faint); }
+.brain-action-status { flex: none; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 1px 8px; border: 1px solid var(--dm-border); color: var(--dm-secondary); }
+.brain-action-status.done { color: var(--dm-green); border-color: rgba(26, 127, 75, 0.35); }
+.brain-action-status.failed { color: var(--dm-red); border-color: rgba(196, 61, 43, 0.35); }
+.brain-action-status.running { color: var(--dm-yellow); border-color: rgba(183, 121, 31, 0.4); }
+.brain-action-output { margin-top: 8px; border: 1px solid var(--dm-border); border-radius: 8px; overflow: hidden; }
+.brain-action-output-title { font-size: 12px; font-weight: 600; padding: 6px 10px; background: var(--dm-surface); border-bottom: 1px solid var(--dm-border); display: flex; gap: 8px; align-items: center; }
+.brain-action-output pre {
+  margin: 0;
+  padding: 10px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #fff;
+}
+.brain-composer { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+.brain-composer-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--dm-secondary); }
+.brain-composer-field.brain-composer-wide { flex: 1; min-width: 220px; }
+.brain-composer-select {
+  background: #fff;
+  border: 1px solid var(--dm-border);
+  color: var(--dm-text);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.brain-composer-textarea { resize: vertical; min-height: 64px; }
+/* Embedded LiveMachine inside the Brain Console: static, full-width,
+   same dark screen — overrides the fixed PiP positioning only. */
+.live-machine-embedded {
+  position: static;
+  width: 100%;
+  z-index: auto;
+  box-shadow: none;
+}
+.live-machine-embedded .live-machine-screen { width: 100%; height: 260px; }
 .hunt-id {
   margin-left: auto;
   font-size: 11px;

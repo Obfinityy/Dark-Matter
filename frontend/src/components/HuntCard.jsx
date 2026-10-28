@@ -2,7 +2,7 @@
 // Status line ("Hunting <target>…"), expandable event feed, findings stream,
 // and Pause/Resume/Stop pill buttons. All stream/control logic unchanged.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { pauseHunt, resumeHunt, stopHunt, getHuntCost, setHuntBudget, getHuntEvents, steerHunt, listHunts, getHuntBrain, setHuntBrain } from '../lib/api';
+import { pauseHunt, resumeHunt, stopHunt, getHuntCost, setHuntBudget, getHuntEvents, steerHunt, listHunts, getHuntBrain, setHuntBrain, getHuntProcess, setBrainMode } from '../lib/api';
 import { HuntStreamClient, createSimulatedStream, isDemoMode } from '../lib/huntStream';
 import { toast } from '../lib/toast';
 
@@ -85,6 +85,7 @@ function toolCallText(e) {
 import HuntPiP from './HuntPiP';
 import HuntTerminalModal from './HuntTerminalModal';
 import LiveMachine from './LiveMachine';
+import BrainConsole from './BrainConsole';
 
 export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, onTalkWithAI, onGetReport }) {
   const [status, setStatus] = useState(hunt.status || 'idle');
@@ -111,6 +112,15 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   // silent Meta), fallback, and the model list with availability.
   const [brain, setBrain] = useState(null);
   const [brainBusy, setBrainBusy] = useState(false);
+  // BE A BRAIN (28 Oct 2026, owner order): who is the brain — 'ai'
+  // (the loop drives) or 'parent' (the owner drives from the Brain
+  // Console). null = unknown yet (backend predates the lane or the
+  // process call failed); the button still works and the POST
+  // reports the truth. Loaded from GET /process on mount so a
+  // reload while the parent is the brain still shows the badge.
+  const [brainMode, setBrainModeState] = useState(null);
+  const [brainConsoleOpen, setBrainConsoleOpen] = useState(false);
+  const [brainModeBusy, setBrainModeBusy] = useState(false);
   // Button visibility rule (owner's spec): a live hunt shows Pause + Stop;
   // a paused hunt shows Resume + Stop. Terminal hunts show nothing clickable.
   const isPaused = status === 'paused' || status === 'out_of_credits';
@@ -222,6 +232,47 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
     return () => { cancelled = true; };
   }, [hunt.huntId]);
 
+  // BE A BRAIN: learn who the brain is (GET /process carries
+  // brainMode). A 404/failed call just leaves it unknown — the
+  // console's own load reports the same, and the POST is the
+  // authority when the owner clicks.
+  useEffect(() => {
+    let cancelled = false;
+    getHuntProcess(hunt.huntId).then((r) => {
+      if (!cancelled && r && r.ok && r.data && r.data.brainMode) {
+        setBrainModeState(r.data.brainMode);
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hunt.huntId]);
+
+  // BE A BRAIN: take over as the brain — POST brain-mode
+  // {mode:'parent'} pauses the AI loop, then open the console.
+  // If the parent is already the brain, just open the console.
+  const takeOverAsBrain = async () => {
+    if (brainMode === 'parent') {
+      setBrainConsoleOpen(true);
+      return;
+    }
+    setBrainModeBusy(true);
+    const res = await setBrainMode(hunt.huntId, 'parent');
+    setBrainModeBusy(false);
+    if (res.ok) {
+      setBrainModeState('parent');
+      if (res.data && res.data.state) updateStatus(res.data.state);
+      setBrainConsoleOpen(true);
+      toast('You are the brain now — the AI loop is paused.', 'success');
+    } else {
+      toast(res.error || 'Could not take over as the brain.', 'error');
+    }
+  };
+
+  // BE A BRAIN: the console handed back — the AI loop resumes.
+  const handleBrainModeChange = (mode, state) => {
+    setBrainModeState(mode);
+    if (state) updateStatus(state);
+  };
   // MODEL-SWITCHER: load the hunt's brain state once (selected /
   // active model, fallback, model list). Refreshed after a switch
   // and whenever a model_switch event arrives on the stream.
@@ -510,6 +561,11 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
       <div className="hunt-statusline">
         <span className={statusClass(status)}><span className="dot" aria-hidden="true" />{statusLabel(status)}</span>
         <span className="hunt-status-text">{statusText(status, hunt.target)}</span>
+        {brainMode === 'parent' && (
+          <span className="brain-mode-badge" role="status" title="The AI loop is paused — you are driving this hunt from the Brain Console">
+            🧠 You are the brain
+          </span>
+        )}
         {!isTerminal && (
           <span className="hunt-timer" title="Time since this hunt started">
             ⏱ {elapsedStr}
@@ -740,6 +796,18 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
             {showPiP ? 'Hide Terminal' : 'Live Terminal'}
           </button>
         )}
+        {isActive && (
+          <button
+            className="hunt-pill-btn brain-takeover"
+            disabled={brainModeBusy}
+            onClick={takeOverAsBrain}
+            title={brainMode === 'parent'
+              ? 'Open the Brain Console — you are already the brain'
+              : 'Become the brain: pause the AI loop and drive the next actions yourself'}
+          >
+            {brainModeBusy ? 'Taking over…' : brainMode === 'parent' ? '🧠 Open Brain Console' : '🧠 Be a Brain'}
+          </button>
+        )}
         {brain && (
           <label className="hunt-model" title="The brain thinking for this hunt — switch mid-hunt; the new brain continues with the same state, history and memory">
             <span className="hunt-model-label">Brain:</span>
@@ -778,6 +846,17 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         <span className="hunt-id">ID: {hunt.huntId}</span>
       </div>
 
+      {/* BE A BRAIN (28 Oct 2026): the console replaces the floating
+          LiveMachine while it is open — the console embeds its own
+          LiveMachine, so the PiP would double the screen. */}
+      {brainConsoleOpen && (
+        <BrainConsole
+          huntId={hunt.huntId}
+          target={hunt.target}
+          onClose={() => setBrainConsoleOpen(false)}
+          onBrainModeChange={handleBrainModeChange}
+        />
+      )}
       {showPiP && isActive && (
         <HuntPiP
           huntId={hunt.huntId}
@@ -792,7 +871,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
           isActive rendered a second frozen "live" panel for it. View-only
           by design — the pause/stop controls above remain the only way
           to control it. */}
-      {isRunning && (
+      {isRunning && !brainConsoleOpen && (
         <LiveMachine huntId={hunt.huntId} target={hunt.target} />
       )}
       {showTerminalModal && (

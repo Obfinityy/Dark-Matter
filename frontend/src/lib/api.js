@@ -315,6 +315,33 @@ export async function setHuntBrain(id, model) {
   return post(`/api/v1/hunts/${encodeURIComponent(id)}/brain`, { model });
 }
 
+// --- Be a Brain (28 Oct 2026, owner order) -----------------------------------
+// The parent becomes the hunt's brain: the AI loop pauses and the parent
+// drives the next actions from the Brain Console, reading exactly what
+// the brain would have seen (action index + live process state) and
+// submitting actions one at a time. Handing back resumes the AI loop.
+// All five calls follow the same request() envelope as the rest of api.js:
+// { ok, status, data } on success, { ok:false, error } on failure.
+export async function setBrainMode(id, mode) {
+  return post(`/api/v1/hunts/${encodeURIComponent(id)}/brain-mode`, { mode });
+}
+
+export async function getHuntActions(id) {
+  return get(`/api/v1/hunts/${encodeURIComponent(id)}/actions`);
+}
+
+export async function getHuntActionOutput(id, hash) {
+  return get(`/api/v1/hunts/${encodeURIComponent(id)}/output/${encodeURIComponent(hash)}`);
+}
+
+export async function getHuntProcess(id) {
+  return get(`/api/v1/hunts/${encodeURIComponent(id)}/process`);
+}
+
+export async function submitBrainAction(id, action) {
+  return post(`/api/v1/hunts/${encodeURIComponent(id)}/brain-action`, { action });
+}
+
 export function reportPdfUrl(id) {
   return apiUrl(`/api/v1/hunts/${encodeURIComponent(id)}/report?format=pdf`);
 }

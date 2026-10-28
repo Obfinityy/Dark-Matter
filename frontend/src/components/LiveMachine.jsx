@@ -45,6 +45,12 @@ import {
  * The shared registry below is kept as a belt-and-braces for that
  * single card: it claims slot 0 and stacks upward from the
  * bottom-right corner if a second panel ever mounts again.
+ *
+ * EMBEDDED (28 Oct 2026, Be a Brain lane): `embedded` renders the same
+ * component inline inside the Brain Console — static, full-width, no
+ * slot claim, no minimise-to-chip — instead of the fixed bottom-right
+ * PiP. Same frame poller, same fullscreen overlay, same Take Control.
+ * Default is false: every existing mount behaves exactly as before.
  */
 const REFRESH_MS = 3000;
 const STACK_STEP_PX = 224;
@@ -90,7 +96,7 @@ function controlErrorText(res) {
   return res.error || 'Control failed — please try again.';
 }
 
-export default function LiveMachine({ huntId, target }) {
+export default function LiveMachine({ huntId, target, embedded = false }) {
   const [frameUrl, setFrameUrl] = useState('');
   const [available, setAvailable] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -149,10 +155,12 @@ export default function LiveMachine({ huntId, target }) {
   const frameUrlRef = useRef('');
 
   useEffect(() => {
+    // Embedded mounts share no corner with the PiP — no slot needed.
+    if (embedded) return undefined;
     const claimed = claimLiveSlot();
     setSlot(claimed.slot);
     return () => releaseLiveSlot(claimed.token);
-  }, []);
+  }, [embedded]);
 
   // Who holds the control lock right now (if anyone) — so the button
   // can say so honestly instead of letting the owner discover it by
@@ -404,7 +412,9 @@ export default function LiveMachine({ huntId, target }) {
     <div className="live-machine-screen live-machine-screen-full">{frame}</div>
   );
 
-  if (minimized) {
+  // Embedded mounts never minimise or collapse — the console owns
+  // the layout; the ✕/chip doors are PiP-only (see render below).
+  if (minimized && !embedded) {
     return (
       <button
         type="button"
@@ -427,7 +437,7 @@ export default function LiveMachine({ huntId, target }) {
   // dismisses to the minimised chip. The Take Control button is
   // deliberately NOT here — it appears only in the expanded view
   // (owner order 25 Oct 2026).
-  if (collapsed) {
+  if (collapsed && !embedded) {
     return (
       <div
         className="live-machine-bar"
@@ -461,9 +471,9 @@ export default function LiveMachine({ huntId, target }) {
   return (
     <>
       <div
-        className="live-machine"
+        className={`live-machine${embedded ? ' live-machine-embedded' : ''}`}
         aria-label="Live machine view"
-        style={{ bottom: 16 + slot * STACK_STEP_PX }}
+        style={embedded ? undefined : { bottom: 16 + slot * STACK_STEP_PX }}
       >
         <div className="live-machine-header">
           <span className={`live-machine-dot${available ? ' on' : ''}`} aria-hidden="true" />
@@ -477,14 +487,16 @@ export default function LiveMachine({ huntId, target }) {
           >
             ⛶
           </button>
-          <button
-            type="button"
-            className="live-machine-expand"
-            onClick={() => setMinimized(true)}
-            title="Minimize to a small chip"
-          >
-            ✕
-          </button>
+          {!embedded && (
+            <button
+              type="button"
+              className="live-machine-expand"
+              onClick={() => setMinimized(true)}
+              title="Minimize to a small chip"
+            >
+              ✕
+            </button>
+          )}
         </div>
         {control === 'error' && controlError && (
           <div className="live-machine-control-error" role="alert">
