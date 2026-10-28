@@ -57,6 +57,8 @@ import { getBalanceUsd } from '../billing/credits.js';
 import { hasActiveAccessById } from '../access.js';
 import { teardownHuntContainer, huntDesktopScreenshot } from '../huntRunner.js';
 import { listBrainModels, getBrainState, setBrainModel, metaAvailable } from '../brainProvider.js';
+import { getBrainMode, setBrainMode, listBrainActions, outputByHash, deriveProcessState, executeBrainAction } from '../brainMode.js';
+import { getAllReasoning } from '../reasoningMemory.js';
 import { listDetailRequests, submitDetailRequest, cancelDetailRequest, getDetailRequest } from '../userDetails.js';
 
 /** Reject unless the hunt belongs to the authenticated user.
@@ -939,6 +941,85 @@ router.post('/:id/brain', requireAuth, (req, res) => {
     });
   }
   return res.json({ ok: true, brain: result.brain });
+});
+
+// ---- Be a Brain (28 Oct 2026, owner order) ------------------------------
+// The owner IS the brain: POST /:id/brain-mode {mode:'parent'} pauses
+// the AI loop (via the existing pause machinery) and the parent
+// submits the next action himself; {mode:'ai'} hands the brain back
+// and resumes the AI loop from the checkpoint (existing resume
+// machinery). While the parent is the brain the hunt stays paused,
+// so the AI loop can never interleave with the parent's actions.
+//   GET  /:id/brain-mode        -> { ok, brainMode, state }
+//   GET  /:id/actions           -> the hunt's action index (hash + label + status)
+//   GET  /:id/output/:hash      -> the stored output for that action hash
+//   GET  /:id/process           -> live process state (task/goal/progress, done/pending)
+//   POST /:id/brain-action {action} -> execute one parent action
+// All owner-only (requireAuth + requireHuntOwner), like the brain route.
+router.get('/:id/brain-mode', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  res.json({ ok: true, brainMode: getBrainMode(meta), state: meta.state || null });
+});
+
+router.post('/:id/brain-mode', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const result = await setBrainMode(req.params.id, (req.body && req.body.mode) || '');
+  if (!result.ok) {
+    const status = result.error === 'hunt_not_found' ? 404 : result.error === 'hunt_terminal' ? 409 : 400;
+    return res.status(status).json({ ok: false, error: result.error, ...(result.message ? { message: result.message } : {}), ...(result.state ? { state: result.state } : {}) });
+  }
+  res.json({ ok: true, brainMode: result.brainMode, state: result.state });
+});
+
+router.get('/:id/actions', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const huntId = req.params.id;
+  const events = readHuntEvents(huntId);
+  const reasoningRows = getAllReasoning(huntId);
+  const huntRunning = meta.state === 'running' && meta.paused !== true;
+  res.json({ ok: true, huntId, brainMode: getBrainMode(meta), actions: listBrainActions(events, reasoningRows, { huntRunning }) });
+});
+
+router.get('/:id/output/:hash', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const huntId = req.params.id;
+  const result = outputByHash(readHuntEvents(huntId), getAllReasoning(huntId), req.params.hash);
+  if (!result.ok) return res.status(404).json({ ok: false, error: 'unknown_hash', message: result.message });
+  res.json(result);
+});
+
+router.get('/:id/process', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const huntId = req.params.id;
+  res.json(deriveProcessState(huntId, {
+    meta,
+    events: readHuntEvents(huntId),
+    reasoningRows: getAllReasoning(huntId),
+  }));
+});
+
+router.post('/:id/brain-action', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const huntId = req.params.id;
+  if (getBrainMode(meta) !== 'parent') {
+    return res.status(409).json({
+      ok: false,
+      error: 'brain_mode_ai',
+      message: 'The AI is the brain right now — switch to parent mode (POST /:id/brain-mode {mode:"parent"}) before submitting an action.',
+    });
+  }
+  const result = await executeBrainAction(huntId, (req.body && req.body.action) || req.body || {});
+  if (!result.ok) {
+    const status = result.error === 'out_of_scope' ? 403 : result.error === 'claim_incomplete' ? 422 : 400;
+    return res.status(status).json(result);
+  }
+  res.json(result);
 });
 
 // ---- Agent activity log: whatever the agent did, when --------------------------------
