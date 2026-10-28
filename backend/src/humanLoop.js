@@ -153,6 +153,21 @@ import {
 } from './chatQueue.js';
 import { appendChatMessage } from './routes/chats.js';
 import { clickControlCommand, parseAtspiOutput, atspiFailureObservation, atspiSuccessObservation } from './desktopAtspi.js';
+// TOOLS/OS AUTONOMY (27 Oct 2026, owner order): named tool launches,
+// allow-listed installs, AT-SPI control lists, and the Burp first-use
+// path — the structured actions the skill card only described.
+import {
+  resolveTool,
+  launchGuiTool,
+  checkCliTool,
+  downloadTool,
+  listToolControls,
+  burpFirstUse,
+  burpFirstUseDone,
+  recordToolState,
+  TOOL_IDS,
+  DOWNLOAD_IDS,
+} from './toolLaunch.js';
 // HUNTER-MIND (26 Oct 2026): the brain's own hunt plan (huntPlan.js)
 // and the output ledger (outputMemory.js). The plan is the brain's
 // own instructions and the ledger is its saved outputs — the loop
@@ -1122,7 +1137,7 @@ function systemPromptFor(target, parsedScope) {
     // canned order; the test asserts this line is present and that
     // no fixed-sequence wording exists anywhere in the prompt.
     'There is no fixed order of operations — no recon→scan→exploit script, no checklist to work through. Decide each step fresh from what you remember and what you just observed; a different target or a different memory means a different first move. Your plan is yours, and it changes when the evidence changes.',
-    'You also have a real desktop with a Chromium browser on this machine: you can open pages, SEE them (browser_snapshot gives you the page text and its clickable elements), click and type like a person at a computer, and take screenshots. The desktop itself is yours too — the whole XFCE desktop, not just the browser: desktop_snapshot shows you its windows, desktop_click focuses a window by title, desktop_key sends keys to the focused window, and desktop_screenshot captures the whole desktop. GUI apps (Burp, ZAP, Wireshark, the terminal) launch from the shell; focus one with desktop_click, then work it with the keyboard. You SEE the desktop itself with see_screen: it reads the screen into a text map — every visible word with its (x, y) position — and you click what you see with desktop_click_at. Look, then act, then look again to confirm the screen changed.',
+    'You also have a real desktop with a Chromium browser on this machine: you can open pages, SEE them (browser_snapshot gives you the page text and its clickable elements), click and type like a person at a computer, and take screenshots. The desktop itself is yours too — the whole XFCE desktop, not just the browser: desktop_snapshot shows you its windows, desktop_click focuses a window by title, desktop_key sends keys to the focused window, and desktop_screenshot captures the whole desktop. GUI apps (Burp, ZAP, Wireshark, the terminal) launch from the shell; focus one with desktop_click, then work it with the keyboard. You SEE the desktop itself with see_screen: it reads the screen into a text map — every visible word with its (x, y) position — and you click what you see with desktop_click_at. Launch a named tool with launch_tool (it waits for the window and shows you the screen); list the named controls of a window with list_controls before pressing one with desktop_click_control. Look, then act, then look again to confirm the screen changed.',
     // VISIBLE-DESKTOP-FIRST (27 Oct 2026, owner order): the desktop
     // was described as an OPTION, so the brain rationally picked
     // the fastest tool — headless shell curls, which the owner
@@ -1161,6 +1176,12 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"desktop_screenshot"} — capture the WHOLE desktop (not just the browser) to a JPG artifact; you also get the desktop state text',
     '{"action":"see_screen"} — LOOK at the desktop yourself: read the whole screen into a text map — every visible word with its (x, y) position, e.g. `"Log in" at (1240, 310)`. This is how you see what is on screen (you never see the image itself). Use it before clicking anything on the desktop, and again after acting to confirm the screen changed. If it says OCR is not installed, the image rebuild has not landed yet — use desktop_snapshot instead.',
     '{"action":"desktop_click_at","x":1240,"y":310} — click at a point FROM THE SCREEN MAP (see_screen first; never guess coordinates). The mouse moves to (x, y) and clicks. Then see_screen again to confirm what changed.',
+    // TOOLS/OS AUTONOMY (27 Oct 2026, owner order): named tool
+    // launches, allow-listed installs, and control lists — the
+    // structured actions behind the desktop-tools skill card.
+    '{"action":"launch_tool","tool":"burp"} — launch a NAMED tool on your machine and wait for it to be ready: GUI tools (burp, zap, wireshark) open on the desktop and you get a fresh screen map back; CLI tools (nmap, nikto, nuclei, sqlmap, ffuf, gobuster) are checked and you get their version. A repeat launch just reports the tool is already running — it never starts a second copy. Use launch_tool (not shell) for starting GUI tools. The first Burp launch in a hunt also walks the first-run wizard, confirms the intercept proxy, and opens the target in Burp\'s own browser.',
+    '{"action":"download_tool","tool":"subfinder"} — install a tool that is missing from this machine. Installable tools are: subfinder, amass, dnsenum, whatweb (apt) and jwt-tool (one small direct download). Anything else is refused before anything runs. The install is logged, and the tool stays installed in this container.',
+    '{"action":"list_controls","window":"Burp Suite"} — list the NAMED controls (buttons, tabs, fields) of a GUI window from its accessibility tree, with the screen position of each. Use it before desktop_click_control when you do not know a control\'s exact name. If the app exposes no tree, the observation says so — fall back to see_screen and desktop_click_at.',
     // HUMAN-BRAIN (26 Oct 2026, owner order: GUI-VISIBLE TERMINAL).
     // Terminal work happens in a terminal window ON the GUI desktop
     // so the owner watches it live — this action opens xfce4-terminal
@@ -1710,6 +1731,13 @@ function detailForAction(kind, action) {
     // gate and the output ledger treat a visible run and a headless
     // run of one command as one action.
     case 'desktop_terminal': return String(action.command || '').slice(0, 160);
+    // TOOLS/OS AUTONOMY (27 Oct 2026): a tool launch / install keys
+    // on the tool's name — launching the same tool twice is the
+    // same action for the dedupe gate. A control list keys on its
+    // window (read-only, like browser_snapshot — not gated).
+    case 'launch_tool': return String(action.tool || '').slice(0, 80);
+    case 'download_tool': return String(action.tool || '').slice(0, 80);
+    case 'list_controls': return String(action.window || '').slice(0, 120);
     case 'fetch_verification_code': return String(action.handle || '').slice(0, 120);
     case 'proxy_start': return '';
     case 'intercept_list': return '';
@@ -1874,7 +1902,7 @@ export function repetitionLines(events) {
 // browser_snapshot.
 // ---------------------------------------------------------------------------
 
-const GATED_TOOLS = new Set(['shell', 'search', 'browser_open', 'browser_click', 'browser_type', 'intercept_replay', 'desktop_click', 'desktop_key', 'desktop_click_control', 'desktop_click_at']);
+export const GATED_TOOLS = new Set(['shell', 'search', 'browser_open', 'browser_click', 'browser_type', 'intercept_replay', 'desktop_click', 'desktop_key', 'desktop_click_control', 'desktop_click_at', 'launch_tool', 'download_tool']);
 const DEDUP_THRESHOLD = 2; // an action already run this many times is not run again
 
 // Lane AF (24 Oct 2026): DEGRADED executions — a browser action
@@ -2023,6 +2051,15 @@ function gatedCandidate(kind, action) {
     case 'desktop_key': return { tool: 'desktop_key', detail: String(action.keys || action.text || '').slice(0, 80) };
     case 'desktop_click_control': return { tool: 'desktop_click_control', detail: String(action.control || '').slice(0, 120) };
     case 'desktop_click_at': return { tool: 'desktop_click_at', detail: `${String(action.x ?? '')},${String(action.y ?? '')}` };
+    // TOOLS/OS AUTONOMY (27 Oct 2026): launching / installing the
+    // same tool twice is the same repeat the gate exists for (a
+    // second Burp launch is a no-op that reports "already running",
+    // and a second install re-runs apt for nothing). list_controls
+    // stays OUT: it only reads the accessibility tree — reading the
+    // same control list twice harms nothing, exactly like
+    // browser_snapshot.
+    case 'launch_tool': return { tool: 'launch_tool', detail: String(action.tool || '').slice(0, 80) };
+    case 'download_tool': return { tool: 'download_tool', detail: String(action.tool || '').slice(0, 80) };
     // HUMAN-BRAIN: a visible terminal run IS a shell run for
     // dedupe — same command, same candidate, whichever channel ran
     // it first. (The gate compares like with like: the shell
@@ -2092,6 +2129,12 @@ export const GUI_CONTROL_KINDS = new Set([
   // pause under Take Control exactly like the other desktop actions.
   'see_screen',
   'desktop_click_at',
+  // TOOLS/OS AUTONOMY (27 Oct 2026): launching a GUI tool opens a
+  // window on the same X server, and listing its controls reads the
+  // same session bus — both pause under Take Control. Installing a
+  // tool is a headless container exec (like shell) and stays out.
+  'launch_tool',
+  'list_controls',
   // HUMAN-BRAIN (26 Oct 2026): the visible terminal types into the
   // same X server — it pauses under Take Control like the other
   // desktop actions.
@@ -4947,6 +4990,91 @@ export async function humanIteration(huntId, target, opts = {}) {
         }
       }
       note({ action: `desktop_click_control: ${controlName.slice(0, 80)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'launch_tool') {
+      // TOOLS/OS AUTONOMY: launch a NAMED tool from the registry and
+      // wait for it to be ready. GUI tools open on the desktop (the
+      // observation is a fresh screen map); CLI tools are verified
+      // present with their version. A repeat launch just reports
+      // "already running" — it never starts a second copy. The first
+      // Burp launch in a hunt also runs the first-use path (wizard,
+      // proxy, target in Burp's browser) and records it in the hunt
+      // memory, so the brain only ever says "launch burp".
+      const toolId = String(action.tool || '').trim().toLowerCase().slice(0, 80);
+      const resolved = resolveTool(toolId);
+      if (!resolved.ok) {
+        observation = `${resolved.error} (available: ${TOOL_IDS.join(', ')})`;
+      } else if (resolved.tool.kind === 'gui') {
+        toolCall('launch_tool', toolId);
+        try {
+          let firstUse = null;
+          if (toolId === 'burp') {
+            try { firstUse = burpFirstUseDone(deps.readMeta(huntId) || {}); } catch { firstUse = false; }
+          }
+          if (toolId === 'burp' && firstUse === false) {
+            const res = await burpFirstUse(huntId, target, deps);
+            observation = res.ok ? res.observation : `Burp first-use did not complete: ${res.error || res.observation}`;
+            try { await recordToolState(huntId, 'burp', { ...res.state }, deps); } catch { /* best-effort */ }
+          } else {
+            const res = await launchGuiTool(huntId, toolId, deps);
+            if (res.ok) {
+              if (res.window) sessionDesktopState = markWindowInteracted(sessionDesktopState, res.title || toolId);
+              observation = res.observation;
+              try { await recordToolState(huntId, toolId, { running: true, via: res.via, window: res.window || '' }, deps); } catch { /* best-effort */ }
+            } else {
+              observation = res.error;
+            }
+          }
+        } catch (err) {
+          observation = `Tool launch failed: ${err.message || err}`;
+        }
+      } else {
+        toolCall('launch_tool', toolId);
+        try {
+          const res = await checkCliTool(huntId, toolId, deps);
+          if (res.ok) {
+            observation = res.observation;
+            try { await recordToolState(huntId, toolId, { running: true, version: String(res.version || '').slice(0, 120) }, deps); } catch { /* best-effort */ }
+          } else {
+            observation = res.error;
+          }
+        } catch (err) {
+          observation = `Tool check failed: ${err.message || err}`;
+        }
+      }
+      note({ action: `launch_tool: ${toolId}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'download_tool') {
+      // TOOLS/OS AUTONOMY: install a MISSING tool from the
+      // allow-list. Anything not listed is refused BEFORE any exec
+      // — the refusal names the installable tools, so the brain can
+      // pick a real one instead of guessing.
+      const toolId = String(action.tool || '').trim().toLowerCase().slice(0, 80);
+      toolCall('download_tool', toolId);
+      try {
+        const res = await downloadTool(huntId, toolId, deps);
+        observation = res.ok ? res.observation : res.error;
+        if (res.ok) {
+          try { await recordToolState(huntId, toolId, { running: true, installedVia: 'download_tool' }, deps); } catch { /* best-effort */ }
+        }
+      } catch (err) {
+        observation = `Tool install failed: ${err.message || err}`;
+      }
+      note({ action: `download_tool: ${toolId}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+    } else if (kind === 'list_controls') {
+      // TOOLS/OS AUTONOMY: list a window's NAMED controls from its
+      // accessibility tree, as clickable map lines. Read-only — it
+      // never clicks anything, so it is not dedupe-gated (like
+      // browser_snapshot). When the app exposes no tree, the
+      // observation names the OCR fallback instead of pretending
+      // the list worked.
+      const windowSub = String(action.window || '').trim().slice(0, 120);
+      toolCall('list_controls', windowSub);
+      try {
+        const res = await listToolControls(huntId, windowSub, deps);
+        observation = res.ok ? res.observation : res.error;
+      } catch (err) {
+        observation = `Could not list controls: ${err.message || err}. Fall back to see_screen and desktop_click_at.`;
+      }
+      note({ action: `list_controls: ${windowSub || '(active window)'}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'claim_finding') {
       const rawTitle = String(action.title || '');
       const title = String(rawTitle.trim() ? rawTitle : 'Untitled claim').slice(0, 200);
@@ -5035,7 +5163,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       note({ action: `claim_finding: ${title}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
       }
     } else {
-      observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, record_coverage, hunt_plan, load_skill, proxy_start, intercept_list, intercept_read, intercept_replay, browser_open, browser_snapshot, browser_click, browser_type, screenshot, desktop_snapshot, desktop_click, desktop_key, desktop_screenshot, desktop_terminal, desktop_click_control, claim_finding, save_credential, use_saved_credential, fetch_verification_code. Pick exactly one, as JSON on the last line.`;
+      observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, record_coverage, hunt_plan, load_skill, proxy_start, intercept_list, intercept_read, intercept_replay, browser_open, browser_snapshot, browser_click, browser_type, screenshot, desktop_snapshot, desktop_click, desktop_key, desktop_screenshot, desktop_terminal, desktop_click_control, see_screen, desktop_click_at, launch_tool, download_tool, list_controls, claim_finding, save_credential, use_saved_credential, fetch_verification_code. Pick exactly one, as JSON on the last line.`;
     }
 
     // Lane F: remember what the executed action returned, so a later

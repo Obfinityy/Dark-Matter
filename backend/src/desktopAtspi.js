@@ -52,11 +52,18 @@ export function shellQuote(s) {
  * The container command for one helper invocation: the script is
  * piped in base64 (no file install) and run as `python3 - <args>`.
  * Pure — the caller runs it through execRaw.
+ *
+ * The docker-exec shell carries no session-bus env, so the command
+ * first exports the desktop session's bus from /tmp/dm-dbus-address
+ * (published by hunt-desktop.sh when the session starts) — the
+ * container runs TWO session buses (autolaunch + the xfce session),
+ * and the helper's /proc scan can pick the wrong one. When the file
+ * is absent the helper falls back to its /proc scan, unchanged.
  */
 export function atspiCommand(args) {
   const b64 = atspiScriptB64();
   const quoted = args.map((a) => shellQuote(String(a))).join(' ');
-  return `echo ${b64} | base64 -d | python3 - ${quoted}`;
+  return `if [ -s /tmp/dm-dbus-address ]; then export DBUS_SESSION_BUS_ADDRESS="$(cat /tmp/dm-dbus-address)"; fi; echo ${b64} | base64 -d | python3 - ${quoted}`;
 }
 
 /** `list` the controls of a window (or the active window when empty). */
