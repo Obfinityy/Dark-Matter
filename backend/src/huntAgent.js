@@ -2069,6 +2069,27 @@ async function getTargetBaselines(huntId, target) {
 //   Superseded by canary-controlled 'ftp-kdbx-exposure-v3' (58a6140).
 const RETIRED_DET_IDS = new Set(['ftp-kdbx-exposure', 'ftp-kdbx-exposure-v2']);
 
+// W6 FIX (28 Oct 2026, gate-interesting-xss lane): the 'interesting'
+// pre-filter decides whether a claim's evidence is worth sending to the
+// verification pipeline. It used to be a hardcoded keyword regex only —
+// a clean reflected-XSS proof (marker + script tag reflected raw)
+// contains none of those words, so it was discarded as
+// 'not-interesting' before the verifier ever ran (live: DVWA XSS claim
+// filed by the parent-as-brain, 28 Oct; validation verdict
+// 'not-interesting', detail 'no signal in output'). The signal-based
+// path recognises evidence via evidenceSignalIds — the same signal
+// source the rest of the pipeline trusts (non-negated, non-framing
+// lines) — so a reflected script tag is a signal and a probe echoing
+// its own banner is not. The keyword regex stays as a fallback and the
+// weird-score path stays for curiosity. Pure.
+export function isInterestingEvidence(output, command, weirdScore) {
+  const out = String(output || '');
+  if (out.trim().length < 50) return false;
+  return weirdScore >= 40
+    || /vulnerable|exposed|bypass|injection|leak|admin|secret|token|password|error.*sql|stack trace/i.test(out)
+    || evidenceSignalIds(out, command).length > 0;
+}
+
 export async function assessResult(huntId, target, plan, result) {
   // FIX (19 Oct 2026, solver #6): Strip terminal artifacts (Kali MOTD, shell
   // prompts, ANSI codes) from tool output BEFORE using it as evidence.
@@ -2156,8 +2177,8 @@ function inferSeverity(testName, output) {
     return null;
   }
 
-  const interesting = weird.score >= 40 || /vulnerable|exposed|bypass|injection|leak|admin|secret|token|password|error.*sql|stack trace/i.test(output);
-  if (!interesting || output.trim().length < 50) {
+  const interesting = isInterestingEvidence(output, plan.command, weird.score);
+  if (!interesting) {
     recordValidation(huntId, plan, 'not-interesting', output.trim() ? 'no signal in output' : 'empty output');
     return null;
   }
