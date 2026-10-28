@@ -231,6 +231,7 @@ import {
   verifyPipeline,
   executionFailed,
   httpErrorStatus,
+  evidenceReproduced,
   assessContentRelevance,
   evidenceSignalIds,
   supportingSignalLines,
@@ -2208,21 +2209,36 @@ function inferSeverity(testName, output) {
     // as execution so the re-run is byte-identical to the original.
     const retry = await execInHuntContainer(huntId, String(plan.command).slice(0, 4000), 120000, { bypassTmux: true });
     const confirmOutput = (retry.stdout + '\n' + retry.stderr).slice(0, 3000);
-    // Confirmation: second run shows the same interesting signals.
+    // Confirmation: the re-run reproduces the CLAIMED EVIDENCE.
     // FIX (solver #442): the re-run must also have EXECUTED — a reproduced
     // failure yields the same echo-derived signal and is not confirmation.
-    // LABEL-TRUST FIX (Lane A, 21 Oct 2026): the compared signal sets are
+    // LABEL-TRUST FIX (Lane A, 21 Oct 2026): the signal sets below are
     // evidence signals (evidenceSignalIds) — non-negated, non-framing.
-    // Previously both runs' extractSignal matched the probe's own echo
-    // banner ('dir-listing'), so sig1 === sig2 "confirmed" the banner's
-    // reproducibility while every actual check in the probe was negative.
+    // GATE-REPLAY FIX (28 Oct 2026): the old rule required the two runs'
+    // signal sets to be IDENTICAL (sig1 === sig2). For a data claim
+    // (UNION dump) the brain's evidence is a hand-pasted excerpt and
+    // the re-run is full raw output — different signal words on either
+    // side, so a real reproducible dump was rejected as "the second
+    // run differed" (live: DVWA SQLi claim 05:17 + 06:31 IST 28 Oct).
+    // The confirmation is now evidence reproduction
+    // (differential.evidenceReproduced): the re-run must return the
+    // claimed data itself (a hash / canary token, or a signal line
+    // from the evidence verbatim). An error-page re-run is never a
+    // confirmation. The signal sets still gate the shape: the claim
+    // must be signal-bearing and the re-run must produce a signal.
     const sig1 = evidenceSignalIds(output, plan.command).join(',');
     const sig2 = evidenceSignalIds(confirmOutput, plan.command).join(',');
-    confirmed = !executionFailed(retry, confirmOutput) && sig1.length > 0 && sig1 === sig2;
+    const reproduced = evidenceReproduced(output, confirmOutput, plan.command);
+    confirmed = !executionFailed(retry, confirmOutput) && sig1.length > 0 && sig2.length > 0 && reproduced;
     if (confirmed) {
-      think(huntId, `Verified: reproducible finding (${sig1}).`);
+      think(huntId, `Verified: re-run reproduced the claimed evidence (${sig1}).`);
     } else {
-      think(huntId, `Not confirmed: second run differed — treating as one-off anomaly.`);
+      const why = executionFailed(retry, confirmOutput)
+        ? 're-run failed to execute'
+        : sig2.length === 0
+          ? 're-run produced no signal'
+          : 're-run did not reproduce the claimed evidence';
+      think(huntId, `Not confirmed: ${why} — treating as one-off anomaly.`);
     }
   } catch (err) {
     think(huntId, `Verification re-run failed: ${err.message || err}`);
