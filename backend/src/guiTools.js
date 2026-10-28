@@ -397,7 +397,6 @@ if (page.wrongPage) {
       out = { ok: true, typed: params.text, field: check.field || typed.field, value: check.value, valueLength: String(check.value).length, url: snap.url, snapshot: snap };
     }
   }
-}
 } else if (act === 'screenshot') {
   const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
   out = { screenshot_b64: shot.data || '' };
