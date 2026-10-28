@@ -26,6 +26,7 @@ import {
   getHuntProcess,
   setBrainMode,
   submitBrainAction,
+  submitBrainActionJson,
 } from '../lib/api';
 import {
   BRAIN_ACTION_TYPES,
@@ -35,9 +36,26 @@ import {
   actionLabel,
   processSummary,
   actionStatusClass,
+  parseBrainReplyJson,
+  validateBrainReply,
+  formatBrainError,
 } from '../lib/brainActions';
+// BRAIN JSON (28 Oct 2026): the canonical reply schema, shown beside
+// the JSON composer. Frontend mirror of backend/src/brainReply.schema.json.
+import brainReplySchema from '../lib/brainReply.schema.json';
 import LiveMachine from './LiveMachine';
 import { toast } from '../lib/toast';
+
+// A starter reply for the JSON composer — the shape the schema wants,
+// prefilled with the current process values when the console knows them.
+function jsonTemplate(proc) {
+  return JSON.stringify({
+    task: (proc && proc.task) || 'Probe the login page for SQL injection',
+    goal: (proc && proc.goal) || 'Find a verified vulnerability on this target',
+    progress: (proc && proc.progress) || 'Logged in; first probe sent',
+    action: { type: 'shell', command: 'curl -s http://172.17.0.1:3100/ | head -40' },
+  }, null, 2);
+}
 
 const PROCESS_POLL_MS = 10000;
 
@@ -69,10 +87,26 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
   const [findingTitle, setFindingTitle] = useState('');
   const [findingSeverity, setFindingSeverity] = useState('medium');
   const [findingDetail, setFindingDetail] = useState('');
+  // BRAIN JSON (28 Oct 2026): the claim's reproduce command + counter-
+  // evidence + confidence — the backend claim gate requires them, so
+  // the form asks for them like the JSON reply does (same proof
+  // package, same result). confidence_rationale is required by the
+  // gate whenever confidence is not high.
+  const [findingCommand, setFindingCommand] = useState('');
+  const [findingCounterevidence, setFindingCounterevidence] = useState('');
+  const [findingConfidence, setFindingConfidence] = useState('medium');
+  const [findingConfidenceRationale, setFindingConfidenceRationale] = useState('');
   const [composerError, setComposerError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [lastResult, setLastResult] = useState(null);
   const [handBackBusy, setHandBackBusy] = useState(false);
+
+  // BRAIN JSON composer — a textarea for the structured reply, beside
+  // the form composer (tabs; the form is never removed). The JSON is
+  // canonical: the form is a friendly view of the same reply shape.
+  const [composerMode, setComposerMode] = useState('form');
+  const [jsonText, setJsonText] = useState('');
+  const [jsonError, setJsonError] = useState('');
 
   const refreshProcess = useCallback(async () => {
     const res = await getHuntProcess(huntId);
@@ -133,6 +167,8 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
     const fields = {
       command, url, selector, text: typeText, id: recallId,
       title: findingTitle, severity: findingSeverity, detail: findingDetail,
+      claimCommand: findingCommand, counterevidence: findingCounterevidence,
+      confidence: findingConfidence, confidenceRationale: findingConfidenceRationale,
     };
     const built = buildBrainAction(actionType, fields);
     if (built.error) {
@@ -145,15 +181,52 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
     if (res.ok && res.data) {
       // The backend returns {ok, hash, output, entry} — show the
       // output + hash at once, then refresh the index so the new
-      // action appears with its real status.
+      // action appears with its real status, and the process view
+      // (a task block rides on the action and updates currentTask).
       setLastResult(res.data);
       setCommand(''); setUrl(''); setSelector(''); setTypeText('');
       setRecallId(''); setFindingTitle(''); setFindingDetail('');
+      setFindingCommand(''); setFindingCounterevidence('');
+      setFindingConfidence('medium'); setFindingConfidenceRationale('');
       refreshActions();
+      refreshProcess();
     } else {
       // Rejected while brainMode is 'ai' (or any other refusal):
       // say so plainly instead of pretending the action ran.
-      setComposerError(res.error || 'The backend did not accept this action.');
+      setComposerError(formatBrainError(res));
+    }
+  };
+
+  // BRAIN JSON: validate the reply against the schema client-side
+  // (bad field named), then submit the whole reply to
+  // POST /:id/brain-action-json. Same result contract as the form:
+  // output + hash shown at once, index + process refreshed. A 400
+  // from the server names the bad field in its message; a 409 means
+  // the AI is the brain right now.
+  const submitJsonAction = async () => {
+    setJsonError('');
+    setLastResult(null);
+    const parsed = parseBrainReplyJson(jsonText);
+    if (parsed.error) {
+      setJsonError(parsed.error);
+      return;
+    }
+    const validated = validateBrainReply(parsed.reply);
+    if (validated.error) {
+      setJsonError(validated.error);
+      return;
+    }
+    setSubmitting(true);
+    const res = await submitBrainActionJson(huntId, validated.reply);
+    setSubmitting(false);
+    if (res.ok && res.data) {
+      setLastResult(res.data);
+      refreshActions();
+      refreshProcess();
+    } else {
+      // A 400 names the bad field (errors[0].field) — show it, not
+      // the bare code; a 409 means the AI is the brain right now.
+      setJsonError(formatBrainError(res));
     }
   };
 
@@ -215,8 +288,19 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
         {proc && (
           <div className="brain-process">
             <div className="brain-process-row">
-              <span className="brain-process-label">Running</span>
-              <span>{summary.running ? 'Yes — the hunt loop is live' : 'No — paused while you are the brain'}</span>
+              <span className="brain-process-label">Process status</span>
+              <span className={`brain-process-status ${summary.status}`}>
+                {summary.status === 'running' && '● Running'}
+                {summary.status === 'complete' && '✓ Complete'}
+                {summary.status === 'failed' && '✕ Failed'}
+                {summary.status === 'idle' && 'Nothing reported yet'}
+              </span>
+              {summary.status === 'failed' && summary.error && (
+                <span className="brain-process-error">{summary.error}</span>
+              )}
+              {summary.status === 'running' && !summary.task && (
+                <span className="brain-console-empty">The hunt loop is live, no task reported yet.</span>
+              )}
             </div>
             <div className="brain-process-row">
               <span className="brain-process-label">Current task</span>
@@ -230,6 +314,12 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
               <div className="brain-process-row">
                 <span className="brain-process-label">Progress</span>
                 <span>{summary.progress}</span>
+              </div>
+            )}
+            {summary.summary && (
+              <div className="brain-process-row">
+                <span className="brain-process-label">Summary</span>
+                <span>{summary.summary}</span>
               </div>
             )}
             <div className="brain-process-lists">
@@ -295,9 +385,34 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
         )}
       </div>
 
-      {/* (c) Action composer */}
+      {/* (c) Action composer — form and JSON side by side (tabs).
+          The JSON reply is canonical; the form is a friendly view of
+          the same reply shape. Both dispatch through the same
+          guarded backend action, so the same action gives the same
+          result either way. */}
       <div className="brain-console-section">
         <div className="brain-console-section-title">Next action — you decide</div>
+        <div className="brain-composer-tabs" role="tablist" aria-label="Action composer">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={composerMode === 'form'}
+            className={`brain-composer-tab${composerMode === 'form' ? ' active' : ''}`}
+            onClick={() => setComposerMode('form')}
+          >
+            Form
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={composerMode === 'json'}
+            className={`brain-composer-tab${composerMode === 'json' ? ' active' : ''}`}
+            onClick={() => setComposerMode('json')}
+          >
+            JSON reply
+          </button>
+        </div>
+        {composerMode === 'form' && (
         <div className="brain-composer">
           <label className="brain-composer-field">
             <span>Action type</span>
@@ -339,7 +454,7 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
           {actionType === 'recall' && (
             <label className="brain-composer-field">
               <span>Action # (from the index above)</span>
-              <input className="hunt-steer-input" type="number" min="0" step="1" value={recallId} onChange={(e) => setRecallId(e.target.value)} placeholder="e.g. 42" disabled={submitting} />
+              <input className="hunt-steer-input" type="number" min="1" step="1" value={recallId} onChange={(e) => setRecallId(e.target.value)} placeholder="e.g. 42" disabled={submitting} />
             </label>
           )}
           {actionType === 'claim_finding' && (
@@ -355,16 +470,81 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
                 </select>
               </label>
               <label className="brain-composer-field brain-composer-wide">
-                <span>Evidence / detail</span>
-                <textarea className="hunt-steer-input brain-composer-textarea" value={findingDetail} onChange={(e) => setFindingDetail(e.target.value)} placeholder="What you saw, the payload, the response…" rows={3} disabled={submitting} />
+                <span>Reproduce command</span>
+                <input className="hunt-steer-input" value={findingCommand} onChange={(e) => setFindingCommand(e.target.value)} placeholder="e.g. curl -s 'http://…/search?q=&lt;script&gt;'" disabled={submitting} />
               </label>
+              <label className="brain-composer-field brain-composer-wide">
+                <span>Evidence / detail</span>
+                <textarea className="hunt-steer-input brain-composer-textarea" value={findingDetail} onChange={(e) => setFindingDetail(e.target.value)} placeholder="The exact output that proves it — a real excerpt of the response, not a summary" rows={3} disabled={submitting} />
+              </label>
+              <label className="brain-composer-field brain-composer-wide">
+                <span>Counter-evidence</span>
+                <textarea className="hunt-steer-input brain-composer-textarea" value={findingCounterevidence} onChange={(e) => setFindingCounterevidence(e.target.value)} placeholder="What you checked that could have disproved it — the control/baseline result beside the trigger" rows={2} disabled={submitting} />
+              </label>
+              <label className="brain-composer-field">
+                <span>Confidence</span>
+                <select className="brain-composer-select" value={findingConfidence} onChange={(e) => setFindingConfidence(e.target.value)} disabled={submitting}>
+                  {['high', 'medium', 'low'].map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </label>
+              {findingConfidence !== 'high' && (
+                <label className="brain-composer-field brain-composer-wide">
+                  <span>Why not high — confidence rationale</span>
+                  <input className="hunt-steer-input" value={findingConfidenceRationale} onChange={(e) => setFindingConfidenceRationale(e.target.value)} placeholder="What is still uncertain about this claim" disabled={submitting} />
+                </label>
+              )}
             </>
           )}
           <button type="button" className="hunt-pill-btn" disabled={submitting} onClick={submitAction}>
             {submitting ? 'Sending…' : 'Submit action'}
           </button>
         </div>
-        {composerError && <div className="brain-console-error" role="alert">{composerError}</div>}
+        )}
+        {composerMode === 'json' && (
+        <div className="brain-json">
+          <div className="brain-json-main">
+            <label className="brain-composer-field brain-composer-wide">
+              <span>JSON reply — task, goal, progress + one action</span>
+              <textarea
+                className="hunt-steer-input brain-composer-textarea brain-json-textarea"
+                value={jsonText}
+                onChange={(e) => { setJsonText(e.target.value); setJsonError(''); }}
+                placeholder='{"task": "…", "goal": "…", "progress": "…", "action": {"type": "shell", "command": "…"}}'
+                rows={10}
+                disabled={submitting}
+                spellCheck={false}
+              />
+            </label>
+            <div className="brain-json-actions">
+              <button type="button" className="hunt-pill-btn" disabled={submitting} onClick={submitJsonAction}>
+                {submitting ? 'Sending…' : 'Submit JSON reply'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={submitting}
+                onClick={() => { setJsonText(jsonTemplate(proc)); setJsonError(''); }}
+                title="Fill the textarea with a valid example reply, using the current task/goal/progress when known"
+              >
+                Fill template
+              </button>
+            </div>
+            {jsonError && <div className="brain-console-error" role="alert">{jsonError}</div>}
+          </div>
+          <details className="brain-schema">
+            <summary>Reply schema — what the JSON must contain</summary>
+            <p className="brain-schema-note">
+              task, goal and progress are required (one line each, titles only — never full output).
+              action.type is one of shell, browser_open, click, type, recall, claim_finding;
+              click/type are the short names for browser_click/browser_type.
+              recall is optional: {"{"}"hash": "…"{"}"} or {"{"}"id": 42{"}"} — fetched before acting.
+              Mirror of backend/src/brainReply.schema.json.
+            </p>
+            <pre>{JSON.stringify(brainReplySchema, null, 2)}</pre>
+          </details>
+        </div>
+        )}
+        {composerMode === 'form' && composerError && <div className="brain-console-error" role="alert">{composerError}</div>}
         {lastResult && (
           <div className="brain-action-output">
             <div className="brain-action-output-title">

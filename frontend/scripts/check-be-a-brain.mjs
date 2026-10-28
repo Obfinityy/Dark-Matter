@@ -158,12 +158,27 @@ const expect = (type, fields, action) => {
 };
 check('buildBrainAction shell', expect('shell', { command: 'ls /tmp' }, { action: 'shell', command: 'ls /tmp' }));
 check('buildBrainAction browser_open', expect('browser_open', { url: 'http://x/' }, { action: 'browser_open', url: 'http://x/' }));
-check('buildBrainAction browser_click', expect('browser_click', { selector: '#login' }, { action: 'browser_click', selector: '#login' }));
+check('buildBrainAction browser_click', expect('browser_click', { selector: '#login' }, { action: 'browser_click', selector: '#login', text: '#login' }));
 check('buildBrainAction browser_type', expect('browser_type', { selector: '#u', text: 'admin' }, { action: 'browser_type', selector: '#u', text: 'admin' }));
 check('buildBrainAction recall', expect('recall', { id: '42' }, { action: 'recall', id: 42 }));
 check('buildBrainAction claim_finding', expect('claim_finding',
   { title: 'Reflected XSS', severity: 'high', detail: 'payload reflected' },
-  { action: 'claim_finding', title: 'Reflected XSS', severity: 'high', detail: 'payload reflected' }));
+  { action: 'claim_finding', title: 'Reflected XSS', severity: 'high', detail: 'payload reflected', command: '', evidence: 'payload reflected', counterevidence: '', confidence: 'medium', confidence_rationale: '' }));
+// BRAIN JSON (28 Oct 2026): the form claim sends the same proof
+// package the JSON reply does — evidence mirrors detail (the gate
+// reads evidence, never detail), plus command + counterevidence +
+// confidence (the gate requires all three, so a form claim without
+// them bounced while the JSON path passed). The click driver reads
+// action.text, so browser_click carries text: selector too.
+check('buildBrainAction claim_finding carries the full proof package', (() => {
+  const b = brain.buildBrainAction('claim_finding',
+    { title: 't', severity: 'high', detail: 'resp shows <script>', claimCommand: 'curl x', counterevidence: 'baseline clean', confidence: 'high', confidenceRationale: '' });
+  return !b.error && b.action.evidence === 'resp shows <script>' && b.action.command === 'curl x'
+    && b.action.counterevidence === 'baseline clean' && b.action.detail === 'resp shows <script>'
+    && b.action.confidence === 'high';
+})());
+check('buildBrainAction browser_click carries text for the driver',
+  brain.buildBrainAction('browser_click', { selector: 'Login' }).action.text === 'Login');
 check('buildBrainAction claim_finding defaults bad severity to medium',
   brain.buildBrainAction('claim_finding', { title: 't', severity: 'bogus' }).action.severity === 'medium');
 check('buildBrainAction shell with empty command → error, no action sent',

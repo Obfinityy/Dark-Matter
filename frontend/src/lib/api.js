@@ -62,6 +62,11 @@ async function request(method, path, body, opts = {}) {
         // Prefer the human-readable message over the machine code so users
         // see WHY something failed.
         error: (data && (data.message || data.error)) || `Request failed (${res.status})`,
+        // Keep the parsed body: some routes name the bad field in a
+        // structured `errors: [{field, message}]` array (brain-action-
+        // json 400s) with no top-level message — callers that show the
+        // field need the body, not just the string.
+        data,
       };
     }
     return { ok: true, status: res.status, data };
@@ -350,6 +355,16 @@ export async function getHuntProcess(id) {
 
 export async function submitBrainAction(id, action) {
   return post(`/api/v1/hunts/${encodeURIComponent(id)}/brain-action`, { action });
+}
+
+// BRAIN JSON (28 Oct 2026): the parent brain's structured reply —
+// {reply: {task, goal, progress, recall?, action}} — validated
+// client-side against brainReply.schema.json first, then dispatched
+// through the SAME guarded executeBrainAction as the form composer.
+// A 400 names the bad field (in the message); a 409 means the AI is
+// the brain right now.
+export async function submitBrainActionJson(id, reply) {
+  return post(`/api/v1/hunts/${encodeURIComponent(id)}/brain-action-json`, { reply });
 }
 
 export function reportPdfUrl(id) {

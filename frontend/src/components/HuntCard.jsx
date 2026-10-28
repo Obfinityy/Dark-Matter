@@ -106,6 +106,12 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
     const fromList = (brain && Array.isArray(brain.models) && brain.models.find((m) => m.id === id)) || null;
     return (fromList && fromList.label) || BRAIN_LABELS[id] || (id ? String(id) : '');
   };
+  // BRAIN JSON (28 Oct 2026): the dropdown's "Be a Brain" option —
+  // the parent as a selectable "model". Selecting it takes over as
+  // the brain; selecting a model while the parent is the brain hands
+  // back to the AI first — a model change must never silently bypass
+  // the brain-mode switch.
+  const PARENT_BRAIN_VALUE = 'parent-brain';
   // MODEL-SWITCHER (26 Oct 2026): the hunt's brain — Dark Matter V1
   // (local 8B, default) or a Meta text model, switched mid-hunt
   // from this card. `brain` holds the backend's state: selected,
@@ -277,6 +283,57 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   const handleBrainModeChange = (mode, state) => {
     setBrainModeState(mode);
     if (state) updateStatus(state);
+  };
+
+  // BRAIN JSON (28 Oct 2026): the Brain/model dropdown's change.
+  // Selecting "Be a Brain" does exactly what the gold button does
+  // (POST brain-mode {mode:'parent'} + open the console). Selecting
+  // a model while the parent is the brain hands back to the AI
+  // FIRST (POST brain-mode {mode:'ai'}, console closes) and only
+  // then switches the model — the dropdown never offers a model
+  // change that bypasses the brain-mode switch. If the hand-back
+  // fails, the model is NOT switched.
+  const handleBrainSelect = async (e) => {
+    const value = e.target.value;
+    if (value === PARENT_BRAIN_VALUE) {
+      await takeOverAsBrain();
+      return;
+    }
+    if (!value) return;
+    if (brainMode === 'parent') {
+      setBrainBusy(true);
+      const r = await setBrainMode(hunt.huntId, 'ai');
+      if (!r.ok) {
+        setBrainBusy(false);
+        toast((r.data && (r.data.message || r.data.error)) || r.error || 'Could not hand back to the AI.', 'error');
+        refreshBrain();
+        return;
+      }
+      setBrainModeState('ai');
+      if (r.data && r.data.state) updateStatus(r.data.state);
+      setBrainConsoleOpen(false);
+      const m = await setHuntBrain(hunt.huntId, value);
+      setBrainBusy(false);
+      if (m.ok && m.data && m.data.brain) {
+        setBrain(m.data.brain);
+        toast(`Handed back to the AI — brain switched to ${brainLabel(value)}.`, 'success');
+      } else {
+        toast((m.data && (m.data.message || m.data.error)) || m.error || 'Handed back to the AI, but the brain could not be switched.', 'error');
+        refreshBrain();
+      }
+      return;
+    }
+    if (value === brain.selected) return;
+    setBrainBusy(true);
+    const r = await setHuntBrain(hunt.huntId, value);
+    setBrainBusy(false);
+    if (r.ok && r.data && r.data.brain) {
+      setBrain(r.data.brain);
+      toast(`Brain switched to ${brainLabel(value)}.`, 'success');
+    } else {
+      toast((r.data && (r.data.message || r.data.error)) || r.error || 'Could not switch brain.', 'error');
+      refreshBrain();
+    }
   };
   // MODEL-SWITCHER: load the hunt's brain state once (selected /
   // active model, fallback, model list). Refreshed after a switch
@@ -849,23 +906,14 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
             <span className="hunt-model-label">Brain:</span>
             <select
               className="hunt-model-select"
-              value={brain.selected}
+              value={brainMode === 'parent' ? PARENT_BRAIN_VALUE : brain.selected}
               disabled={brainBusy || isTerminal}
-              onChange={async (e) => {
-                const model = e.target.value;
-                if (!model || model === brain.selected) return;
-                setBrainBusy(true);
-                const r = await setHuntBrain(hunt.huntId, model);
-                setBrainBusy(false);
-                if (r.ok && r.data && r.data.brain) {
-                  setBrain(r.data.brain);
-                  toast(`Brain switched to ${brainLabel(model)}.`, 'success');
-                } else {
-                  toast((r.data && (r.data.message || r.data.error)) || r.error || 'Could not switch brain.', 'error');
-                  refreshBrain();
-                }
-              }}
+              onChange={handleBrainSelect}
             >
+              {/* BRAIN JSON: the parent as a selectable "model" — same
+                  takeover as the gold "Be a Brain" button. While the
+                  parent is the brain this option stays selected. */}
+              <option value={PARENT_BRAIN_VALUE}>🧠 Be a Brain (you)</option>
               {(brain.models || []).map((m) => (
                 <option key={m.id} value={m.id} disabled={!m.available} title={m.available ? m.blurb : 'Not available — the Meta API key is not configured on the backend'}>
                   {m.label}{m.available ? '' : ' (unavailable)'}
