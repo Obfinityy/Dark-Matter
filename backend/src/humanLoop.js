@@ -2142,7 +2142,133 @@ export const GUI_CONTROL_KINDS = new Set([
   'desktop_terminal',
 ]);
 
-export function dedupeGateHit(kind, action, history) {
+// ---------------------------------------------------------------------------
+// DEDUP FRESH-ATTEMPT EXEMPTION (dedup-submit lane, 28 Oct 2026)
+//
+// Live failure (DVWA hunt h_830317bdc184, 28 Oct 2026): the exact-repeat
+// dedupe gate (Lane F, threshold 2) blocked the brain's browser_click
+// Submit 9 times (03:36, 03:40, 04:03, 05:55, 07:01, 08:20 IST and
+// more) and blocked re-typing the same UNION payload. The Submit
+// click is IDENTICAL every time whatever was typed into the form, so
+// each retry looked like a blind repeat — even when the brain had
+// looked at the page again, typed a NEW proof marker into the form,
+// or reloaded the page (which empties the form) since the last
+// Submit. The visible-browser submit path stayed closed, so the
+// brain's evidence came from shell probes instead of the visible
+// browser — the proof gate (PROOF_THRESHOLD=3) could nudge it to
+// file, but could never reopen the submit itself.
+//
+// The fix extends the fresh-attempt logic (184ec79's
+// freshAttemptSinceType, auth-loop limb) to the dedupe gate: a
+// repeat of an identical action is a loop ONLY when nothing fresh
+// happened since the last identical execution. A repeat is ALLOWED
+// when the ordered record shows, after that execution:
+//   - a fresh screen read (browser_snapshot / see_screen /
+//     desktop_snapshot) — the brain looked at the page again;
+//   - a click / type / key DIFFERENT from the repeated action —
+//     the brain moved the form forward (a new proof marker typed
+//     into it, another field clicked);
+//   - a page reload / navigate (browser_open) — the page state
+//     refreshed (a reload empties the form, so a re-type + re-submit
+//     acts on a fresh form).
+// Shell / search / recall since then do NOT count: they change
+// nothing about the page the action acts on (the auth gate reads
+// them the same way). A blocked action never counts either — only
+// executed tool_call events are read, so a dedup_block cannot
+// launder its own repeat.
+//
+// Scope: the exemption applies only to the GUI action kinds — the
+// actions that act on GUI state (browser_click, browser_type,
+// browser_open, desktop_click, desktop_click_at,
+// desktop_click_control, desktop_key). Shell, search,
+// launch_tool, download_tool and intercept_replay stay under the
+// old rule: a screen read changes nothing about what a curl returns
+// or a search finds, and their re-asks are already answered from
+// the record (output ledger / near-duplicate gate). A new proof
+// marker needs no exemption for shell — the marker is IN the
+// command, so a fresh marker is already a different signature.
+//
+// Loop protection (unchanged in strength): the exemption is
+// PER-REPEAT — freshAttemptSinceAction only looks AFTER the last
+// identical execution. Once the exempted execution runs, it
+// becomes the new anchor, and the earlier fresh event (now BEFORE
+// the anchor) no longer counts. Each repeat past the threshold
+// needs NEW fresh work after the previous execution, so the worst
+// case is one extra execution per fresh event, never an unbounded
+// loop from a single snapshot. The backstops stand: the
+// exhausted-surface gate is judged BEFORE dedupe (a closed surface
+// still blocks whatever the freshness), the auth gate fires first
+// on the sign-in page (a reload-only re-type there is still an
+// auth_loop per AJ-11 — browser_open does not exempt the auth
+// gate), and the proof gate is judged when dedupe stands aside,
+// so a claim proven PROOF_THRESHOLD times is still nudged to file
+// instead of re-proved. Without an events record (ctx absent) the
+// old behaviour holds unchanged.
+// ---------------------------------------------------------------------------
+
+// The screen reads that prove the brain looked at the page again
+// (the same read set the auth gate's FRESH_ATTEMPT_TOOLS carries).
+const FRESH_READ_TOOLS = new Set(['browser_snapshot', 'see_screen', 'desktop_snapshot']);
+
+// GUI action kinds whose repeat the fresh-attempt exemption can lift.
+export const FRESH_DEDUP_KINDS = new Set([
+  'browser_click',
+  'browser_type',
+  'browser_open',
+  'desktop_click',
+  'desktop_click_at',
+  'desktop_click_control',
+  'desktop_key',
+]);
+
+// GUI actions that move the form forward when DIFFERENT from the
+// repeated action: a click into another field, a different text
+// typed (a new proof marker), a different key pressed. An
+// identical one is the anchor itself and never counts.
+const FRESH_FORWARD_TOOLS = new Set([
+  'browser_click',
+  'browser_type',
+  'desktop_click',
+  'desktop_click_at',
+  'desktop_click_control',
+  'desktop_key',
+]);
+
+/**
+ * True when the hunt's ordered record shows fresh GUI work after
+ * the last identical execution of (tool, detail): the brain looked
+ * at the screen again, clicked / typed / pressed something
+ * DIFFERENT, or reloaded / navigated the page. A repeat after such
+ * work is a fresh attempt at the action — e.g. the form was
+ * reloaded and emptied, or a new proof marker was typed into it
+ * since the last Submit — not a blind repeat. False when the last
+ * identical execution is still the latest GUI work (a genuine
+ * loop), when the record holds no such execution (conservative:
+ * the caller falls back to the history count alone), or when the
+ * only work since was shell / search / recall. Pure.
+ */
+export function freshAttemptSinceAction(events, tool, detail) {
+  const list = Array.isArray(events) ? events : [];
+  const sig = actionSignature(String(tool || ''), String(detail || ''));
+  let lastIdx = -1;
+  for (let i = 0; i < list.length; i++) {
+    const e = list[i];
+    if (!e || e.type !== 'tool_call') continue;
+    if (actionSignature(String(e.tool || ''), String(e.detail || '')) === sig) lastIdx = i;
+  }
+  if (lastIdx < 0) return false;
+  for (let i = lastIdx + 1; i < list.length; i++) {
+    const e = list[i];
+    if (!e || e.type !== 'tool_call') continue;
+    const t = String(e.tool || '').toLowerCase();
+    if (FRESH_READ_TOOLS.has(t)) return true;
+    if (t === 'browser_open') return true; // reload / navigate — the page state refreshed
+    if (FRESH_FORWARD_TOOLS.has(t) && actionSignature(t, String(e.detail || '')) !== sig) return true;
+  }
+  return false;
+}
+
+export function dedupeGateHit(kind, action, history, ctx) {
   const cand = gatedCandidate(String(kind || '').toLowerCase(), action || {});
   if (!cand || !cand.detail.trim()) return null;
   const entry = (history || new Map()).get(actionSignature(cand.tool, cand.detail));
@@ -2150,6 +2276,14 @@ export function dedupeGateHit(kind, action, history) {
   const fullCount = entry.fullCount != null ? entry.fullCount : entry.count;
   const degradedStreak = entry.degradedStreak || 0;
   if (fullCount < DEDUP_THRESHOLD && degradedStreak < DEGRADED_THRESHOLD) return null;
+  // FRESH ATTEMPT (see header above): a repeat is a loop only when
+  // the last identical execution is still the latest GUI work.
+  // When the record shows the brain looked again, moved the form
+  // forward, or reloaded the page since then, the retry is a fresh
+  // attempt and the gate stands aside. Without an events record
+  // (ctx absent) the old behaviour holds: any repeat past the
+  // threshold is a loop.
+  if (FRESH_DEDUP_KINDS.has(cand.tool) && freshAttemptSinceAction(ctx && ctx.events, cand.tool, cand.detail)) return null;
   return { tool: cand.tool, detail: entry.detail, count: entry.count, fullCount, degradedStreak, lastResult: entry.lastResult || '' };
 }
 
@@ -4130,7 +4264,11 @@ export async function humanIteration(huntId, target, opts = {}) {
     // means NO exemption; repeated opens while already ON the
     // target are still deduped as before.
     const returnExempt = isReturnToTarget(kind, action, currentPageUrl, target, parsedScope);
-    const gateHit = returnExempt ? null : dedupeGateHit(kind, action, actionHistory);
+    // FRESH ATTEMPT (dedup-submit lane): the gate reads the same
+    // per-turn event record the auth gate reads, so in-session GUI
+    // work counts too — a snapshot / new marker / reload since the
+    // last identical execution makes the repeat a fresh attempt.
+    const gateHit = returnExempt ? null : dedupeGateHit(kind, action, actionHistory, { events: turnEvents });
     // REAL-HUMAN: the near-duplicate search gate — same question in
     // different words. Judged only when the exact gate did not
     // already fire (an exact repeat is the stronger statement).
