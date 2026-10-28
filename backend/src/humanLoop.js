@@ -40,6 +40,7 @@ import { execInHuntContainerWithRespawn } from './huntRunner.js';
 import { chatWithAI } from './llm.js';
 import { webSearch } from './webSearch.js';
 import { writeArtifact, spillOutput, artifactInfo, writeFileObservation } from './artifacts.js';
+import { evidenceSignalIds, isHttpErrorPage } from './hunt-intel/index.js';
 import { isMachineControlled, getControl } from './machineControl.js';
 import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents } from './store.js';
 import { normalisedActionDetail, actionSignature, contentHash } from './actionIdentity.js';
@@ -2671,6 +2672,119 @@ export function exhaustedBlockObservation(hit, { target = '', credential = null,
 }
 
 // ---------------------------------------------------------------------------
+// PROOF-COMPLETE GATE (gate-replay lane, 28 Oct 2026)
+//
+// The re-proof-without-filing loop (live DVWA hunt h_830317bdc184):
+// after the 8th dedup block the brain pivoted to reflected XSS and
+// proved the SAME claim over and over — fresh markers ZXSS987654,
+// ZXQ9777, QXZ7719 (raw reflection proven 08:35 IST), HXQ/BBT999z,
+// RXS2810B — each a NEW marker, so the exact-repeat dedupe gate
+// (Lane F, keyed on the identical command) never fired, and the
+// brain kept re-proofing instead of filing. No third filing ever
+// came; the level proof stayed at 0 while the evidence was in hand.
+//
+// The dedupe gate cannot catch this: it judges the ACTION, and a
+// re-proof varies the action (new marker, new recall, new wording).
+// This gate judges the CLAIM: a probe is a proof of (endpoint,
+// payload class) when its output is signal-bearing and not an error
+// page. After PROOF_THRESHOLD consistent proofs of the same claim,
+// the NEXT probe of that claim is blocked — not with "try something
+// else", but with the one move that advances the hunt: FILE IT.
+// The block is a countable proof_file_nudge event (same shape as
+// dedup_block / auth_block / exhausted_block) and the observation
+// names the claim, the count, and the filing it must do.
+//
+// A rejected claim RESETS its count (see the claim_finding branch):
+// the brain needs NEW evidence, and the counter must not keep the
+// claim blocked. A verified claim needs no further probes at all.
+// Script probes (a proof script run by name, no URL and no payload
+// in the command itself) carry no endpoint the gate can key on, so
+// they are not proof-counted — the verifier (Fix 1) is their
+// backstop when filed. This gate is a nudge, not a verdict: it can
+// only ever direct the brain to file, and assessResult still
+// decides whether the filing is true.
+// ---------------------------------------------------------------------------
+
+export const PROOF_THRESHOLD = 3; // consistent re-proofs before the loop demands a filing
+
+/** The endpoint a shell probe targets: the first http(s) URL in the command, as host+pathname (no port — the same shape surfacePageOfUrl gives a browser page, so a shell probe and a browser probe of the same page share a key). '' when the command names no URL (a proof script run by name). */
+export function proofEndpointOfCommand(command) {
+  const m = /https?:\/\/[^\s'"`]+/i.exec(String(command || ''));
+  if (!m) return '';
+  try {
+    const u = new URL(m[0]);
+    let p = u.pathname || '/';
+    if (p.length > 1) p = p.replace(/\/+$/, '');
+    return `${u.hostname.toLowerCase()}${p || '/'}`;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * The claim a probe action proves, or null when the action is not a
+ * probe the gate can key on. Signature = (endpoint, payload class):
+ * the same flaw re-proved with a fresh marker is the same claim.
+ * shell keys on the URL in the command; browser_type keys on the
+ * page the hunter is typing into. 'credential' typings are not
+ * probes. Pure.
+ */
+export function proofSignatureFor(kind, action, { page = '' } = {}) {
+  const k = String(kind || '').toLowerCase();
+  let endpoint = '';
+  let text = '';
+  if (k === 'shell') {
+    const command = String((action && action.command) || '');
+    endpoint = proofEndpointOfCommand(command);
+    text = command;
+  } else if (k === 'browser_type') {
+    const pg = surfacePageOfUrl(page || '');
+    endpoint = pg.host ? pg.host + (pg.path || '/') : '';
+    text = String((action && action.text) || '');
+  } else {
+    return null;
+  }
+  if (!endpoint) return null;
+  const payloadClass = classifyPayloadClass(text);
+  if (!payloadClass || payloadClass === 'credential') return null;
+  return { key: `${endpoint}|${payloadClass}`, endpoint, payloadClass };
+}
+
+/**
+ * Did this probe output prove its claim? A proof is signal-bearing
+ * output (the verifier's own evidence-signal vocabulary, non-negated,
+ * non-framing) that is not an HTTP error page. Pure.
+ */
+export function probeProvesClaim({ output = '', command = '' } = {}) {
+  const out = String(output || '');
+  if (!out.trim()) return false;
+  if (isHttpErrorPage(out)) return false;
+  return evidenceSignalIds(out, command).length > 0;
+}
+
+/**
+ * The proof-complete verdict for one probe action against the hunt's
+ * proof counts (Map signature -> count, or a plain object): the hit
+ * when this claim has already been proven PROOF_THRESHOLD times,
+ * else null. `sig` may carry a precomputed proofSignatureFor result
+ * (the loop captures the signature before execution, so the page a
+ * probe navigates to cannot change the key). Pure.
+ */
+export function proofGateHit(kind, action, proofCounts, { page = '', sig = null } = {}) {
+  const s = sig || proofSignatureFor(kind, action, { page });
+  if (!s) return null;
+  const counts = proofCounts instanceof Map ? proofCounts : new Map(Object.entries(proofCounts || {}));
+  const count = Number(counts.get(s.key) || 0);
+  if (count < PROOF_THRESHOLD) return null;
+  return { tool: String(kind || '').toLowerCase(), endpoint: s.endpoint, payloadClass: s.payloadClass, count, key: s.key };
+}
+
+/** The observation a proof-complete probe gets: file the claim now. */
+export function proofFileObservation(hit) {
+  return `PROOF COMPLETE — FILE IT NOW: you have already proven ${hit.payloadClass.toUpperCase()} on ${hit.endpoint} ${hit.count} times with consistent evidence. A fourth probe of the same claim proves nothing new — it only burns a turn. It was NOT executed. File it now with claim_finding: title the vulnerability, class "${hit.payloadClass}", evidence the exact output that proves it (the reflected marker / dumped rows, pasted raw, not a summary), command the exact reproduction that produced that evidence, and counterevidence the control/baseline result beside it. If the verifier rejects the filing, gather NEW evidence for it — the proof count restarts from the rejection.`;
+}
+
+// ---------------------------------------------------------------------------
 // SETTLED ACTIONS + FAILED-SKILL MEMORY (Lane AD, 24 Oct 2026)
 //
 // The gate above stops repeat TRAFFIC, but the live audit behind
@@ -3305,6 +3419,21 @@ export async function humanIteration(huntId, target, opts = {}) {
   // re-reads and base + turnsRun — so the two writers can never
   // double-count a turn.
   const sessionBaseTurns = (meta0.humanLoop && meta0.humanLoop.turnsTotal) || 0;
+  // PROOF-COMPLETE (gate-replay lane, 28 Oct 2026): per-claim
+  // re-proof counts, persisted in meta.proofCounts (plain object
+  // sig -> count) so they survive sessions; the loop owns the live
+  // Map and persists it on every proof (best-effort — a failed
+  // persist never costs a turn). The per-turn progress checkpoint
+  // re-reads meta fresh, so the two writers never clobber each
+  // other.
+  const proofCounts = new Map(
+    Object.entries((meta0.proofCounts && typeof meta0.proofCounts === 'object') ? meta0.proofCounts : {})
+      .map(([k, v]) => [String(k), Number(v) || 0])
+      .filter(([, v]) => v > 0),
+  );
+  const persistProofCounts = () => {
+    try { deps.writeMeta(huntId, { proofCounts: Object.fromEntries(proofCounts) }); } catch { /* best-effort */ }
+  };
   const parsedScope = opts.parsedScope || meta0.parsedScope || null;
   const maxRpm = parsedScope && parsedScope.rules ? Number(parsedScope.rules.maxRequestsPerMin) || 0 : 0;
   const minShellGapMs = maxRpm > 0 ? Math.ceil(60000 / maxRpm) : 0;
@@ -4024,6 +4153,16 @@ export async function humanIteration(huntId, target, opts = {}) {
       ? findWrongTargetPaths(knownAppNow, JSON.stringify(action || {}))
       : [];
     const controlHit = GUI_CONTROL_KINDS.has(kind) && deps.machineControlled(huntId);
+    // PROOF-COMPLETE GATE (gate-replay lane, 28 Oct 2026) — the
+    // signature is captured BEFORE execution (the page a probe
+    // navigates to must not change the key) and reused by the
+    // post-execution proof counter below. Judged only when no
+    // earlier gate fired: an exact repeat, a closed surface, a
+    // wrong target or an auth loop is the stronger statement.
+    const proofSig = proofSignatureFor(kind, action, { page: currentPageUrl });
+    const proofHit = !gateHit && !searchHit && !authHit && !exhaustedHit && !wrongTargetHit.length
+      ? proofGateHit(kind, action, proofCounts, { page: currentPageUrl, sig: proofSig })
+      : null;
     if (controlHit) {
       // TAKE-CONTROL GATE — checked FIRST, before the auth and dedupe
       // gates: while the owner drives the desktop by hand, ANY agent
@@ -4121,6 +4260,18 @@ export async function humanIteration(huntId, target, opts = {}) {
         (searchHit.lastResult ? ` That search already returned: ${searchHit.lastResult.slice(0, 200)}` : '') +
         ' It was NOT run again — a reworded repeat returns the same results and only burns a turn. Act on what you already learned, or search for something genuinely new: a different technique, a different surface, a different question.';
       note({ action: `dedup_block: search ${searchHit.detail.slice(0, 120)}`, why: thinkingText, result: `reworded repeat blocked — same question as "${searchHit.earlier.slice(0, 120)}"`, learned: 'A question already searched is answered from the record; rewording it does not make it new.' });
+    } else if (proofHit) {
+      // PROOF-COMPLETE GATE (gate-replay lane, 28 Oct 2026) — the
+      // claim is already proven PROOF_THRESHOLD times; a further
+      // probe (whatever the marker wording) proves nothing new.
+      // The block does NOT say "try something else": it names the
+      // one move that advances the hunt — FILE the claim. Recorded
+      // as a countable proof_file_nudge event (same shape as
+      // dedup_block / auth_block / exhausted_block).
+      try { deps.record(huntId, { type: 'proof_file_nudge', tool: proofHit.tool, detail: scrub(`${proofHit.payloadClass} on ${proofHit.endpoint}`), count: proofHit.count, via: 'human-mode' }); } catch { /* best-effort */ }
+      say(`Proof complete — ${proofHit.payloadClass} on ${proofHit.endpoint} already proven ×${proofHit.count}; filing required.`);
+      observation = proofFileObservation(proofHit);
+      note({ action: `proof_file_nudge: ${proofHit.payloadClass} on ${proofHit.endpoint}`, why: thinkingText, result: `proof complete ×${proofHit.count} — file it`, learned: 'A claim proven three times is filed, not re-proved; the verifier decides whether it is true.' });
     } else if (kind === 'shell') {
       const command = String(action.command || '').slice(0, COMMAND_CAP);
       if (!command) {
@@ -5166,6 +5317,26 @@ export async function humanIteration(huntId, target, opts = {}) {
             observation = `VERIFIED by the independent verifier: "${rec.title}" (${rec.severity}). It counts. Think about impact and chaining — what does this unlock?`;
           } else {
             observation = `NOT verified: ${rec.verification || 'the verifier rejected the claim'}. A rejected claim is a dead end, not a finding — either your evidence does not prove it, or the command does not reproduce it. Do not re-claim the same thing; dig for real proof or move on.`;
+            // PROOF-COMPLETE (gate-replay lane): a rejected claim
+            // restarts its proof count — the brain needs NEW
+            // evidence, and the counter must not keep the claim
+            // blocked. Reset every key for this claim's endpoint,
+            // under the claim's class and under the command's
+            // payload class (either may be the probe key).
+            try {
+              const ep = proofEndpointOfCommand(command);
+              const classes = new Set();
+              const cc = normaliseCoverageClass(action.class) || claimClassFromTitle(rawTitle);
+              if (cc) classes.add(String(cc).toLowerCase());
+              const pc = classifyPayloadClass(command);
+              if (pc && pc !== 'credential') classes.add(pc);
+              let changed = false;
+              for (const cls of classes) {
+                const key = `${ep}|${cls}`;
+                if (ep && proofCounts.has(key)) { proofCounts.delete(key); changed = true; }
+              }
+              if (changed) persistProofCounts();
+            } catch { /* reset is best-effort */ }
           }
         }
       } else {
@@ -5214,6 +5385,25 @@ export async function humanIteration(huntId, target, opts = {}) {
       }
       pendingSig = null;
       pendingDegraded = false;
+    }
+
+    // PROOF-COMPLETE (gate-replay lane, 28 Oct 2026): a probe that
+    // returns signal-bearing, non-error output proves its claim
+    // once more. The signature is the one captured before execution
+    // (proofSig), so a navigation the probe caused cannot change
+    // the key. Blocked / paused turns carry no proof (their
+    // observation is a gate text, not probe output — the !proofHit
+    // guard keeps a proof-blocked turn from counting itself);
+    // claim_finding itself is never a probe. The count persists to
+    // meta so the next session inherits it.
+    if ((kind === 'shell' || kind === 'browser_type') && !proofHit && proofSig && observation && !/^(BLOCKED|PAUSED)/.test(String(observation))) {
+      try {
+        const cmdForProof = kind === 'shell' ? String(action.command || '') : '';
+        if (probeProvesClaim({ output: observation, command: cmdForProof })) {
+          proofCounts.set(proofSig.key, (proofCounts.get(proofSig.key) || 0) + 1);
+          persistProofCounts();
+        }
+      } catch { /* proof counting is best-effort */ }
     }
 
     // Lane AI: the session log is scrubbed like every other

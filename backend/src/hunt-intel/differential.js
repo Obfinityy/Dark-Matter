@@ -257,6 +257,118 @@ export function isHttpErrorPage(text) {
   return httpErrorStatus(text) > 0;
 }
 
+// ---- Evidence-reproduction confirmation (gate-replay lane, 28 Oct 2026) -----
+// Root cause of the 0-verified night (live DVWA hunt h_830317bdc184):
+// assessResult confirmed a claim only when the SIGNAL SET of the brain's
+// pasted evidence EXACTLY equalled the signal set of the re-run's raw
+// output (sig1 === sig2). For a data-exfiltration finding (UNION dump)
+// the brain's evidence is a hand-pasted excerpt and the re-run is full
+// raw output — they carry different signal words (an extra 'mysql' /
+// 'token' / 'admin' line on either side, a negated line, a framing
+// line), so a real, reproducible dump was rejected as "the second run
+// differed" — the SQLi claim filed 05:17 and 06:31 IST 28 Oct was
+// rejected both times within 1 second, although the dump (all five
+// DVWA users with MD5 hashes) was real and in hand. The signal set is
+// a proxy for "the re-run reproduced the evidence"; for data claims
+// the right check is whether the re-run reproduces the CLAIMED DATA
+// itself. That is what evidenceReproduced answers, deterministically:
+//
+//   1. DATA TOKENS — a reproduced hash / canary IS the proof. Hex
+//      strings (>= 16 chars: MD5/SHA hashes, tokens) are the data
+//      itself — a password hash in the re-run output is the
+//      exfiltration. Canary tokens (mixed letter+digit, >= 6 chars,
+//      present in BOTH the evidence and the command — the probe's
+//      payload, reflected or exfiltrated) count only when the
+//      re-run line carrying the marker also carries a supporting
+//      signal: a bare marker echo (the script tag stripped) does
+//      NOT reproduce an XSS claim.
+//   2. ERROR PAGE — a re-run that returns an HTTP error page is not
+//      a confirmation, however reproducible (the 404 family: a 404
+//      reproduces deterministically, so step 3 alone would confirm
+//      it). Runs after the token check, so a re-run that DOES return
+//      the claimed data is not vetoed by an error line elsewhere in
+//      its output.
+//   3. SIGNAL-LINE FALLBACK — when the evidence names no concrete
+//      data token (a prose-free excerpt), a supporting-signal line
+//      (>= 40 normalised chars, non-negated, non-framing) from the
+//      evidence reproduced verbatim in the re-run output confirms.
+//      Evidence that yields no token AND no signal line cannot be
+//      confirmed — there is nothing concrete to reproduce, so the
+//      claim stays unproven (the brain must paste the real output;
+//      the claim contract already requires "the exact output").
+//
+// Tightening only in one direction and loosening in exactly one:
+// a claim whose re-run reproduces its data now confirms (previously
+// impossible for dump-shaped evidence); a claim whose re-run does
+// NOT reproduce its data still fails exactly as before. The 404
+// protection is preserved at two layers — this function's step 2,
+// and assessContentRelevance's limb 0, which still runs after the
+// pipeline passes.
+const CANARY_STOPWORDS = new Set([
+  'base64', 'sha256', 'sha512', 'sha1', 'md5', 'utf8', 'utf-8', 'ascii',
+  'https', 'http', 'html', 'json', 'admin', 'passwd', 'password',
+  // Tool / interpreter names — never exfiltrated data, but they match
+  // the canary shape (letters + digit) and appear in both a command
+  // and its output framing.
+  'python3', 'python2', 'node', 'nodejs', 'curl', 'wget', 'bash', 'sh',
+  'perl', 'ruby', 'php', 'java',
+]);
+
+/**
+ * The concrete data tokens a claim asserts: long hex strings (hashes)
+ * plus canary tokens (mixed letter+digit, >= 6 chars) that appear in
+ * both the evidence and the reproducing command. Pure.
+ */
+export function evidenceDataTokens(evidence, command = '') {
+  const ev = String(evidence || '');
+  const cmdLower = String(command || '').toLowerCase();
+  const tokens = new Set();
+  for (const m of ev.matchAll(/\b[0-9a-f]{16,}\b/gi)) tokens.add(m[0].toLowerCase());
+  for (const m of ev.matchAll(/\b(?=[a-z0-9]*[a-z])(?=[a-z0-9]*[0-9])[a-z0-9]{6,}\b/gi)) {
+    const t = m[0].toLowerCase();
+    if (CANARY_STOPWORDS.has(t)) continue;
+    if (cmdLower.includes(t)) tokens.add(t);
+  }
+  return [...tokens].sort();
+}
+
+/**
+ * Did the re-run reproduce the claimed evidence? Pure.
+ * @param {string} evidence — the claim's evidence (brain's pasted output)
+ * @param {string} reRunOutput — the verifier re-run's raw output
+ * @param {string} command — the reproducing command (canary source)
+ * @returns {boolean}
+ */
+export function evidenceReproduced(evidence, reRunOutput, command = '') {
+  const out = String(reRunOutput || '');
+  if (!out.trim()) return false;
+  const outLower = out.toLowerCase();
+  // 1. A reproduced data token IS the proof. A HEX token is the
+  // data itself (a password hash in the output is the
+  // exfiltration). A CANARY token is only the marker: it counts
+  // when the re-run line carrying it also carries a supporting
+  // signal — a bare marker echo (the script tag stripped) does
+  // NOT reproduce an XSS claim.
+  const tokens = evidenceDataTokens(evidence, command);
+  for (const token of tokens) {
+    if (!outLower.includes(token)) continue;
+    if (/^[0-9a-f]{16,}$/.test(token)) return true;
+    for (const line of out.split('\n')) {
+      if (line.toLowerCase().includes(token) && evidenceSignalIds(line, command).length > 0) return true;
+    }
+  }
+  // 2. An error page is not a confirmation, however reproducible.
+  if (isHttpErrorPage(out)) return false;
+  // 3. Fallback: a signal line from the evidence, reproduced verbatim.
+  const lines = supportingSignalLines(evidence, { excludeText: command });
+  const normOut = normalizeText(out);
+  for (const { line } of lines) {
+    const n = normalizeText(line);
+    if (n.length >= 40 && normOut.includes(n)) return true;
+  }
+  return false;
+}
+
 // ---- Content-relevance judgement (solver #454, Job 7 item C) ----------------
 // The execution gate above answers "did the probe run?" — it cannot answer
 // "does this output actually prove THIS claim about THIS target?" The
