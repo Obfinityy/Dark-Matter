@@ -8,6 +8,13 @@
 //                    which rides execInHuntContainerWithRespawn
 //   browser_open / browser_click / browser_type
 //                  -> guiTools, bound to the same raw exec as the loop
+//   browser_snapshot / screenshot / desktop_* / see_screen /
+//   launch_tool / download_tool / proxy_* / intercept_*
+//                  -> osControl.executeOsAction, over the SAME
+//                    machine helpers the AI loop uses (desktopControl,
+//                    screenMap, desktopAtspi, toolLaunch,
+//                    proxyIntercept, guiTools) — the parent brain gets
+//                    the whole Kali machine, not just the browser
 //   recall         -> actionIndex.recallById / recallByHash (pure)
 //   claim_finding  -> humanLoop.claimGateCheck, then the SAME pipeline
 //                    verifier the AI's claims go through
@@ -66,6 +73,8 @@ import {
   targetHostsFor,
 } from './humanLoop.js';
 import { normaliseCoverageClass } from './coverageLedger.js';
+import { executeOsAction, OS_CONTROL_ACTIONS, osControlDetail } from './osControl.js';
+import { startProcess, appendProcessLine, completeProcess, failProcessFile, recordBrainOutput } from './brainFiles.js';
 
 export const BRAIN_MODES = ['ai', 'parent'];
 
@@ -367,6 +376,37 @@ export function deriveProcessState(huntId, { meta = {}, events = [], reasoningRo
     : taskStatus === 'in_progress' ? 'running'
     : taskStatus === 'complete' ? 'done' : 'pending';
 
+  // LIVE UI (28 Oct 2026, owner order): the owner looks at his
+  // browser and sees 'PAUSED' while the parent brain is actively
+  // working — the live machine, the browser, the updates are all
+  // invisible. So the process state carries the LIVE truth, not just
+  // the hunt flag:
+  //   in_process — the process boolean (true while a step runs,
+  //     false when it finishes/fails) — the brain is told this every
+  //     turn, and the UI renders it.
+  //   activity — one live line: who is working and on what.
+  //   lastAction — the newest action (tool + label + hash + time).
+  //   lastScreenshot — the newest screenshot artifact, so the UI can
+  //     show the machine's latest frame.
+  //   desktop — the last known desktop (window titles + focused app),
+  //     recorded by desktop_snapshot/see_screen/desktop_screenshot.
+  const inProcess = taskStatus === 'in_progress';
+  const lastEntry = actions.length ? actions[actions.length - 1] : null;
+  const lastAction = lastEntry
+    ? { tool: lastEntry.tool || '', label: lastEntry.label || '', hash: lastEntry.hash || '', at: lastEntry.at || '', status: lastEntry.status || lastEntry.outcome || '' }
+    : null;
+  let activity = '';
+  if (brainMode === 'parent') {
+    if (inProcess) activity = `Parent brain working — ${task || 'acting on the machine'}`;
+    else if (taskStatus === 'failed') activity = `Parent brain — last step failed${taskError ? `: ${taskError}` : ''}`;
+    else if (taskStatus === 'complete') activity = `Parent brain — last step done${task ? `: ${task}` : ''}`;
+    else activity = 'Parent brain — waiting for the next action';
+  } else if (running) {
+    activity = `AI brain running — ${task || 'hunting'}`;
+  } else {
+    activity = state === 'paused' ? 'Hunt paused' : `Hunt ${state}`;
+  }
+
   return {
     ok: true,
     running,
@@ -376,6 +416,11 @@ export function deriveProcessState(huntId, { meta = {}, events = [], reasoningRo
     summary,
     taskStatus,
     processStatus,
+    in_process: inProcess,
+    activity,
+    lastAction,
+    lastScreenshot: (meta.lastScreenshot && typeof meta.lastScreenshot === 'object') ? meta.lastScreenshot : null,
+    desktop: (meta.lastDesktopState && typeof meta.lastDesktopState === 'object') ? meta.lastDesktopState : null,
     error: taskError,
     done,
     pending,
@@ -412,14 +457,22 @@ function detailForAction(kind, action) {
     case 'shell': return String(action.command || '').slice(0, COMMAND_CAP);
     case 'browser_open': return String(action.url || '');
     case 'browser_click': return String(action.text || '');
-    case 'browser_type': return String(action.text || '').slice(0, 80);
+    case 'browser_type': {
+      // GUI-TYPE-TARGET (28 Oct 2026): the action index must say
+      // WHICH field was typed into, not just the text — the live
+      // DVWA login failure was invisible in the index because every
+      // type row showed only the typed text.
+      const tgt = String(action.selector || action.target || '').trim();
+      const txt = String(action.text || '').slice(0, 80);
+      return tgt ? `${tgt} ← ${txt}`.slice(0, 80) : txt;
+    }
     case 'claim_finding': return String(action.title || '').slice(0, 200);
+    default: return osControlDetail(kind, action); // OS-control kinds
     case 'recall': {
       if (action.id != null) return `#${String(action.id).replace(/^#/, '')}`;
       if (action.hash) return `hash:${String(action.hash).slice(0, 32)}`;
       return String(action.query || '').slice(0, 200);
     }
-    default: return '';
   }
 }
 
@@ -434,10 +487,13 @@ async function defaultGui(huntId, target, parsedScope, deps) {
   const { guiBrowserOpen, guiBrowserClick, guiBrowserType } = await import('./guiTools.js');
   const execRaw = deps.execRaw || ((h, c, t, o) => import('./huntRunner.js').then((hr) => hr.execInHuntContainerWithRespawn(h, c, t, o)));
   const targetHosts = targetHostsFor(target, parsedScope);
+  const { guiBrowserSnapshot, guiBrowserScreenshot } = await import('./guiTools.js');
   return {
     open: (h, url) => guiBrowserOpen(h, url, { exec: execRaw, targetHosts, targetUrl: target }),
     click: (h, text) => guiBrowserClick(h, text, { exec: execRaw, targetHosts, targetUrl: target }),
-    type: (h, text, submit) => guiBrowserType(h, text, submit, { exec: execRaw, targetHosts, targetUrl: target }),
+    type: (h, target, text, submit) => guiBrowserType(h, target, text, submit, { exec: execRaw, targetHosts, targetUrl: target }),
+    snapshot: (h) => guiBrowserSnapshot(h, { exec: execRaw, targetHosts, targetUrl: target }),
+    screenshot: (h) => guiBrowserScreenshot(h, { exec: execRaw, targetHosts, targetUrl: target }),
   };
 }
 
@@ -488,7 +544,7 @@ export async function executeBrainAction(huntId, action, deps = {}) {
     return { ok: false, error: 'unknown_action', message: 'Send {action: <tool>, ...} in the AI brain\'s shape.' };
   }
   const kind = action.action.trim().toLowerCase();
-  const SUPPORTED = new Set(['shell', 'browser_open', 'browser_click', 'browser_type', 'recall', 'claim_finding']);
+  const SUPPORTED = new Set(['shell', 'browser_open', 'browser_click', 'browser_type', 'recall', 'claim_finding', ...OS_CONTROL_ACTIONS]);
   if (!SUPPORTED.has(kind)) {
     return { ok: false, error: 'unknown_action', message: `Unknown action "${kind}". Supported: ${[...SUPPORTED].join(', ')}.` };
   }
@@ -529,6 +585,10 @@ export async function executeBrainAction(huntId, action, deps = {}) {
     status: 'in_progress',
   };
   const failProcess = (error, message) => {
+    // BRAIN FILES: a failed step closes its process (in_process false)
+    // and still lands in the memory file as failed work — the brain
+    // must know it tried this, so it never retries it blind.
+    try { failProcessFile(huntId, { title: processTask.task || '', hash: contentHash(tool, String(detail || '').slice(0, 300)), error: String(error || '') }); } catch { /* best-effort */ }
     try {
       record(huntId, {
         type: 'task_failed', task: processTask.task || '', goal: processTask.goal || '',
@@ -554,6 +614,14 @@ export async function executeBrainAction(huntId, action, deps = {}) {
       writeMetaCheckpoint(huntId, { currentTask: { ...processTask, status: 'in_progress', updatedAt: new Date().toISOString() } });
     } catch { /* best-effort */ }
   }
+
+  // BRAIN FILES: the step joins (or starts) its process — same task
+  // string = same process, a different task closes the old one and
+  // starts a new one — and its first line is recorded.
+  try {
+    startProcess(huntId, processTask);
+    appendProcessLine(huntId, `step started: ${kind} — ${String(detail || '').slice(0, 160)}`);
+  } catch { /* best-effort */ }
 
   const tool = kind;
   let observation = '';
@@ -594,6 +662,17 @@ export async function executeBrainAction(huntId, action, deps = {}) {
       } catch { /* best-effort */ }
     }
     const hash = contentHash(tool, String(detail || '').slice(0, 300));
+    // BRAIN FILES: the result goes to the OUTPUT file by hash (backend
+    // only), the step's line goes to the PROCESS file, and a finished
+    // step closes its process and lands in the MEMORY file (title +
+    // hash). An explicit in_progress block spans actions and stays
+    // open until the brain marks it complete.
+    try { recordBrainOutput(huntId, { hash, title: `${tool}: ${String(detail || '').slice(0, 200)}`, output: observation }); } catch { /* best-effort */ }
+    try { appendProcessLine(huntId, `done: ${tool} — ${String(detail || '').slice(0, 160)}`); } catch { /* best-effort */ }
+    try {
+      if (!explicitTask) completeProcess(huntId, { title: processTask.task || '', hash });
+      else if (taskBlock && taskBlock.status === 'complete') completeProcess(huntId, { title: taskBlock.task || '', hash });
+    } catch { /* best-effort */ }
     let entry = null;
     try {
       const entries = buildActionIndex(readEvents(huntId) || [], readReasoning(huntId) || []);
@@ -667,16 +746,92 @@ export async function executeBrainAction(huntId, action, deps = {}) {
   if (kind === 'browser_click' || kind === 'browser_type') {
     const text = String(action.text || '');
     if (!text.trim()) { failProcess('empty_command', `${kind} needs text.`); return { ok: false, error: 'empty_command', message: `${kind} needs text.` }; }
+    // GUI-TYPE-TARGET (28 Oct 2026): a type names its field — the
+    // form composer and the JSON reply both send `selector` for it,
+    // and the old code read only `action.text`, so the selector was
+    // silently dropped and the driver typed blind. A type without a
+    // field target is refused before anything runs.
+    let fieldTarget = '';
+    if (kind === 'browser_type') {
+      fieldTarget = String(action.selector || action.target || '').trim();
+      if (!fieldTarget) {
+        const msg = 'browser_type needs a field target — the label or CSS selector of the field to type into (e.g. "Username" or "input[name=password]"). Take a browser_snapshot and name the field; never type blind.';
+        failProcess('missing_target', msg);
+        return { ok: false, error: 'missing_target', message: msg };
+      }
+    }
     const gui = await defaultGui(huntId, target, parsedScope, d);
     let res = null;
     try {
       res = kind === 'browser_click'
         ? await gui.click(huntId, text)
-        : await gui.type(huntId, text, action.submit === true);
+        : await gui.type(huntId, fieldTarget, text, action.submit === true);
     } catch (err) { res = { ok: false, observation: String((err && err.message) || err) }; }
     observation = (res && res.observation) || '(no observation)';
+    // NO FAKE SUCCESS (28 Oct 2026, the DVWA login failure): a GUI
+    // action the driver refused is a FAILED step, not a completed
+    // one. The attempt itself is recorded (tool_call + note, so the
+    // action index keeps it recallable with its failure as output),
+    // but the process is marked failed and the console gets an
+    // error — the old code called finish() unconditionally, so every
+    // failed click/type still showed task_complete.
+    if (res && res.ok === false) {
+      recordExecuted();
+      failProcess('gui_failed', observation);
+      return { ok: false, error: 'gui_failed', message: String(observation).slice(0, 300), output: observation };
+    }
     recordExecuted();
     return finish();
+  }
+
+  if (OS_CONTROL_ACTIONS.has(kind)) {
+    // FULL OS CONTROL (28 Oct 2026, owner order): the parent brain
+    // drives the whole Kali machine through the same OS-control layer
+    // the AI loop's actions use (osControl.js). The ctx hands it the
+    // same raw exec, the same GUI binding, the same screenshot /
+    // desktop starters and the same meta access the loop gets. A
+    // refused/failed OS action is a FAILED step (gui_failed), never
+    // a task_complete — the DVWA login rule, applied to the desktop.
+    const execRaw = d.execRaw || ((h, c, t, o) => import('./huntRunner.js').then((hr) => hr.execInHuntContainerWithRespawn(h, c, t, o)));
+    const gui = await defaultGui(huntId, target, parsedScope, d);
+    let res = null;
+    try {
+      res = await executeOsAction(huntId, kind, action, {
+        target,
+        parsedScope,
+        execRaw,
+        exec: (h, t, c) => defaultExec(h, t, c, d),
+        gui,
+        readMeta,
+        writeMeta: writeMetaCheckpoint,
+      });
+    } catch (err) {
+      res = { ok: false, observation: String((err && err.message) || err) };
+    }
+    observation = (res && res.observation) || '(no observation)';
+    if (res && res.ok === false) {
+      recordExecuted();
+      failProcess('gui_failed', observation);
+      return { ok: false, error: 'gui_failed', message: String(observation).slice(0, 300), output: observation };
+    }
+    // LIVE UI: remember what the machine last showed, so GET
+    // /process can render it without re-running anything.
+    try {
+      const patch = {};
+      if (res && res.artifact) patch.lastScreenshot = { name: res.artifact, kind, at: new Date().toISOString() };
+      if (res && res.desktopState) {
+        patch.lastDesktopState = {
+          windows: (res.desktopState.windows || []).map((w) => w.title).filter(Boolean),
+          activeTitle: res.desktopState.activeTitle || '',
+          at: new Date().toISOString(),
+        };
+      }
+      if (Object.keys(patch).length) writeMetaCheckpoint(huntId, patch);
+    } catch { /* live-state persistence is best-effort */ }
+    recordExecuted();
+    const done = finish();
+    if (res && res.artifact) done.artifact = res.artifact;
+    return done;
   }
 
   if (kind === 'recall') {

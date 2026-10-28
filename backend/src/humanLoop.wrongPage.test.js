@@ -95,7 +95,7 @@ function stubSession(replies, { gui, events = [], meta = {} } = {}) {
     open: async (h, url) => { guiCalls.push(['open', url]); return gui.open ? gui.open(h, url) : { observation: 'opened' }; },
     snapshot: async (h) => { guiCalls.push(['snapshot']); return gui.snapshot ? gui.snapshot(h) : { observation: 'snap' }; },
     click: async (h, text) => { guiCalls.push(['click', text]); return gui.click ? gui.click(h, text) : { observation: 'clicked' }; },
-    type: async (h, text, submit) => { guiCalls.push(['type', text]); return gui.type ? gui.type(h, text, submit) : { observation: 'Typed.' }; },
+    type: async (h, target, text, submit) => { guiCalls.push(['type', text]); return gui.type ? gui.type(h, target, text, submit) : { observation: 'Typed.' }; },
     screenshot: async (h) => { guiCalls.push(['screenshot']); return gui.screenshot ? gui.screenshot(h) : { observation: 'shot' }; },
   };
   return {
@@ -121,7 +121,7 @@ function stubSession(replies, { gui, events = [], meta = {} } = {}) {
 
 test('HL-6 (wire-up): the turn-start snapshot seeds the session, so the first type RUNS', async () => {
   const s = stubSession(
-    ['I will type the username.\n{"action":"browser_type","text":"test@example.com","submit":true}'],
+    ['I will type the username.\n{"action":"browser_type","target":"Email address","text":"test@example.com","submit":true}'],
     { gui: { snapshot: async () => ({ observation: REAL_SNAP }) } },
   );
   const res = await s.run();
@@ -188,7 +188,7 @@ test('HL-9 (wire-up): lastObservation seeds from the previous session leftOff wh
     },
   };
   const s = stubSession(
-    ['I will type the username.\n{"action":"browser_type","text":"test@example.com","submit":true}'],
+    ['I will type the username.\n{"action":"browser_type","target":"Email address","text":"test@example.com","submit":true}'],
     {
       meta,
       gui: { snapshot: async () => ({}), type: async () => ({ observation: 'Typed.' }) },

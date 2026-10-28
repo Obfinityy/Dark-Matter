@@ -513,7 +513,7 @@ test('EX-10: DVWA live shape end-to-end — the baseline probe on the SQLi page 
   const res = await humanIteration('h_test_dvwa_exhausted', 'http://172.17.0.1:3100/', {
     turns: 1,
     deps: {
-      chat: async () => `I will send the baseline probe.\n{"action":"browser_type","text":"1"}`,
+      chat: async () => `I will send the baseline probe.\n{"action":"browser_type","target":"User ID","text":"1"}`,
       gui: {
         open: async () => { guiCalls.push('open'); return { observation: 'opened', snapshot: SQLI_SNAP }; },
         snapshot: async () => { guiCalls.push('snapshot'); return { observation: `Page: SQL Injection — ${DVWA_SQLI}\nUser ID: [ ] Submit`, snapshot: SQLI_SNAP }; },

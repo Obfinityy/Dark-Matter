@@ -44,6 +44,7 @@ import { evidenceSignalIds, isHttpErrorPage } from './hunt-intel/index.js';
 import { isMachineControlled, getControl } from './machineControl.js';
 import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents } from './store.js';
 import { normalisedActionDetail, actionSignature, contentHash } from './actionIdentity.js';
+import { renderBrainFilesScreen } from './brainFiles.js';
 import { recallById, firstRunNumber, parseRecallId, formatFullRecord } from './actionIndex.js';
 import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
@@ -1168,7 +1169,7 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"browser_open","url":"..."} — open a page in your desktop browser',
     '{"action":"browser_snapshot"} — see the current page: its text and clickable elements',
     '{"action":"browser_click","text":"visible label OR CSS selector"} — click in the desktop browser',
-    '{"action":"browser_type","text":"...","submit":true} — type into the page field (submit=true presses Enter)',
+    '{"action":"browser_type","target":"field label OR CSS selector","text":"...","submit":true} — type into THAT field (it is cleared first, then your text is typed; the observation tells you what the field holds afterwards — if it does not match what you typed, snapshot and correct yourself; a type without a target is refused). submit=true presses Enter after typing',
     '{"action":"screenshot"} — capture the browser viewport to a PNG artifact; you also get the page text',
     '{"action":"desktop_snapshot"} — see the whole XFCE desktop: its windows and which one is focused (text — you never see the image; the owner watches the desktop live)',
     '{"action":"desktop_click","window":"Burp Suite"} — focus a window by its title (exact, starts-with, or contains) and send it a click; the focused window then receives your desktop_key keystrokes. Take desktop_snapshot first if you do not know the window titles.',
@@ -1204,6 +1205,16 @@ function systemPromptFor(target, parsedScope) {
     // backend records it, and the next turn resumes it instead of
     // starting fresh.
     '{"action":"recall","id":7} — fetch the FULL stored record of action #7 from your Action Index (one line per action, numbered #1, #2, #3… — the number is the lookup, no search needed). Use it when you need an exact result, a payload you tried, or an output — instead of re-doing the work. Out of range, the observation says how many actions the index holds.',
+    // BRAIN FILES (28 Oct 2026, owner order): the brain's context is
+    // three files. The MEMORY file (titles + hashes only — what was
+    // done, never the results) and the PROCESS file (the current
+    // process, full detail, in_process true/false) are sent to you
+    // every turn on your screen. The OUTPUT file (the results) stays
+    // on the backend — fetch ONE result by hash/id when you need it.
+    'YOUR SCREEN carries your MEMORY file (titles + hashes — everything you have done in this hunt, so you NEVER repeat work) and your PROCESS file (the process you are in, in_process true/false, and every line of what has happened in it). Read both before choosing. When a process finishes (in_process flips to false), think of a NEW process — a new vulnerability, a new curiosity, a new variety.',
+    // RECALL WITH A REASON (28 Oct 2026, owner order): when you need
+    // a past result, say WHY — {"recall":{"id":7,"reason":"I need the exact UNION payload that dumped the users, to reuse it on the next endpoint"}}. The reason is recorded with the request.',
+    'When you recall a past action, ALWAYS say why: {"recall":{"id":7,"reason":"<why you need this data>"}} — the reason is recorded with the request. A recall without a reason is still served, but a brain that cannot say why it needs data is a brain guessing.',
     'Your reply may carry a task block beside the action: {"task":"<what you are doing right now>","goal":"<what it achieves>","progress":"<how far you are>","status":"in_progress"} — I record it as your current task, so the next turn resumes it instead of starting fresh. When a task is DONE, send the block with "status":"complete" and a one-line "summary" of what it produced — its input and output are saved to your record then. A task is a goal plus its actions; finishing one is how the hunt moves forward.',
     'Your screen carries an ACTION INDEX — one line per action you have taken in THIS hunt, numbered #1, #2, #3… with a one-word outcome each. It is your complete map of what is done: read it before choosing, so you never redo a finished action and you can see which variants are still open.',
     // HUNTER-MIND (26 Oct 2026): the plan is the hunter's own
@@ -1216,7 +1227,7 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"record_coverage","surface":"the page/endpoint/feature","class":"the vuln class","outcome":"probed_clean|confirmed|ruled_out|not_applicable|open_gap","evidence":"what you observed"} — account for a surface × class in your coverage ledger. Each pair is recorded exactly once; closing as ruled_out or not_applicable REQUIRES the evidence to name the control that stops the class. Add "update":true to change an existing row. Researched-but-unprobed classes are carried as open gaps automatically — closing them is how they leave your screen.',
     '{"action":"load_skill","skill":"sqli"} — pull one of your SKILL CARDS: a compact procedure for a vuln class (attack surface, detection channels, numbered testing steps, and the proof bar a claim must clear). Pull one when you OPEN a class, instead of searching the web — the card\'s steps end in a probe. The card index is on every screen; one card at a time.',
     '{"action":"request_details","title":"Login for <site>","account":"owner","fields":[{"key":"email","label":"Login email","type":"email"},{"key":"password","label":"Password","type":"password"}]} — ASK THE OWNER for details you need (a login, an OTP, any field): a card appears below the chat and the owner fills it in. Wait for the next turn — the details arrive on your screen (one-turn only, never written to the record). Do NOT re-ask for the same details and do NOT re-attempt the blocked action while a request is open. Any field type works: text, email, password, otp, textarea. "account":"owner" means it is the OWNER\'s own existing account (ask first is correct there). "account":"fresh" (or omitted) means a NEW account you could create yourself — the server REFUSES a fresh ask until you have tried the self path first (save_credential, then use_saved_credential, then fetch_verification_code); ask only after that path fails, and say what failed.',
-    'ACCOUNTS — when a target needs an account, FIRST decide whose account it is. (A) THE OWNER\'S OWN EXISTING ACCOUNT (his personal login to a service he already has, e.g. his kSuite login): ask FIRST with request_details and "account":"owner" — the owner gives you THEIR account in the chat; do NOT create your own. (B) A FRESH ACCOUNT on a target (a training ground, or any site that allows self-registration): try YOURSELF first, in this order — (1) save_credential for the site (vaults the login AND provisions your own temp-mail inbox for verification mail), (2) use_saved_credential to fill the form from the vault, (3) fetch_verification_code to poll your temp-mail inbox for the code. Only if that path FAILS (the site blocks the temp-mail domain, no mail arrives, or it demands a phone/SMS code or an interactive captcha your clicks cannot solve) ask the owner with request_details and "account":"fresh" — and say what failed. The server REFUSES a fresh ask when you have not tried yourself first, so attempt the self path and record it before asking. Never the owner\'s identity, never another user\'s data, only in-scope targets. {"action":"save_credential","site":"https://target.example","username":"obfinity-xxxx"} — vault a credential for a site (omit "password" and the server generates a random 20-char one and shows it to you ONCE, this turn only — type it immediately with browser_type, then submit; it is never written to the permanent record, and neither is any password you invent: keep passwords OUT of your thinking and notes, the record keeps the handle only, e.g. cred:target.example:ab12cd34ef56). {"action":"use_saved_credential","handle":"cred:...","usernameField":"Email","passwordField":"Password"} — fill a login form from the vault without the password ever appearing in text (give the two fields\' visible labels from a snapshot; omit them and you get the handle + username back to snapshot first). {"action":"fetch_verification_code","handle":"cred:..."} — poll your temp-mail inbox for that site\'s verification code (one-turn observation — type it immediately; if no mail arrives the observation says the domain may be blocked, so record that as a blocker and move on, never retry forever). If a signup demands a phone/SMS code or an interactive captcha your clicks cannot solve, that path is blocked — say so and move on; never use a third-party captcha solver.',
+    'ACCOUNTS — when a target needs an account, FIRST decide whose account it is. (A) THE OWNER\'S OWN EXISTING ACCOUNT (his personal login to a service he already has, e.g. his kSuite login): ask FIRST with request_details and "account":"owner" — the owner gives you THEIR account in the chat; do NOT create your own. (B) A FRESH ACCOUNT on a target (a training ground, or any site that allows self-registration): try YOURSELF first, in this order — (1) save_credential for the site (vaults the login AND provisions your own temp-mail inbox for verification mail), (2) use_saved_credential to fill the form from the vault, (3) fetch_verification_code to poll your temp-mail inbox for the code. Only if that path FAILS (the site blocks the temp-mail domain, no mail arrives, or it demands a phone/SMS code or an interactive captcha your clicks cannot solve) ask the owner with request_details and "account":"fresh" — and say what failed. The server REFUSES a fresh ask when you have not tried yourself first, so attempt the self path and record it before asking. Never the owner\'s identity, never another user\'s data, only in-scope targets. {"action":"save_credential","site":"https://target.example","username":"obfinity-xxxx"} — vault a credential for a site (omit "password" and the server generates a random 20-char one and shows it to you ONCE, this turn only — type it immediately with browser_type into the password field (target: the password field label, e.g. "Password"), then submit; it is never written to the permanent record, and neither is any password you invent: keep passwords OUT of your thinking and notes, the record keeps the handle only, e.g. cred:target.example:ab12cd34ef56). {"action":"use_saved_credential","handle":"cred:...","usernameField":"Email","passwordField":"Password"} — fill a login form from the vault without the password ever appearing in text (give the two fields\' visible labels from a snapshot; omit them and you get the handle + username back to snapshot first). {"action":"fetch_verification_code","handle":"cred:..."} — poll your temp-mail inbox for that site\'s verification code (one-turn observation — type it immediately; if no mail arrives the observation says the domain may be blocked, so record that as a blocker and move on, never retry forever). If a signup demands a phone/SMS code or an interactive captcha your clicks cannot solve, that path is blocked — say so and move on; never use a third-party captcha solver.',
     '{"action":"claim_finding","title":"...","class":"sqli","evidence":"the exact output that proves it","command":"the exact command that produced that evidence","counterevidence":"the control/baseline result that could have disproved it","confidence":"high|medium|low","confidence_rationale":"required when confidence is not high"} — claim a vulnerability. The filing is complete-the-proof gated: a claim missing any of title, class, a runnable reproduction ("command", or "poc" naming a proof script saved in this hunt), evidence, counterevidence, or confidence is bounced back UNRECORDED with the missing pieces named — complete the package and claim again. A complete claim goes to an independent verifier, which re-runs your command and checks the evidence; ONLY verified findings count. Never claim without reproduced evidence.',
     'Act like a person: if you need a tool, download it; if you don\'t know something, search; if output is interesting, dig; one step at a time — you will see the result on the next screen.',
     `Programme rules you must obey: ${rules.join('; ')}.`,
@@ -1706,7 +1717,15 @@ function detailForAction(kind, action) {
     case 'note': return String(action.text || '').slice(0, 160);
     case 'browser_open': return String(action.url || '').slice(0, 160);
     case 'browser_click': return String(action.text || '').slice(0, 120);
-    case 'browser_type': return String(action.text || '').slice(0, 80);
+    case 'browser_type': {
+      // GUI-TYPE-TARGET (28 Oct 2026): the detail names the field —
+      // the dedupe gate compares like with like, so typing 'admin'
+      // into the username field and into a search box are different
+      // actions, not the same repeat.
+      const tgt = String(action.target || action.selector || '').trim();
+      const txt = String(action.text || '').slice(0, 80);
+      return tgt ? `${tgt} ← ${txt}`.slice(0, 80) : txt;
+    }
     case 'claim_finding': return String(action.title || '').slice(0, 160);
     case 'recall': {
       const id = parseRecallId(action.id);
@@ -2047,7 +2066,11 @@ function gatedCandidate(kind, action) {
     case 'search': return { tool: 'search', detail: String(action.query || '').slice(0, 200) };
     case 'browser_open': return { tool: 'browser_open', detail: String(action.url || '') };
     case 'browser_click': return { tool: 'browser_click', detail: String(action.text || '') };
-    case 'browser_type': return { tool: 'browser_type', detail: String(action.text || '').slice(0, 80) };
+    case 'browser_type': {
+      const tgt = String(action.target || action.selector || '').trim();
+      const txt = String(action.text || '').slice(0, 80);
+      return { tool: 'browser_type', detail: tgt ? `${tgt} ← ${txt}`.slice(0, 80) : txt };
+    }
     case 'desktop_click': return { tool: 'desktop_click', detail: String(action.window || '') };
     case 'desktop_key': return { tool: 'desktop_key', detail: String(action.keys || action.text || '').slice(0, 80) };
     case 'desktop_click_control': return { tool: 'desktop_click_control', detail: String(action.control || '').slice(0, 120) };
@@ -3653,7 +3676,7 @@ export async function humanIteration(huntId, target, opts = {}) {
         open: (h, url) => guiBrowserOpen(h, url, { exec: ex, ...guiTarget }),
         snapshot: (h) => guiBrowserSnapshot(h, { exec: ex, ...guiTarget }),
         click: (h, text) => guiBrowserClick(h, text, { exec: ex, ...guiTarget }),
-        type: (h, text, submit) => guiBrowserType(h, text, submit, { exec: ex, ...guiTarget }),
+        type: (h, target, text, submit) => guiBrowserType(h, target, text, submit, { exec: ex, ...guiTarget }),
         screenshot: (h) => guiBrowserScreenshot(h, { exec: ex, ...guiTarget }),
       };
     }
@@ -4808,7 +4831,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       const rec = saveCredential({ site, username, password, huntId, inbox });
       toolCall('save_credential', rec.handle);
       observation = generated
-        ? `Saved credential ${rec.handle} for ${site} as ${username}. One-time password for THIS turn only (it will never be shown again and is never written to the record): ${password} — type it now with browser_type, then submit. Your temp-mail inbox for verification mail is ${inbox ? inbox.address : '(none — mail provider unreachable)'}; poll it with fetch_verification_code and this handle.`
+        ? `Saved credential ${rec.handle} for ${site} as ${username}. One-time password for THIS turn only (it will never be shown again and is never written to the record): ${password} — type it now with browser_type into the password field (target: the password field's label, e.g. "Password"), then submit. Your temp-mail inbox for verification mail is ${inbox ? inbox.address : '(none — mail provider unreachable)'}; poll it with fetch_verification_code and this handle.`
         : `Saved credential ${rec.handle} for ${site} as ${username}. It is vaulted; the record keeps the handle only. Temp-mail inbox: ${inbox ? inbox.address : '(none — mail provider unreachable)'}.`;
       note({ action: `save_credential: ${rec.handle}`, why: thinkingText, result: `credential vaulted for ${site} as ${username}`, learned: '' });
     } else if (kind === 'use_saved_credential') {
@@ -4838,9 +4861,9 @@ export async function humanIteration(huntId, target, opts = {}) {
           // coverage). Each step is checked; the first refusal
           // stops the chain and its observation IS the answer.
           const clickU = await gui.click(huntId, uField);
-          const typeU = clickU && clickU.ok !== false ? await gui.type(huntId, rec.username, false) : null;
+          const typeU = clickU && clickU.ok !== false ? await gui.type(huntId, uField, rec.username, false) : null;
           const clickP = typeU && typeU.ok !== false ? await gui.click(huntId, pField) : null;
-          const typeP = clickP && clickP.ok !== false ? await gui.type(huntId, rec.password, false) : null;
+          const typeP = clickP && clickP.ok !== false ? await gui.type(huntId, pField, rec.password, false) : null;
           const failed = [clickU, typeU, clickP, typeP].find((r) => r && r.ok === false);
           if (failed) {
             observation = failed.observation || `Could not fill the login fields for ${rec.site} — the browser refused the action (${failed.error || 'unknown reason'}). Snapshot the page and check you are on the login page first.`;
@@ -4869,7 +4892,7 @@ export async function humanIteration(huntId, target, opts = {}) {
         const res = await deps.pollCode(rec.inbox, { sleep: deps.sleep });
         if (res.ok) {
           sessionSecrets.add(res.code);
-          observation = `Verification code for ${rec.site} (one-turn only — type it now with browser_type; it will not be shown again and is never written to the record): ${res.code} (from ${res.from || 'inbox'}${res.subject ? `, subject: ${res.subject}` : ''})`;
+          observation = `Verification code for ${rec.site} (one-turn only — type it now with browser_type into the code field (target: that field's label); it will not be shown again and is never written to the record): ${res.code} (from ${res.from || 'inbox'}${res.subject ? `, subject: ${res.subject}` : ''})`;
           markVerified(handle);
         } else if (res.reason === 'timeout') {
           observation = `No verification mail arrived for ${rec.site} after ${res.polls} polls — the site may block this temp-mail domain (${String(rec.inbox.address).split('@')[1] || 'unknown'}). Record this as a blocker: do not retry forever; note the domain and move on.`;
@@ -4964,8 +4987,18 @@ export async function humanIteration(huntId, target, opts = {}) {
       note({ action: `browser_click: ${text.slice(0, 80)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'browser_type') {
       const text = String(action.text || '');
-      toolCall('browser_type', text.slice(0, 80));
-      const res = await getGui().type(huntId, text, action.submit === true);
+      // GUI-TYPE-TARGET (28 Oct 2026): the brain names the field —
+      // a type without a target is not attempted at all (the old
+      // code typed into whatever was focused; the DVWA login put
+      // 'password' into the username field and still "succeeded").
+      const fieldTarget = String(action.target || action.selector || '').trim();
+      toolCall('browser_type', fieldTarget ? `${fieldTarget} ← ${text.slice(0, 80)}` : text.slice(0, 80));
+      let res;
+      if (!fieldTarget) {
+        res = { ok: false, observation: 'browser_type needs a "target" — the label or CSS selector of the field to type into (e.g. "Username" or "input[name=password]"). Take a browser_snapshot and name the field; never type blind.' };
+      } else {
+        res = await getGui().type(huntId, fieldTarget, text, action.submit === true);
+      }
       if (res && res.degraded === true) pendingDegraded = true; // Lane AF
       observation = res.observation || '(no observation)';
       notePageUrl(observation);
@@ -4975,7 +5008,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       if (res && res.ok !== false) {
         try { sessionPageState = markTypedInto(sessionPageState, currentPageUrl); savePageState(huntId, sessionPageState); } catch { /* best-effort */ }
       }
-      note({ action: 'browser_type', why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `browser_type: ${fieldTarget ? `${fieldTarget} ← ` : ''}${text.slice(0, 80)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
     } else if (kind === 'screenshot') {
       toolCall('screenshot', '');
       const res = await getGui().screenshot(huntId);

@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {
   CDP_SCRIPT,
+  resolveClickTarget,
   wrongPageObservation,
   guiBrowserSnapshot,
   guiBrowserType,
@@ -114,14 +115,21 @@ test('WP-4: getPage for navigate reuses the tab on the requested host, else the 
 // --- type branch: the field check must be honoured ---
 
 function typeExprFromScript(script) {
-  const m = /const field = await evaluate\(`\(\(\) => \{([\s\S]*?) \}\)\(\)`\);/.exec(script);
-  assert.ok(m, 'type field-check expression must be present in CDP_SCRIPT');
+  // GUI-TYPE-TARGET (28 Oct 2026): the type branch is now a named
+  // resolve (const typed) + a read-back — the old single field-check
+  // evaluate is gone. Extract the resolve expression; the read-back
+  // and the full flow are covered in guiTools.type.test.js.
+  const m = /const typed = await evaluate\(`\(\(\) => \{([\s\S]*?) \}\)\(\)`\);/.exec(script);
+  assert.ok(m, 'type resolve expression must be present in CDP_SCRIPT');
   return m[1];
 }
 
-function runTypeExpr(exprSrc, doc) {
-  const code = `(() => {${exprSrc} })()`;
-  const sandbox = { document: doc };
+function runTypeExpr(exprSrc, target, doc) {
+  const interpolated = exprSrc
+    .replace('${resolveClickTarget.toString()}', resolveClickTarget.toString())
+    .replace('${JSON.stringify(target)}', JSON.stringify(target));
+  const code = `(() => {${interpolated} })()`;
+  const sandbox = { document: doc, window: { getSelection: () => ({ selectAllChildren: () => {} }) } };
   vm.createContext(sandbox);
   return vm.runInContext(code, sandbox, { timeout: 1000 });
 }
@@ -130,32 +138,46 @@ function fakeInputDoc({ activeIsInput = false } = {}) {
   const input = {
     tagName: 'INPUT',
     isContentEditable: false,
+    disabled: false,
+    readOnly: false,
+    value: '',
+    innerText: '',
+    placeholder: '',
+    name: 'username',
+    id: 'username',
+    getAttribute: (n) => ({ name: 'username', type: 'text' }[n] || ''),
     getBoundingClientRect: () => ({ width: 200, height: 30 }),
     scrollIntoView() { this.scrolled = true; },
     focus() { this.focused = true; },
+    select() { this.selected = true; },
+    setAttribute(k, v) { this.attrs = { ...(this.attrs || {}), [k]: v }; },
     scrolled: false,
     focused: false,
+    selected: false,
+    attrs: {},
   };
   return {
     input,
     activeElement: activeIsInput ? input : null,
+    querySelector: () => null,
     querySelectorAll: () => [input],
   };
 }
 
-test('WP-5: the type field check fails honestly on a page with no inputs', () => {
+test('WP-5: the type resolve fails honestly on a page with no inputs', () => {
   const expr = typeExprFromScript(CDP_SCRIPT);
-  const empty = runTypeExpr(expr, { activeElement: null, querySelectorAll: () => [] });
+  const empty = runTypeExpr(expr, 'Username', { activeElement: null, querySelector: () => null, querySelectorAll: () => [] });
   assert.equal(empty.ok, false);
-  assert.match(empty.error, /no typeable field found/);
+  assert.match(empty.error, /no field matches "Username"/);
 });
 
-test('WP-6: the same field check passes and focuses a visible input', () => {
+test('WP-6: the same resolve passes and focuses the named input', () => {
   const expr = typeExprFromScript(CDP_SCRIPT);
   const doc = fakeInputDoc({ activeIsInput: true });
-  const result = runTypeExpr(expr, doc);
+  const result = runTypeExpr(expr, 'Username', doc);
   assert.equal(result.ok, true);
   assert.equal(doc.input.focused, true);
+  assert.equal(result.field.name, 'username');
 });
 
 // --- wrong-page observation + public-function translation ---
@@ -216,7 +238,7 @@ test('WP-9: snapshot on a foreign tab refuses with WRONG PAGE and the driver got
 test('WP-10: type and click on a foreign tab refuse — never a fake success', async () => {
   resetGuiProbeCache();
   const wrong = { ok: false, error: 'wrong_page', url: 'https://hack.thebhavesh.online/', title: 'Dark Matter — Infinity AI - Chromium' };
-  const typeRes = await guiBrowserType('h_test_wp2', 'obfinity-ml5eemlu', false, {
+  const typeRes = await guiBrowserType('h_test_wp2', 'Username', 'obfinity-ml5eemlu', false, {
     exec: cdpStubExec(wrong, {}),
     targetHosts: TARGET_HOSTS,
     targetUrl: TARGET_URL,

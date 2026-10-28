@@ -176,8 +176,8 @@ check('validateBrainReply accepts recall {hash}, {id:42}, {id:"7"} and {id:"#7"}
 check('validateBrainReply accepts click with selector OR text alone',
   !brain.validateBrainReply(validReply({ action: { type: 'click', selector: '#login' } })).error
   && !brain.validateBrainReply(validReply({ action: { type: 'click', text: 'Login' } })).error);
-check('validateBrainReply accepts type with text alone (selector optional)',
-  !brain.validateBrainReply(validReply({ action: { type: 'type', text: 'admin' } })).error);
+check('validateBrainReply accepts type with selector + text',
+  !brain.validateBrainReply(validReply({ action: { type: 'type', selector: '#u', text: 'admin' } })).error);
 check('validateBrainReply accepts a full claim_finding proof package',
   !brain.validateBrainReply(validReply({ action: CLAIM })).error);
 
@@ -208,6 +208,20 @@ check('validateBrainReply click with neither selector nor text names action.sele
   expectErr(validReply({ action: { type: 'click' } }), /action\.selector is required/));
 check('validateBrainReply type without text names action.text',
   expectErr(validReply({ action: { type: 'type', selector: '#u' } }), /action\.text is required/));
+check('validateBrainReply type without selector names action.selector',
+  expectErr(validReply({ action: { type: 'type', text: 'admin' } }), /action\.selector is required/));
+check('validateBrainReply OS types: desktop_click needs window, launch_tool needs tool',
+  expectErr(validReply({ action: { type: 'desktop_click' } }), /action\.window is required/)
+  && expectErr(validReply({ action: { type: 'launch_tool' } }), /action\.tool is required/)
+  && expectErr(validReply({ action: { type: 'desktop_click_at', x: 1 } }), /action\.y is required/));
+check('validateBrainReply accepts see_screen + desktop_click with window',
+  !brain.validateBrainReply(validReply({ action: { type: 'see_screen' } })).error
+  && !brain.validateBrainReply(validReply({ action: { type: 'desktop_click', window: 'Burp Suite' } })).error);
+check('brainReplyToAction OS types pass through unchanged',
+  eq(brain.brainReplyToAction({ ...TB, action: { type: 'see_screen' } }).action,
+    { task: TASK_BLOCK, action: 'see_screen' })
+  && eq(brain.brainReplyToAction({ ...TB, action: { type: 'desktop_click', window: 'Burp Suite' } }).action,
+    { task: TASK_BLOCK, action: 'desktop_click', window: 'Burp Suite' }));
 check('validateBrainReply recall action with neither hash nor id names action.hash',
   expectErr(validReply({ action: { type: 'recall' } }), /action\.hash is required/));
 check('validateBrainReply recall action with both hash and id names action.recall',
@@ -218,6 +232,9 @@ check('validateBrainReply top-level recall with neither names recall',
   expectErr(validReply({ recall: {}, action: { type: 'shell', command: 'id' } }), /recall needs exactly one of hash\/id/));
 check('validateBrainReply top-level recall with both names recall',
   expectErr(validReply({ recall: { hash: 'abc', id: 42 }, action: { type: 'shell', command: 'id' } }), /recall needs exactly one of hash\/id/));
+check('validateBrainReply recall with a reason passes; an over-long reason names recall.reason',
+  !brain.validateBrainReply(validReply({ recall: { id: 3, reason: 'I need the exact UNION payload to reuse it' }, action: { type: 'shell', command: 'id' } })).error
+  && expectErr(validReply({ recall: { id: 3, reason: 'x'.repeat(301) }, action: { type: 'shell', command: 'id' } }), /recall\.reason/));
 check('validateBrainReply claim without title names action.title',
   expectErr(validReply({ action: { ...CLAIM, title: undefined } }), /action\.title is required/));
 check('validateBrainReply claim without severity names action.severity',
@@ -251,9 +268,9 @@ check('brainReplyToAction click maps selector to text (the driver clicks text)',
 check('brainReplyToAction click with text alone carries text, no selector',
   eq(brain.brainReplyToAction({ ...TB, action: { type: 'click', text: 'Login' } }).action,
     { task: TASK_BLOCK, action: 'browser_click', text: 'Login' }));
-check('brainReplyToAction type carries text + submit flag, selector optional',
-  eq(brain.brainReplyToAction({ ...TB, action: { type: 'type', text: 'admin', submit: true } }).action,
-    { task: TASK_BLOCK, action: 'browser_type', text: 'admin', submit: true }));
+check('brainReplyToAction type carries selector + text + submit flag',
+  eq(brain.brainReplyToAction({ ...TB, action: { type: 'type', selector: '#u', text: 'admin', submit: true } }).action,
+    { task: TASK_BLOCK, action: 'browser_type', text: 'admin', selector: '#u', submit: true }));
 check('brainReplyToAction claim lowercases severity/confidence and passes the package through',
   eq(brain.brainReplyToAction({ ...TB, action: { ...CLAIM, severity: 'High', confidence: 'High', class: 'xss', confidence_rationale: 'marker reflected raw' } }).action,
     { task: TASK_BLOCK, action: 'claim_finding', title: 'Reflected XSS', severity: 'high', class: 'xss', command: 'curl x', evidence: 'resp <script>', counterevidence: 'baseline clean', confidence: 'high', confidence_rationale: 'marker reflected raw' }));
@@ -314,21 +331,22 @@ check('frontend schema copy is byte-identical to backend/src/brainReply.schema.j
   frontendSchemaRaw === backendSchemaRaw);
 check('schema requires task, goal, progress, action',
   eq(schema.required, ['task', 'goal', 'progress', 'action']));
-check('schema action.type enum is the six JSON types',
+check('schema action.type enum is the six JSON types + the OS-control types',
   eq(schema.properties.action.properties.type.enum,
-    ['shell', 'browser_open', 'click', 'type', 'recall', 'claim_finding']));
+    ['shell', 'browser_open', 'click', 'type', 'recall', 'claim_finding',
+     'browser_snapshot', 'screenshot', 'desktop_snapshot', 'desktop_click', 'desktop_key', 'desktop_click_at', 'desktop_click_control', 'list_controls', 'desktop_screenshot', 'see_screen', 'desktop_terminal', 'launch_tool', 'download_tool', 'proxy_start', 'intercept_list', 'intercept_read', 'intercept_replay']));
 check('schema action.type enum matches the validator enum',
   eq(schema.properties.action.properties.type.enum, brain.BRAIN_REPLY_ACTION_TYPES));
 check('schema claim_finding requires title/severity/command/evidence/counterevidence/confidence',
   schema.properties.action.allOf.some((c) => eq(c.then && c.then.required,
     ['title', 'severity', 'command', 'evidence', 'counterevidence', 'confidence'])));
-check('schema click accepts selector OR text, type requires text only',
+check('schema click accepts selector OR text, type requires selector + text',
   (() => {
     const allOf = schema.properties.action.allOf;
     const click = allOf.find((c) => c.if && c.if.properties && c.if.properties.type && c.if.properties.type.const === 'click');
     const type = allOf.find((c) => c.if && c.if.properties && c.if.properties.type && c.if.properties.type.const === 'type');
     return JSON.stringify(click.then) === JSON.stringify({ anyOf: [{ required: ['selector'] }, { required: ['text'] }] })
-      && eq(type.then.required, ['text']);
+      && eq(type.then.required, ['selector', 'text']);
   })());
 check('schema recall accepts hash or id (string ids allowed)',
   JSON.stringify(schema.properties.recall).includes('"hash"') && JSON.stringify(schema.properties.recall).includes('"id"'));

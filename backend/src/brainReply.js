@@ -40,7 +40,11 @@ export function loadBrainReplySchema() {
   return schemaCache;
 }
 
-export const BRAIN_ACTION_TYPES = ['shell', 'browser_open', 'click', 'type', 'recall', 'claim_finding'];
+// OS-CONTROL types (28 Oct 2026): the parent brain drives the whole
+// Kali machine — the same surface the AI brain has. Long names pass
+// through to executeBrainAction unchanged (see brainReplyToAction).
+export const OS_REPLY_ACTION_TYPES = ['browser_snapshot', 'screenshot', 'desktop_snapshot', 'desktop_click', 'desktop_key', 'desktop_click_at', 'desktop_click_control', 'list_controls', 'desktop_screenshot', 'see_screen', 'desktop_terminal', 'launch_tool', 'download_tool', 'proxy_start', 'intercept_list', 'intercept_read', 'intercept_replay'];
+export const BRAIN_ACTION_TYPES = ['shell', 'browser_open', 'click', 'type', 'recall', 'claim_finding', ...OS_REPLY_ACTION_TYPES];
 const SEVERITIES = new Set(['critical', 'high', 'medium', 'low']);
 const CONFIDENCES = new Set(['high', 'medium', 'low']);
 
@@ -93,6 +97,16 @@ export function validateBrainReply(reply) {
       } else if (idPresent && !hasId) {
         bad('recall.id', '"recall.id" must an action number — 7, "7" or "#7".');
       }
+      // RECALL WITH A REASON (28 Oct 2026, owner order): when the brain
+      // needs past data it says WHY. The reason is optional in the
+      // validator (never block a recall over it — the parent's live
+      // hunting must not stall on a missing field), but the prompt
+      // tells the brain to always give it, and the process file records
+      // '(no reason given)' when it does not.
+      if (reply.recall.reason !== undefined && reply.recall.reason !== null
+        && (typeof reply.recall.reason !== 'string' || !reply.recall.reason.trim() || reply.recall.reason.length > 300)) {
+        bad('recall.reason', '"recall.reason" must be a short string saying why you need this data (max 300 chars).');
+      }
     }
   }
 
@@ -119,10 +133,31 @@ export function validateBrainReply(reply) {
       }
     }
     if (type === 'type') {
+      // GUI-TYPE-TARGET (28 Oct 2026): 'selector' is REQUIRED for
+      // type — it names the field to type into. The old rule made it
+      // optional, so a reply could type blind; the driver then put
+      // the text into whatever was focused (the DVWA login put
+      // 'password' into the username field) and still reported
+      // success. A type without a field is refused up front, naming
+      // the field — exactly like a click without a target.
+      need('selector', 'the field to type into — its visible label, name, or CSS selector (e.g. "Username" or "input[name=password]")');
       need('text', 'the text to type');
-      // 'selector' is optional for type: the element to type into,
-      // when the driver supports it. The typed text is what the
-      // machinery needs; a missing selector never blocks the action.
+    }
+    if (type === 'desktop_click') need('window', 'the window title to focus (take desktop_snapshot first if you do not know the titles)');
+    if (type === 'desktop_key') {
+      if (!isNonEmptyString(action.keys) && !isNonEmptyString(action.text)) {
+        bad('action.keys', '"action.keys" (e.g. "ctrl+l") or "action.text" (words to type) is required for a desktop_key action.');
+      }
+    }
+    if (type === 'desktop_click_at') {
+      if (action.x === undefined || action.x === null || action.x === '') bad('action.x', '"action.x" is required for a desktop_click_at action — a point from the see_screen map.');
+      if (action.y === undefined || action.y === null || action.y === '') bad('action.y', '"action.y" is required for a desktop_click_at action — a point from the see_screen map.');
+    }
+    if (type === 'desktop_click_control') need('control', "the control's visible name (e.g. \"Repeater\")");
+    if (type === 'desktop_terminal') need('command', 'the command to run in the visible terminal');
+    if (type === 'launch_tool' || type === 'download_tool') need('tool', 'the tool name (e.g. "burp")');
+    if (type === 'intercept_read' || type === 'intercept_replay') {
+      if (action.index === undefined || action.index === null || String(action.index).trim() === '') bad('action.index', '"action.index" is required — the # from intercept_list.');
     }
     if (type === 'recall') {
       const hashPresent = action.hash !== undefined && action.hash !== null;
@@ -186,6 +221,33 @@ export function brainReplyToAction(reply) {
       return { action: { ...base, action: 'browser_click', text: a.selector || a.text, selector: a.selector || undefined }, task };
     case 'type':
       return { action: { ...base, action: 'browser_type', text: a.text, selector: a.selector || undefined, submit: a.submit === true }, task };
+    case 'browser_snapshot':
+    case 'screenshot':
+    case 'desktop_snapshot':
+    case 'desktop_screenshot':
+    case 'see_screen':
+    case 'proxy_start':
+    case 'intercept_list':
+      return { action: { ...base, action: type }, task };
+    case 'desktop_click':
+      return { action: { ...base, action: type, window: a.window }, task };
+    case 'desktop_key':
+      return { action: { ...base, action: type, keys: a.keys || undefined, text: a.text || undefined }, task };
+    case 'desktop_click_at':
+      return { action: { ...base, action: type, x: a.x, y: a.y }, task };
+    case 'desktop_click_control':
+      return { action: { ...base, action: type, control: a.control, window: a.window || undefined }, task };
+    case 'list_controls':
+      return { action: { ...base, action: type, window: a.window || undefined }, task };
+    case 'desktop_terminal':
+      return { action: { ...base, action: type, command: a.command }, task };
+    case 'launch_tool':
+    case 'download_tool':
+      return { action: { ...base, action: type, tool: a.tool }, task };
+    case 'intercept_read':
+      return { action: { ...base, action: type, index: a.index }, task };
+    case 'intercept_replay':
+      return { action: { ...base, action: type, index: a.index, url: a.url || undefined, headers: a.headers || undefined, body: a.body || undefined }, task };
     case 'recall':
       return { action: { ...base, action: 'recall', ...(a.hash ? { hash: a.hash } : { id: a.id }) }, task };
     case 'claim_finding':

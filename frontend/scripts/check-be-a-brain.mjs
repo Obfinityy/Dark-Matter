@@ -222,15 +222,26 @@ check('HuntCard shows the "You are the brain" badge', /You are the brain/.test(c
 check('HuntCard mounts BrainConsole', /<BrainConsole/.test(cardSrc) && /import BrainConsole/.test(cardSrc));
 check('HuntCard loads brainMode from GET process on mount', /getHuntProcess\(hunt\.huntId\)/.test(cardSrc));
 check('HuntCard suppresses the floating LiveMachine while the console is open',
-  /isRunning && !brainConsoleOpen/.test(cardSrc));
+  /!brainConsoleOpen/.test(cardSrc) && /<LiveMachine huntId=\{hunt\.huntId\}/.test(cardSrc));
+check('HuntCard mounts LiveMachine for a running parent-brain process too (live UI, 28 Oct 2026)',
+  /brainMode === 'parent' && liveProc && liveProc\.in_process/.test(cardSrc));
+check('HuntCard shows the live activity line for a parent-brain hunt',
+  /hunt-live-activity/.test(cardSrc) && /liveProc\.activity/.test(cardSrc));
 check('BrainConsole reuses LiveMachine embedded', /<LiveMachine huntId=\{huntId\} target=\{target\} embedded \/>/.test(consoleSrc));
 check('BrainConsole polls process+actions every 10s while open',
   /PROCESS_POLL_MS = 10000/.test(consoleSrc) && /setInterval\(load, PROCESS_POLL_MS\)/.test(consoleSrc));
 check('BrainConsole fetches output by hash on row click', /getHuntActionOutput\(huntId, hash\)/.test(consoleSrc));
 check('BrainConsole submits via submitBrainAction', /submitBrainAction\(huntId, built\.action\)/.test(consoleSrc));
+check('form builder builds the OS actions (desktop_click, see_screen, launch_tool)',
+  expect('desktop_click', { window: 'Burp Suite' }, { action: 'desktop_click', window: 'Burp Suite' })
+  && expect('see_screen', {}, { action: 'see_screen' })
+  && expect('launch_tool', { tool: 'burp' }, { action: 'launch_tool', tool: 'burp' })
+  && expect('desktop_click_at', { x: '1240', y: '310' }, { action: 'desktop_click_at', x: 1240, y: 310 })
+  && brain.buildBrainAction('desktop_click', {}).error === 'Window title is required.');
 check('BrainConsole hands back via POST brain-mode ai', /setBrainMode\(huntId, 'ai'\)/.test(consoleSrc));
-check('BrainConsole offers all six action types', brain.BRAIN_ACTION_TYPES.length === 6
-  && ['shell', 'browser_open', 'browser_click', 'browser_type', 'recall', 'claim_finding']
+check('BrainConsole offers all action types (shell/browser/recall/claim + OS control)', brain.BRAIN_ACTION_TYPES.length === 23
+  && ['shell', 'browser_open', 'browser_click', 'browser_type', 'recall', 'claim_finding',
+      'browser_snapshot', 'screenshot', 'desktop_snapshot', 'desktop_click', 'desktop_key', 'desktop_click_at', 'desktop_click_control', 'list_controls', 'desktop_screenshot', 'see_screen', 'desktop_terminal', 'launch_tool', 'download_tool', 'proxy_start', 'intercept_list', 'intercept_read', 'intercept_replay']
     .every((t) => brain.BRAIN_ACTION_TYPES.includes(t)));
 check('LiveMachine accepts embedded (default false, PiP unchanged)',
   /embedded = false/.test(liveSrc) && /live-machine-embedded/.test(liveSrc));

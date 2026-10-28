@@ -49,6 +49,7 @@ import {
 } from '../machineControl.js';
 import { analyzeFindings, chainsMarkdown, generateLogicTests, getPlaybook, reflectHunt, recordHuntExperience, resolveHuntMode, HUNT_MODES, MODE_ORDER, TIERS } from '../hunt-intel/index.js';
 import { getHuntCost, getUserCosts } from '../costTracker.js';
+import { recordRecall, completeProcess, readMemoryFile, readProcessFile, readOutputFile } from '../brainFiles.js';
 import { parseBudgetUsd } from '../budgetCap.js';
 import { loadHuntMemory, panelFindings, findingDetail, applyRetractions, isErrorPageFinding, normTitle } from '../huntMemory.js';
 import { understandTarget } from '../targetIntel.js';
@@ -994,6 +995,20 @@ router.get('/:id/output/:hash', requireAuth, (req, res) => {
   res.json(result);
 });
 
+// ---- Brain files: the three files the brain is told every turn ----
+// GET /:id/brain-files -> { memory: {entries}, process: {...}, outputs: <count> }
+// The OUTPUT file's VALUES are never listed here — one result at a time,
+// by hash, through GET /:id/output/:hash. Owner-only, like /process.
+router.get('/:id/brain-files', requireAuth, (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const huntId = req.params.id;
+  const memory = readMemoryFile(huntId);
+  const process = readProcessFile(huntId);
+  const outputs = readOutputFile(huntId);
+  res.json({ ok: true, huntId, memory, process, outputs: Object.keys(outputs.byHash || {}).length });
+});
+
 router.get('/:id/process', requireAuth, (req, res) => {
   const meta = requireHuntOwner(req, res);
   if (!meta) return;
@@ -1066,13 +1081,19 @@ router.post('/:id/brain-action-json', requireAuth, async (req, res) => {
   }
   let recalled = null;
   if (reply.recall) {
+    // RECALL WITH A REASON (28 Oct 2026, owner order): the brain says
+    // WHY it needs the data — recorded in the process file (data
+    // requested, data given, why) whether the recall hits or misses.
+    const reason = typeof reply.recall.reason === 'string' ? reply.recall.reason : '';
     const rec = reply.recall.hash
       ? recallByHash(readHuntEvents(huntId), getAllReasoning(huntId), reply.recall.hash)
       : recallById(readHuntEvents(huntId), getAllReasoning(huntId), reply.recall.id);
     if (!rec || rec.error) {
+      try { recordRecall(huntId, { hash: reply.recall.hash || '', id: reply.recall.id ?? null, reason, found: false }); } catch { /* best-effort */ }
       return res.status(404).json({ ok: false, error: 'unknown_hash', message: String((rec && rec.error) || 'nothing recalled') });
     }
     recalled = { hash: rec.entry.hash, id: rec.entry.n, output: formatFullRecord(rec) };
+    try { recordRecall(huntId, { hash: rec.entry.hash, id: rec.entry.n, reason, found: true, title: rec.entry.label || rec.entry.title || '' }); } catch { /* best-effort */ }
   }
   const dispatched = brainReplyToAction(reply);
   const result = await executeBrainAction(huntId, dispatched.action);
@@ -1091,6 +1112,9 @@ router.post('/:id/brain-action-json', requireAuth, async (req, res) => {
     writeHuntMetaCheckpoint(huntId, {
       currentTask: { task: reply.task, goal: reply.goal, progress: reply.progress, status: 'complete', updatedAt: new Date().toISOString() },
     });
+    // BRAIN FILES: the JSON reply's step is done — its process closes
+    // (in_process false) and its title + hash land in the memory file.
+    try { completeProcess(huntId, { title: reply.task, hash: result.hash }); } catch { /* best-effort */ }
   } catch { /* process recording is best-effort */ }
   res.json({ ...result, ...(recalled ? { recalled } : {}) });
 });

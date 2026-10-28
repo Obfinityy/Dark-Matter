@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { pauseHunt, resumeHunt, stopHunt, getHuntCost, setHuntBudget, getHuntEvents, steerHunt, listHunts, getHuntBrain, setHuntBrain, getHuntProcess, setBrainMode } from '../lib/api';
 import { HuntStreamClient, createSimulatedStream, isDemoMode } from '../lib/huntStream';
 import { toast } from '../lib/toast';
+import { processSummary } from '../lib/brainActions';
 
 const SEVERITY_CLASS = {
   critical: 'sev-critical',
@@ -130,6 +131,12 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   // reports the truth. Loaded from GET /process on mount so a
   // reload while the parent is the brain still shows the badge.
   const [brainMode, setBrainModeState] = useState(null);
+  // LIVE UI (28 Oct 2026, owner order): the live process state from
+  // GET /process — in_process, the activity line, the last action and
+  // the desktop. Polled while the parent is the brain (the hunt is
+  // 'paused' by design then, yet the work is live — the old UI showed
+  // only 'PAUSED' and hid the machine entirely).
+  const [liveProc, setLiveProc] = useState(null);
   const [brainConsoleOpen, setBrainConsoleOpen] = useState(false);
   const [brainModeBusy, setBrainModeBusy] = useState(false);
   // Button visibility rule (owner's spec): a live hunt shows Pause + Stop;
@@ -249,14 +256,22 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   // authority when the owner clicks.
   useEffect(() => {
     let cancelled = false;
-    getHuntProcess(hunt.huntId).then((r) => {
-      if (!cancelled && r && r.ok && r.data && r.data.brainMode) {
-        setBrainModeState(r.data.brainMode);
-      }
-    }).catch(() => {});
-    return () => { cancelled = true; };
+    const load = () => {
+      getHuntProcess(hunt.huntId).then((r) => {
+        if (!cancelled && r && r.ok && r.data) {
+          if (r.data.brainMode) setBrainModeState(r.data.brainMode);
+          setLiveProc(processSummary(r.data));
+        }
+      }).catch(() => {});
+    };
+    load();
+    // While the parent is the brain the hunt is paused yet live — poll
+    // the process state so the activity line and the live panel follow
+    // the work. Otherwise the mount load is enough.
+    const timer = setInterval(() => { if (brainMode === 'parent') load(); }, 15000);
+    return () => { cancelled = true; clearInterval(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hunt.huntId]);
+  }, [hunt.huntId, brainMode]);
 
   // BE A BRAIN: take over as the brain — POST brain-mode
   // {mode:'parent'} pauses the AI loop, then open the console.
@@ -628,6 +643,13 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
             🧠 You are the brain
           </span>
         )}
+        {brainMode === 'parent' && liveProc && liveProc.activity && (
+          <span className="hunt-live-activity" role="status" title={liveProc.in_process ? 'A process is running right now' : 'No process running right now'}>
+            <span className={liveProc.in_process ? 'hunt-live-dot live' : 'hunt-live-dot'} aria-hidden="true" />
+            {liveProc.activity}
+            {liveProc.in_process ? ' · in process' : ' · idle'}
+          </span>
+        )}
         {!isTerminal && (
           <span className="hunt-timer" title="Time since this hunt started">
             ⏱ {elapsedStr}
@@ -950,12 +972,16 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         />
       )}
       {/* Live Machine: read-only picture-in-picture of the hunt machine's
-          GUI desktop while this hunt is running. Running ONLY (27 Oct
-          2026) — a paused hunt's container stays up, so gating on
-          isActive rendered a second frozen "live" panel for it. View-only
-          by design — the pause/stop controls above remain the only way
+          GUI desktop while this hunt is running. Running hunts, PLUS
+          parent-brain hunts with a process actually running (28 Oct
+          2026, owner order): a parent-brain hunt is 'paused' by design
+          — the AI loop is off — yet the parent IS working the machine
+          live, and the old gate hid the machine exactly then. A paused
+          hunt with NO running process still shows no panel (the 27 Oct
+          fix stands: a frozen desktop is not 'live'). View-only by
+          design — the pause/stop controls above remain the only way
           to control it. */}
-      {isRunning && !brainConsoleOpen && (
+      {(isRunning || (brainMode === 'parent' && liveProc && liveProc.in_process)) && !brainConsoleOpen && (
         <LiveMachine huntId={hunt.huntId} target={hunt.target} />
       )}
       {showTerminalModal && (

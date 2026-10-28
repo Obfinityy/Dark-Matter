@@ -155,6 +155,19 @@ test('(a) a missing per-type field names that field', () => {
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'browser_open' } })), 'action.url'));
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'click' } })), 'action.selector'));
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'type', selector: 'q' } })), 'action.text'));
+  // GUI-TYPE-TARGET (28 Oct 2026): a type names its field — without a
+  // selector the brain types blind, which is exactly how the DVWA login
+  // failed while every action reported success.
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'type', text: 'admin' } })), 'action.selector'));
+  // OS CONTROL (28 Oct 2026): the parent brain's desktop/tool actions
+  // carry their own required fields — a click without a window, a
+  // terminal without a command, a tool launch without a tool name.
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_click' } })), 'action.window'));
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_terminal' } })), 'action.command'));
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'launch_tool' } })), 'action.tool'));
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: 1 } })), 'action.y'));
+  assert.deepEqual(validateBrainReply(shellReply({ action: { type: 'see_screen' } })), { ok: true });
+  assert.deepEqual(validateBrainReply(shellReply({ action: { type: 'desktop_click', window: 'Burp Suite' } })), { ok: true });
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'claim_finding', title: 'XSS?', severity: 'high', command: 'curl x', evidence: 'long enough evidence here', confidence: 'high' } })), 'action.counterevidence'));
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'claim_finding', title: 'XSS?', severity: 'nuclear', command: 'curl x', evidence: 'long enough evidence here', counterevidence: 'control shows nothing', confidence: 'high' } })), 'action.severity'));
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'claim_finding', title: 'XSS?', severity: 'high', command: 'curl x', evidence: 'long enough evidence here', counterevidence: 'control shows nothing' } })), 'action.confidence'));
@@ -184,6 +197,12 @@ test('(a) brainReplyToAction maps click/type onto the existing dispatch shape', 
   assert.equal(typed.action.action, 'browser_type');
   assert.equal(typed.action.text, 'admin');
   assert.equal(typed.action.submit, true);
+  assert.equal(typed.action.selector, 'q', 'the field target travels to the dispatch');
+  const osClicked = brainReplyToAction(shellReply({ action: { type: 'desktop_click', window: 'Burp Suite' } }));
+  assert.equal(osClicked.action.action, 'desktop_click');
+  assert.equal(osClicked.action.window, 'Burp Suite');
+  const seen = brainReplyToAction(shellReply({ action: { type: 'see_screen' } }));
+  assert.equal(seen.action.action, 'see_screen');
   const claimed = brainReplyToAction(shellReply({
     action: { type: 'claim_finding', title: 'Reflected XSS in search', severity: 'high', command: 'curl x', evidence: 'ev', counterevidence: 'ce', confidence: 'high' },
   }));

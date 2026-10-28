@@ -248,7 +248,7 @@ test('AJ-19 (wire-up): the DVWA fresh-attempt GUI login retry executes — gui.t
     'Page: Login:: Damn Vulnerable Web Application — http://172.17.0.1:3100/login.php';
   const replies = [
     'I will reload the login page clean.\n{"action":"browser_open","url":"http://172.17.0.1:3100/login.php"}',
-    'The form is empty after the reload — I will type the username again.\n{"action":"browser_type","text":"admin","submit":false}',
+    'The form is empty after the reload — I will type the username again.\n{"action":"browser_type","target":"Username","text":"admin","submit":false}',
   ];
   let n = 0;
   const res = await humanIteration('h_test_aj19', 'http://172.17.0.1:3100/', {
@@ -259,7 +259,7 @@ test('AJ-19 (wire-up): the DVWA fresh-attempt GUI login retry executes — gui.t
         open: async () => ({ observation: LOGIN_OPEN_OBS }),
         snapshot: async () => ({ observation: LOGIN_OPEN_OBS }),
         click: async () => ({ observation: 'clicked' }),
-        type: async (h, text) => { typeCalls.push(text); return { observation: 'Typed.' }; },
+        type: async (h, target, text) => { typeCalls.push(text); return { observation: 'Typed.' }; },
         screenshot: async () => ({ observation: 'shot' }),
       },
       execRaw: async () => ({ stdout: '', stderr: '' }),

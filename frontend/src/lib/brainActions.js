@@ -6,7 +6,28 @@
 // instead of only grep-checked in JSX.
 // ============================================================================
 
-/** The six action types the parent can submit as the brain. */
+/** The action types the parent can submit as the brain — shell, browser,
+ * recall, claim, and the full OS-control surface (28 Oct 2026): the
+ * parent drives the whole Kali machine, exactly like the API brain. */
+export const OS_BRAIN_ACTION_TYPES = [
+  'browser_snapshot',
+  'screenshot',
+  'desktop_snapshot',
+  'desktop_click',
+  'desktop_key',
+  'desktop_click_at',
+  'desktop_click_control',
+  'list_controls',
+  'desktop_screenshot',
+  'see_screen',
+  'desktop_terminal',
+  'launch_tool',
+  'download_tool',
+  'proxy_start',
+  'intercept_list',
+  'intercept_read',
+  'intercept_replay',
+];
 export const BRAIN_ACTION_TYPES = [
   'shell',
   'browser_open',
@@ -14,6 +35,7 @@ export const BRAIN_ACTION_TYPES = [
   'browser_type',
   'recall',
   'claim_finding',
+  ...OS_BRAIN_ACTION_TYPES,
 ];
 
 /** Human label per action type (composer + index rows). */
@@ -24,6 +46,23 @@ export const BRAIN_ACTION_LABELS = {
   browser_type: 'Type into a page element',
   recall: 'Recall a saved action by id',
   claim_finding: 'File a finding',
+  browser_snapshot: 'See the current page (snapshot)',
+  screenshot: 'Screenshot the browser',
+  desktop_snapshot: 'See the whole desktop (windows)',
+  desktop_click: 'Focus a desktop window by title',
+  desktop_key: 'Send keys / type to the focused window',
+  desktop_click_at: 'Click a point on the screen (from see_screen)',
+  desktop_click_control: 'Click a named control in a GUI app',
+  list_controls: 'List a window’s named controls',
+  desktop_screenshot: 'Screenshot the whole desktop',
+  see_screen: 'Look at the screen (vision: text map + photo)',
+  desktop_terminal: 'Run a command in the visible terminal',
+  launch_tool: 'Launch a named tool (Burp, ZAP, nmap…)',
+  download_tool: 'Install a missing tool',
+  proxy_start: 'Start the intercept proxy',
+  intercept_list: 'List captured requests',
+  intercept_read: 'Read one captured request',
+  intercept_replay: 'Replay a captured request (Burp Repeater)',
 };
 
 const SEVERITIES = ['critical', 'high', 'medium', 'low'];
@@ -76,6 +115,59 @@ export function buildBrainAction(type, fields = {}) {
       const t = need('text', 'Text to type');
       if (t.error) return t;
       return { action: { action: 'browser_type', selector: s.value, text: t.value } };
+    }
+    case 'browser_snapshot':
+    case 'screenshot':
+    case 'desktop_snapshot':
+    case 'desktop_screenshot':
+    case 'see_screen':
+    case 'proxy_start':
+    case 'intercept_list':
+      return { action: { action: type } };
+    case 'desktop_click': {
+      const w = need('window', 'Window title');
+      if (w.error) return w;
+      return { action: { action: 'desktop_click', window: w.value } };
+    }
+    case 'desktop_key': {
+      const keys = typeof f.keys === 'string' ? f.keys.trim() : '';
+      const text = typeof f.text === 'string' ? f.text.trim() : '';
+      if (!keys && !text) return { error: 'Keys (e.g. "ctrl+l") or Text to type is required.' };
+      return { action: { action: 'desktop_key', ...(keys ? { keys } : {}), ...(text ? { text } : {}) } };
+    }
+    case 'desktop_click_at': {
+      const x = Number(f.x);
+      const y = Number(f.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return { error: 'X and Y are required — a point from the see_screen map.' };
+      return { action: { action: 'desktop_click_at', x, y } };
+    }
+    case 'desktop_click_control': {
+      const c = need('control', 'Control name');
+      if (c.error) return c;
+      const w = typeof f.window === 'string' ? f.window.trim() : '';
+      return { action: { action: 'desktop_click_control', control: c.value, ...(w ? { window: w } : {}) } };
+    }
+    case 'list_controls': {
+      const w = typeof f.window === 'string' ? f.window.trim() : '';
+      return { action: { action: 'list_controls', ...(w ? { window: w } : {}) } };
+    }
+    case 'desktop_terminal': {
+      const c = need('command', 'Command');
+      if (c.error) return c;
+      return { action: { action: 'desktop_terminal', command: c.value } };
+    }
+    case 'launch_tool':
+    case 'download_tool': {
+      const t = need('tool', 'Tool name');
+      if (t.error) return t;
+      return { action: { action: type, tool: t.value } };
+    }
+    case 'intercept_read':
+    case 'intercept_replay': {
+      const n = Number(f.index);
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return { error: 'Capture # must be a whole number, 1 or more (from intercept_list).' };
+      const u = typeof f.url === 'string' ? f.url.trim() : '';
+      return { action: { action: type, index: n, ...(u && type === 'intercept_replay' ? { url: u } : {}) } };
     }
     case 'recall': {
       const n = Number(f.id);
@@ -198,6 +290,15 @@ export function processSummary(proc) {
     brainMode: p.brainMode || '',
     state: p.state || '',
     iteration: typeof p.iteration === 'number' ? p.iteration : null,
+    // LIVE UI (28 Oct 2026): the backend's live truth — the process
+    // boolean, the one-line activity, the newest action, the newest
+    // screenshot artifact, and the last known desktop. Passed through
+    // unchanged; missing fields degrade to honest empties.
+    in_process: p.in_process === true,
+    activity: typeof p.activity === 'string' ? p.activity : '',
+    lastAction: (p.lastAction && typeof p.lastAction === 'object') ? p.lastAction : null,
+    lastScreenshot: (p.lastScreenshot && typeof p.lastScreenshot === 'object') ? p.lastScreenshot : null,
+    desktop: (p.desktop && typeof p.desktop === 'object') ? p.desktop : null,
   };
 }
 
@@ -222,6 +323,7 @@ export const BRAIN_REPLY_ACTION_TYPES = [
   'type',
   'recall',
   'claim_finding',
+  ...OS_BRAIN_ACTION_TYPES,
 ];
 
 /**
@@ -243,6 +345,7 @@ export const BRAIN_REPLY_ACTION_ALIASES = {
 /** Canonical dispatch type for a JSON action.type (or null if unknown). */
 export function canonicalBrainActionType(type) {
   if (type === 'shell' || type === 'browser_open' || type === 'recall' || type === 'claim_finding') return type;
+  if (OS_BRAIN_ACTION_TYPES.includes(type)) return type; // OS-control long names pass through unchanged
   return BRAIN_REPLY_ACTION_ALIASES[type] || null;
 }
 
@@ -282,10 +385,12 @@ function isRecallId(v) {
  * action (object). recall is optional — exactly one of {hash} or
  * {id}. Per-type required fields (the same proof the backend gate
  * needs): shell: command; browser_open: url; click: selector or
- * text; type: text (selector optional); recall: exactly one of
- * hash/id; claim_finding: title, severity, command, evidence,
- * counterevidence, confidence (class/poc/confidence_rationale
- * optional). The first bad field wins — one clear error, not a list.
+ * text; type: selector AND text (the selector names the field —
+ * GUI-TYPE-TARGET, 28 Oct 2026: a type without a field is refused);
+ * recall: exactly one of hash/id; claim_finding: title, severity,
+ * command, evidence, counterevidence, confidence (class/poc/
+ * confidence_rationale optional). The first bad field wins — one
+ * clear error, not a list.
  */
 export function validateBrainReply(reply) {
   if (!reply || typeof reply !== 'object' || Array.isArray(reply)) {
@@ -305,6 +410,13 @@ export function validateBrainReply(reply) {
     if (!hashPresent && !idPresent) return { error: 'recall needs exactly one of hash/id — {"hash": "..."} or {"id": 42}.' };
     if (hashPresent && !isNonEmptyString(rec.hash)) return { error: 'recall.hash must be a non-empty string.' };
     if (idPresent && !isRecallId(rec.id)) return { error: 'recall.id must be an action number — 7, "7" or "#7".' };
+    // RECALL WITH A REASON (28 Oct 2026): the reason is optional in
+    // validation (never block a recall over it), but the prompt tells
+    // the brain to always give it. Mirror of backend/src/brainReply.js.
+    if (rec.reason !== undefined && rec.reason !== null
+      && (typeof rec.reason !== 'string' || !rec.reason.trim() || rec.reason.length > 300)) {
+      return { error: 'recall.reason must be a short string saying why you need this data (max 300 chars).' };
+    }
   }
   const action = reply.action;
   if (!action || typeof action !== 'object' || Array.isArray(action)) {
@@ -339,10 +451,67 @@ export function validateBrainReply(reply) {
       break;
     }
     case 'browser_type': {
-      // Selector is optional for type — the typed text is what the
-      // machinery needs; a missing selector never blocks the action.
+      // GUI-TYPE-TARGET (28 Oct 2026): 'selector' is REQUIRED for
+      // type — it names the field. The old rule made it optional,
+      // so a reply could type blind and the driver put the text into
+      // whatever was focused (the DVWA login failure). Mirror of
+      // backend/src/brainReply.js — the node guard asserts they stay
+      // in sync.
+      const s = need('selector', 'the field to type into (its label or CSS selector)');
+      if (s.error) return s;
       const t = need('text', 'the text to type');
       if (t.error) return t;
+      break;
+    }
+    // OS CONTROL (28 Oct 2026): same per-type requirements as the
+    // backend validator — mirror of backend/src/brainReply.js.
+    // No-field OS actions need nothing more than a known type.
+    case 'browser_snapshot':
+    case 'screenshot':
+    case 'desktop_snapshot':
+    case 'desktop_screenshot':
+    case 'see_screen':
+    case 'proxy_start':
+    case 'intercept_list':
+    case 'list_controls':
+      break;
+    case 'desktop_click': {
+      const w = need('window', 'the window title to focus (take desktop_snapshot first if you do not know the titles)');
+      if (w.error) return w;
+      break;
+    }
+    case 'desktop_key': {
+      if (!isNonEmptyString(action.keys) && !isNonEmptyString(action.text)) {
+        return { error: 'action.keys is required for a desktop_key action — "keys" (e.g. "ctrl+l") or "text" (words to type).' };
+      }
+      break;
+    }
+    case 'desktop_click_at': {
+      if (action.x === undefined || action.x === null || action.x === '') return { error: 'action.x is required for a desktop_click_at action — a point from the see_screen map.' };
+      if (action.y === undefined || action.y === null || action.y === '') return { error: 'action.y is required for a desktop_click_at action — a point from the see_screen map.' };
+      break;
+    }
+    case 'desktop_click_control': {
+      const c = need('control', 'the control’s visible name (e.g. "Repeater")');
+      if (c.error) return c;
+      break;
+    }
+    case 'desktop_terminal': {
+      const c = need('command', 'the command to run in the visible terminal');
+      if (c.error) return c;
+      break;
+    }
+    case 'launch_tool':
+    case 'download_tool': {
+      const t = need('tool', 'the tool name (e.g. "burp")');
+      if (t.error) return t;
+      break;
+    }
+    case 'intercept_read':
+    case 'intercept_replay': {
+      if (action.index === undefined || action.index === null || String(action.index).trim() === '') {
+        return { error: 'action.index is required for an intercept_read/intercept_replay action — the # from intercept_list.' };
+      }
       break;
     }
     case 'recall': {
@@ -426,6 +595,43 @@ export function brainReplyToAction(reply) {
       break;
     case 'browser_type':
       action = { task, action: 'browser_type', text: a.text.trim(), selector: a.selector ? a.selector.trim() : undefined, submit: a.submit === true };
+      break;
+    case 'browser_snapshot':
+    case 'screenshot':
+    case 'desktop_snapshot':
+    case 'desktop_screenshot':
+    case 'see_screen':
+    case 'proxy_start':
+    case 'intercept_list':
+      action = { task, action: kind };
+      break;
+    case 'desktop_click':
+      action = { task, action: kind, window: a.window };
+      break;
+    case 'desktop_key':
+      action = { task, action: kind, keys: a.keys || undefined, text: a.text || undefined };
+      break;
+    case 'desktop_click_at':
+      action = { task, action: kind, x: a.x, y: a.y };
+      break;
+    case 'desktop_click_control':
+      action = { task, action: kind, control: a.control, window: a.window || undefined };
+      break;
+    case 'list_controls':
+      action = { task, action: kind, window: a.window || undefined };
+      break;
+    case 'desktop_terminal':
+      action = { task, action: kind, command: a.command };
+      break;
+    case 'launch_tool':
+    case 'download_tool':
+      action = { task, action: kind, tool: a.tool };
+      break;
+    case 'intercept_read':
+      action = { task, action: kind, index: a.index };
+      break;
+    case 'intercept_replay':
+      action = { task, action: kind, index: a.index, url: a.url || undefined, headers: a.headers || undefined, body: a.body || undefined };
       break;
     case 'recall':
       action = isNonEmptyString(a.hash)

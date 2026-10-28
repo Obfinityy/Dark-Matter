@@ -56,8 +56,8 @@ const SNAPSHOT = tc('browser_snapshot', '');
 const SEE_SCREEN = tc('see_screen', '');
 const DESKTOP_SNAP = tc('desktop_snapshot', '');
 const RELOAD = tc('browser_open', SQLI_URL);
-const TYPE_UNION = tc('browser_type', UNION);
-const TYPE_MARKER_NEW = tc('browser_type', MARKER_NEW);
+const TYPE_UNION = tc('browser_type', 'id ← ' + UNION);
+const TYPE_MARKER_NEW = tc('browser_type', 'id ← ' + MARKER_NEW);
 const CLICK_LOGIN = tc('browser_click', 'Login');
 const SHELL_CURL = tc('shell', "curl -sk 'http://172.17.0.1:3100/vulnerabilities/sqli/?id=1'");
 const SEARCH = tc('search', 'DVWA SQL injection');
@@ -113,10 +113,10 @@ test('freshAttemptSinceAction: fresh work BEFORE the last identical execution do
 });
 
 test('freshAttemptSinceAction: only work AFTER the last identical type counts for a re-type', () => {
-  assert.equal(freshAttemptSinceAction([TYPE_UNION, TYPE_UNION, RELOAD], 'browser_type', UNION), true);
-  assert.equal(freshAttemptSinceAction([TYPE_UNION, TYPE_UNION, SHELL_CURL], 'browser_type', UNION), false);
+  assert.equal(freshAttemptSinceAction([TYPE_UNION, TYPE_UNION, RELOAD], 'browser_type', 'id ← ' + UNION), true);
+  assert.equal(freshAttemptSinceAction([TYPE_UNION, TYPE_UNION, SHELL_CURL], 'browser_type', 'id ← ' + UNION), false);
   assert.equal(
-    freshAttemptSinceAction([TYPE_UNION, tc('browser_type', UNION_OLD)], 'browser_type', UNION),
+    freshAttemptSinceAction([TYPE_UNION, tc('browser_type', 'id ← ' + UNION_OLD)], 'browser_type', 'id ← ' + UNION),
     true,
     'typing a DIFFERENT payload since the last identical type is fresh work',
   );
@@ -160,12 +160,12 @@ test('dedupeGateHit: shell is NOT fresh-eligible — a snapshot does not unblock
 test('dedupeGateHit: a re-type at count 2 after a reload is allowed; after shell only it is blocked', () => {
   const h = historyOf([TYPE_UNION, TYPE_UNION]);
   assert.equal(
-    dedupeGateHit('browser_type', { text: UNION }, h, { events: [TYPE_UNION, TYPE_UNION, RELOAD] }),
+    dedupeGateHit('browser_type', { target: 'id', text: UNION }, h, { events: [TYPE_UNION, TYPE_UNION, RELOAD] }),
     null,
     'the reload emptied the form, so the re-type acts on a fresh form',
   );
   assert.ok(
-    dedupeGateHit('browser_type', { text: UNION }, h, { events: [TYPE_UNION, TYPE_UNION, SHELL_CURL] }),
+    dedupeGateHit('browser_type', { target: 'id', text: UNION }, h, { events: [TYPE_UNION, TYPE_UNION, SHELL_CURL] }),
     'shell changes nothing about the form',
   );
 });
@@ -209,7 +209,7 @@ function stubDedupSession(replies, seedEvents) {
           open: async (h, url) => ({ observation: `Page: ${url}\nSQL Injection page`, snapshot: SQLI_SNAP }),
           snapshot: async () => ({ observation: `Page: ${SQLI_URL}\nSQL Injection page — id field, Submit button`, snapshot: SQLI_SNAP }),
           click: async (h, text) => { clickCalls.push(String(text || '')); return { ok: true, observation: `Page: ${SQLI_URL}\nClicked ${text}.`, snapshot: SQLI_SNAP }; },
-          type: async (h, text) => { typeCalls.push(String(text || '')); return { ok: true, observation: `Page: ${SQLI_URL}\nTyped.`, snapshot: SQLI_SNAP }; },
+          type: async (h, target, text) => { typeCalls.push(String(text || '')); return { ok: true, observation: `Page: ${SQLI_URL}\nTyped.`, snapshot: SQLI_SNAP }; },
           screenshot: async () => ({ observation: 'shot', snapshot: SQLI_SNAP }),
         },
         exec: async () => ({ stdout: '', stderr: '', code: 0 }),
@@ -233,7 +233,7 @@ function stubDedupSession(replies, seedEvents) {
 
 const clickSubmitReply = (thinking) => `${thinking || 'Submitting the payload in the visible browser.'}\n${JSON.stringify({ action: 'browser_click', text: 'Submit' })}`;
 const snapshotReply = () => `Looking at the SQLi page again.\n${JSON.stringify({ action: 'browser_snapshot' })}`;
-const typeReply = (text) => `Typing the payload into the id field.\n${JSON.stringify({ action: 'browser_type', text })}`;
+const typeReply = (text) => `Typing the payload into the id field.\n${JSON.stringify({ action: 'browser_type', target: 'id', text })}`;
 
 test('DS-1: a Submit after a fresh screen read and a new marker executes — the live 03:36 block is lifted', async () => {
   const seed = [...SUBMIT_X2, SNAPSHOT, TYPE_MARKER_NEW];

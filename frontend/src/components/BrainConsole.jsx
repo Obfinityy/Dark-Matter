@@ -84,6 +84,16 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
   const [selector, setSelector] = useState('');
   const [typeText, setTypeText] = useState('');
   const [recallId, setRecallId] = useState('');
+  // OS CONTROL (28 Oct 2026): form fields for the desktop/tool actions.
+  const [osWindow, setOsWindow] = useState('');
+  const [osKeys, setOsKeys] = useState('');
+  const [osText, setOsText] = useState('');
+  const [osX, setOsX] = useState('');
+  const [osY, setOsY] = useState('');
+  const [osControl, setOsControl] = useState('');
+  const [osTool, setOsTool] = useState('');
+  const [osIndex, setOsIndex] = useState('');
+  const [osUrl, setOsUrl] = useState('');
   const [findingTitle, setFindingTitle] = useState('');
   const [findingSeverity, setFindingSeverity] = useState('medium');
   const [findingDetail, setFindingDetail] = useState('');
@@ -169,6 +179,12 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
       title: findingTitle, severity: findingSeverity, detail: findingDetail,
       claimCommand: findingCommand, counterevidence: findingCounterevidence,
       confidence: findingConfidence, confidenceRationale: findingConfidenceRationale,
+      window: osWindow, keys: osKeys, text: osText, x: osX, y: osY,
+      control: osControl, tool: osTool, index: osIndex,
+      // intercept_replay's optional URL override lives in `url` for
+      // buildBrainAction; browser_open's `url` is a different field,
+      // so the replay override is passed only for that action type.
+      ...(actionType === 'intercept_replay' ? { url: osUrl } : {}),
     };
     const built = buildBrainAction(actionType, fields);
     if (built.error) {
@@ -185,6 +201,8 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
       // (a task block rides on the action and updates currentTask).
       setLastResult(res.data);
       setCommand(''); setUrl(''); setSelector(''); setTypeText('');
+      setOsWindow(''); setOsKeys(''); setOsText(''); setOsX(''); setOsY('');
+      setOsControl(''); setOsTool(''); setOsIndex(''); setOsUrl('');
       setRecallId(''); setFindingTitle(''); setFindingDetail('');
       setFindingCommand(''); setFindingCounterevidence('');
       setFindingConfidence('medium'); setFindingConfidenceRationale('');
@@ -302,6 +320,30 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
                 <span className="brain-console-empty">The hunt loop is live, no task reported yet.</span>
               )}
             </div>
+            {summary.activity && (
+              <div className="brain-process-row">
+                <span className="brain-process-label">Live</span>
+                <span>{summary.activity}{summary.in_process ? ' · in process' : ' · idle'}</span>
+              </div>
+            )}
+            {summary.lastAction && (
+              <div className="brain-process-row">
+                <span className="brain-process-label">Last action</span>
+                <span>{summary.lastAction.label || summary.lastAction.tool}{summary.lastAction.hash ? ` (#${summary.lastAction.hash.slice(0, 8)})` : ''}</span>
+              </div>
+            )}
+            {summary.desktop && summary.desktop.activeTitle && (
+              <div className="brain-process-row">
+                <span className="brain-process-label">Desktop</span>
+                <span>Focused: {summary.desktop.activeTitle}{summary.desktop.windows && summary.desktop.windows.length > 1 ? ` — ${summary.desktop.windows.join(' · ')}` : ''}</span>
+              </div>
+            )}
+            {summary.lastScreenshot && (
+              <div className="brain-process-row">
+                <span className="brain-process-label">Last screenshot</span>
+                <span>{summary.lastScreenshot.name}</span>
+              </div>
+            )}
             <div className="brain-process-row">
               <span className="brain-process-label">Current task</span>
               <span>{summary.task || 'Nothing reported yet'}</span>
@@ -450,6 +492,71 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
               <span>Text to type</span>
               <input className="hunt-steer-input" value={typeText} onChange={(e) => setTypeText(e.target.value)} placeholder="Text to type into the element" disabled={submitting} />
             </label>
+          )}
+          {(actionType === 'desktop_click' || actionType === 'list_controls' || actionType === 'desktop_click_control') && (
+            <label className="brain-composer-field brain-composer-wide">
+              <span>Window title{actionType === 'list_controls' ? ' (optional)' : ''}</span>
+              <input className="hunt-steer-input" value={osWindow} onChange={(e) => setOsWindow(e.target.value)} placeholder="e.g. Burp Suite" disabled={submitting} />
+            </label>
+          )}
+          {actionType === 'desktop_click_control' && (
+            <label className="brain-composer-field brain-composer-wide">
+              <span>Control name</span>
+              <input className="hunt-steer-input" value={osControl} onChange={(e) => setOsControl(e.target.value)} placeholder="e.g. Repeater" disabled={submitting} />
+            </label>
+          )}
+          {actionType === 'desktop_key' && (
+            <>
+              <label className="brain-composer-field">
+                <span>Keys (e.g. ctrl+l, Return)</span>
+                <input className="hunt-steer-input" value={osKeys} onChange={(e) => setOsKeys(e.target.value)} placeholder="ctrl+l" disabled={submitting} />
+              </label>
+              <label className="brain-composer-field brain-composer-wide">
+                <span>Or text to type</span>
+                <input className="hunt-steer-input" value={osText} onChange={(e) => setOsText(e.target.value)} placeholder="Words to type into the focused window" disabled={submitting} />
+              </label>
+            </>
+          )}
+          {actionType === 'desktop_click_at' && (
+            <>
+              <label className="brain-composer-field">
+                <span>X (from see_screen)</span>
+                <input className="hunt-steer-input" type="number" value={osX} onChange={(e) => setOsX(e.target.value)} placeholder="1240" disabled={submitting} />
+              </label>
+              <label className="brain-composer-field">
+                <span>Y (from see_screen)</span>
+                <input className="hunt-steer-input" type="number" value={osY} onChange={(e) => setOsY(e.target.value)} placeholder="310" disabled={submitting} />
+              </label>
+            </>
+          )}
+          {(actionType === 'desktop_terminal') && (
+            <label className="brain-composer-field brain-composer-wide">
+              <span>Command (runs visibly in the desktop terminal)</span>
+              <input className="hunt-steer-input" value={command} onChange={(e) => setCommand(e.target.value)} placeholder="e.g. nmap -sV 172.17.0.1" disabled={submitting} />
+            </label>
+          )}
+          {(actionType === 'launch_tool' || actionType === 'download_tool') && (
+            <label className="brain-composer-field brain-composer-wide">
+              <span>Tool name</span>
+              <input className="hunt-steer-input" value={osTool} onChange={(e) => setOsTool(e.target.value)} placeholder="e.g. burp" disabled={submitting} />
+            </label>
+          )}
+          {(actionType === 'intercept_read' || actionType === 'intercept_replay') && (
+            <>
+              <label className="brain-composer-field">
+                <span>Capture # (from intercept_list)</span>
+                <input className="hunt-steer-input" type="number" min="1" step="1" value={osIndex} onChange={(e) => setOsIndex(e.target.value)} placeholder="3" disabled={submitting} />
+              </label>
+              {actionType === 'intercept_replay' && (
+                <label className="brain-composer-field brain-composer-wide">
+                  <span>Replay URL override (optional)</span>
+                  <input className="hunt-steer-input" value={osUrl} onChange={(e) => setOsUrl(e.target.value)} placeholder="http://172.17.0.1:3100/…" disabled={submitting} />
+                </label>
+              )}
+            </>
+          )}
+          {['browser_snapshot', 'screenshot', 'desktop_snapshot', 'desktop_screenshot', 'see_screen', 'proxy_start', 'intercept_list'].includes(actionType) && (
+            <p className="brain-composer-hint">No fields needed — submitting runs it and shows the observation.</p>
           )}
           {actionType === 'recall' && (
             <label className="brain-composer-field">

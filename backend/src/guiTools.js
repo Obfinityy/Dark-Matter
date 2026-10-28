@@ -204,11 +204,13 @@ const params = JSON.parse(Buffer.from(process.env.DMGUI_P64 || 'e30=', 'base64')
 const BASE = 'http://127.0.0.1:${CDP_PORT}';
 const SNAP = \`(() => {
   const vis = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
-  const lab = (el) => (el.innerText || el.value || el.getAttribute('aria-label') || el.placeholder || el.name || el.id || '').trim().replace(/\\s+/g, ' ').slice(0, 80);
+  const isPass = (el) => (el.getAttribute('type') || '').toLowerCase() === 'password';
+  const lab = (el) => (el.innerText || (isPass(el) ? '' : el.value) || el.getAttribute('aria-label') || el.placeholder || el.name || el.id || '').trim().replace(/\\s+/g, ' ').slice(0, 80);
+  const val = (el) => { if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return ''; const v = el.value || ''; if (isPass(el)) return v ? '•'.repeat(Math.min(v.length, 12)) + ' (' + v.length + ' chars)' : ''; return v.slice(0, 80); };
   const els = [];
   document.querySelectorAll('a,button,input,select,textarea,[role="button"],[onclick]').forEach((el) => {
     if (!vis(el)) return;
-    els.push({ tag: el.tagName.toLowerCase(), type: el.getAttribute('type') || '', label: lab(el), href: el.getAttribute('href') || '', id: el.id || '', name: el.getAttribute('name') || '', placeholder: el.getAttribute('placeholder') || '' });
+    els.push({ tag: el.tagName.toLowerCase(), type: el.getAttribute('type') || '', label: lab(el), href: el.getAttribute('href') || '', id: el.id || '', name: el.getAttribute('name') || '', placeholder: el.getAttribute('placeholder') || '', value: val(el) });
   });
   return { url: location.href, title: document.title, text: (document.body ? document.body.innerText : '').slice(0, 6000), elements: els.slice(0, 60) };
 })()\`;
@@ -308,7 +310,8 @@ if (page.wrongPage) {
     \${resolveClickTarget.toString()}
     const raw = \${JSON.stringify(params.text)};
     let el = null;
-    if (/^[#.\\[]/.test(raw)) { try { el = document.querySelector(raw); } catch {} }
+    const looksSelector = /^[#.\\[]/.test(raw) || /\[/.test(raw) || /^[a-zA-Z][\\w-]*[#.\\[:]/.test(raw);
+    if (looksSelector) { try { el = document.querySelector(raw); } catch {} }
     if (!el) {
       const cands = [...document.querySelectorAll('a,button,input,select,textarea,[role="button"],[onclick]')];
       const lab = (e) => (e.innerText || e.value || e.getAttribute('aria-label') || e.placeholder || e.name || e.id || '').trim().replace(/\\s+/g, ' ').slice(0, 80);
@@ -330,33 +333,71 @@ if (page.wrongPage) {
   const snap = await evaluate(SNAP);
   out = { ...clicked, snapshot: snap };
 } else if (act === 'type') {
-  // WRONG-PAGE FIX (25 Oct 2026): the field check below used to be
-  // evaluated and then DISCARDED — typing into about:blank (no
-  // inputs at all) still reported { ok: true } and the agent believed
-  // its probe had landed. Honour the check: no field, no type.
-  const field = await evaluate(\`(() => {
-    const editable = (e) => e && (e.tagName === 'INPUT' || e.tagName === 'TEXTAREA' || e.isContentEditable);
-    let el = document.activeElement;
-    if (!editable(el)) {
-      el = [...document.querySelectorAll('input,textarea,[contenteditable="true"]')].find((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+  // GUI-TYPE-TARGET (28 Oct 2026, live DVWA login failure): the old
+  // handler typed into document.activeElement, else the FIRST visible
+  // input — the parent brain typed 'admin' then 'password' with no
+  // field target, both landed in the username field, and every action
+  // still reported { ok: true }. A type now NAMES its field (label or
+  // CSS selector, same resolution as click), the field is cleared
+  // first, and the value is READ BACK and compared BEFORE any submit
+  // — a type that did not land in the named field is a failure,
+  // never a success.
+  const target = String(params.target || params.selector || '');
+  const typed = await evaluate(\`(() => {
+    \${resolveClickTarget.toString()}
+    const raw = \${JSON.stringify(target)};
+    if (!raw) return { ok: false, error: 'no field target — name the field to type into (its label or CSS selector, e.g. "Username" or "input[name=password]")' };
+    const vis = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    const cands = [...document.querySelectorAll('input,textarea,[contenteditable="true"]')].filter(vis);
+    let el = null;
+    let how = '';
+    const looksSelector = /^[#.\\[]/.test(raw) || /\[/.test(raw) || /^[a-zA-Z][\\w-]*[#.\\[:]/.test(raw);
+    if (looksSelector) { try { el = document.querySelector(raw); } catch {} if (el) how = 'selector'; }
+    if (!el) {
+      const lab = (e) => (e.getAttribute('aria-label') || e.placeholder || e.name || e.id || e.innerText || '').trim().replace(/\\s+/g, ' ').slice(0, 80);
+      const verdict = resolveClickTarget(raw, cands.map(lab));
+      if (!verdict || verdict.status === 'none' || !cands[verdict.index]) {
+        const list = verdict && verdict.candidates && verdict.candidates.length ? ' — typeable fields on this page: ' + verdict.candidates.map((c) => '"' + c + '"').join(', ') : '';
+        return { ok: false, error: 'no field matches "' + raw + '"' + list };
+      }
+      el = cands[verdict.index]; how = 'label:' + verdict.label;
     }
-    if (!el) return { ok: false, error: 'no typeable field found on this page' };
+    if (!el || !(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return { ok: false, error: '"' + raw + '" is not a typeable field' };
+    if (el.disabled || el.readOnly) return { ok: false, error: 'field "' + raw + '" is disabled or read-only' };
     el.scrollIntoView({ block: 'center' });
     el.focus();
-    return { ok: true };
+    try { if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.select(); else { const s = window.getSelection(); s.selectAllChildren(el); } } catch {}
+    el.setAttribute('data-dm-typed', '1');
+    const flab = (el.getAttribute('aria-label') || el.placeholder || el.name || el.id || el.innerText || '').trim().replace(/\\s+/g, ' ').slice(0, 80);
+    return { ok: true, field: { tag: el.tagName.toLowerCase(), type: el.getAttribute('type') || '', name: el.getAttribute('name') || '', id: el.id || '', label: flab, how } };
   })()\`);
-  if (!field || field.ok === false) {
-    out = { ok: false, error: (field && field.error) || 'no typeable field found on this page' };
+  if (!typed || typed.ok === false) {
+    out = { ok: false, error: (typed && typed.error) || 'no typeable field found on this page' };
   } else {
     await send('Input.insertText', { text: params.text });
-    if (params.submit) {
-      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-      await new Promise((r) => setTimeout(r, 1500));
+    const check = await evaluate(\`(() => {
+      const el = document.querySelector('[data-dm-typed="1"]');
+      if (!el) return { ok: false, error: 'typed field vanished after typing' };
+      const val = el.isContentEditable ? el.innerText : el.value;
+      el.removeAttribute('data-dm-typed');
+      return { ok: true, value: val, field: { tag: el.tagName.toLowerCase(), type: el.getAttribute('type') || '', name: el.getAttribute('name') || '', id: el.id || '' } };
+    })()\`);
+    const want = String(params.text || '');
+    if (!check || check.ok === false) {
+      out = { ok: false, error: (check && check.error) || 'could not read the typed field back', field: typed.field };
+    } else if (String(check.value) !== want) {
+      out = { ok: false, error: 'typed text did not land in the field — field now holds ' + String(check.value).length + ' chars, expected ' + want.length, field: check.field || typed.field };
+    } else {
+      if (params.submit) {
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      const snap = await evaluate(SNAP);
+      out = { ok: true, typed: params.text, field: check.field || typed.field, value: check.value, valueLength: String(check.value).length, url: snap.url, snapshot: snap };
     }
-    const snap = await evaluate(SNAP);
-    out = { ok: true, typed: params.text, snapshot: snap };
   }
+}
 } else if (act === 'screenshot') {
   const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
   out = { screenshot_b64: shot.data || '' };
@@ -551,13 +592,14 @@ function formatSnapshot(snap, budgetChars = 4200) {
   lines.push(String(snap.text || '').slice(0, 2600) || '(no visible text)');
   const els = Array.isArray(snap.elements) ? snap.elements : [];
   if (els.length) {
-    lines.push('--- clickable / typeable elements (use the label EXACTLY with browser_click) ---');
+    lines.push('--- clickable / typeable elements (use the label EXACTLY with browser_click; typeable fields show their current value) ---');
     for (const el of els.slice(0, 40)) {
       const bits = [`[${el.tag}${el.type ? ' type=' + el.type : ''}]`];
       if (el.label) bits.push(`"${el.label}"`);
       if (el.placeholder && el.placeholder !== el.label) bits.push(`placeholder="${el.placeholder}"`);
       if (el.name) bits.push(`name=${el.name}`);
       if (el.id) bits.push(`id=${el.id}`);
+      if (el.value) bits.push(`value=${JSON.stringify(el.value)}`);
       if (el.href) bits.push(`-> ${el.href}`);
       lines.push('- ' + bits.join(' '));
     }
@@ -572,9 +614,14 @@ function snapshotFromHtml(html, url) {
   const elements = [];
   const pushEl = (tag, attrs, inner) => {
     const get = (n) => ((new RegExp(`${n}\\s*=\\s*"([^"]*)"`, 'i').exec(attrs) || [])[1] || '');
+    const rawVal = get('value');
+    // A password value is never rendered in plain text — masked at
+    // the source, like the CDP snapshot's val() above.
+    const value = String(get('type') || '').toLowerCase() === 'password' && rawVal
+      ? '•'.repeat(Math.min(rawVal.length, 12)) + ` (${rawVal.length} chars)` : rawVal;
     const label = String(inner || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80)
-      || get('value') || get('aria-label') || get('placeholder') || get('name') || get('id');
-    elements.push({ tag, type: get('type'), label, href: get('href'), id: get('id'), name: get('name'), placeholder: get('placeholder') });
+      || value || get('aria-label') || get('placeholder') || get('name') || get('id');
+    elements.push({ tag, type: get('type'), label, href: get('href'), id: get('id'), name: get('name'), placeholder: get('placeholder'), value });
   };
   for (const m of text0.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) pushEl('a', m[1], m[2]);
   for (const m of text0.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/gi)) pushEl('button', m[1], m[2]);
@@ -774,7 +821,37 @@ export async function guiBrowserClick(huntId, text, deps = {}) {
   }
 }
 
-export async function guiBrowserType(huntId, text, submit = false, deps = {}) {
+// GUI-TYPE-TARGET (28 Oct 2026): the observation's field values.
+// A password field's value is shown masked (length only) — the driver
+// already masks it in the snapshot, and the read-back value is masked
+// here too, so no observation ever carries a password in plain text.
+export function displayFieldValue(field, value) {
+  const v = String(value ?? '');
+  // Idempotent: a value already in masked form (from a snapshot,
+  // which masks passwords at source) passes through unchanged —
+  // re-masking it would corrupt the length ("(17 chars)" for an
+  // 8-char password).
+  if (/^•+ \(\d+ chars\)$/.test(v)) return v;
+  if (String((field && field.type) || '').toLowerCase() === 'password') {
+    return v ? '•'.repeat(Math.min(v.length, 12)) + ` (${v.length} chars)` : '(empty)';
+  }
+  return v ? JSON.stringify(v.slice(0, 80)) : '(empty)';
+}
+
+/** One line per typeable field in a snapshot, with current values. */
+export function formatFieldValues(snap) {
+  const els = (snap && Array.isArray(snap.elements) ? snap.elements : [])
+    .filter((el) => el && (el.tag === 'input' || el.tag === 'textarea'));
+  if (!els.length) return '';
+  const lines = ['--- field values (what each field holds right now) ---'];
+  for (const el of els.slice(0, 20)) {
+    const name = el.name || el.id || el.label || el.tag;
+    lines.push(`- ${name} [${el.tag}${el.type ? ' type=' + el.type : ''}]: ${displayFieldValue(el, el.value)}`);
+  }
+  return lines.join('\n');
+}
+
+export async function guiBrowserType(huntId, target, text, submit = false, deps = {}) {
   try {
     const { probe, recovery } = await probeWithRecovery(huntId, deps);
     if (probe.mode === 'none') return { ok: false, observation: NOT_AVAILABLE, degraded: true };
@@ -783,12 +860,44 @@ export async function guiBrowserType(huntId, text, submit = false, deps = {}) {
       // refusal, flagged degraded exactly like the click refusal.
       return { ok: false, degraded: true, observation: 'Typing needs the live desktop browser (CDP). It is not running in this environment and cannot be started or installed from inside the hunt — do not spend turns trying to fix it. Use shell + curl to send data instead.' + desktopRecoveryNote(recovery) };
     }
-    const res = await cdpAction(huntId, 'type', { text: String(text || ''), submit: Boolean(submit) }, deps);
+    // GUI-TYPE-TARGET: a type without a named field is refused
+    // BEFORE any driver call — typing into "whatever is focused"
+    // is the failure mode (the DVWA login: 'password' appended to
+    // 'admin' in the username field, every action still "succeeded").
+    const fieldTarget = String(target || '').trim();
+    if (!fieldTarget) {
+      return { ok: false, observation: 'browser_type needs a field target — the label or CSS selector of the field to type into (e.g. "Username" or "input[name=password]"). Take a browser_snapshot and name the field; never type blind.' };
+    }
+    const res = await cdpAction(huntId, 'type', { target: fieldTarget, text: String(text || ''), submit: Boolean(submit) }, deps);
     if (!res) return { ok: false, observation: NOT_AVAILABLE };
     if (res.error === 'wrong_page') return { ok: false, observation: wrongPageObservation(res, deps.targetUrl) };
     if (res.observation) return res;
-    if (res.ok === false) return { ok: false, observation: `Type failed: ${res.error || 'no field'}. Take a browser_snapshot first.` };
-    return { ok: true, observation: `Typed ${JSON.stringify(String(text).slice(0, 120))}${submit ? ' and pressed Enter' : ''}. The page now shows:\n${formatSnapshot(res.snapshot)}`, snapshot: res.snapshot };
+    if (res.ok === false) return { ok: false, observation: `Type failed: ${res.error || 'no field'}. Take a browser_snapshot and use an exact label from it.` };
+    // The driver verified the value landed in the named field
+    // (read-back before any submit) — the observation says so
+    // plainly, with the field, its verified value, the page URL
+    // and the current values of every field, so the brain can
+    // check its own work and correct itself when it did not land.
+    const field = res.field || {};
+    const fieldDesc = [field.tag, field.type ? `type=${field.type}` : '', field.name ? `name=${field.name}` : '', field.id ? `id=${field.id}` : '', field.label ? `"${field.label}"` : ''].filter(Boolean).join(' ');
+    const verified = displayFieldValue(field, res.value);
+    // The typed text itself is echoed here — for a password field
+    // it is masked like the value (the field type is known only
+    // after the driver ran; the action detail still carries the
+    // text the brain chose to type, as before — the vault fill path
+    // is the route for passwords that must never appear in text).
+    const typedShown = String((field && field.type) || '').toLowerCase() === 'password'
+      ? '•'.repeat(Math.min(String(text).length, 12)) + ` (${String(text).length} chars)`
+      : JSON.stringify(String(text).slice(0, 120));
+    const values = formatFieldValues(res.snapshot);
+    const head = `Typed ${typedShown} into ${fieldDesc || fieldTarget} — field now holds ${verified}${submit ? ' (Enter pressed)' : ''}.`;
+    const page = `Page: ${((res.snapshot && res.snapshot.title) || '(untitled)')} — ${res.url || (res.snapshot && res.snapshot.url) || ''}`;
+    return {
+      ok: true,
+      observation: [head, page, values, formatSnapshot(res.snapshot)].filter(Boolean).join('\n'),
+      snapshot: res.snapshot,
+      field,
+    };
   } catch (err) {
     return { ok: false, observation: `browser_type failed: ${err.message || err}` };
   }

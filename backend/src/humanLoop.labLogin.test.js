@@ -55,7 +55,7 @@ function fakeDvwaGui() {
       if (text === 'Submit' && page === 'security-low-pending') page = 'security-low';
       return { ok: true, observation: observation() };
     },
-    type: async () => { calls.push('type'); return { ok: true, observation: observation() }; },
+    type: async (h, target, text) => { calls.push(`type:${target}<-${text}`); return { ok: true, observation: observation() }; },
     screenshot: async () => ({ ok: true, observation: 'shot' }),
   };
 }
@@ -101,6 +101,11 @@ test('DVWA session logs in first, sets security low, verifies the session', asyn
   assert.ok(gui.calls.some((c) => c === `open:${TARGET}login.php`), 'login page opened first');
   assert.ok(gui.calls.some((c) => c === `open:${TARGET}security.php`), 'security page opened');
   assert.ok(gui.calls.includes('click:Login'), 'login submitted');
+  // GUI-TYPE-TARGET (28 Oct 2026): each type names its field — the
+  // username goes into Username, the password into Password, never
+  // both into whatever happened to be focused.
+  assert.ok(gui.calls.includes('type:Username<-admin'), 'username typed into the Username field');
+  assert.ok(gui.calls.includes('type:Password<-password'), 'password typed into the Password field');
   assert.ok(gui.calls.includes('click:low') && gui.calls.includes('click:Submit'), 'security set to low');
 
   // Auth state persisted + recorded, and the vault holds the handle.

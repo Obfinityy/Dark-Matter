@@ -239,7 +239,7 @@ test('(e) browser actions go through the GUI shim; recall returns the full recor
   const gui = {
     open: async (h, url) => ({ ok: true, observation: `Opened ${url} — DVWA login page` }),
     click: async (h, text) => ({ ok: true, observation: `Clicked "${text}"` }),
-    type: async (h, text, submit) => ({ ok: true, observation: `Typed "${text}"${submit ? ' + submitted' : ''}` }),
+    type: async (h, target, text, submit) => ({ ok: true, observation: `Typed "${text}" into ${target}${submit ? ' + submitted' : ''}` }),
   };
   const opened = await executeBrainAction(huntId, { action: 'browser_open', url: TARGET }, { gui });
   assert.equal(opened.ok, true);
@@ -250,6 +250,111 @@ test('(e) browser actions go through the GUI shim; recall returns the full recor
   assert.equal(recalled.ok, true);
   assert.match(recalled.output, /DVWA login page/);
   assert.equal(recalled.entry.tool, 'shell');
+});
+
+// GUI-TYPE-TARGET (28 Oct 2026): the parent-brain type names its field,
+// a type without a target is refused before the driver is called, and a
+// driver refusal surfaces as a failed step — never a fake task_complete
+// (the live DVWA login failure: every action reported success, nothing
+// was typed into the right field).
+test('(e) browser_type names its field; no target is refused; a GUI failure is a failed step', async () => {
+  const huntId = makeHunt('h_act_type', { brainMode: 'parent', state: 'paused', paused: true });
+  const calls = [];
+  const gui = {
+    open: async () => ({ ok: true, observation: 'opened' }),
+    click: async (h, text) => ({ ok: true, observation: `Clicked "${text}"` }),
+    type: async (h, target, text, submit) => {
+      calls.push(`${target} <- ${text}`);
+      return { ok: true, observation: `Typed "${text}" into ${target} (verified)` };
+    },
+  };
+  const typed = await executeBrainAction(huntId, { action: 'browser_type', selector: 'Username', text: 'admin' }, { gui });
+  assert.equal(typed.ok, true);
+  assert.match(typed.output, /Username/);
+  assert.ok(calls.includes('Username <- admin'), 'the field target reached the driver');
+
+  const noTarget = await executeBrainAction(huntId, { action: 'browser_type', text: 'admin' }, { gui });
+  assert.equal(noTarget.ok, false);
+  assert.equal(noTarget.error, 'missing_target');
+  assert.equal(calls.length, 1, 'the driver was never called for a target-less type');
+
+  const failingGui = {
+    type: async () => ({ ok: false, observation: 'Type failed: no field matches "Password"' }),
+  };
+  const failed = await executeBrainAction(huntId, { action: 'browser_type', selector: 'Password', text: 'password' }, { gui: failingGui });
+  assert.equal(failed.ok, false);
+  assert.equal(failed.error, 'gui_failed');
+  const state = deriveProcessState(huntId, { meta: readHuntMeta(huntId), events: readHuntEvents(huntId), reasoningRows: [] });
+  assert.equal(state.taskStatus, 'failed', 'the process view shows the failed step, not a completion');
+});
+
+// FULL OS CONTROL (28 Oct 2026): the parent brain drives the whole
+// Kali machine — desktop snapshot, see_screen, tool launch — through
+// the same OS-control layer the AI loop uses. A refused OS action is
+// a failed step, never a fake task_complete.
+test('(e) OS actions dispatch: desktop_snapshot + see_screen run, an unknown tool/window fails honestly', async () => {
+  const huntId = makeHunt('h_act_os', { brainMode: 'parent', state: 'paused', paused: true });
+  const WINDOWS_OUT = ['111', '222', '---TITLES---', 'Chromium — DVWA', 'Burp Suite', '---ACTIVE---', 'Burp Suite', ''].join('\n');
+  const TSV = ['level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext', '5\t1\t1\t1\t1\t1\t100\t200\t80\t20\t90\tLog', '5\t1\t1\t1\t1\t2\t190\t200\t40\t20\t90\tin', ''].join('\n');
+  const execRaw = async (h, cmd) => {
+    const c = Array.isArray(cmd) ? cmd.join('\n') : String(cmd);
+    if (c.includes('xdotool search')) return { stdout: WINDOWS_OUT, stderr: '', code: 0 };
+    if (c.includes('scrot')) return { stdout: 'captured\n', stderr: '', code: 0 };
+    if (c.includes('tesseract')) return { stdout: TSV, stderr: '', code: 0 };
+    return { stdout: '', stderr: '', code: 0 };
+  };
+  const snap = await executeBrainAction(huntId, { action: 'desktop_snapshot' }, { execRaw });
+  assert.equal(snap.ok, true);
+  assert.match(snap.output, /Burp Suite/);
+  const seen = await executeBrainAction(huntId, { action: 'see_screen' }, { execRaw });
+  assert.equal(seen.ok, true);
+  assert.match(seen.output, /Log/);
+  const badTool = await executeBrainAction(huntId, { action: 'launch_tool', tool: 'teleport' }, { execRaw });
+  assert.equal(badTool.ok, false);
+  assert.equal(badTool.error, 'gui_failed');
+  const badWin = await executeBrainAction(huntId, { action: 'desktop_click', window: 'Wireshark' }, { execRaw });
+  assert.equal(badWin.ok, false);
+  assert.equal(badWin.error, 'gui_failed');
+  const state = deriveProcessState(huntId, { meta: readHuntMeta(huntId), events: readHuntEvents(huntId), reasoningRows: [] });
+  assert.equal(state.taskStatus, 'failed', 'the failed OS step shows failed in the process view');
+  // LIVE UI (28 Oct 2026): the process state carries the live truth
+  // — in_process false now that the step failed, a one-line activity
+  // naming the parent brain, and the last action for the UI to show.
+  assert.equal(state.in_process, false);
+  assert.match(state.activity, /Parent brain — last step failed/);
+  assert.equal(state.lastAction.tool, 'desktop_click');
+  assert.ok(state.lastAction.hash, 'the last action carries its hash');
+});
+
+// BRAIN FILES (28 Oct 2026): every parent action lands in the three
+// files — the output by hash, the process lines + in_process flip,
+// and the memory entry (title + hash) on completion. A failed step
+// lands in memory as failed.
+test('(e) brain files: a finished action is in memory + output; a failed one is recorded failed', async () => {
+  const { readMemoryFile, readProcessFile, readOutputFile } = await import('../brainFiles.js');
+  const huntId = makeHunt('h_act_files', { brainMode: 'parent', state: 'paused', paused: true });
+  const exec = async () => ({ stdout: 'uid=0(root)', stderr: '', code: 0 });
+  const res = await executeBrainAction(huntId, { action: 'shell', command: 'id' }, { exec });
+  assert.equal(res.ok, true);
+  assert.ok(res.hash, 'the action has a hash');
+  const mem = readMemoryFile(huntId);
+  assert.equal(mem.entries.length, 1);
+  assert.equal(mem.entries[0].hash, res.hash);
+  assert.match(mem.entries[0].title, /shell/);
+  const out = readOutputFile(huntId);
+  assert.equal(out.byHash[res.hash].output.includes('uid=0(root)'), true, 'the result is in the output file by hash');
+  const proc = readProcessFile(huntId);
+  assert.equal(proc.in_process, false, 'the finished step closed its process');
+  assert.equal(proc.history.length, 1);
+  assert.match(proc.history[0].lines.map((l) => l.line).join(' '), /step started: shell/);
+
+  const huntId2 = makeHunt('h_act_files_fail', { brainMode: 'parent', state: 'paused', paused: true });
+  const bad = await executeBrainAction(huntId2, { action: 'browser_type', text: 'admin' }, {});
+  assert.equal(bad.ok, false);
+  assert.equal(bad.error, 'missing_target');
+  const mem2 = readMemoryFile(huntId2);
+  assert.equal(mem2.entries.length, 1);
+  assert.equal(mem2.entries[0].status, 'failed');
 });
 
 test('(e) a parent task block updates the live process state', async () => {

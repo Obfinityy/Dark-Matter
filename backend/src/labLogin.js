@@ -158,21 +158,27 @@ export async function runLabLoginFirst(huntId, target, deps) {
   const password = (saved && saved.password) || spec.password;
   const steps = [
     ['click', 'Username'],
-    ['type', username],
+    ['type', 'Username', username],
     ['click', 'Password'],
-    ['type', password],
+    ['type', 'Password', password],
     ['click', 'Login'],
   ];
-  for (const [how, value] of steps) {
+  for (const [how, target, value] of steps) {
     let res = null;
     try {
-      res = how === 'click' ? await clickWithMapFallback(value) : await gui.type(huntId, value, false);
+      // GUI-TYPE-TARGET (28 Oct 2026): the type names its field —
+      // the click before it focuses the field, and the type verifies
+      // the value landed in THAT field (the live DVWA login put
+      // 'password' into the username field because the type carried
+      // no target). A click step's value is its label; a type step
+      // carries target + value.
+      res = how === 'click' ? await clickWithMapFallback(target) : await gui.type(huntId, target, value, false);
     } catch (err) {
-      return fail('fill-failed', `${how} ${value}: ${String((err && err.message) || err)}`);
+      return fail('fill-failed', `${how} ${target}: ${String((err && err.message) || err)}`);
     }
     if (res && res.ok === false) {
       const tried = res.mapFallbackTried ? ' (screen-map fallback also missed)' : '';
-      return fail('fill-failed', `${how} ${value}: ${(res.observation || res.error || 'browser refused')}${tried}`);
+      return fail('fill-failed', `${how} ${target}: ${(res.observation || res.error || 'browser refused')}${tried}`);
     }
   }
 
