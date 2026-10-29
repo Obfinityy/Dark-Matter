@@ -1361,6 +1361,16 @@ button { font-family: inherit; }
   color: var(--dm-faint);
   font-family: ui-monospace, monospace;
 }
+.hunt-id-badge {
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  color: var(--dm-text-dim);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
 .report-link { margin-top: 10px; }
 
 /* ---------- Composer (rounded-full pill) ---------- */
