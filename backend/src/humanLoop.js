@@ -331,6 +331,19 @@ export function pageUrlFromObservation(obs) {
   return url ? url[0] : '';
 }
 
+/**
+ * Clip a tool observation for the reasoning log. Probes put their VERDICT
+ * as the last line by convention, so a pure head-truncate silently drops
+ * the most important line. Keep the head (context) AND the tail (verdict).
+ * Exported for tests.
+ */
+export function clipResult(observation) {
+  const s = String(observation || '');
+  if (s.length <= 800) return s;
+  const omitted = s.length - 800;
+  return s.slice(0, 400) + `\n…[truncated ${omitted} chars]…\n` + s.slice(-400);
+}
+
 // Seed for lastObservation at session start (fix 2): the last
 // non-empty result the previous session recorded, so the new
 // session does not start blind. Results that are themselves an
@@ -4501,7 +4514,7 @@ export async function humanIteration(huntId, target, opts = {}) {
           }
         }
       }
-      note({ action: `shell: ${command.slice(0, 160)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `shell: ${command.slice(0, 160)}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'search') {
       const query = String(action.query || '').slice(0, 200);
       // HUNTER-MIND: output memory — a search already run is
@@ -4529,7 +4542,7 @@ export async function humanIteration(huntId, target, opts = {}) {
           saveOutputs(huntId, sessionOutputs);
         } catch { /* the ledger is best-effort — the turn already ran */ }
       }
-      note({ action: `search: ${query}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `search: ${query}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'write_file') {
       const name = String(action.name || '');
       const content = String(action.content ?? '');
@@ -4544,7 +4557,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       } catch (err) {
         observation = `write_file failed: ${err.message || err}`;
       }
-      note({ action: `write_file: ${name}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `write_file: ${name}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'note') {
       const text = String(action.text || '');
       sessionLastNote = text;
@@ -4567,7 +4580,7 @@ export async function humanIteration(huntId, target, opts = {}) {
         } catch {
           observation = 'Recall failed this time — your briefing still carries the distilled memory.';
         }
-        note({ action: `recall: #${id}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+        note({ action: `recall: #${id}`, why: thinkingText, result: clipResult(observation), learned: '' });
       } else {
         const query = String(action.query || '').slice(0, 200);
         toolCall('recall', query);
@@ -4576,7 +4589,7 @@ export async function humanIteration(huntId, target, opts = {}) {
         } catch {
           observation = 'Recall failed this time — your briefing still carries the distilled memory.';
         }
-        note({ action: `recall: ${query}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+        note({ action: `recall: ${query}`, why: thinkingText, result: clipResult(observation), learned: '' });
       }
     } else if (kind === 'record_coverage') {
       // Lane L: the hunter accounts for a surface × class in its
@@ -4603,7 +4616,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       if (covResult && (covResult.status === 'created' || covResult.status === 'updated')) {
         say(`Coverage ${covResult.status}: ${covInput.surface} × ${covInput.class} → ${covInput.outcome}`);
       }
-      note({ action: `record_coverage: ${covInput.surface} ${covInput.class} ${covInput.outcome}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `record_coverage: ${covInput.surface} ${covInput.class} ${covInput.outcome}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'hunt_plan') {
       // HUNTER-MIND: the brain writes/revises its OWN hunt plan.
       // NOT dedupe-gated (writing a plan is free, like recall) and
@@ -4639,7 +4652,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       } else {
         observation = 'Nothing changed — give "steps": [...] to write or revise your plan, or "done": <step number> with "evidence" to check a step off, or "skip": <step number> with "evidence" to drop one.';
       }
-      note({ action: `hunt_plan: ${detailForAction(kind, action)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `hunt_plan: ${detailForAction(kind, action)}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'load_skill') {
       // Lane M: pull a procedure card from the hunter's own playbook
       // (Research Lane K, proposal P2). NOT dedupe-gated — re-pulling
@@ -4719,7 +4732,7 @@ export async function humanIteration(huntId, target, opts = {}) {
         if (skillKey && observation.includes('No skill card named')) {
           failedSkills.set(skillKey, { name: name.trim().slice(0, 60), asks: 1 });
         }
-        note({ action: `load_skill: ${name}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+        note({ action: `load_skill: ${name}`, why: thinkingText, result: clipResult(observation), learned: '' });
       }
     } else if (kind === 'proxy_start') {
       // Lane U: start the intercept proxy + dashboard inside the
@@ -4731,21 +4744,21 @@ export async function humanIteration(huntId, target, opts = {}) {
       const res = await getIntercept().start(huntId);
       observation = res.observation || '(no observation)';
       if (res.ok) say('Intercept proxy started — browser traffic is being captured.');
-      note({ action: 'proxy_start', why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: 'proxy_start', why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'intercept_list') {
       // Lane U: read the hunter's own capture file. NOT dedupe-gated
       // and NOT scope-gated — a read of its own notebook, like recall.
       toolCall('intercept_list', '');
       const res = await getIntercept().list(huntId);
       observation = res.observation || '(no observation)';
-      note({ action: 'intercept_list', why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: 'intercept_list', why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'intercept_read') {
       // Lane U: one captured flow in full. Same read-only treatment
       // as intercept_list.
       toolCall('intercept_read', `#${action.index ?? ''}`);
       const res = await getIntercept().read(huntId, action.index);
       observation = res.observation || '(no observation)';
-      note({ action: `intercept_read: #${action.index ?? ''}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `intercept_read: #${action.index ?? ''}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'intercept_replay') {
       // Lane U: Burp-Repeater work — resend one captured request
       // with the hunter's modifications. This DOES send traffic, so
@@ -4804,7 +4817,7 @@ export async function humanIteration(huntId, target, opts = {}) {
           }
         }
       }
-      note({ action: `intercept_replay: #${action.index ?? ''}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `intercept_replay: #${action.index ?? ''}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'save_credential') {
       // Lane AI: vault seam. The brain creates accounts itself under
       // the Obfinity persona; the password is vaulted server-side
@@ -4875,7 +4888,7 @@ export async function humanIteration(huntId, target, opts = {}) {
           }
         }
       }
-      note({ action: `use_saved_credential: ${handle}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `use_saved_credential: ${handle}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'fetch_verification_code') {
       // Lane AI: poll the credential's temp-mail inbox for a
       // verification code. The code is a ONE-TURN observation: it
@@ -4963,7 +4976,7 @@ export async function humanIteration(huntId, target, opts = {}) {
         notePageUrl(observation);
         noteSnapshot(res);
       }
-      note({ action: `browser_open: ${url.slice(0, 120)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `browser_open: ${url.slice(0, 120)}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'browser_snapshot') {
       toolCall('browser_snapshot', '');
       const res = await getGui().snapshot(huntId);
@@ -4984,7 +4997,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       if (res && res.ok !== false) {
         try { sessionPageState = markElementClicked(sessionPageState, currentPageUrl, text); savePageState(huntId, sessionPageState); } catch { /* best-effort */ }
       }
-      note({ action: `browser_click: ${text.slice(0, 80)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `browser_click: ${text.slice(0, 80)}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'browser_type') {
       const text = String(action.text || '');
       // GUI-TYPE-TARGET (28 Oct 2026): the brain names the field —
@@ -5008,7 +5021,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       if (res && res.ok !== false) {
         try { sessionPageState = markTypedInto(sessionPageState, currentPageUrl); savePageState(huntId, sessionPageState); } catch { /* best-effort */ }
       }
-      note({ action: `browser_type: ${fieldTarget ? `${fieldTarget} ← ` : ''}${text.slice(0, 80)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `browser_type: ${fieldTarget ? `${fieldTarget} ← ` : ''}${text.slice(0, 80)}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'screenshot') {
       toolCall('screenshot', '');
       const res = await getGui().screenshot(huntId);
@@ -5036,7 +5049,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       } catch (err) {
         observation = `Desktop snapshot failed: ${err.message || err}. Open a page with browser_open first — that starts the desktop — then try again.`;
       }
-      note({ action: 'desktop_snapshot', why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: 'desktop_snapshot', why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'desktop_click') {
       // WHOLE-OS CONTROL: focus a window by title (resolved
       // deterministically from the last desktop_snapshot) and send
@@ -5066,7 +5079,7 @@ export async function humanIteration(huntId, target, opts = {}) {
           observation = `Desktop click failed: ${err.message || err}. Take desktop_snapshot to refresh the window list.`;
         }
       }
-      note({ action: `desktop_click: ${winName.slice(0, 80)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `desktop_click: ${winName.slice(0, 80)}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'desktop_key') {
       // WHOLE-OS CONTROL: keys or literal text to the focused
       // window. Keystrokes are whitelist-validated BEFORE any exec
@@ -5105,7 +5118,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       } else {
         observation = 'Nothing sent — give "keys" (e.g. "ctrl+l", "Return") or "text" (words to type) with desktop_key.';
       }
-      note({ action: `desktop_key: ${(keys || text).slice(0, 80)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `desktop_key: ${(keys || text).slice(0, 80)}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'desktop_screenshot') {
       // WHOLE-OS CONTROL: the full desktop frame (scrot on :99),
       // saved as a hunt artifact via the owner's poller route —
@@ -5126,7 +5139,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       } catch (err) {
         observation = `Desktop screenshot failed: ${err.message || err}.`;
       }
-      note({ action: 'desktop_screenshot', why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: 'desktop_screenshot', why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'see_screen') {
       // SCREEN-SEEING (27 Oct 2026, owner order): the brain LOOKS at
       // the desktop itself — screenshot -> OCR words + coordinates ->
@@ -5143,7 +5156,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       } catch (err) {
         observation = `Could not read the screen: ${err.message || err}. Take desktop_snapshot instead.`;
       }
-      note({ action: 'see_screen', why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: 'see_screen', why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'desktop_click_at') {
       // SCREEN-SEEING: click at a point FROM THE SCREEN MAP. The
       // coordinates are validated BEFORE any exec (parseClickAt) — an
@@ -5164,7 +5177,7 @@ export async function humanIteration(huntId, target, opts = {}) {
           observation = `Desktop click failed: ${err.message || err}. Take see_screen to check the screen.`;
         }
       }
-      note({ action: `desktop_click_at: ${String(action.x ?? '')},${String(action.y ?? '')}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `desktop_click_at: ${String(action.x ?? '')},${String(action.y ?? '')}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'desktop_terminal') {
       // HUMAN-BRAIN (26 Oct 2026): GUI-VISIBLE TERMINAL — the
       // command runs in a terminal window ON the GUI desktop, typed
@@ -5302,7 +5315,7 @@ export async function humanIteration(huntId, target, opts = {}) {
           }
         }
       }
-      note({ action: `desktop_terminal: ${command.slice(0, 160)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `desktop_terminal: ${command.slice(0, 160)}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'desktop_click_control') {
       // REAL-HUMAN: click a NAMED CONTROL inside a GUI app via its
       // accessibility tree (AT-SPI). The brain names the control's
@@ -5338,7 +5351,7 @@ export async function humanIteration(huntId, target, opts = {}) {
           observation = atspiFailureObservation(`the click command failed: ${err.message || err}`);
         }
       }
-      note({ action: `desktop_click_control: ${controlName.slice(0, 80)}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `desktop_click_control: ${controlName.slice(0, 80)}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'launch_tool') {
       // TOOLS/OS AUTONOMY: launch a NAMED tool from the registry and
       // wait for it to be ready. GUI tools open on the desktop (the
@@ -5390,7 +5403,7 @@ export async function humanIteration(huntId, target, opts = {}) {
           observation = `Tool check failed: ${err.message || err}`;
         }
       }
-      note({ action: `launch_tool: ${toolId}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `launch_tool: ${toolId}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'download_tool') {
       // TOOLS/OS AUTONOMY: install a MISSING tool from the
       // allow-list. Anything not listed is refused BEFORE any exec
@@ -5407,7 +5420,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       } catch (err) {
         observation = `Tool install failed: ${err.message || err}`;
       }
-      note({ action: `download_tool: ${toolId}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `download_tool: ${toolId}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'list_controls') {
       // TOOLS/OS AUTONOMY: list a window's NAMED controls from its
       // accessibility tree, as clickable map lines. Read-only — it
@@ -5423,7 +5436,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       } catch (err) {
         observation = `Could not list controls: ${err.message || err}. Fall back to see_screen and desktop_click_at.`;
       }
-      note({ action: `list_controls: ${windowSub || '(active window)'}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `list_controls: ${windowSub || '(active window)'}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'claim_finding') {
       const rawTitle = String(action.title || '');
       const title = String(rawTitle.trim() ? rawTitle : 'Untitled claim').slice(0, 200);
@@ -5459,7 +5472,7 @@ export async function humanIteration(huntId, target, opts = {}) {
           'CLAIM NOT RECORDED — the proof package is incomplete, so the verifier never saw it. Missing: ' +
           gate.missing.map((m) => m.hint).join('; ') +
           '. Complete every piece and claim again — run the control/baseline probe first if that is what is missing. This gate checks completeness only; the verifier still decides whether a complete claim is true.';
-        note({ action: `claim_finding: ${title}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+        note({ action: `claim_finding: ${title}`, why: thinkingText, result: clipResult(observation), learned: '' });
       } else {
       toolCall('claim_finding', title);
       const assess = await getAssess();
@@ -5529,7 +5542,7 @@ export async function humanIteration(huntId, target, opts = {}) {
         } catch { /* best-effort */ }
         observation = 'Recorded as an UNVERIFIED claim (no pipeline verifier is wired into this session). It does not count as a finding until the verifier confirms it.';
       }
-      note({ action: `claim_finding: ${title}`, why: thinkingText, result: observation.slice(0, 300), learned: '' });
+      note({ action: `claim_finding: ${title}`, why: thinkingText, result: clipResult(observation), learned: '' });
       }
     } else {
       observation = `Unknown action "${kind}". Valid actions: shell, search, write_file, note, recall, record_coverage, hunt_plan, load_skill, proxy_start, intercept_list, intercept_read, intercept_replay, browser_open, browser_snapshot, browser_click, browser_type, screenshot, desktop_snapshot, desktop_click, desktop_key, desktop_screenshot, desktop_terminal, desktop_click_control, see_screen, desktop_click_at, launch_tool, download_tool, list_controls, claim_finding, save_credential, use_saved_credential, fetch_verification_code. Pick exactly one, as JSON on the last line.`;
