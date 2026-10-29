@@ -15,6 +15,8 @@ import { Router } from 'express';
 import crypto from 'node:crypto';
 import { readUsers, writeUsers } from '../store.js';
 import { requireAdmin, hashPassword } from './auth.js';
+import { readAudit, auditSummary } from '../brain/oneLoopAudit.js';
+import { config } from '../config.js';
 
 const router = Router();
 
@@ -382,6 +384,34 @@ router.get('/hunts/:id/memory', requireAdmin, async (req, res) => {
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
+});
+
+// ---- RULE #45: one-loop brain audit review surface (flip checklist).
+// A BRAIN_PROVIDER=oneloop-dryrun session writes every turn to
+// <dataDir>/hunts/<huntId>/oneloop/audit.jsonl but commits nothing. These
+// admin-only routes let the owner review the trail before flipping
+// dry-run -> live ('oneloop'). The audit is observation, not control —
+// these routes never write, never mutate, never re-file anything.
+//
+// GET /api/v1/admin/hunts/:id/oneloop/audit          -> raw audit entries
+// GET /api/v1/admin/hunts/:id/oneloop/audit/summary  -> flip checklist
+router.get('/hunts/:id/oneloop/audit', requireAdmin, (req, res) => {
+  const r = readAudit(config.dataDir, req.params.id);
+  if (!r.ok && r.reason === 'bad_hunt_id') {
+    return res.status(400).json({ ok: false, error: 'bad_hunt_id' });
+  }
+  if (!r.ok) {
+    return res.status(404).json({ ok: false, error: 'no_audit', huntId: req.params.id });
+  }
+  res.json({ ok: true, huntId: req.params.id, skipped: r.skipped, entries: r.entries });
+});
+
+router.get('/hunts/:id/oneloop/audit/summary', requireAdmin, (req, res) => {
+  const s = auditSummary(config.dataDir, req.params.id);
+  if (s.claims && s.claims.reason === 'bad_hunt_id') {
+    return res.status(400).json({ ok: false, error: 'bad_hunt_id' });
+  }
+  res.json(s);
 });
 
 export default router;
