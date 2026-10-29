@@ -40,6 +40,15 @@ async function parseJsonSafe(res) {
 }
 
 async function request(method, path, body, opts = {}) {
+  // TIMEOUT (29 Oct 2026): fetch() has no built-in timeout — if the backend
+  // hangs, await never resolves and callers (e.g. BrainConsole's
+  // "Sending…") stick forever. Callers pass { timeout: ms }; we abort
+  // via AbortController. A caller-provided opts.signal (user-initiated
+  // Stop) takes precedence over the timeout controller.
+  const controller = new AbortController();
+  const timeoutMs = opts.timeout;
+  const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  const signal = opts.signal || controller.signal;
   try {
     const headers = {};
     if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -52,7 +61,9 @@ async function request(method, path, body, opts = {}) {
       // CHAT-ANSWERS (26 Oct 2026): Stop must abort the in-flight
       // chat fetch instead of letting it run and discarding the
       // result. The caller passes { signal } from an AbortController.
-      signal: opts.signal,
+      // TIMEOUT (29 Oct 2026): if no caller signal, use our timeout
+      // controller so a hung backend cannot stick the UI forever.
+      signal,
     });
     const data = await parseJsonSafe(res);
     if (!res.ok) {
@@ -74,8 +85,19 @@ async function request(method, path, body, opts = {}) {
     // An intentional abort is not a backend failure — the caller
     // distinguishes it so Stop never shows a "backend unreachable"
     // toast for a reply the user stopped on purpose.
-    if (err && err.name === 'AbortError') return { ok: false, error: 'aborted', aborted: true };
+    // TIMEOUT (29 Oct 2026): if WE aborted via the timeout (no caller
+    // signal), report a timeout — the backend may still be processing,
+    // so the caller should check the Action index rather than retry
+    // blindly.
+    if (err && err.name === 'AbortError') {
+      if (timeoutMs && !opts.signal) {
+        return { ok: false, error: 'Request timed out. The backend may still be processing — check the Action index before retrying.' };
+      }
+      return { ok: false, error: 'aborted', aborted: true };
+    }
     return { ok: false, error: 'Backend unreachable. Check Settings → backend connection.' };
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }
 
@@ -354,7 +376,10 @@ export async function getHuntProcess(id) {
 }
 
 export async function submitBrainAction(id, action) {
-  return post(`/api/v1/hunts/${encodeURIComponent(id)}/brain-action`, { action });
+  // TIMEOUT (29 Oct 2026): 5 min — brain actions run probes that can take
+  // minutes, but a hang beyond that means the backend is stuck. Without
+  // this, the BrainConsole "Sending…" sticks forever (seen 13-19 min).
+  return post(`/api/v1/hunts/${encodeURIComponent(id)}/brain-action`, { action }, { timeout: 300000 });
 }
 
 // BRAIN JSON (28 Oct 2026): the parent brain's structured reply —
@@ -364,7 +389,8 @@ export async function submitBrainAction(id, action) {
 // A 400 names the bad field (in the message); a 409 means the AI is
 // the brain right now.
 export async function submitBrainActionJson(id, reply) {
-  return post(`/api/v1/hunts/${encodeURIComponent(id)}/brain-action-json`, { reply });
+  // TIMEOUT (29 Oct 2026): 5 min — same "Sending…" hang fix as above.
+  return post(`/api/v1/hunts/${encodeURIComponent(id)}/brain-action-json`, { reply }, { timeout: 300000 });
 }
 
 export function reportPdfUrl(id) {
