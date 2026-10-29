@@ -242,6 +242,7 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
     setSubmitting(false);
     if (res.ok && res.data) {
       setLastResult(res.data);
+      setJsonText('');
       refreshActions();
       refreshProcess();
     } else {
