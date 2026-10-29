@@ -21,8 +21,35 @@ import { spawn } from 'node:child_process';
 export const SUMMARY_PREFIX = 'TURNSUMMARY: ';
 export const DEFAULT_TURN_TIMEOUT_MS = 600000; // 10 min > 300s blind-sqli probe
 
+// RULE #44 (30 Oct 2026) — flip-path safety: BRAIN_PROVIDER now has three
+// exact-match values. 'oneloop' = live (claims bridge to the pipeline,
+// findings committed). 'oneloop-dryrun' = audit mode: the brain drives the
+// same turns (the flip path is byte-identical in control flow) but the
+// backend commits NOTHING — no pipeline bridge, no findings/leads pushed,
+// every turn written to <memdir>/audit.jsonl. Anything else (unset,
+// 'ONeloop', 'oneloop-', typos) = the current LLM path, byte-identical.
+// Exact match only: a partial/near value must never silently enable the
+// loop brain on a live hunt.
+export const ONELOOP_LIVE_VALUE = 'oneloop';
+export const ONELOOP_DRYRUN_VALUE = 'oneloop-dryrun';
+
+/** 'live' | 'dryrun' | 'off' — exact-match parse of BRAIN_PROVIDER. */
+export function oneLoopMode(env = process.env) {
+  const v = env && typeof env.BRAIN_PROVIDER === 'string' ? env.BRAIN_PROVIDER : '';
+  if (v === ONELOOP_LIVE_VALUE) return 'live';
+  if (v === ONELOOP_DRYRUN_VALUE) return 'dryrun';
+  return 'off';
+}
+
 export function isOneLoopEnabled(env = process.env) {
-  return env.BRAIN_PROVIDER === 'oneloop';
+  // Both one-loop modes route to runOneLoopSession; 'off' keeps the LLM
+  // path. Enabled here means "route to the loop", not "go live".
+  return oneLoopMode(env) !== 'off';
+}
+
+/** Audit mode: turns run, nothing is committed (Rule #44). */
+export function isOneLoopDryRun(env = process.env) {
+  return oneLoopMode(env) === 'dryrun';
 }
 
 /**

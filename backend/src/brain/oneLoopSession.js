@@ -48,6 +48,27 @@ export function oneLoopMemdir(dataDir, huntId) {
   return path.join(String(dataDir || config.dataDir), 'hunts', String(huntId), 'oneloop');
 }
 
+/** RULE #44 — audit file: every dry-run turn is recorded here, JSONL. */
+export const ONELOOP_AUDIT_FILE = 'audit.jsonl';
+
+/**
+ * RULE #44 — append one audit record. Fail-open: an audit write must never
+ * break the session (the audit is observation, not control).
+ */
+export function appendAudit(memdir, record) {
+  try {
+    fs.mkdirSync(String(memdir), { recursive: true });
+    fs.appendFileSync(
+      path.join(String(memdir), ONELOOP_AUDIT_FILE),
+      JSON.stringify({ ts: new Date().toISOString(), dryRun: true, ...record }) + '\n',
+      'utf8'
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Read the loop's claims.json (hash-keyed, Rule #37) and return the
  * FILED claims as [{ hash, title, severity, module, evidence_hash,
@@ -119,7 +140,13 @@ async function bridgeNewClaims({ huntId, target, memdir, dataDir, claims, deps }
  *
  * @param {object} args
  *   huntId, target — the hunt and its explicit target base URL
- *   opts — the humanIteration opts ({ turns, findings })
+ *   opts — the humanIteration opts ({ turns, findings, dryRun })
+ *     dryRun (Rule #44): audit mode — the brain drives the same turns but
+ *     the backend commits nothing: the claim bridge is never called, no
+ *     findings/leads are pushed (opts.findings untouched), and every turn
+ *     is written to <memdir>/audit.jsonl. The brain's own memory files
+ *     (claims.json etc.) still persist — a later live flip inherits the
+ *     audited state instead of re-claiming.
  *   deps — test seam: { brainTurnFn, dataDir,
  *     claimGateCheckFn, assessFn, copyToContainerFn, // Rule #43 bridge
  *     probeDir, pythonBin, apiloopScript }
@@ -130,6 +157,7 @@ async function bridgeNewClaims({ huntId, target, memdir, dataDir, claims, deps }
 export async function runOneLoopSession({ huntId, target, opts = {}, deps = {} }) {
   const brainTurnFn = deps.brainTurnFn || brainTurn;
   const dataDir = deps.dataDir || config.dataDir;
+  const dryRun = opts.dryRun === true; // RULE #44 — audit mode
   const turns = Math.max(1, Number(opts.turns) || 6);
   const memdir = oneLoopMemdir(dataDir, huntId);
   const log = [];
@@ -137,6 +165,7 @@ export async function runOneLoopSession({ huntId, target, opts = {}, deps = {} }
 
   const failClosed = (failKind, turnsRun) => ({
     aiOk: false, failKind, turnsRun, actionsRun: turnsRun, newFindings, log,
+    ...(dryRun ? { dryRun: true } : {}),
   });
 
   if (!target || !String(target).trim()) {
@@ -144,6 +173,16 @@ export async function runOneLoopSession({ huntId, target, opts = {}, deps = {} }
   }
   if (!fs.existsSync(BRAIN_TURN_SCRIPT)) {
     return failClosed('oneloop:script_missing', 0);
+  }
+
+  // RULE #44 — the audit starts before turn 1: anyone reading the hunt log
+  // or the audit file sees immediately that this session committed nothing.
+  if (dryRun) {
+    const note = 'BRAIN_PROVIDER=oneloop-dryrun — audit only: the brain drives ' +
+      'the same turns, but the claim bridge is disabled and no findings/leads ' +
+      'are committed to the hunt. Claims stay FILED in loop memory.';
+    log.push({ turn: 0, dryrun: note });
+    appendAudit(memdir, { turn: 0, note });
   }
 
   let seenFiled = new Set(filedClaims(memdir).map((c) => c.hash));
@@ -185,46 +224,73 @@ export async function runOneLoopSession({ huntId, target, opts = {}, deps = {} }
     // in loop memory, surfaced nowhere. Still FILED (bridge skipped or
     // disabled) -> lead (verified:false), exactly like Rule #42.
     // The 100% TRUTH RULE: only the pipeline verifier marks verified.
+    //
+    // RULE #44 — in dry-run the brain still FILES claims into its own
+    // memory (that is what we audit), but the bridge is never called and
+    // nothing is surfaced anywhere: no findings, no leads, opts.findings
+    // untouched. Each filed claim is logged WITH REASON and written to
+    // the audit file so the flip can be reviewed claim-by-claim.
     const fresh = [];
     for (const c of filedClaims(memdir)) {
       if (seenFiled.has(c.hash)) continue;
       seenFiled.add(c.hash);
       fresh.push(c);
     }
+    if (dryRun) {
+      appendAudit(memdir, {
+        turn: turnsRun,
+        action_type: s ? s.action_type : null,
+        verdict: s ? s.verdict : null,
+        completed: Boolean(s && s.completed),
+        wall_s: s ? s.wall_s : null,
+        new_claims: fresh.map((c) => String(c.hash).slice(0, 12)),
+      });
+    }
     if (fresh.length > 0) {
-      const bridge = await bridgeNewClaims({ huntId, target, memdir, dataDir, claims: fresh, deps });
-      for (const entry of bridge.log) log.push({ turn: turnsRun, bridge: entry });
-      for (const c of fresh) {
-        const b = bridge.byHash[c.hash] || {};
-        if (b.bridged && b.terminal === 'accepted' && b.rec) {
-          newFindings.push(b.rec);
-          if (Array.isArray(opts.findings)) opts.findings.push(b.rec);
-        } else if (b.bridged && b.terminal === 'rejected') {
+      if (dryRun) {
+        for (const c of fresh) {
           log.push({
             turn: turnsRun,
             claim: String(c.hash).slice(0, 12),
-            bridge: 'rejected',
-            note: 'pipeline verifier rejected — dead end WITH REASON in loop memory; NOT surfaced as a finding (100% TRUTH RULE)',
+            dryrun: 'bridge SKIPPED (audit mode) — claim stays FILED in loop memory, NOT surfaced as a finding or lead',
           });
-        } else {
-          const lead = {
-            title: c.title,
-            severity: c.severity,
-            module: c.module,
-            verified: false,
-            source: 'oneloop-lead',
-            huntId: String(huntId),
-            evidence_hash: c.evidence_hash,
-            filed_turn: c.filed_turn,
-            note: 'One-loop brain lead — reproducible probe verdict, NOT pipeline-verified. Shows as a lead under investigation, never Confirmed.',
-          };
-          newFindings.push(lead);
-          if (Array.isArray(opts.findings)) opts.findings.push(lead);
+        }
+      } else {
+        const bridge = await bridgeNewClaims({ huntId, target, memdir, dataDir, claims: fresh, deps });
+        for (const entry of bridge.log) log.push({ turn: turnsRun, bridge: entry });
+        for (const c of fresh) {
+          const b = bridge.byHash[c.hash] || {};
+          if (b.bridged && b.terminal === 'accepted' && b.rec) {
+            newFindings.push(b.rec);
+            if (Array.isArray(opts.findings)) opts.findings.push(b.rec);
+          } else if (b.bridged && b.terminal === 'rejected') {
+            log.push({
+              turn: turnsRun,
+              claim: String(c.hash).slice(0, 12),
+              bridge: 'rejected',
+              note: 'pipeline verifier rejected — dead end WITH REASON in loop memory; NOT surfaced as a finding (100% TRUTH RULE)',
+            });
+          } else {
+            const lead = {
+              title: c.title,
+              severity: c.severity,
+              module: c.module,
+              verified: false,
+              source: 'oneloop-lead',
+              huntId: String(huntId),
+              evidence_hash: c.evidence_hash,
+              filed_turn: c.filed_turn,
+              note: 'One-loop brain lead — reproducible probe verdict, NOT pipeline-verified. Shows as a lead under investigation, never Confirmed.',
+            };
+            newFindings.push(lead);
+            if (Array.isArray(opts.findings)) opts.findings.push(lead);
+          }
         }
       }
     }
     if (s.completed) break;
   }
 
-  return { aiOk: true, turnsRun, actionsRun: turnsRun, newFindings, log };
+  return { aiOk: true, turnsRun, actionsRun: turnsRun, newFindings, log,
+           ...(dryRun ? { dryRun: true } : {}) };
 }

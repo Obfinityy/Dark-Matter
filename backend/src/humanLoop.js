@@ -38,7 +38,7 @@
 
 import { execInHuntContainerWithRespawn } from './huntRunner.js';
 import { chatWithAI } from './llm.js';
-import { isOneLoopEnabled } from './brain/oneLoopBrain.js';
+import { isOneLoopEnabled, isOneLoopDryRun } from './brain/oneLoopBrain.js';
 import { runOneLoopSession } from './brain/oneLoopSession.js';
 import { webSearch } from './webSearch.js';
 import { writeArtifact, spillOutput, artifactInfo, writeFileObservation } from './artifacts.js';
@@ -3477,6 +3477,11 @@ export async function humanIteration(huntId, target, opts = {}) {
   // BRAIN_PROVIDER=oneloop the deterministic one-loop brain drives the
   // whole session instead of the LLM think step. Env-gated: unset (or
   // anything else) keeps the current path byte-identical below.
+  // RULE #44 — BRAIN_PROVIDER=oneloop-dryrun audits the same flip path
+  // with zero commits: the brain drives the turns, but the claim bridge
+  // is disabled and no findings/leads are pushed (per-turn audit in the
+  // loop's memdir, audit.jsonl). Spreading opts avoids mutating the
+  // caller's object.
   if (isOneLoopEnabled()) {
     // RULE #43 — wire the backend claim bridge: newly FILED loop claims
     // go through the real claim pipeline (claimGateCheck + assessResult).
@@ -3492,7 +3497,8 @@ export async function humanIteration(huntId, target, opts = {}) {
       ({ copyFileToHuntContainer: copyToContainerFn } = await import('./huntRunner.js'));
     } catch { copyToContainerFn = null; }
     return runOneLoopSession({
-      huntId, target, opts,
+      huntId, target,
+      opts: { ...opts, dryRun: isOneLoopDryRun() },
       deps: {
         assessFn: assessFn || null,
         claimGateCheckFn: claimGateCheck,
