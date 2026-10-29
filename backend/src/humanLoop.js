@@ -3478,7 +3478,27 @@ export async function humanIteration(huntId, target, opts = {}) {
   // whole session instead of the LLM think step. Env-gated: unset (or
   // anything else) keeps the current path byte-identical below.
   if (isOneLoopEnabled()) {
-    return runOneLoopSession({ huntId, target, opts });
+    // RULE #43 — wire the backend claim bridge: newly FILED loop claims
+    // go through the real claim pipeline (claimGateCheck + assessResult).
+    // Lazy imports mirror the existing deps.assess pattern below; any
+    // failure leaves the dep null and the bridge stays disabled (claims
+    // surface as leads, Rule #42) — the gate itself never throws.
+    let assessFn = null;
+    let copyToContainerFn = null;
+    try {
+      ({ assessResult: assessFn } = await import('./huntAgent.js'));
+    } catch { assessFn = null; }
+    try {
+      ({ copyFileToHuntContainer: copyToContainerFn } = await import('./huntRunner.js'));
+    } catch { copyToContainerFn = null; }
+    return runOneLoopSession({
+      huntId, target, opts,
+      deps: {
+        assessFn: assessFn || null,
+        claimGateCheckFn: claimGateCheck,
+        copyToContainerFn: copyToContainerFn || null,
+      },
+    });
   }
   const d = opts.deps || {};
   const deps = {

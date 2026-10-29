@@ -227,6 +227,7 @@ def record_filed(mem_dir, claim, module, turn):
     fields = _claim_fields(claim)
     ch = claim_hash_of(claim)
     at = now_ist()
+    action = (claim or {}).get("action", {}) or {}
     claims[ch] = {
         "title": fields["title"],
         "class": fields["class"],
@@ -236,8 +237,19 @@ def record_filed(mem_dir, claim, module, turn):
         # claim BODY already carries it from _build_lab_claim) so the
         # report lane can prove every finding from hash-verified bytes.
         # Parent-path claims may not carry one — recorded honestly empty.
-        "evidence_hash": str(
-            (claim or {}).get("action", {}).get("evidence_hash") or ""),
+        "evidence_hash": str(action.get("evidence_hash") or ""),
+        # Rule #43: the backend claim bridge files FILED claims through
+        # the real claim pipeline (claimGateCheck + assessResult), which
+        # needs the verifier-facing proof package — persist it from the
+        # claim body so the bridge never re-derives or invents it.
+        # Parent-path claims may not carry these: stored honestly empty,
+        # and the bridge skips such claims (fail-closed). The claim HASH
+        # is computed from the input dict, not this record — adding
+        # stored fields changes no existing hash.
+        "command": str(action.get("command") or ""),
+        "evidence": str(action.get("evidence") or ""),
+        "counterevidence": str(action.get("counterevidence") or ""),
+        "confidence": str(action.get("confidence") or ""),
         "state": FILED,
         "filed_turn": turn,
         "filed_at_ist": at,
@@ -283,10 +295,28 @@ def record_block(mem_dir, claim, module, reason):
     return len(blocks)
 
 
+# Rule #43: the real pipeline's verdict vocabulary. assessResult records
+# 'verified' on success (never 'accepted'); 'gate-rejected' and
+# 'not-interesting' are terminal rejections of the proof package (the
+# verifier saw the evidence and refused it — the claim is a dead end,
+# never re-claimed). 'execution-failed' is NOT a verdict on the claim's
+# truth — the command never executed — so the claim stays FILED
+# (fail-closed); anything else unknown stays fail-open per line.
+_TERMINAL_VERDICTS = {
+    "accepted": ACCEPTED,
+    "verified": ACCEPTED,
+    "rejected": REJECTED,
+    "gate-rejected": REJECTED,
+    "not-interesting": REJECTED,
+}
+_NONTERMINAL_VERDICTS = frozenset({"execution-failed"})
+
+
 def _parse_validation_event(line):
-    """Parse one jsonl line; return (norm_plan_title, verdict, event_ref)
-    for type=validation events, else None. Fail-open per line: a bad line
-    is skipped, never fatal."""
+    """Parse one jsonl line; return
+    (norm_plan_title, terminal_state, raw_verdict, event_ref, detail)
+    for type=validation events carrying a terminal pipeline verdict,
+    else None. Fail-open per line: a bad line is skipped, never fatal."""
     line = (line or "").strip()
     if not line:
         return None
@@ -296,14 +326,18 @@ def _parse_validation_event(line):
         return None
     if not isinstance(ev, dict) or ev.get("type") != "validation":
         return None
-    verdict = str(ev.get("verdict", "")).lower()
-    if verdict not in ("accepted", "rejected"):
+    raw = str(ev.get("verdict", "")).lower()
+    if raw in _NONTERMINAL_VERDICTS:
+        return None
+    terminal = _TERMINAL_VERDICTS.get(raw)
+    if terminal is None:
         return None
     plan = norm_title(ev.get("plan", ""))
     if not plan:
         return None
     ref = ev.get("cachedAt") or ev.get("at") or ""
-    return (plan, verdict, ref)
+    detail = str(ev.get("detail", "") or "")
+    return (plan, terminal, raw, ref, detail)
 
 
 def _load_memory(mem_dir):
@@ -348,10 +382,12 @@ def scan_terminal_validation(events_path, mem_dir):
         if rec.get("state") == FILED:
             by_title.setdefault(norm_title(rec.get("title", "")), []).append(ch)
 
-    def fold_rejected(ch, rec, verdict, ref, at):
+    def fold_rejected(ch, rec, terminal, raw_verdict, ref, detail, at):
         module = rec.get("module", "")
         reason = (f"verifier REJECTED the claim '{rec.get('title')}' "
-                  f"(terminal validation event {ref or 'unref'})")
+                  f"(pipeline verdict '{raw_verdict}'"
+                  f"{': ' + detail if detail else ''}; "
+                  f"terminal validation event {ref or 'unref'})")
         if module and module not in memory["dead_ends"]:
             memory["dead_ends"].append(module)
             memory["dead_ends"] = sorted(memory["dead_ends"])
@@ -386,17 +422,19 @@ def scan_terminal_validation(events_path, mem_dir):
             parsed = _parse_validation_event(line)
             if parsed is None:
                 continue
-            plan_title, verdict, ref = parsed
+            plan_title, terminal, raw_verdict, ref, detail = parsed
             cands = by_title.get(plan_title, [])
             if not cands:
                 result["unmatched"].append(
                     {"line": lineno, "plan": plan_title,
-                     "verdict": verdict, "ref": ref})
+                     "verdict": terminal,
+                     "pipeline_verdict": raw_verdict, "ref": ref})
                 continue
             if len(cands) > 1:
                 result["ambiguous"].append(
                     {"line": lineno, "plan": plan_title,
-                     "verdict": verdict, "ref": ref,
+                     "verdict": terminal,
+                     "pipeline_verdict": raw_verdict, "ref": ref,
                      "candidates": [c[:12] for c in cands],
                      "reason": "multiple FILED claims share this title — "
                                "human resolves; gate keeps blocking re-files"})
@@ -408,15 +446,20 @@ def scan_terminal_validation(events_path, mem_dir):
                 continue
             at = now_ist()
             reason = (f"terminal validation event line {lineno} "
-                      f"(verdict={verdict}, ref={ref or 'none'})")
-            rec["state"] = verdict
-            rec["terminal"] = {"verdict": verdict, "event_ref": ref,
+                      f"(pipeline verdict '{raw_verdict}' -> {terminal}, "
+                      f"ref={ref or 'none'})")
+            rec["state"] = terminal
+            rec["terminal"] = {"verdict": terminal,
+                               "pipeline_verdict": raw_verdict,
+                               "pipeline_detail": detail,
+                               "event_ref": ref,
                                "event_line": lineno, "at_ist": at,
                                "reason": reason}
-            rec["history"].append({"state": verdict, "at_ist": at,
+            rec["history"].append({"state": terminal, "at_ist": at,
                                    "reason": reason})
-            if verdict == REJECTED:
-                fold_rejected(ch, rec, verdict, ref, at)
+            if terminal == REJECTED:
+                fold_rejected(ch, rec, terminal, raw_verdict, ref,
+                              detail, at)
             else:
                 fold_accepted(ch, rec)
             # Remove from the filed index so a second event for the same
@@ -424,7 +467,8 @@ def scan_terminal_validation(events_path, mem_dir):
             by_title[plan_title] = []
             result["applied"].append(
                 {"claim_hash": ch[:16], "title": rec.get("title"),
-                 "verdict": verdict, "line": lineno})
+                 "verdict": terminal, "pipeline_verdict": raw_verdict,
+                 "line": lineno})
             changed = True
 
     if changed:
@@ -584,10 +628,74 @@ def self_test():
               len(res3["applied"]) == 0 and len(res3["ambiguous"]) == 1,
               str(res3))
         shutil.rmtree(tmp2, ignore_errors=True)
+
+        # 12. Rule #43: pipeline verdict vocabulary + verifier fields
+        tmp3 = tempfile.mkdtemp(prefix="claims-test3-")
+        cv = _tclaim("Pipe Vuln A", "xss_r", "xss_r")
+        rec_v = record_filed(tmp3, cv, "xss_r", 1)
+        check("record_filed persists verifier fields",
+              rec_v.get("command") == "cmd" and
+              rec_v.get("evidence") == "ev" and
+              rec_v.get("counterevidence") == "ce" and
+              rec_v.get("confidence") == "high",
+              str({k: rec_v.get(k)
+                   for k in ("command", "evidence",
+                             "counterevidence", "confidence")}))
+        cg = _tclaim("Pipe Vuln B", "sqli", "sqli")
+        record_filed(tmp3, cg, "sqli", 2)
+        cn = _tclaim("Pipe Vuln C", "exec", "exec")
+        record_filed(tmp3, cn, "exec", 3)
+        ce = _tclaim("Pipe Vuln D", "fi", "fi")
+        record_filed(tmp3, ce, "fi", 4)
+        ev3 = os.path.join(tmp3, "events.jsonl")
+        with open(ev3, "w", encoding="utf-8") as f:
+            f.write('{"type":"validation","verdict":"verified",'
+                    '"plan":"Claim: Pipe Vuln A",'
+                    '"detail":"re-run reproduced","cachedAt":"t1"}\n')
+            f.write('{"type":"validation","verdict":"gate-rejected",'
+                    '"plan":"Claim: Pipe Vuln B","detail":"evidence gate",'
+                    '"cachedAt":"t2"}\n')
+            f.write('{"type":"validation","verdict":"not-interesting",'
+                    '"plan":"Claim: Pipe Vuln C","detail":"no signal",'
+                    '"cachedAt":"t3"}\n')
+            f.write('{"type":"validation","verdict":"execution-failed",'
+                    '"plan":"Claim: Pipe Vuln D","detail":"exit 1",'
+                    '"cachedAt":"t4"}\n')
+        res4 = scan_terminal_validation(ev3, tmp3)
+        cl3 = load_claims(tmp3)
+        ha, hb, hc, hd = (claim_hash_of(x) for x in (cv, cg, cn, ce))
+        check("pipeline 'verified' -> accepted",
+              cl3[ha]["state"] == ACCEPTED and
+              cl3[ha]["terminal"]["pipeline_verdict"] == "verified",
+              str(cl3[ha].get("terminal")))
+        check("pipeline 'gate-rejected' -> rejected",
+              cl3[hb]["state"] == REJECTED,
+              str(cl3[hb].get("state")))
+        check("pipeline 'not-interesting' -> rejected",
+              cl3[hc]["state"] == REJECTED,
+              str(cl3[hc].get("state")))
+        check("rejected dead-end carries pipeline reason",
+              "gate-rejected" in _load_memory(tmp3)
+              .get("dead_end_reasons", {}).get("sqli", {})
+              .get("reason", ""),
+              str(_load_memory(tmp3).get("dead_end_reasons")))
+        check("pipeline 'execution-failed' stays FILED (non-terminal)",
+              cl3[hd]["state"] == FILED,
+              str(cl3[hd].get("state")))
+        check("scan applied 3 (execution-failed not applied)",
+              len(res4["applied"]) == 3, str(res4))
+        # old-format records (no verifier fields) still load — the
+        # bridge skips them fail-closed, the store never breaks
+        old = dict(cl3[hd])
+        for k in ("command", "evidence", "counterevidence", "confidence"):
+            old.pop(k, None)
+        check("old-format record loads without verifier fields",
+              isinstance(old.get("title"), str))
+        shutil.rmtree(tmp3, ignore_errors=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
-    print(f"\nself-test: {11 - len(fails)}/11 groups passed"
+    print(f"\nself-test: {12 - len(fails)}/12 groups passed"
           if not fails else f"\nself-test FAILED: {fails}")
     return 1 if fails else 0
 
