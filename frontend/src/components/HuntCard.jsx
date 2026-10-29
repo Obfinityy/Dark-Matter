@@ -652,7 +652,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
           </span>
         )}
         {!isTerminal && (
-          <span className="hunt-timer" title="Time since this hunt started">
+          <span className="hunt-timer" title={isPaused ? "Total time elapsed (hunt paused)" : "Time since this hunt started"}>
             ⏱ {elapsedStr}
           </span>
         )}
