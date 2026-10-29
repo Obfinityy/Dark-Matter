@@ -623,7 +623,7 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
                 className="hunt-steer-input brain-composer-textarea brain-json-textarea"
                 value={jsonText}
                 onChange={(e) => { setJsonText(e.target.value); setJsonError(''); }}
-                placeholder='{"task": "…", "goal": "…", "progress": "…", "action": {"type": "shell", "command": "…"}}'
+                placeholder='{"task": "…", "goal": "…", "progress": "…", "action": {"type": "shell", "action": "shell", "command": "…"}}'
                 rows={10}
                 disabled={submitting}
                 spellCheck={false}
