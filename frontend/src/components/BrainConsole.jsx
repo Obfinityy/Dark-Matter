@@ -71,6 +71,7 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
   const [procError, setProcError] = useState('');
   const [actions, setActions] = useState([]);
   const [actionsError, setActionsError] = useState('');
+  const [actionsLoading, setActionsLoading] = useState(true);
   const [selectedHash, setSelectedHash] = useState('');
   const [selectedOutput, setSelectedOutput] = useState(null);
   const [outputLoading, setOutputLoading] = useState(false);
@@ -132,6 +133,7 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
   }, [huntId]);
 
   const refreshActions = useCallback(async () => {
+    setActionsLoading(true);
     const res = await getHuntActions(huntId);
     if (res.ok && res.data && Array.isArray(res.data.actions)) {
       setActions(res.data.actions);
@@ -139,6 +141,7 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
     } else if (!res.ok && res.status !== 404) {
       setActionsError(res.error || 'Could not load the action index.');
     }
+    setActionsLoading(false);
     return res;
   }, [huntId]);
 
@@ -389,7 +392,10 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
           <span className="brain-console-count">{actions.length} action{actions.length === 1 ? '' : 's'}</span>
         </div>
         {actionsError && <div className="brain-console-error" role="alert">{actionsError}</div>}
-        {actions.length === 0 && !actionsError && (
+        {actionsLoading && !actionsError && (
+          <div className="brain-console-empty">Loading the action index…</div>
+        )}
+        {!actionsLoading && actions.length === 0 && !actionsError && (
           <div className="brain-console-empty">No actions recorded yet — submit the first one below.</div>
         )}
         {actions.length > 0 && (
