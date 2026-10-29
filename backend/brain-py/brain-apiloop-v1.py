@@ -670,6 +670,34 @@ PROBE_LADDERS = {
 DEFAULT_LADDERS["probe"] = [r for rs in PROBE_LADDERS.values() for r in rs]
 
 
+# Rule #47 — ESCALATION-AWARE TURN BUDGET. Rule #46 caught the defect
+# live: a full 11-module drive was budgeted 2 turns/module (probe+claim =
+# 22) but a Rule #30 escalation rung consumed one extra turn, so the
+# 11th probe's claim fell outside the budget and was never filed. The
+# budget is exact, not heuristic: the interleave needs 2 turns per
+# planned module, and each escalation rung can fire at most once
+# (A-to-Z memory, Rule #30) costing at most 1 extra turn — so
+# recommended = 2*M + total_rungs(planned modules). Computed from the
+# real tables so future ladder additions update the budget
+# automatically; never hardcoded in the backend.
+def budget_info(modules=None):
+    """Return the turn budget for a probe-hunt plan.
+
+    modules=None -> the full _HUNT_MODULE_ORDER (the Rule #34 fixed
+    plan / Rule #35 blind-recon fallback). Pass the recon-found module
+    list for a pruned plan. Returns {planned_modules, base_turns,
+    max_escalation_turns, recommended_turns}.
+    """
+    planned = [m for m in _HUNT_MODULE_ORDER
+               if modules is None or m in set(modules or ())]
+    base = 2 * len(planned)
+    esc = sum(len(PROBE_LADDERS.get(m, ())) for m in planned)
+    return {"planned_modules": planned,
+            "base_turns": base,
+            "max_escalation_turns": esc,
+            "recommended_turns": base + esc}
+
+
 def _sandbox_dir(ctx):
     memdir = ctx.get("memdir") or tempfile.gettempdir()
     return ctx.get("probe_sandbox") or os.path.join(memdir, "probe-sandbox")
@@ -3223,6 +3251,11 @@ def main():
                     help="Rule #37: the hunter delivers a dossier "
                          "(auto-write at completion, fail-closed "
                          "evidence, on-demand regen, full regression)")
+    ap.add_argument("--budget-json", action="store_true",
+                    help="Rule #47: print the escalation-aware turn budget "
+                         "for the full probe-hunt plan as JSON and exit "
+                         "(modules, base_turns, max_escalation_turns, "
+                         "recommended_turns)")
     ap.add_argument("--scan-validation", metavar="EVENTS_JSONL",
                     help="apply verifier terminal-validation events to the "
                          "claims in --memdir (Rule #21 scan, Rule #32)")
@@ -3245,6 +3278,11 @@ def main():
                          "(on-demand; the loop also writes it "
                          "automatically at completion)")
     args = ap.parse_args()
+
+    if args.budget_json:
+        # Rule #47: pure query, no side effects, safe to call any time.
+        print(json.dumps(budget_info()))
+        return
 
     if args.report:
         ok, info = report_completed_hunt(args.report)

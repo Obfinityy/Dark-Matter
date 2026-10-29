@@ -29,6 +29,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { brainTurn } from './oneLoopBrain.js';
 import { bridgeClaims } from './oneLoopClaimBridge.js';
 import { config } from '../config.js';
@@ -50,6 +51,45 @@ export function oneLoopMemdir(dataDir, huntId) {
 
 /** RULE #44 — audit file: every dry-run turn is recorded here, JSONL. */
 export const ONELOOP_AUDIT_FILE = 'audit.jsonl';
+
+/**
+ * RULE #47 — escalation-aware turn budget, fail-closed fallback.
+ *
+ * The exact budget lives with the loop (brain-apiloop-v1.py
+ * --budget-json): 2 turns per planned module (probe + claim) plus one
+ * turn per escalation rung, since every rung fires at most once
+ * (A-to-Z memory, Rule #30). Rule #46 proved the old flat default could
+ * strand a CONFIRMED probe's claim outside the budget.
+ *
+ * Never throws: any failure (missing script, bad JSON, timeout) falls
+ * back to the documented constant 2*11 + 6 = 28 with fallback:true,
+ * which the session logs WITH REASON instead of silently mis-budgeting.
+ */
+export const ONELOOP_BUDGET_FALLBACK = 28;
+export function recommendedOneLoopTurns({ apiloopScript, pythonBin } = {}) {
+  const script = apiloopScript || ONELOOP_APILOOP_SCRIPT;
+  const py = pythonBin || 'python3';
+  try {
+    const raw = execFileSync(py, [script, '--budget-json'],
+      { encoding: 'utf8', timeout: 15000, stdio: ['ignore', 'pipe', 'pipe'] });
+    const j = JSON.parse(String(raw || '').trim());
+    const rec = j && j.recommended_turns;
+    if (Number.isInteger(rec) && rec > 0 && rec <= 10000) {
+      return {
+        recommended_turns: rec,
+        base_turns: j.base_turns,
+        max_escalation_turns: j.max_escalation_turns,
+        planned_modules: j.planned_modules,
+        fallback: false,
+      };
+    }
+    return { recommended_turns: ONELOOP_BUDGET_FALLBACK, fallback: true,
+             reason: 'budget-json parsed but recommended_turns invalid' };
+  } catch (e) {
+    return { recommended_turns: ONELOOP_BUDGET_FALLBACK, fallback: true,
+             reason: 'budget query failed: ' + ((e && e.message) || e).toString().slice(0, 120) };
+  }
+}
 
 /**
  * RULE #44 — append one audit record. Fail-open: an audit write must never
@@ -141,6 +181,11 @@ async function bridgeNewClaims({ huntId, target, memdir, dataDir, claims, deps }
  * @param {object} args
  *   huntId, target — the hunt and its explicit target base URL
  *   opts — the humanIteration opts ({ turns, findings, dryRun })
+ *     turns: explicit per-call turn slice (humanLoop passes its slice —
+ *     the persistent memdir resumes across calls, so escalations never
+ *     strand a claim there). When ABSENT, the Rule #47 escalation-aware
+ *     budget is used (2*modules + escalation headroom from the loop's
+ *     own --budget-json) instead of the old flat default of 6.
  *     dryRun (Rule #44): audit mode — the brain drives the same turns but
  *     the backend commits nothing: the claim bridge is never called, no
  *     findings/leads are pushed (opts.findings untouched), and every turn
@@ -158,13 +203,31 @@ export async function runOneLoopSession({ huntId, target, opts = {}, deps = {} }
   const brainTurnFn = deps.brainTurnFn || brainTurn;
   const dataDir = deps.dataDir || config.dataDir;
   const dryRun = opts.dryRun === true; // RULE #44 — audit mode
-  const turns = Math.max(1, Number(opts.turns) || 6);
+  // RULE #47 — escalation-aware turn budget. An explicit opts.turns is
+  // honored exactly (humanLoop's per-slice wiring is byte-identical);
+  // an absent/zero/NaN turns falls back to the loop's own recommended
+  // budget (2*modules + escalation headroom), never the old flat 6 —
+  // the flat default is what stranded the 11th claim in Rule #46.
+  const explicitTurns = Number(opts.turns);
+  const budget = (Number.isFinite(explicitTurns) && explicitTurns > 0)
+    ? { turns: Math.max(1, Math.floor(explicitTurns)), explicit: true }
+    : (() => {
+        const b = recommendedOneLoopTurns();
+        return { turns: b.recommended_turns, explicit: false, ...b };
+      })();
+  const turns = budget.turns;
   const memdir = oneLoopMemdir(dataDir, huntId);
   const log = [];
   const newFindings = [];
+  // The budget decision is logged WITH REASON at turn 0 so any audit can
+  // see exactly why this session ran N turns (and whether it was the
+  // recommended budget or the fail-closed fallback).
+  log.push({ turn: 0, oneloop_budget: { turns, ...budget } });
 
   const failClosed = (failKind, turnsRun) => ({
     aiOk: false, failKind, turnsRun, actionsRun: turnsRun, newFindings, log,
+    budget: { turns, explicit: budget.explicit,
+              fallback: budget.fallback === true },
     ...(dryRun ? { dryRun: true } : {}),
   });
 
@@ -292,5 +355,8 @@ export async function runOneLoopSession({ huntId, target, opts = {}, deps = {} }
   }
 
   return { aiOk: true, turnsRun, actionsRun: turnsRun, newFindings, log,
+           budget: { turns, explicit: budget.explicit,
+                     fallback: budget.fallback === true,
+                     recommended_turns: budget.recommended_turns },
            ...(dryRun ? { dryRun: true } : {}) };
 }
