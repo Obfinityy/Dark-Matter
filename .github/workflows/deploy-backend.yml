@@ -90,6 +90,8 @@ jobs:
             echo "--- backend deps ---"
             cd backend
             npm ci --omit=dev
+            echo "--- brain python deps (Pillow: synthetic-screenshot fallback) ---"
+            sudo apt-get install -y -q python3-pil
             echo "--- checking for active hunts ---"
             ACTIVE=$(node -e "
               import('./src/store.js').then((s) => {

@@ -21,6 +21,19 @@ no LLM calls, no Meta API, $0 per turn. Lab-proven 11/11 on live DVWA.
   loop lazy-loads (claim state machine, escalation ladders, scope gate,
   traffic proxy, fuzzer, chain composer, report dossier).
 
+## Box setup (one time per backend host)
+
+The bundle is stdlib-only except one dependency: **Pillow**, used for the
+synthetic screenshot fallback when no real capture tool exists on a
+headless box (the brain "sees" a frame every turn — Rule #28 spec).
+Without it the loop fail-closes on turn 1
+(`no real capture tool AND no PIL`).
+
+    sudo apt-get install -y python3-pil
+
+This is installed automatically by `.github/workflows/deploy-backend.yml`
+on every backend deploy; the command above is the manual equivalent.
+
 ## How the backend uses it
 
 `../src/brain/oneLoopBrain.js` (ESM, no deps) exports `brainTurn()` and

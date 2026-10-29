@@ -696,11 +696,20 @@ def _probe_cmd(probe_file, marker, target_base, sandbox, timeout_s=120):
         "if [ ! -f \"$SRC\" ]; then "
         "echo \"PROBE_MISSING: $PF\"; echo VERDICT:FAILED; exit 0; fi",
         "DST=\"$SB/$MK-$PF\"",
-        # sed-rebase a COPY onto the loop's target; originals untouched
+        # sed-rebase a COPY onto the loop's target; originals untouched.
+        # Rule #41 fix: when the hunt target IS the probes' lab base
+        # (172.17.0.1:3100 — the DVWA training target), sed is a no-op and
+        # the leak grep would false-positive on the intended target itself
+        # (caught live on EC2: 3/3 turns REBASE_LEAK, zero probes ran). The
+        # leak check only fires when TB differs from the lab base — its job
+        # is to stop probes phoning the LAB box on a DIFFERENT target.
         "sed \"s|%s|$TB|g\" \"$SRC\" > \"$DST\"" % LIVE_PROBE_BASE,
+    ] + ([
         # fail-closed: the live base must not survive, the target must land
         "if grep -q '172\\.17\\.0\\.1' \"$DST\"; then "
         "echo REBASE_LEAK; echo VERDICT:FAILED; exit 0; fi",
+    ] if tb.rstrip("/").lower() != LIVE_PROBE_BASE.rstrip("/").lower()
+        else []) + [
         "case \"$PF\" in *.py) RUN=python3;; *.sh) RUN=bash;; "
         "*) echo PROBE_UNKNOWN_TYPE; echo VERDICT:FAILED; exit 0;; esac",
         # The wrapper OWNS the trailing-VERDICT contract (Rule #3): the
