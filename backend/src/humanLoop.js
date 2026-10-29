@@ -38,6 +38,8 @@
 
 import { execInHuntContainerWithRespawn } from './huntRunner.js';
 import { chatWithAI } from './llm.js';
+import { isOneLoopEnabled } from './brain/oneLoopBrain.js';
+import { runOneLoopSession } from './brain/oneLoopSession.js';
 import { webSearch } from './webSearch.js';
 import { writeArtifact, spillOutput, artifactInfo, writeFileObservation } from './artifacts.js';
 import { evidenceSignalIds, isHttpErrorPage } from './hunt-intel/index.js';
@@ -3471,6 +3473,13 @@ function buildScreen({ target, parsedScope, briefing, findings, machineState, la
  *               buildBriefing
  */
 export async function humanIteration(huntId, target, opts = {}) {
+  // RULE #42 (30 Oct 2026) — BRAIN_PROVIDER wiring: when
+  // BRAIN_PROVIDER=oneloop the deterministic one-loop brain drives the
+  // whole session instead of the LLM think step. Env-gated: unset (or
+  // anything else) keeps the current path byte-identical below.
+  if (isOneLoopEnabled()) {
+    return runOneLoopSession({ huntId, target, opts });
+  }
   const d = opts.deps || {};
   const deps = {
     chat: d.chat || chatWithAI,
