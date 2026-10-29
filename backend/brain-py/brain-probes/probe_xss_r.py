@@ -22,6 +22,10 @@ print(f"MARKER: {marker}")
 print(f"REFLECTED: {reflected}")
 print(f"STATUS: {r.status_code}")
 if reflected:
+    # Rule #49: the pipeline's interestingness gate reads the probe's own
+    # stdout — print the signal-bearing evidence (the actual reflected
+    # payload), not just the verdict label.
+    print(f"EVIDENCE: reflected payload {payload} in HTTP response")
     print(f"VERDICT: CONFIRMED")
 else:
     print(f"VERDICT: FAILED")

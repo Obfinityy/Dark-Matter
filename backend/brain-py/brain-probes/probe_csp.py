@@ -21,6 +21,12 @@ print(f"MARKER: {marker}")
 print(f"REFLECTED_AS_SCRIPT: {reflected}")
 print(f"STATUS: {r.status_code}")
 if reflected:
+    # Rule #49: signal-bearing evidence for the pipeline's gate — the
+    # actual reflected script-src line (per-result target content).
+    mline = next((l.strip() for l in r.text.splitlines()
+                  if marker in l and 'script' in l.lower()), '')
+    print(f"EVIDENCE: CSP bypass — allowlisted pastebin.com URL reflected "
+          f"as script src: {mline[:160]}")
     print(f"VERDICT: CONFIRMED")
 else:
     print(f"VERDICT: FAILED")

@@ -44,6 +44,9 @@ echo "LOGIN_RESTORED_WELCOME=$LOGIN_RESTORED_WELCOME"
 rm -f "$COOKIE" /tmp/csrf_resp.html /tmp/csrf_restore.html
 
 if [ "$PWCHANGE_RESP" -ge 1 ] && [ "$LOGIN_NEWPW_WELCOME" -ge 1 ] && [ "$LOGIN_RESTORED_WELCOME" -ge 1 ]; then
+    # Rule #49: signal-bearing evidence for the pipeline's gate — quotes
+    # the observed target behavior, printed only on the CONFIRMED path.
+    echo "EVIDENCE: CSRF changed the admin password with no token — 'Password Changed' observed and login with the new password succeeded (password restored after)"
     echo "VERDICT: CONFIRMED"
 else
     echo "VERDICT: FAILED"

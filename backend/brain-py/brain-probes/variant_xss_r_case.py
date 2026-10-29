@@ -29,6 +29,8 @@ print(f"MARKER: {marker}")
 print(f"REFLECTED: {reflected}")
 print(f"STATUS: {r.status_code}")
 if reflected:
+    # Rule #49: signal-bearing evidence for the pipeline's gate.
+    print(f"EVIDENCE: reflected payload {payload} in HTTP response")
     print(f"VERDICT: CONFIRMED")
 else:
     print(f"VERDICT: FAILED")

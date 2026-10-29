@@ -799,7 +799,8 @@ def _probe_step_reply(step, plan, goal, ctx, new_process=None):
         "I did not skip this module because the title index shows no "
         "prior probe-hunt against this target; I did not invent a "
         "payload because the live-proven probe is the grounded move.",
-        {"type": "shell", "command": cmd, "timeout_s": pto + 60},
+        {"type": "shell", "command": cmd, "timeout_s": pto + 60,
+         "no_echo": True},  # Rule #49: stored output is the probe's own
         new_process=new_process)
 
 
@@ -831,11 +832,16 @@ def _build_lab_claim(proc, module, probe_step_idx, store):
     label, cls, sev = _LAB_CLAIM_META.get(module,
                                           (module, module, "medium"))
     title = "%s — verified live on the hunt target" % label
+    # Rule #49: excerpt the TAIL, not the head. The probe contract puts
+    # the verdict last and the signal-bearing EVIDENCE lines just before
+    # it; the head is login/security diagnostics. A head excerpt buried
+    # the POC (sxss STORED LINE cut mid-tag, bsqli EVIDENCE past 400
+    # chars) and the pipeline's interestingness gate read only noise.
     evidence = ("probe %s printed VERDICT: CONFIRMED; its fixed marker was "
                 "observed in the target's HTTP response; output sha256 "
-                "%s; excerpt: %s"
+                "%s; excerpt (tail): %s"
                 % (probe_file, (h.get("result_hash") or "")[:16],
-                   text[:400]))
+                   text[-400:]))
     claim = {
         "title": title,
         "class": cls,
@@ -1122,7 +1128,8 @@ def decide(turn_input, ctx, correction=None):
                                        _sandbox_dir(ctx),
                                        timeout_s=_probe_timeout_for(
                                            step.get("module"))),
-                 "timeout_s": _probe_timeout_for(step.get("module")) + 60})
+                 "timeout_s": _probe_timeout_for(step.get("module")) + 60,
+                 "no_echo": True})  # Rule #49: stored output is the probe's own
         base_url = _toolkit_url_from_recalls(proc)
         alt = None
         if nxt_rung is not None and base_url:
@@ -1327,7 +1334,13 @@ def validate_reply(reply, process_active):
                     errors.append("shell needs non-empty command")
                 if "timeout_s" in a and not isinstance(a["timeout_s"], int):
                     errors.append("shell timeout_s must be int")
-                ak -= {"command", "timeout_s"}
+                # Rule #49: no_echo is backend-only (probe steps) — the
+                # brain never needs it, but the schema must accept what
+                # the loop itself emits or the validator bounces its own
+                # probe actions (caught by --proof-probe).
+                if "no_echo" in a and not isinstance(a["no_echo"], bool):
+                    errors.append("shell no_echo must be bool")
+                ak -= {"command", "timeout_s", "no_echo"}
             elif t == "click":
                 if not isinstance(a.get("x"), int) or \
                         not isinstance(a.get("y"), int):
@@ -1484,13 +1497,24 @@ class LabBackend:
         if t == "shell":
             cmd = action["command"]
             timeout = int(action.get("timeout_s", 60))
+            # Rule #49 — no_echo: probe steps set this so the STORED output
+            # is the probe's own stdout, not "$ <wrapper script>". The
+            # command is already in history[].action.command; the echo was
+            # burying the probe's POC lines, so claim evidence excerpts
+            # (head of stored output) and the pipeline's interestingness
+            # gate were reading wrapper-script noise instead of the
+            # probe's verdict + evidence. The trailing-VERDICT contract
+            # (Rule #3) is unaffected — the extractor reads the last line.
+            no_echo = bool(action.get("no_echo"))
             try:
                 r = subprocess.run(cmd, shell=True, capture_output=True,
                                    timeout=timeout)
-                out = ("$ %s\n[rc=%d]\n" % (cmd, r.returncode)
+                out = ("%s[rc=%d]\n" % ("" if no_echo else "$ %s\n" % cmd,
+                                        r.returncode)
                        + _to_text(r.stdout) + _to_text(r.stderr))
             except subprocess.TimeoutExpired as e:   # Rule #25
-                out = ("$ %s\n[TIMEOUT after %ds]\n" % (cmd, timeout)
+                out = ("%s[TIMEOUT after %ds]\n"
+                       % ("" if no_echo else "$ %s\n" % cmd, timeout)
                        + _to_text(e.stdout) + _to_text(e.stderr))
             return {"ok": True, "output": out,
                     "verdict": _verdict_of_output(out)}

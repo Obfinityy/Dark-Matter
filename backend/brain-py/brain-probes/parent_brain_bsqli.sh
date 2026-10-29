@@ -30,5 +30,14 @@ HASH="$HASH$FOUND"
 echo "POS $POS: $FOUND"
 done
 echo "ADMIN_HASH: $HASH"
-# VERDICT (playbook rule #3 — must be the LAST line, exact wording)
-if [ "$BASELINE" = 'exists' ] && [ "$TRUE" = 'exists' ] && [ "$FALSE" = 'missing' ] && [ ${#HASH} -eq 32 ]; then echo 'VERDICT: CONFIRMED'; else echo 'VERDICT: FAILED'; fi
+# VERDICT (playbook rule #3 — must be the LAST line, exact wording).
+# Rule #49: the EVIDENCE line prints ONLY on the CONFIRMED path — the
+# pipeline's interestingness gate needs a signal word, and the extracted
+# value IS the admin's password hash; a FAILED run must not carry it
+# (label-trust: conditional evidence only).
+if [ "$BASELINE" = 'exists' ] && [ "$TRUE" = 'exists' ] && [ "$FALSE" = 'missing' ] && [ ${#HASH} -eq 32 ]; then
+echo "EVIDENCE: blind boolean oracle extracted the admin password hash: $HASH"
+echo 'VERDICT: CONFIRMED'
+else
+echo 'VERDICT: FAILED'
+fi
