@@ -1907,6 +1907,11 @@ function extractSignal(output) {
   if (/\.env|secret|private key|api[_-]?key/i.test(t)) signals.push('secret-exposure');
   if (/directory listing|index of\//i.test(t)) signals.push('dir-listing');
   if (/bypass|403.*200|unauthorized.*authorized/i.test(t)) signals.push('auth-bypass');
+  // Rule #73: generic-probe signal ids — kept in sync by hand with
+  // RELEVANCE_SIGNAL_PATTERNS in hunt-intel/differential.js.
+  if (/via=ssrf-fetch-hit/i.test(t)) signals.push('ssrf-fetch');
+  if (/arithmetic result \d+, which was never transmitted|template evaluated server-side/i.test(t)) signals.push('ssti-eval');
+  if (/via=redirect-(location|meta|js)/i.test(t)) signals.push('open-redirect');
   return signals.sort().join(',');
 }
 

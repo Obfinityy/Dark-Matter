@@ -405,6 +405,14 @@ export function evidenceReproduced(evidence, reRunOutput, command = '') {
 // Signal vocabulary — mirror of huntAgent.js extractSignal() (kept in sync
 // by hand, same precedent as capabilitiesOfFinding vs chainEngine above),
 // plus the verify pipeline's payload keyword set as id 'keyword'.
+// Rule #73: three generic-probe signal ids (ssrf-fetch, ssti-eval,
+// open-redirect). Each fires ONLY on a probe EVIDENCE line the probe
+// prints exclusively on a CONFIRMED verdict with a never-transmitted
+// observed artifact (listener canary hit / computed arithmetic result /
+// canary host in the redirect target) — the Rule #49 treatment: the
+// pipeline re-runs the probe independently, so a broken probe that
+// printed these unconditionally would be caught by the re-run, and the
+// lab proof asserts each probe stays FAILED on the /safe control.
 const RELEVANCE_SIGNAL_PATTERNS = [
   { id: 'sql-error', re: /sql syntax|mysql|postgres|sqlite|ora-\d+|sql error/i },
   { id: 'stack-trace', re: /stack trace|traceback|exception in|at .*\(.*\.js:/i },
@@ -415,6 +423,9 @@ const RELEVANCE_SIGNAL_PATTERNS = [
   { id: 'dir-listing', re: /directory listing|index of\//i },
   { id: 'auth-bypass', re: /bypass|403.*200|unauthorized.*authorized/i },
   { id: 'keyword', re: /vulnerable|exposed|injection|leak|token|password/i },
+  { id: 'ssrf-fetch', re: /via=ssrf-fetch-hit/i },
+  { id: 'ssti-eval', re: /arithmetic result \d+, which was never transmitted|template evaluated server-side/i },
+  { id: 'open-redirect', re: /via=redirect-(location|meta|js)/i },
 ];
 const NEGATION_CUE = /\b(not|no|never|none|without|failed|failure|unable|cannot|can't|couldn't|didn't|doesn't|isn't|aren't|wasn't|weren't|denied|blocked|absent|missing|refused)\b/i;
 

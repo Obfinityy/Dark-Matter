@@ -85,3 +85,58 @@ test('W6-7: the weird-score (curiosity) path is intact', () => {
   assert.equal(isInterestingEvidence(bland, 'curl http://x/', 50), true);
   assert.equal(isInterestingEvidence(bland, 'curl http://x/', 39), false);
 });
+
+// RULE #73 (30 Oct 2026): generic-probe signal vocabulary. The 5 generic
+// claims the Rule #72 live bridged rehearsal rejected as 'not-interesting'
+// (xss, trav, ssrf, ssti, redirect) were genuine — their evidence just did
+// not speak the vocabulary. Each test below uses the claim-evidence shape
+// _build_lab_claim builds (framing + 400-char tail excerpt of the probe's
+// stored stdout) against a realistic probe wrapper command.
+const WRAP = (file, marker) =>
+  `set -u\nPF=${file}; MK='${marker}'; TB='http://127.0.0.1:8352'; SB=/tmp/x; SRC=/tmp/x; TO=30\npython3 "$DST" "$MK"`;
+const claimEvidence = (file, excerpt) =>
+  `probe ${file} printed VERDICT: CONFIRMED; its fixed marker was observed in the target's HTTP response; output sha256 deadbeef; excerpt (tail): ${excerpt}`;
+
+test('W73-1: generic xss (executable-shaped payload) is interesting', () => {
+  const excerpt = '[rc=0]\nEVIDENCE sink=/xss method=GET param=q reflection=RAW context=text marker=PLOOP73\n' +
+    'EVIDENCE sink=/xss method=GET param=q via=text payload reflected UNESCAPED: G59PPLOOP73<img src=x onerror=G59PPLOOP73>\nVERDICT: CONFIRMED\n';
+  const cmd = WRAP('probe_sink_xss.py', 'PLOOP73|http%3A//127.0.0.1%3A8352|/xss|GET|q');
+  assert.equal(isInterestingEvidence(claimEvidence('probe_sink_xss.py', excerpt), cmd, 0), true);
+});
+
+test('W73-2: generic trav (observed content snippet) is interesting', () => {
+  const excerpt = '[rc=0]\nparam=file verdict=CONFIRMED via=trav-passwd detail=body contains the trav-passwd content marker, which was never transmitted\n' +
+    'EVIDENCE sink=/docs param=file via=trav-passwd content=root:x:0:0\nVERDICT: CONFIRMED\n';
+  const cmd = WRAP('probe_sink_traversal.py', 'PLOOP73|http%3A//127.0.0.1%3A8352|/docs|GET|file');
+  assert.equal(isInterestingEvidence(claimEvidence('probe_sink_traversal.py', excerpt), cmd, 0), true);
+});
+
+test('W73-3: generic ssrf (listener canary hit) is interesting', () => {
+  const excerpt = '[rc=0]\nEVIDENCE sink=/fetch param=url via=ssrf-fetch-hit code=200 canary=http://127.0.0.1:38179/ploop63-canary-1ab265 hit=/ploop63-canary-1ab265\n' +
+    'EVIDENCE class=ssrf via=ssrf-fetch-hit\nVERDICT: CONFIRMED\n';
+  const cmd = WRAP('probe_sink_ssrf.py', 'PLOOP73|http%3A//127.0.0.1%3A8352|/fetch|GET|url');
+  assert.equal(isInterestingEvidence(claimEvidence('probe_sink_ssrf.py', excerpt), cmd, 0), true);
+});
+
+test('W73-4: generic ssti (never-transmitted computed result) is interesting', () => {
+  const excerpt = '[rc=0]\nparam=name verdict=CONFIRMED via=ssti-jinja detail=body contains the arithmetic result 7006652, which was never transmitted (template evaluated server-side)\n' +
+    'EVIDENCE sink=/render param=name via=ssti-jinja\nVERDICT: CONFIRMED\n';
+  const cmd = WRAP('probe_sink_ssti.py', 'PLOOP73|http%3A//127.0.0.1%3A8352|/render|GET|name');
+  assert.equal(isInterestingEvidence(claimEvidence('probe_sink_ssti.py', excerpt), cmd, 0), true);
+});
+
+test('W73-5: generic open-redirect (canary in 302 Location) is interesting', () => {
+  const excerpt = '[rc=0]\nEVIDENCE sink=/goto param=url via=redirect-location code=302 canary=https://ploop62-canary.invalid/ploop62-85a3e3/\n' +
+    'EVIDENCE class=open_redirect via=redirect-location\nVERDICT: CONFIRMED\n';
+  const cmd = WRAP('probe_sink_redirect.py', 'PLOOP73|http%3A//127.0.0.1%3A8352|/goto|GET|url');
+  assert.equal(isInterestingEvidence(claimEvidence('probe_sink_redirect.py', excerpt), cmd, 0), true);
+});
+
+test('W73-6: a FAILED generic probe carries no signal', () => {
+  // The /safe control: probe verdict FAILED, no EVIDENCE lines — the
+  // new patterns must not fire on probe chatter alone.
+  const excerpt = '[rc=0]\nEVIDENCE sink=/safe marker=PLOOP73|http%3A//127.0.0.1%3A8352|/safe|GET|q params=q\n' +
+    'PROBE_NOTE param q: no external redirect to the canary\nVERDICT: FAILED\n';
+  const cmd = WRAP('probe_sink_redirect.py', 'PLOOP73|http%3A//127.0.0.1%3A8352|/safe|GET|q');
+  assert.equal(isInterestingEvidence(claimEvidence('probe_sink_redirect.py', excerpt), cmd, 0), false);
+});
