@@ -1724,13 +1724,22 @@ def _build_lab_claim(proc, module, probe_step_idx, store, sink_id=None,
     probe_file = m.group(1) if m else "probe"
     label, cls, sev = _LAB_CLAIM_META.get(module,
                                           (module, module, "medium"))
-    title = "%s — verified live on the hunt target" % label
     # Rule #59: generic probes cite their verified sink as
     # EVIDENCE sink=/path — carry it as the claim's location so the
     # (module, class, location) dedup files distinct pages as distinct
     # findings instead of blocking them.
     lm = re.search(r"EVIDENCE sink=(\S+)", text)
     location = lm.group(1) if lm else ""
+    # Rule #77: the title carries the verified location when there is
+    # one. Two findings of the same class on different pages are
+    # different findings for the owner AND for the terminal scan, which
+    # matches validation events to claims by title — identical titles
+    # fail closed as "ambiguous, human resolves" and the claims never
+    # reach accepted (live: two cookie-XSS claims, 30 Oct 2026).
+    # Location-less claims (DVWA module probes) keep the old title.
+    title = ("%s — %s — verified live on the hunt target" % (label, location)
+             if location else
+             "%s — verified live on the hunt target" % label)
     # Rule #49: excerpt the TAIL, not the head. The probe contract puts
     # the verdict last and the signal-bearing EVIDENCE lines just before
     # it; the head is login/security diagnostics. A head excerpt buried
