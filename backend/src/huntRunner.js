@@ -62,17 +62,80 @@ export async function dockerAvailable() {
  */
 /**
  * The ttyd port a hunt's container publishes on host loopback.
- * SINGLE SOURCE OF TRUTH: spawnHuntContainer publishes exactly this
- * port, and the terminal WS proxy dials exactly this port. The Live
- * Terminal went blank for every hunt when the proxy dialed a fixed
- * default port (17681) while containers actually listened on per-hunt
- * hash ports (e.g. 17733 / 17745 / 17685). Range 17681-17780 (100 ports).
+ * SINGLE SOURCE OF TRUTH for the DEFAULT port: spawnHuntContainer
+ * publishes a port from this range, and the terminal WS proxy dials it.
+ * The Live Terminal went blank for every hunt when the proxy dialed a
+ * fixed default port (17681) while containers actually listened on
+ * per-hunt hash ports (e.g. 17733 / 17745 / 17685). Range 17681-17780
+ * (100 ports).
+ *
+ * Rule #78 (30 Oct 2026): this is the PRIMARY port, not always the
+ * ACTUAL one. The 100-port range is hash-derived, so it CAN collide
+ * with a live hunt's container (seen live: 17745 = Juice Shop
+ * container). spawnHuntContainer now retries on port-allocation
+ * failure with the next candidate port and PERSISTS the resolved port
+ * in the hunt meta (ttydPort). Consumers that dial the port must use
+ * resolveTtydPort(huntId, meta), never this function directly.
  */
 export function ttydPortForHunt(huntId) {
   if (process.env.HUNT_TTYD_PORT) return process.env.HUNT_TTYD_PORT;
   let hash = 0;
   for (let i = 0; i < huntId.length; i++) hash = (hash * 31 + huntId.charCodeAt(i)) >>> 0;
   return String(17681 + (hash % 100));
+}
+
+export const TTYD_PORT_MIN = 17681;
+export const TTYD_PORT_RANGE = 100; // 17681-17780
+// Bounded collision walk: at most this many candidate ports per spawn.
+// 8 covers a hash collision plus a few stale mappings; beyond that the
+// box has a bigger problem and the spawn must fail loudly.
+export const MAX_PORT_COLLISION_RETRIES = 8;
+
+/** True when the value is a valid hunt ttyd port (integer in range). */
+export function isHuntTtydPort(port) {
+  const n = Number(port);
+  return Number.isInteger(n) && n >= TTYD_PORT_MIN && n < TTYD_PORT_MIN + TTYD_PORT_RANGE;
+}
+
+/**
+ * Ordered candidate ports for a spawn: the persisted port first (a
+ * respawn keeps the terminal proxy's port stable), then the primary,
+ * then primary+1, +2, ... wrapping inside the range. Pure — exported
+ * for tests. Always exactly MAX_PORT_COLLISION_RETRIES entries.
+ */
+export function ttydPortCandidates(huntId, storedPort) {
+  const rawPrimary = Number(ttydPortForHunt(huntId));
+  // A garbage HUNT_TTYD_PORT override must not poison the walk —
+  // fall back to the range start instead of propagating a bad port.
+  const primary = isHuntTtydPort(rawPrimary) ? rawPrimary : TTYD_PORT_MIN;
+  const cands = [];
+  for (let i = 0; i < MAX_PORT_COLLISION_RETRIES; i++) {
+    cands.push(TTYD_PORT_MIN + ((primary - TTYD_PORT_MIN + i) % TTYD_PORT_RANGE));
+  }
+  const stored = Number(storedPort);
+  if (isHuntTtydPort(stored) && stored !== cands[0]) {
+    cands.unshift(stored);
+    cands.pop();
+  }
+  return cands;
+}
+
+/** Docker's host-port allocation failure text (driver failed
+ * programming external connectivity / port is already allocated). */
+export function isPortAllocatedError(msg) {
+  return /port is already allocated|Bind for .* failed/i.test(String(msg || ''));
+}
+
+/**
+ * The port the terminal WS proxy must dial for a hunt: the
+ * collision-resolved port spawnHuntContainer persisted in the hunt
+ * meta when valid, else the primary hash port (pre-#78 hunts have no
+ * persisted port). Pure — exported for tests and the server.
+ */
+export function resolveTtydPort(huntId, meta) {
+  const stored = meta && meta.ttydPort;
+  if (isHuntTtydPort(stored)) return String(Number(stored));
+  return ttydPortForHunt(huntId);
 }
 
 // HUNTER-MIND timing fix (26 Oct 2026): the container's clocks are
@@ -99,7 +162,16 @@ export const HUNT_ZONEINFO_PATH = '/usr/share/zoneinfo';
  */
 export function buildHuntContainerRunArgs(huntId, target, opts = {}) {
   const name = containerName(huntId);
-  const TTYD_PORT = ttydPortForHunt(huntId);
+  // Rule #78: the port-collision retry passes an explicit candidate
+  // port. An explicitly-passed but out-of-range port is a bug — fail
+  // closed instead of silently publishing the hash guess.
+  let TTYD_PORT;
+  if (opts.ttydPort !== undefined && opts.ttydPort !== null) {
+    if (!isHuntTtydPort(opts.ttydPort)) throw new Error(`invalid_ttyd_port: ${opts.ttydPort}`);
+    TTYD_PORT = String(Number(opts.ttydPort));
+  } else {
+    TTYD_PORT = ttydPortForHunt(huntId);
+  }
   const zoneinfo = opts.zoneinfoPath === undefined ? HUNT_ZONEINFO_PATH : opts.zoneinfoPath;
   const env = [
     '-e', `DM_HUNT_ID=${huntId}`,
@@ -126,6 +198,10 @@ export function buildHuntContainerRunArgs(huntId, target, opts = {}) {
 }
 
 export async function spawnHuntContainer(huntId, target, opts = {}) {
+  // _impl seam (tests only): { docker, readMeta, writeMeta } — same
+  // pattern as ensureHuntContainer/execInHuntContainerWithRespawn.
+  const impl = opts._impl || {};
+  const run = impl.docker || docker;
   const name = containerName(huntId);
   // Clean up any stale container with the same name first — and WAIT
   // until the name is actually free. A bare `rm -f` is not enough:
@@ -139,39 +215,73 @@ export async function spawnHuntContainer(huntId, target, opts = {}) {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   async function freeName() {
     for (let attempt = 0; attempt < 5; attempt++) {
-      try { await docker(['rm', '-f', name]); } catch { /* didn't exist, or removal already in progress */ }
-      try { await docker(['inspect', name]); } catch { return; /* name free */ }
+      try { await run(['rm', '-f', name]); } catch { /* didn't exist, or removal already in progress */ }
+      try { await run(['inspect', name]); } catch { return; /* name free */ }
       await sleep(2000);
     }
   }
   await freeName();
 
-  // Live terminal streaming (PiP): ttyd port on loopback only.
-  // Per-hunt port from the hunt ID hash — a fixed port causes
-  // "already allocated" failures when multiple hunts (or stale containers)
-  // exist. See ttydPortForHunt (single source of truth).
-  const TTYD_PORT = ttydPortForHunt(huntId);
+  // Rule #78 — port-collision retry. The per-hunt ttyd port is
+  // hash-derived over a 100-port range, so it CAN collide with a live
+  // hunt's container port (seen live 30 Oct: 17745 = Juice Shop
+  // container). Walk the candidates: the persisted port first (a
+  // respawn keeps the terminal proxy's port stable), then the primary,
+  // then primary+1/+2... bounded. Each failed port advances to the
+  // next; the name-conflict retry keeps its old behaviour per port.
+  let storedPort = null;
+  try {
+    const readMeta = impl.readMeta || ((await import('./store.js')).readHuntMeta);
+    storedPort = (readMeta(huntId) || {}).ttydPort;
+  } catch { /* a failed read proves nothing — candidates still apply */ }
 
   // HUNTER-MIND timing fix: the zoneinfo mount is guarded — a mount
   // of a nonexistent host path would create an empty dir on the host.
   const zoneinfoPath = existsSync(HUNT_ZONEINFO_PATH) ? HUNT_ZONEINFO_PATH : null;
-  const runArgs = buildHuntContainerRunArgs(huntId, target, { ...opts, zoneinfoPath });
-  try {
-    await docker(runArgs);
-  } catch (err) {
-    // Last-resort retry: if the name was STILL reserved at run time
-    // (removal completed between freeName's last check and the run),
-    // free it once more and run again. Any other error propagates.
-    const msg = String((err && err.message) || err);
-    if (/already in use|marked for removal/i.test(msg)) {
-      await freeName();
-      await docker(runArgs);
-    } else {
-      throw err;
+  const candidates = ttydPortCandidates(huntId, storedPort);
+  let lastError = null;
+  for (const port of candidates) {
+    const runArgs = buildHuntContainerRunArgs(huntId, target, { ...opts, zoneinfoPath, ttydPort: port });
+    let retriedName = false;
+    for (;;) {
+      try {
+        await run(runArgs);
+        // Persist the RESOLVED port in the hunt meta (merge, never
+        // wholesale — the 21 Oct pause checkpoint-race rule): the
+        // terminal WS proxy dials it via resolveTtydPort. A persist
+        // failure is logged loudly but never fails the spawn — the
+        // container is real and running; the terminal proxy falls back
+        // to the primary hash port for this hunt.
+        try {
+          const writeMeta = impl.writeMeta || ((await import('./store.js')).writeHuntMetaCheckpoint);
+          writeMeta(huntId, { ttydPort: port });
+        } catch (persistErr) {
+          console.error(`[spawn] hunt ${huntId}: container up on ttyd port ${port} but meta persist failed:`, persistErr.message || persistErr);
+        }
+        return { container: name, spawnedAt: new Date().toISOString(), ttydPort: String(port) };
+      } catch (err) {
+        const msg = String((err && err.message) || err);
+        // Last-resort retry: if the name was STILL reserved at run time
+        // (removal completed between freeName's last check and the run),
+        // free it once more and run again on the SAME port. A second
+        // name failure propagates, exactly like the old code.
+        if (/already in use|marked for removal/i.test(msg) && !retriedName) {
+          retriedName = true;
+          await freeName();
+          continue;
+        }
+        // Port taken by another container: next candidate port.
+        if (isPortAllocatedError(msg)) {
+          lastError = err;
+          break;
+        }
+        throw err; // fail-closed: unknown errors surface immediately
+      }
     }
   }
-
-  return { container: name, spawnedAt: new Date().toISOString(), ttydPort: TTYD_PORT };
+  // Every candidate collided: the box has a bigger problem (100-port
+  // range exhausted) — fail loudly with the last docker error.
+  throw lastError || new Error('no free ttyd port in range');
 }
 
 /**

@@ -34,7 +34,7 @@ import voiceRouter from './routes/voice.js';
 import paymentsRouter from './routes/payments.js';
 import notificationsRouter from './routes/notifications.js';
 import { backfillAllHunts, episodeLedgerEnabled, runEmbeddingBackfill, backfillRuledOutFromEpisodes } from './episodeStore.js';
-import { ttydPortForHunt, checkChromiumWatchdog, CHROMIUM_WATCHDOG_MS } from './huntRunner.js';
+import { resolveTtydPort, checkChromiumWatchdog, CHROMIUM_WATCHDOG_MS } from './huntRunner.js';
 import { maybeConsolidateAll } from './consolidation.js';
 import { evaluatePromotions } from './playbook.js';
 
@@ -224,10 +224,13 @@ wssTerm.on('connection', async (ws, req, huntId, ticket) => {
     }, TERM_HEARTBEAT_MS);
     ws.on('close', () => clearInterval(termHeartbeat));
 
-    // Connect to THIS hunt's ttyd (loopback only). The port is per-hunt
-    // (hash of the hunt ID, see ttydPortForHunt) — dialing a fixed
-    // default port reached nothing and left every Live Terminal blank.
-    const TTYD_PORT = ttydPortForHunt(huntId);
+    // Connect to THIS hunt's ttyd (loopback only). The port is per-hunt —
+    // Rule #78: spawnHuntContainer persists the collision-resolved port
+    // in the hunt meta, and the proxy dials THAT (resolveTtydPort),
+    // falling back to the hash port only for pre-#78 hunts. Dialing a
+    // stale hash guess after a collision retry would leave the Live
+    // Terminal blank.
+    const TTYD_PORT = resolveTtydPort(huntId, meta);
     const WebSocket = (await import('ws')).default;
     // ttyd 1.7.7 creates NO terminal session for a bare WS connection:
     // it only spawns the command once a client negotiates the "tty"
