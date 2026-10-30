@@ -284,12 +284,16 @@ export async function callMetaModel(messages, system, ctx, { model, maxTokens, r
  * callMetaModel with brain settings) is the Meta path. Both are
  * injectable so the lab can mock Meta without burning credits.
  */
-export async function callBrain(messages, system, ctx, { huntId, readMeta, writeMeta, record, chatFn, metaFn } = {}) {
+export async function callBrain(messages, system, ctx, { huntId, readMeta, writeMeta, record, chatFn, metaFn, advisory } = {}) {
   const chat = chatFn || chatWithAI;
   const meta = metaFn || ((m, s, c, o) => callMetaModel(m, s, c, o));
+  // RULE #50 (30 Oct 2026): advisory calls (verifier advice, PoC drafting)
+  // fail fast on the 8B path — a dead Ollama must not stall the pipeline.
+  // The Meta path keeps its own probe timeouts (unchanged).
+  const chatOpts = { advisory: Boolean(advisory) };
   const state = getBrainState(huntId, { readMeta });
   if (!isMetaModel(state.selected)) {
-    return chat(messages, system, ctx);
+    return chat(messages, system, ctx, chatOpts);
   }
   // The selected brain is a Meta model.
   if (!metaAvailable()) {
@@ -300,7 +304,7 @@ export async function callBrain(messages, system, ctx, { huntId, readMeta, write
       saveBrainState(huntId, { ...state, active: DEFAULT_BRAIN_MODEL, fallback: true, metaStreak: 0 }, { writeMeta });
       recordSwitch(huntId, { from: state.active, to: DEFAULT_BRAIN_MODEL, reason: 'meta_unavailable', manual: false }, { record });
     }
-    return chat(messages, system, ctx);
+    return chat(messages, system, ctx, chatOpts);
   }
   const probeTimeout = state.fallback ? META_PROBE_TIMEOUT_MS_DEFAULT : META_TIMEOUT_MS_DEFAULT;
   const attempt = await meta(messages, system, ctx, { model: state.selected, timeoutMs: probeTimeout });
@@ -324,7 +328,7 @@ export async function callBrain(messages, system, ctx, { huntId, readMeta, write
   } else if (state.metaStreak !== 0) {
     saveBrainState(huntId, { ...state, metaStreak: 0 }, { writeMeta });
   }
-  return chat(messages, system, ctx);
+  return chat(messages, system, ctx, chatOpts);
 }
 
 /**

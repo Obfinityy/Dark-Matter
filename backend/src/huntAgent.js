@@ -2116,7 +2116,9 @@ export async function assessResult(huntId, target, plan, result) {
         [{ role: 'user', text: `Something odd happened during a security test. Follow your curiosity — propose ONE follow-up probe to dig into this anomaly.\n\nOriginal test: ${plan.test}\nCommand: ${String(plan.command).slice(0, 300)}\nOdd signals: ${weird.signals.join(', ')}\nResponse excerpt: ${output.slice(0, 1200)}\n\nReply as JSON: {"test":"name","command":"shell command","why":"one line"}. Non-destructive, target-scoped.` }],
         'You are a curious elite bug-bounty hunter. Output ONLY the requested JSON, no prose.',
         { huntId },
-        { huntId }
+        // RULE #50 (30 Oct 2026): curiosity is advisory — a dead Ollama
+        // must fail this fast, never stall the verifier behind it.
+        { huntId, advisory: true }
       );
       const fm = /\{[\s\S]*\}/.exec(followUp || '');
       const fp = fm ? JSON.parse(fm[0]) : null;
@@ -2445,7 +2447,9 @@ async function generatePoC(huntId, target, findingRec) {
       }],
       'You are a security researcher writing PoC commands. Output ONLY the command.',
       { huntId },
-      { huntId }
+      // RULE #50 (30 Oct 2026): PoC drafting is advisory — the finding is
+      // already recorded; a dead Ollama must skip it fast, not hang it.
+      { huntId, advisory: true }
     );
     if (!reply) return;
     const cmd = reply.trim().split('\n')[0].replace(/^[$>]\s*/, '').slice(0, 500);

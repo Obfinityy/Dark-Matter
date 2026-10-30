@@ -186,6 +186,15 @@ export function ollamaMessageCharCap() {
 // blindly: the timeout was never the failure; the reload was.
 export const OLLAMA_READY_WAIT_MS_DEFAULT = 200000;
 export const OLLAMA_READY_POLL_MS_DEFAULT = 5000;
+// RULE #50 (30 Oct 2026) — ADVISORY BUDGET: the verifier's advisory LLM
+// calls (curiosity follow-ups, PoC drafting) are advice, not the verdict —
+// the deterministic re-run already carried every verdict on the 29-Oct
+// live rehearsal while the advisory calls hung against a dead Ollama.
+// A dead Ollama costs one advisory call ~300s + readiness wait + 300s
+// retry (11 claims => ~1h of pure stall). Advisory calls get ONE attempt
+// with this bound, no readiness wait, no retry; null returns instantly
+// to the deterministic path. OLLAMA_ADVISORY_TIMEOUT_MS overrides.
+export const OLLAMA_ADVISORY_TIMEOUT_MS_DEFAULT = 60000;
 
 /** True when an Ollama failure means "the server is (re)starting", not "the model was slow". */
 export function isOllamaConnectionError(err) {
@@ -242,7 +251,8 @@ export async function waitForOllamaReady({ baseUrl, waitMs, pollMs, sleepFn } = 
   }
 }
 
-async function chatWithOllama(messages, system, ctx) {
+async function chatWithOllama(messages, system, ctx, opts = {}) {
+  const advisory = Boolean(opts && opts.advisory);
   // Privacy gateway: strip secrets/PII before the model — same as Bedrock.
   const clean = (t) => sanitizeForModel(String(t || ''));
   const msgCap = ollamaMessageCharCap();
@@ -351,11 +361,17 @@ async function chatWithOllama(messages, system, ctx) {
   // the AI call.
   const hbPath = process.env.AI_HEARTBEAT_PATH || '/opt/Dark-Matter/.ai-inference-active';
   const hbTimeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS || '300000', 10);
+  // RULE #50 (30 Oct 2026): the advisory bound, env-overridable; a bound
+  // of <=0 disables the advisory fast path (falls back to the main path).
+  const advisoryMs = advisory
+    ? parseInt(process.env.OLLAMA_ADVISORY_TIMEOUT_MS || String(OLLAMA_ADVISORY_TIMEOUT_MS_DEFAULT), 10)
+    : 0;
+  const attemptMs = advisoryMs > 0 ? Math.min(hbTimeoutMs, advisoryMs) : hbTimeoutMs;
   const writeHeartbeat = () => {
     try {
       fs.writeFileSync(hbPath, JSON.stringify({
         startedAt: new Date().toISOString(),
-        deadline: Date.now() + hbTimeoutMs * 2 + 120000,
+        deadline: Date.now() + attemptMs * 2 + 120000,
         huntId: (ctx && ctx.huntId) || null,
       }));
     } catch { /* heartbeat is best-effort */ }
@@ -363,6 +379,22 @@ async function chatWithOllama(messages, system, ctx) {
   const clearHeartbeat = () => { try { fs.unlinkSync(hbPath); } catch { /* ignore */ } };
   writeHeartbeat();
   try {
+    // RULE #50 (30 Oct 2026) — ADVISORY FAST PATH: one attempt, no
+    // readiness wait, no retry. The deterministic verdict already stands
+    // (recordValidation ran before any advisory call); a null here just
+    // skips the advice. A deadline error is caught — it is not a
+    // connection error, and there is no retry to deserve.
+    if (advisoryMs > 0) {
+      try {
+        result = await ollamaChatOnce(attemptMs);
+      } catch (err) {
+        console.error(`[llm] advisory call failed fast at ${OLLAMA_URL}: ${err.message} — skipping advice`);
+        return null;
+      }
+      if (!result || !result.ok) return null;
+      const advisoryText = String(result.text || '').trim();
+      return advisoryText || null;
+    }
     // Defensive: never hang forever if the model stalls — fail cleanly so
     // callers fall back to deterministic replies instead of hanging the
     // request (and the reverse proxy in front of us). The bound is the
@@ -534,8 +566,8 @@ async function chatWithOpenRouter(messages, system, ctx) {
   }
 }
 
-export async function chatWithAI(messages, system, ctx) {
-  if (PROVIDER === 'ollama') return chatWithOllama(messages, system, ctx);
+export async function chatWithAI(messages, system, ctx, opts = {}) {
+  if (PROVIDER === 'ollama') return chatWithOllama(messages, system, ctx, opts);
   if (PROVIDER === 'sagemaker') return chatWithSageMaker(messages, system, ctx);
   if (PROVIDER === 'openrouter') return chatWithOpenRouter(messages, system, ctx);
   if (PROVIDER === 'kaggle') return chatWithKaggle(messages, system, ctx);
