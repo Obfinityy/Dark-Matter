@@ -32,6 +32,16 @@
 // terminal on its own authority — only the pipeline's validation events,
 // applied by the scan, move a claim out of FILED. The 100% TRUTH RULE
 // holds: unverified claims stay leads (verified:false).
+//
+// RULE #53 (30 Oct 2026): REHEARSAL RECORD IN THE SESSION MEMDIR.
+// Rule #52's flip checklist reads rehearsal evidence from
+// <memdir>/rehearsal.json, but the bridge never wrote it — the Rule #48
+// re-run evidence lived as a probe-lab sidecar, so the checklist had
+// nothing to read on a real session (sidecar gap). The bridge now
+// persists the rehearsal record itself (buildRehearsalRecord +
+// recordRehearsal, fail-closed, hash-keyed merge across batched bridge
+// calls). Evidence-only: the checklist reads it read-only; the record
+// never influences bridging, and a failed write never breaks bridging.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -41,6 +51,22 @@ import { spawnSync } from 'node:child_process';
 /** The probes' lab base — sed-rebased onto the hunt target (Rule #41). */
 export const LIVE_PROBE_BASE = 'http://172.17.0.1:3100';
 const LAB_BASE_HOST = '172.17.0.1';
+
+/**
+ * Rehearsal evidence file inside a hunt's one-loop memdir (Rule #53).
+ * Read read-only by the Rule #52 flip checklist (oneLoopFlipcheck.js
+ * re-exports this constant); written by recordRehearsal below.
+ */
+export const REHEARSAL_FILE = 'rehearsal.json';
+
+/**
+ * Terminal validation verdicts — the pipeline vocabulary the Rule #52
+ * checklist accepts (kept in sync with its TERMINAL_VERDICTS; this
+ * module never invents a verdict, only records observed ones).
+ */
+const TERMINAL_VERDICTS = new Set([
+  'verified', 'accepted', 'rejected', 'gate-rejected', 'not-interesting',
+]);
 
 /**
  * Parse the loop's stored probe command for the probe filename and the
@@ -109,6 +135,131 @@ export function buildClaimAction(rec) {
 
 function shQuote(s) {
   return "'" + String(s).replace(/'/g, "'\\''") + "'";
+}
+
+/**
+ * RULE #53 — build the rehearsal record from a bridgeClaims run.
+ * Pure (no IO). Only OBSERVED verdicts become validations:
+ *   - claims.json state after the scan fold, when it is in the terminal
+ *     vocabulary (accepted/rejected/...) -> that verdict
+ *   - bridged + pipeline-verified but no terminal state observed -> 'verified'
+ *   - bridged but neither -> unresolved (fail-closed: the Rule #52
+ *     checklist must NOT count it as rehearsal evidence)
+ * Skipped claims are recorded under skips with their reason, never as
+ * validations — they stay FILED and the checklist must fail S2/S3.
+ */
+export function buildRehearsalRecord({ huntId, target, byHash = {}, claims = [], bridged = 0, disabled = false }) {
+  const meta = {};
+  for (const c of (claims || [])) {
+    if (c && typeof c === 'object' && c.hash) {
+      meta[String(c.hash)] = {
+        module: c.module ? String(c.module) : null,
+        title: c.title ? String(c.title).slice(0, 200) : null,
+      };
+    }
+  }
+  const at = new Date().toISOString();
+  const validations = [];
+  const skips = [];
+  const unresolved = [];
+  for (const [hash, b] of Object.entries(byHash || {})) {
+    if (!b || typeof b !== 'object') continue;
+    const m = meta[hash] || {};
+    if (b.skip) {
+      skips.push({ hash, module: m.module, title: m.title, reason: String(b.skip).slice(0, 500) });
+      continue;
+    }
+    if (!b.bridged) {
+      unresolved.push({ hash, module: m.module, title: m.title, note: 'not bridged, no skip recorded' });
+      continue;
+    }
+    const terminal = b.terminal ? String(b.terminal).toLowerCase() : null;
+    if (terminal && TERMINAL_VERDICTS.has(terminal)) {
+      validations.push({ hash, module: m.module, title: m.title, verdict: terminal, observed_at: at });
+    } else if (b.verified) {
+      validations.push({ hash, module: m.module, title: m.title, verdict: 'verified', observed_at: at });
+    } else {
+      unresolved.push({
+        hash, module: m.module, title: m.title, bridged: true, verified: false,
+        terminal: b.terminal || null,
+        note: 'no terminal verdict observed (fail-closed: not rehearsal evidence)',
+      });
+    }
+  }
+  return {
+    rule: 53,
+    huntId: String(huntId),
+    target: String(target || ''),
+    recorded_at: at,
+    pipeline: 'claimGateCheck + assessResult (Rule #43)',
+    bridged_count: bridged,
+    bridge_disabled: Boolean(disabled),
+    validations,
+    skips,
+    unresolved,
+  };
+}
+
+/**
+ * RULE #53 — persist the rehearsal record into the session memdir.
+ * Merges hash-keyed across batched bridge calls (a claim skipped in one
+ * batch and bridged in a later one ends up validated, not skipped).
+ * Atomic write (tmp + rename). Fail-closed: returns { ok:false, error },
+ * never throws — a failed write must never break bridging.
+ */
+export function recordRehearsal(memdir, record) {
+  try {
+    const md = String(memdir || '');
+    if (!md) return { ok: false, error: 'no memdir' };
+    const file = path.join(md, REHEARSAL_FILE);
+    let existing = null;
+    try {
+      const j = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (j && typeof j === 'object') existing = j;
+    } catch { /* absent or corrupt -> start fresh */ }
+    const keyed = (arr) => {
+      const m = {};
+      for (const v of (arr || [])) {
+        if (v && typeof v === 'object' && v.hash) m[String(v.hash)] = v;
+      }
+      return m;
+    };
+    const valMap = keyed(existing && existing.validations);
+    const skipMap = keyed(existing && existing.skips);
+    const unrMap = keyed(existing && existing.unresolved);
+    for (const v of (record.validations || [])) {
+      if (v && v.hash) {
+        valMap[String(v.hash)] = v;
+        delete skipMap[String(v.hash)]; // later bridge wins over an earlier skip
+        delete unrMap[String(v.hash)];
+      }
+    }
+    for (const s of (record.skips || [])) {
+      if (s && s.hash && !valMap[String(s.hash)]) skipMap[String(s.hash)] = s;
+    }
+    for (const u of (record.unresolved || [])) {
+      if (u && u.hash && !valMap[String(u.hash)]) unrMap[String(u.hash)] = u;
+    }
+    const merged = {
+      rule: 53,
+      huntId: record.huntId,
+      target: record.target,
+      pipeline: record.pipeline,
+      recorded_batches: ((existing && Number.isInteger(existing.recorded_batches)
+        ? existing.recorded_batches : 0) + 1),
+      first_recorded_at: (existing && existing.first_recorded_at) || record.recorded_at,
+      recorded_at: record.recorded_at,
+      validations: Object.values(valMap),
+      skips: Object.values(skipMap),
+      unresolved: Object.values(unrMap),
+    };
+    const tmp = file + '.tmp-' + process.pid;
+    fs.writeFileSync(tmp, JSON.stringify(merged, null, 1), 'utf8');
+    fs.renameSync(tmp, file);
+    return { ok: true, file, validations: merged.validations.length };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  }
 }
 
 /**
@@ -279,6 +430,21 @@ export async function bridgeClaims({ huntId, target, memdir, claims = [], deps =
     } catch (e) {
       note('claims.json re-read failed: ' + ((e && e.message) || e));
     }
+  }
+
+  // RULE #53 — persist the rehearsal record into the session memdir so
+  // the Rule #52 flip checklist reads real evidence, not a sidecar.
+  // Reached only when the bridge ran (the disabled case returned early
+  // above). Evidence-only: a failed write is noted and never breaks
+  // bridging.
+  try {
+    const rec = buildRehearsalRecord({ huntId: hid, target: tb, byHash, claims, bridged, disabled: false });
+    const rr = recordRehearsal(memdir, rec);
+    note(rr.ok
+      ? `rehearsal recorded: ${rr.file} (${rr.validations} validations)`
+      : `rehearsal write failed (fail-closed, bridging unaffected): ${rr.error}`);
+  } catch (e) {
+    note('rehearsal record threw (fail-closed, bridging unaffected): ' + ((e && e.message) || e));
   }
 
   return { bridged, byHash, scan, log, disabled: false };
