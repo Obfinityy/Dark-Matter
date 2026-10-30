@@ -230,6 +230,21 @@ _LAB_CLAIM_META = {
     # (the Rule #69 rationale).
     "generic_cookiexss": ("Reflected XSS (generic cookie sink)",
                          "xss_reflected", "high"),
+    # Rule #89: same for the generic-sink COOKIE-SQLI probe — a
+    # cookie value fed to SQL (PLOOP89): SQL error keywords in the
+    # quote response though absent from the benign response ->
+    # via=error_based; or a stable boolean-blind differential on
+    # the cookie value -> via=boolean_blind (a verbatim quote echo
+    # without keywords or a differential is not injection).
+    # Severity high: SQL injection reads/writes the database.
+    # Same class as Rule #57 ("sqli"), distinct module — dedup is
+    # (module, class, location), so an endpoint vulnerable via both
+    # a query param and a cookie files two distinct claims (the
+    # Rule #69 rationale). The probe iterates the marker's CSV of
+    # cookie names internally (first CONFIRMED wins), keeping the
+    # budget at 2 turns per sink.
+    "generic_cookiesqli": ("SQL injection (generic cookie sink)",
+                           "sqli", "high"),
     # Rule #80: same for the generic-sink JSON-body-XSS probe — the
     # target reflects an attacker-controlled JSON field value into
     # the response body UNESCAPED (the run-unique executable canary
@@ -1254,7 +1269,9 @@ def _recon_driven_plan(modules_present, generic_sinks=(),
     onerror=PLOOP74-<nonce>>" in the canary body though absent
     from the control body -> via=html; an HTML-encoded reflection
     is a safe encoding, not a vuln) for cookie sinks only — cookie
-    sinks carry ONLY the cookiexss pair; the xss/sqli/csrf pairs do
+    sinks carry the cookiexss pair plus the Rule #89 cookie-SQLi
+    pair (probe_sink_cookiesqli.py, PLOOP89 marker — a cookie value
+    fed to SQL); the param-shaped xss/sqli/csrf pairs do
     not apply to a cookie value, plus path sinks
     (probe_sink_pathxss.py, PLOOP83 marker — the target's 404/error
     page must reflect a bogus subpath under a known directory prefix
@@ -1707,9 +1724,10 @@ def _recon_driven_plan(modules_present, generic_sinks=(),
         # onerror=PLOOP74-<nonce>>" in the canary body though
         # absent from the control body -> via=html; an
         # HTML-encoded reflection is a safe encoding, not a vuln).
-        # Cookie sinks carry ONLY this pair — a cookie is neither a
-        # query param nor a form field nor an XML body, so the
-        # xss/sqli/csrf pairs do not apply.
+        # Cookie sinks carry TWO pairs now (this cookiexss pair plus
+        # the Rule #89 cookie-SQLi pair below) — a cookie is neither
+        # a query param nor a form field nor an XML body, so the
+        # param-shaped xss/sqli/csrf pairs do not apply.
         # Rule #75 (plan gate, defense in depth): a hand-built sink
         # list could carry a loop-owned session cookie past the
         # capture exclusion — refuse the pair WITH REASON instead of
@@ -1738,6 +1756,45 @@ def _recon_driven_plan(modules_present, generic_sinks=(),
                 "desc": "File claim for the verified generic-sink "
                         "finding",
                 "kind": "claim", "module": "generic_cookiexss",
+                "sink": sink.get("id"),
+                "probe_step_idx": len(plan) - 1,
+                "done": False, "result_hash": None,
+                "recon": True})
+            # Rule #89: the cookie-SQLi probe for cookie sinks
+            # (PLOOP89 marker — a cookie value fed to SQL: SQL error
+            # keywords in the quote response though absent from the
+            # benign response -> via=error_based; or a stable
+            # boolean-blind differential on the cookie value ->
+            # via=boolean_blind). Cookie sinks carry TWO pairs now
+            # (this one plus the Rule #74 cookiexss pair) — a cookie
+            # is neither a query param nor a form field nor an XML
+            # body, so the param-shaped xss/sqli/csrf pairs do not
+            # apply, but a cookie value interpolated into SQL is the
+            # same class as ?param SQLi (a human hunter tampers
+            # cookie values too).
+            # The marker's 5th component is the cookie-name CSV; the
+            # probe iterates it internally (first CONFIRMED wins),
+            # keeping the budget at 2 turns per sink for this pair.
+            # Rule #75 (plan gate, defense in depth) already fired
+            # above: this block only runs for a sink that passed the
+            # exclusion.
+            csqli_marker = "PLOOP89|%s|%s|%s|%s" % (
+                tbq, pathq, "GET",
+                ",".join(sink.get("params", ())))
+            plan.append({
+                "desc": "Probe generic cookie sink %s for SQL "
+                        "injection (%s)" %
+                        (sink.get("id"), "probe_sink_cookiesqli.py"),
+                "kind": "probe", "module": "generic_cookiesqli",
+                "sink": sink.get("id"),
+                "probe": "probe_sink_cookiesqli.py",
+                "marker": csqli_marker, "done": False,
+                "result_hash": None,
+                "recon": True})
+            plan.append({
+                "desc": "File claim for the verified generic-sink "
+                        "finding",
+                "kind": "claim", "module": "generic_cookiesqli",
                 "sink": sink.get("id"),
                 "probe_step_idx": len(plan) - 1,
                 "done": False, "result_hash": None,
@@ -2015,9 +2072,9 @@ def budget_info(modules=None, generic_sinks=()):
     16 for query sinks (the open-redirect, SSRF-reachability,
     header-injection, blind command-injection, path-traversal and
     server-side template injection probe+claim pairs), 2 for
-    xml sinks (the Rule #70 XXE probe+claim pair), and 2 for cookie
-    sinks (the Rule #74 cookie-XSS probe+claim pair), no escalation
-    rungs yet. Rule #81: the double-confirm reconfirm is NOT priced
+    xml sinks (the Rule #70 XXE probe+claim pair), and 4 for cookie
+    sinks (the Rule #74 cookie-XSS + Rule #89 cookie-SQLi
+    probe+claim pairs), no escalation rungs yet. Rule #81: the double-confirm reconfirm is NOT priced
     here — it fires only when the first probe run CONFIRMs (rare),
     and it executes inside the probe step's own action (its wall
     time is bounded by 2x the probe timeout, ceiling 2*pto+60). Returns {planned_modules,
@@ -2056,10 +2113,13 @@ def budget_info(modules=None, generic_sinks=()):
             # pair — the body is XML, not params/fields.
             gen += 2
         elif isinstance(s, dict) and s.get("kind") == "cookie":
-            # Rule #74: a cookie sink carries only the cookie-XSS
-            # probe+claim pair — a cookie is neither a query param
-            # nor a form field nor an XML body.
-            gen += 2
+            # Rule #74 + Rule #89: a cookie sink carries TWO
+            # probe+claim pairs (cookie-XSS + cookie-SQLi) — a
+            # cookie is neither a query param nor a form field
+            # nor an XML body; each probe iterates the cookie-name
+            # CSV internally so two pairs (4 turns) cover both
+            # classes.
+            gen += 4
         elif isinstance(s, dict) and s.get("kind") == "json":
             # Rule #80 + Rule #84 + Rule #85 + Rule #86: a json sink
             # carries FOUR probe+claim pairs (JSON-body XSS +
@@ -2272,11 +2332,12 @@ def _build_lab_claim(proc, module, probe_step_idx, store, sink_id=None,
     raw = store.get(h.get("result_hash") or "") or b""
     text = _to_text(raw)
     # Rule #75 (claim-layer gate): even with CONFIRMED output, a
-    # generic_cookiexss claim against the loop's OWN session cookie is
-    # never filed — the "finding" would be the loop echoing its own
-    # session state, a self-inflicted claim no elite hunter would make.
+    # generic_cookiexss / generic_cookiesqli claim against the loop's
+    # OWN session cookie is never filed — the "finding" would be
+    # the loop echoing its own session state, a self-inflicted
+    # claim no elite hunter would make.
     # The sink id carries the name (cookie:<path>:GET:<name>).
-    if module == "generic_cookiexss":
+    if module in ("generic_cookiexss", "generic_cookiesqli"):
         _cn = _cookie_name_of_sink(sink_id)
         if _cn and _cn in set(self_cookie_names or ()):
             return None, ("Rule #75: refusing claim — %r is a loop-owned "
@@ -7457,15 +7518,19 @@ def proof_cookiexss():
     no SQL, no error keywords, no shell, no template engine, no
     entity parsing, no Host-header trust, no redirects.
 
-    Case A — discovery: 3 cookie sinks found, plan is 6 steps (one
-    cookiexss probe+claim pair per sink — Rule #74: cookie sinks
-    carry ONLY this pair; the param-shaped xss/sqli pairs would
+    Case A — discovery: 3 cookie sinks found, plan is 12 steps
+    (one cookiexss + one cookiesqli probe+claim pair per sink —
+    Rule #74 + Rule #89: the param-shaped xss/sqli pairs would
     attack the wrong injection point (?theme=) instead of the
-    Cookie header), budget prices 6.
+    Cookie header, but cookie-fed SQLi is the same class),
+    budget prices 12.
     Case B — full cold drive: / cookiexss FAILED at turn 1 (3 turns:
-    FAILED + probe DEAD_END + claim DEAD_END); /prefs cookiexss
-    CONFIRMED->FILED at turns 4-5 (via=html); /safe cookiexss
-    FAILED at turn 6 (3 turns); exactly 1 filed claim
+    FAILED + probe DEAD_END + claim DEAD_END); / cookiesqli FAILED
+    at turn 4 (3 turns); /prefs cookiexss CONFIRMED->FILED at turns
+    7-8 (via=html); /prefs cookiesqli FAILED at turn 9 (reflected
+    XSS is not SQLi — the blind true payload reflects raw); /safe
+    cookiexss FAILED at turn 12 and /safe cookiesqli FAILED at turn
+    15 (3 turns each); exactly 1 filed claim
     (generic_cookiexss), location /prefs; process completes, no
     re-probe.
     Case C — regression: the DVWA mock yields ZERO generic sinks so
@@ -7475,13 +7540,15 @@ def proof_cookiexss():
     Case D — Rule #75: mock-fresh17 sets the loop's OWN session cookie
     (PHPSESSID) on every page — without the exclusion it would be sunk
     (pre-gate control proves the defect); with the exclusion only the
-    genuine theme sinks remain, the plan builds 6 steps, and a
+    genuine theme sinks remain, the plan builds 12 steps (one
+    cookiexss + one cookiesqli pair per sink), and a
     hand-built PHPSESSID sink is refused at plan time WITH REASON.
     Case E — Rule #75: the claim layer REFUSES a CONFIRMED
     generic_cookiexss output against a loop-owned session cookie
     (self-inflicted findings are never filed); the same output
     against a genuine cookie still builds, and callers without sink
-    info behave exactly as before.
+    info behave exactly as before. (Rule #89: the same refusal
+    covers generic_cookiesqli — proven in proof_cookiesqli Case D.)
     """
     checks = []
 
@@ -7518,21 +7585,28 @@ def proof_cookiexss():
         check("discovery: no sink touches a known module path",
               not any("vulnerabilities" in i for i in ids))
         plan, meta = _lab_plan_for_hunt([], sinks, tb)
-        check("plan: 6 steps — one cookiexss probe+claim pair per "
-              "cookie sink (Rule #74: the param-shaped xss/sqli "
-              "pairs do NOT apply to a cookie value)",
-              len(plan) == 6 and
+        check("plan: 12 steps — one cookiexss + one cookiesqli "
+              "probe+claim pair per cookie sink (Rule #74 + Rule #89: "
+              "the param-shaped xss/sqli pairs do NOT apply to a "
+              "cookie value, but cookie-fed SQLi does)",
+              len(plan) == 12 and
               [s["module"] for s in plan] ==
-              ["generic_cookiexss"] * 6 and
+              ["generic_cookiexss", "generic_cookiexss",
+               "generic_cookiesqli", "generic_cookiesqli"] * 3 and
               [s["kind"] for s in plan] ==
-              ["probe", "claim"] * 3 and
+              ["probe", "claim"] * 6 and
               [s["probe"] for s in plan if s["kind"] == "probe"] ==
-              ["probe_sink_cookiexss.py"] * 3)
+              ["probe_sink_cookiexss.py",
+               "probe_sink_cookiesqli.py"] * 3)
         check("plan: the cookie name rides in the marker argv "
-              "(PLOOP74|<tb>|<path>|GET|theme), marker filename-safe",
-              all(s["marker"].startswith("PLOOP74|") and
-                  s["marker"].endswith("|GET|theme") and
-                  s["probe"] == "probe_sink_cookiexss.py"
+              "(PLOOP74/PLOOP89|<tb>|<path>|GET|theme), marker "
+              "filename-safe",
+              all(((s["marker"].startswith("PLOOP74|") and
+                    s["probe"] == "probe_sink_cookiexss.py") or
+                   (s["marker"].startswith("PLOOP89|") and
+                    s["probe"] == "probe_sink_cookiesqli.py"))
+                  for s in plan if s["kind"] == "probe") and
+              all(s["marker"].endswith("|GET|theme")
                   for s in plan if s["kind"] == "probe") and
               all("/" not in s["marker"]
                   for s in plan if s["kind"] == "probe"))
@@ -7540,9 +7614,9 @@ def proof_cookiexss():
               meta["recon_ok"] is True and
               set(meta["generic_sinks"]) == set(ids))
         bi = budget_info([], sinks)
-        check("budget: 3 cookie sinks priced at 6 turns (Rule #74: "
-              "each costs 2)",
-              bi["recommended_turns"] == 6 and bi["generic_turns"] == 6)
+        check("budget: 3 cookie sinks priced at 12 turns (Rule #74 + "
+              "Rule #89: each costs 4)",
+              bi["recommended_turns"] == 12 and bi["generic_turns"] == 12)
 
         # --- Case B: full autonomous cold drive vs fresh16 ---
         memdir = tempfile.mkdtemp(prefix="ploop74-b-")
@@ -7560,19 +7634,27 @@ def proof_cookiexss():
         check("drive: / cookiexss FAILED at turn 1 (the index page "
               "sets the cookie but never reflects it)",
               verdicts[0] == "FAILED")
-        check("drive: /prefs cookiexss CONFIRMED at turn 4 — the / "
-              "pair cost 3 turns first (FAILED + probe DEAD_END + "
-              "claim DEAD_END)",
-              sq == [3])
+        check("drive: / cookiesqli FAILED at turn 4 — the / sink "
+              "now carries two pairs (Rule #89); each FAILED pair "
+              "costs 3 turns (FAILED + probe DEAD_END + claim "
+              "DEAD_END)",
+              verdicts[3] == "FAILED")
+        check("drive: /prefs cookiexss CONFIRMED at turn 7 — both / "
+              "pairs cost 3 turns each before it",
+              sq == [6])
         check("drive: the CONFIRMED probe is followed by a FILED claim",
               all(verdicts[i + 1] == "FILED" for i in sq))
-        check("drive: /safe cookiexss FAILED at turn 6 — the canary "
-              "token reflects HTML-ENCODED, not unescaped (safe "
-              "encoding, not a vuln)",
-              verdicts[5] == "FAILED")
-        check("drive: 8 verdict turns executed, process completed, no "
-              "re-probe (each FAILED pair costs 3 turns)",
-              len(verdicts) == 8 and "process_completed" in events)
+        check("drive: /prefs cookiesqli FAILED at turn 9 — reflected "
+              "XSS is not SQLi: the blind true payload reflects raw "
+              "so it never equals the benign body",
+              verdicts[8] == "FAILED")
+        check("drive: /safe cookiexss FAILED at turn 12 and /safe "
+              "cookiesqli FAILED at turn 15 — the canary token "
+              "reflects HTML-ENCODED (safe encoding, not a vuln)",
+              verdicts[11] == "FAILED" and verdicts[14] == "FAILED")
+        check("drive: 17 verdict turns executed, process completed, "
+              "no re-probe (each FAILED pair costs 3 turns)",
+              len(verdicts) == 17 and "process_completed" in events)
         claims = json.load(open(os.path.join(memdir, "claims.json")))
         check("drive: exactly 1 claim filed, generic_cookiexss, "
               "state=filed, location /prefs",
@@ -7680,10 +7762,13 @@ def proof_cookiexss():
                        "cookie:/safe:GET:theme"])
         plan3, meta3 = _lab_plan_for_hunt([], sinks3, tb3,
                                           exclude_cookie_names=own3)
-        check("Rule #75 plan gate: 6 steps — one cookiexss pair per "
-              "theme sink, zero steps for the excluded session cookie",
-              len(plan3) == 6 and
-              all(s["module"] == "generic_cookiexss" for s in plan3) and
+        check("Rule #75 plan gate: 12 steps — one cookiexss + one "
+              "cookiesqli pair per theme sink (Rule #74 + Rule #89), "
+              "zero steps for the excluded session cookie",
+              len(plan3) == 12 and
+              all(s["module"] in ("generic_cookiexss",
+                                  "generic_cookiesqli")
+                  for s in plan3) and
               meta3.get("excluded_cookie_sinks", []) == [])
         # defense in depth: a hand-built sink list that bypasses the
         # capture gate is still refused at plan time, WITH REASON
@@ -7733,6 +7818,256 @@ def proof_cookiexss():
           "claim builds exactly as before (all existing callers "
           "unaffected)",
           body7 is not None)
+
+    return {"checks": checks}
+
+
+
+def proof_cookiesqli():
+    """Rule #89 lab proof: generic cookie-sink SQLi probe (PLOOP89).
+
+    mock-fresh27 (probe-lab/mock-fresh27/fresh27_app.py) is a
+    twenty-seventh unseen app: no DVWA module signals, no query-param
+    links, no forms, no application/xml mentions — recon finds zero
+    known modules and zero query/form/xml sinks. The app sets
+    Set-Cookie on three pages, so recon must discover THREE cookie
+    sinks (one per (path, cookie name)):
+    cookie:/about:GET:prefs, cookie:/orders:GET:filter,
+    cookie:/profile:GET:uid. The cookie value is NEVER echoed
+    (XSS-negative, byte-exact fixture — the cookiexss pair must fail
+    everywhere here).
+
+      /orders   VULN error-based: lone quote in the "filter" cookie ->
+                200 with SQL error keywords ("syntax error near",
+                "sqlite3") the benign body never has -> the PLOOP89
+                probe's error test CONFIRMs (via=error_based).
+      /profile  VULN blind-only: lone quote in the "uid" cookie ->
+                400 with NO SQL keywords (forces the boolean-blind
+                path); true == benign body, false differs (x2
+                repeats) -> CONFIRMED (via=boolean_blind).
+      /about    NEGATIVE: the "prefs" cookie is parameterized — every
+                value returns the identical body; a lone quote is a
+                plain 400 with NO SQL keywords -> VERDICT: FAILED.
+      /static   Ignores cookies entirely -> FAILED (all-negative
+                control; sets no cookie, so it is not a sink at all).
+
+    Cross-negatives: no forms (zero form sinks); nothing persisted;
+    no reflection of cookie values (cookiexss FAILs on all 3 sinks);
+    no shell, no template engine, no Host-header trust, no
+    redirects.
+
+    Case A — discovery: 3 cookie sinks found, plan is 12 steps (one
+    cookiexss + one cookiesqli probe+claim pair per sink — Rule #74
+    + Rule #89; the param-shaped xss/sqli pairs would attack the
+    wrong injection point (?filter=) instead of the Cookie header),
+    budget prices 12.
+    Case B — full cold drive: /about cookiexss FAILED at turn 1 (3
+    turns); /about cookiesqli FAILED at turn 4 (3 turns); /orders
+    cookiexss FAILED at turn 7 (3 turns); /orders cookiesqli
+    CONFIRMED->FILED at turns 10-11 (via=error_based); /profile
+    cookiexss FAILED at turn 12 (3 turns); /profile cookiesqli
+    CONFIRMED->FILED at turns 15-16 (via=boolean_blind); exactly 2
+    filed claims (generic_cookiesqli), locations /orders + /profile;
+    process completes, no re-probe.
+    Case C — regression: the DVWA mock yields ZERO generic sinks so
+    the Rule #35 22-step plan is byte-identical (the DVWA mock only
+    sets PHPSESSID on a POST login; recon fetches GET-only, so no
+    Set-Cookie ever reaches the crawler).
+    Case D — Rule #75: the claim layer REFUSES a CONFIRMED
+    generic_cookiesqli output against a loop-owned session cookie
+    (self-inflicted findings are never filed); the same output
+    against a genuine cookie still builds (class sqli, high).
+    """
+    checks = []
+
+    def check(name, cond):
+        assert cond, "FAILED: " + name
+        checks.append(name)
+
+    def _hist(memdir):
+        return load_json(mem_paths(memdir)["process"],
+                         {"process": None})["process"]
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    fresh27 = os.path.join(here, "probe-lab", "mock-fresh27",
+                           "fresh27_app.py")
+    dvwa = os.path.join(here, "probe-lab", "mock-dvwa.py")
+
+    # --- Case A: discovery on the twenty-seventh unseen target ---
+    mp = _start_mock(fresh27, 8370, [])
+    try:
+        tb = "http://127.0.0.1:8370"
+        recon = _lab_recon_map(tb)
+        check("fresh27: recon finds zero known modules",
+              recon is not None and recon["modules"] == {})
+        sinks = _lab_generic_sinks(tb, None, list(recon["modules"]))
+        ids = [s["id"] for s in sinks]
+        check("discovery: finds all 3 cookie sinks (/about prefs, "
+              "/orders filter, /profile uid) in sorted order",
+              ids == ["cookie:/about:GET:prefs",
+                      "cookie:/orders:GET:filter",
+                      "cookie:/profile:GET:uid"])
+        check("discovery: every sink is kind=cookie, GET, params=[name]",
+              all(s["kind"] == "cookie" and s["method"] == "GET" and
+                  s["params"] == [s["id"].rsplit(":", 1)[1]]
+                  for s in sinks))
+        check("discovery: no sink touches a known module path",
+              not any("vulnerabilities" in i for i in ids))
+        plan, meta = _lab_plan_for_hunt([], sinks, tb)
+        check("plan: 12 steps — one cookiexss + one cookiesqli "
+              "probe+claim pair per cookie sink (Rule #74 + Rule #89)",
+              len(plan) == 12 and
+              [s["module"] for s in plan] ==
+              ["generic_cookiexss", "generic_cookiexss",
+               "generic_cookiesqli", "generic_cookiesqli"] * 3 and
+              [s["kind"] for s in plan] ==
+              ["probe", "claim"] * 6 and
+              [s["probe"] for s in plan if s["kind"] == "probe"] ==
+              ["probe_sink_cookiexss.py",
+               "probe_sink_cookiesqli.py"] * 3)
+        check("plan: the cookie name rides in the marker argv "
+              "(PLOOP74/PLOOP89|<tb>|<path>|GET|<name>), marker "
+              "filename-safe",
+              all(((s["marker"].startswith("PLOOP74|") and
+                    s["probe"] == "probe_sink_cookiexss.py") or
+                   (s["marker"].startswith("PLOOP89|") and
+                    s["probe"] == "probe_sink_cookiesqli.py"))
+                  for s in plan if s["kind"] == "probe") and
+              all(s["marker"].endswith("|GET|prefs") or
+                  s["marker"].endswith("|GET|filter") or
+                  s["marker"].endswith("|GET|uid")
+                  for s in plan if s["kind"] == "probe") and
+              all("/" not in s["marker"]
+                  for s in plan if s["kind"] == "probe"))
+        check("plan_meta: recon_ok=True, 3 cookie sink ids recorded",
+              meta["recon_ok"] is True and
+              set(meta["generic_sinks"]) == set(ids))
+        bi = budget_info([], sinks)
+        check("budget: 3 cookie sinks priced at 12 turns (Rule #74 + "
+              "Rule #89: each costs 4)",
+              bi["recommended_turns"] == 12 and bi["generic_turns"] == 12)
+
+        # --- Case B: full autonomous cold drive vs fresh27 ---
+        memdir = tempfile.mkdtemp(prefix="ploop89-b-")
+        goal = "probe-hunt: fresh27 cookie-SQLi drive"
+        ctx = {"registry_url": "http://127.0.0.1:9", "workdir": memdir,
+               "memdir": memdir, "target_base": tb}
+        verdicts, events = [], []
+        for _ in range(40):
+            r = run_turn(memdir, goal, ctx)
+            events.extend(r.get("events", []))
+            if "process_completed" in r.get("events", []):
+                break
+            verdicts.append(_hist(memdir)["history"][-1]["verdict"])
+        sq = [i for i, v in enumerate(verdicts) if v == "CONFIRMED"]
+        check("drive: /about cookiexss FAILED at turn 1 (the mock "
+              "never echoes the cookie — XSS-negative fixture)",
+              verdicts[0] == "FAILED")
+        check("drive: /about cookiesqli FAILED at turn 4 — the "
+              "parameterized negative; the / sink now carries two "
+              "pairs (Rule #89), each FAILED pair costs 3 turns",
+              verdicts[3] == "FAILED")
+        check("drive: /orders cookiexss FAILED at turn 7 (cookie "
+              "value never echoed)",
+              verdicts[6] == "FAILED")
+        check("drive: /orders cookiesqli CONFIRMED at turn 10 and "
+              "/profile cookiesqli CONFIRMED at turn 15 — error-based "
+              "then blind-only",
+              sq == [9, 14])
+        check("drive: each CONFIRMED probe is followed by a FILED claim",
+              all(verdicts[i + 1] == "FILED" for i in sq))
+        check("drive: /profile cookiexss FAILED at turn 12 (never "
+              "echoed)",
+              verdicts[11] == "FAILED")
+        check("drive: 16 verdict turns executed, process completed, "
+              "no re-probe",
+              len(verdicts) == 16 and "process_completed" in events)
+        claims = json.load(open(os.path.join(memdir, "claims.json")))
+        check("drive: exactly 2 claims filed, generic_cookiesqli, "
+              "state=filed, locations /orders + /profile",
+              len(claims) == 2 and
+              all(v["state"] == "filed" for v in claims.values()) and
+              {v["module"] for v in claims.values()} ==
+              {"generic_cookiesqli"} and
+              {v.get("location") for v in claims.values()} ==
+              {"/orders", "/profile"})
+        check("drive: claim class is sqli, severity high (the Rule #57 "
+              "class, distinct module)",
+              all(v.get("class") == "sqli" and
+                  v.get("severity") == "high"
+                  for v in claims.values()))
+        store = HashStore(os.path.join(memdir, "output"))
+        got = {}
+        for v in claims.values():
+            check("drive: claim carries a real evidence hash",
+                  bool(HASH_RE.match(v.get("evidence_hash") or "")))
+            raw = _to_text(store.get(v["evidence_hash"]) or b"")
+            m = re.search(r"EVIDENCE sink=(\S+)", raw)
+            n = re.search(r"EVIDENCE class=sql_injection "
+                          r"via=([a-z_]+)", raw)
+            check("drive: stored output cites sink + via=<class>",
+                  m is not None and n is not None)
+            if m and n:
+                got[m.group(1)] = n.group(1)
+            check("drive: stored output ends VERDICT: CONFIRMED",
+                  raw.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
+        check("drive: Rule #89 — /orders confirmed via=error_based "
+              "(SQL error keywords), /profile via=boolean_blind "
+              "(stable blind differential)",
+              got == {"/orders": "error_based",
+                      "/profile": "boolean_blind"})
+    finally:
+        _stop_mock(mp, 8370)
+
+    # --- Case C: DVWA regression — zero generic sinks ---
+    mp2 = _start_mock(dvwa, 8341, [])
+    try:
+        recon2 = _lab_recon_map("http://127.0.0.1:8341")
+        sinks2 = _lab_generic_sinks("http://127.0.0.1:8341", None,
+                                    list(recon2["modules"]))
+        check("dvwa: auth pages skipped WITH REASON, zero generic "
+              "sinks (the mock only sets PHPSESSID on POST login; "
+              "recon fetches GET-only)",
+              sinks2 == [])
+        plan2, meta2 = _lab_plan_for_hunt(list(recon2["modules"]),
+                                          sinks2,
+                                          "http://127.0.0.1:8341")
+        check("dvwa: Rule #35 22-step plan byte-identical",
+              len(plan2) == 22 and meta2["generic_sinks"] == [] and
+              all(s["module"] in _HUNT_MODULE_ORDER for s in plan2))
+    finally:
+        _stop_mock(mp2, 8341)
+
+    # --- Case D (Rule #75): the claim layer refuses self-owned cookies ---
+    proc9 = {"history": [{"step_idx": 0, "verdict": "CONFIRMED",
+                          "result_hash": "e" * 64,
+                          "action": {"command":
+                                     "python3 probe_sink_cookiesqli.py "
+                                     "PLOOP89|dummy"}}]}
+    store9 = {"e" * 64:
+              b"probe marker PLOOP89 observed in the target response; "
+              b"EVIDENCE sink=/orders cookie=filter error_based hits=2\n"
+              b"EVIDENCE class=sql_injection via=error_based\n"
+              b"VERDICT: CONFIRMED\n"}
+    body9, why9 = _build_lab_claim(
+        proc9, "generic_cookiesqli", 0, store9,
+        sink_id="cookie:/orders:GET:PHPSESSID",
+        self_cookie_names={"PHPSESSID"})
+    check("Rule #75 claim-layer gate: a CONFIRMED generic_cookiesqli "
+          "output against the loop's OWN session cookie is REFUSED "
+          "with a Rule #75 reason (never file a self-inflicted "
+          "finding)",
+          body9 is None and "Rule #75" in (why9 or "") and
+          "PHPSESSID" in (why9 or ""))
+    body10, _ = _build_lab_claim(
+        proc9, "generic_cookiesqli", 0, store9,
+        sink_id="cookie:/orders:GET:filter",
+        self_cookie_names={"PHPSESSID"})
+    check("Rule #75 claim-layer control: the same CONFIRMED output "
+          "against a genuinely attacker-controlled cookie still "
+          "builds a claim (class sqli, high)",
+          body10 is not None and body10["class"] == "sqli" and
+          body10["severity"] == "high")
 
     return {"checks": checks}
 
@@ -10147,6 +10482,10 @@ def main():
                     help="Rule #88: generic POST-form-sink stored-XSS "
                          "probe (twenty-sixth unseen target), "
                          "DVWA regression")
+    ap.add_argument("--proof-cookiesqli", action="store_true",
+                    help="Rule #89: generic cookie-sink SQLi "
+                         "probe (twenty-seventh unseen target), "
+                         "DVWA regression")
     ap.add_argument("--proof-reconfirm", action="store_true",
                     help="Rule #81: double-confirm in the probe executor "
                          "(twentieth unseen target: stable + flaky JSON "
@@ -10567,6 +10906,19 @@ def main():
         dt = time.time() - t0
         print("=" * 70)
         print("RULE #88 LAB PROOF: %d/%d checks passed in %.1fs"
+              % (len(allc), len(allc), dt))
+        for c in allc:
+            print("  [ok] " + c)
+        print("PROOF: PASS")
+        return
+
+    if args.proof_cookiesqli:
+        t0 = time.time()
+        gen27 = proof_cookiesqli()       # Rule #89: cookie-sink SQLi
+        allc = ["cookiesqli: " + c for c in gen27["checks"]]
+        dt = time.time() - t0
+        print("=" * 70)
+        print("RULE #89 LAB PROOF: %d/%d checks passed in %.1fs"
               % (len(allc), len(allc), dt))
         for c in allc:
             print("  [ok] " + c)
