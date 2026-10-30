@@ -198,6 +198,15 @@ _LAB_CLAIM_META = {
     # evaluation is the direct step to template code execution.
     "generic_ssti": ("SSTI (generic sink)",
                      "server_side_template_injection", "high"),
+    # Rule #70: same for the generic-sink XXE probe — the target
+    # RESOLVES an external entity in an application/xml POST body
+    # (the /etc/passwd content marker "root:x:0:0" or the win.ini
+    # "[fonts]" marker appears in the body though it was never
+    # transmitted -> via=xxe-file-read; a verbatim echo of the
+    # entity reference without the content marker is reflection,
+    # not resolution). Severity high: arbitrary file read.
+    "generic_xxe": ("XXE (generic sink)",
+                    "xxe", "high"),
 }
 
 
@@ -704,9 +713,11 @@ def _lab_generic_sinks(target_base, opener=None, known_modules=None,
                        timeout_s=5):
     """Discover generic attack sinks on the explicit target. Returns a
     sorted, capped list of {id, kind, method, path, params}: kind is
-    'form' (action+method+input names from <form> blocks) or 'query'
-    (param names from same-origin links carrying a query string).
-    Paths covered by known-module signals are excluded. Empty list when
+    'form' (action+method+input names from <form> blocks), 'query'
+    (param names from same-origin links carrying a query string), or
+    'xml' (Rule #70: an endpoint documented as accepting
+    application/xml POST bodies — the API-docs pattern). Paths
+    covered by known-module signals are excluded. Empty list when
     recon fails or the target has no sinks (fail-closed: no invented
     surface)."""
     tb = (target_base or "").rstrip("/")
@@ -798,6 +809,38 @@ def _lab_generic_sinks(target_base, opener=None, known_modules=None,
             sid = "form:%s:%s:%s" % (pu.path, method, ",".join(names))
             sinks[sid] = {"id": sid, "kind": "form", "method": method,
                           "path": pu.path, "params": names}
+        # Rule #70: XML sinks — endpoints that accept application/xml
+        # POST bodies. The signal is the API-docs pattern: a
+        # content-type mention (application/xml or text/xml) within
+        # ~200 chars of a same-origin path. Fail-closed: no mention,
+        # no sink. The mention span itself is excluded so the "/xml"
+        # inside "application/xml" can never register as a sink. A "/"
+        # preceded by "<" is HTML markup ("</body>"), never a URL path,
+        # so "<" joins the lookbehind (defect caught in the Rule #70
+        # proof: closing tags registered as sinks).
+        for xm in re.finditer(r"(?i)\b(?:application|text)/xml\b", body):
+            lo, hi = max(0, xm.start() - 200), xm.end() + 200
+            for pm in re.finditer(
+                    r"(?<![A-Za-z0-9_.\-<])(/[A-Za-z0-9_\-./]{1,80})",
+                    body[lo:hi]):
+                ps, pe = lo + pm.start(), lo + pm.end()
+                if ps < xm.end() and pe > xm.start():
+                    continue  # the mention itself, not a path
+                cand = pm.group(1).rstrip("./")
+                if len(cand) < 2 or cand == "/xml":
+                    continue
+                absu = urllib.parse.urljoin(tb + page_path, cand)
+                pu = urllib.parse.urlparse(absu)
+                if pu.netloc != base_netloc:
+                    continue
+                if _skip_path(pu.path):
+                    continue
+                sid = "xml:%s:POST" % pu.path
+                if sid in sinks:
+                    continue
+                sinks[sid] = {"id": sid, "kind": "xml",
+                              "method": "POST", "path": pu.path,
+                              "params": []}
     return [sinks[k] for k in sorted(sinks)][: _GENERIC_SINK_CAP]
 
 
@@ -833,7 +876,15 @@ def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
     the probe's template-syntax arithmetic: the result "7006652" in
     the body though it was never transmitted; a verbatim echo of the
     payload without the result is reflection, not evaluation) for
-    query sinks only. The generic
+    query sinks only, plus XXE
+    (probe_sink_xxe.py, PLOOP70 marker — the target must RESOLVE an
+    external entity in an application/xml POST body: the /etc/passwd
+    marker "root:x:0:0" or the win.ini marker "[fonts]" in the
+    response though it was never transmitted -> via=xxe-file-read; a
+    verbatim echo of the entity reference is reflection, not
+    resolution) for xml sinks only — xml sinks carry ONLY the xxe
+    pair, the xss/sqli/csrf pairs do not apply to an XML body. The
+    generic
     probe reads its sink spec from the marker argv
     (PLOOP56|<quoted-tb>|<quoted-path>|<METHOD>|<p1,p2>), so _probe_cmd
     needs no changes; the marker is URL-quoted to stay filename-safe
@@ -869,43 +920,50 @@ def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
     for sink in (generic_sinks or ()):
         tbq = urllib.parse.quote((target_base or "").rstrip("/"), safe="")
         pathq = urllib.parse.quote(sink.get("path", ""), safe="")
-        marker = "PLOOP56|%s|%s|%s|%s" % (
-            tbq, pathq, sink.get("method", "GET"),
-            ",".join(sink.get("params", ())))
-        plan.append({
-            "desc": "Probe generic sink %s for reflected XSS (%s)" %
-                    (sink.get("id"), "probe_sink_xss.py"),
-            "kind": "probe", "module": "generic_xss",
-            "sink": sink.get("id"), "probe": "probe_sink_xss.py",
-            "marker": marker, "done": False, "result_hash": None,
-            "recon": True})
-        plan.append({
-            "desc": "File claim for the verified generic-sink finding",
-            "kind": "claim", "module": "generic_xss",
-            "sink": sink.get("id"),
-            "probe_step_idx": len(plan) - 1,
-            "done": False, "result_hash": None,
-            "recon": True})
+        # Rule #70: an xml sink carries ONLY the XXE probe+claim pair
+        # (appended at the end of the loop body) — its request body is
+        # XML, not params or fields, so the param-based xss/sqli pairs
+        # below do not apply to it.
+        if sink.get("kind") != "xml":
+            marker = "PLOOP56|%s|%s|%s|%s" % (
+                tbq, pathq, sink.get("method", "GET"),
+                ",".join(sink.get("params", ())))
+            plan.append({
+                "desc": "Probe generic sink %s for reflected XSS (%s)" %
+                        (sink.get("id"), "probe_sink_xss.py"),
+                "kind": "probe", "module": "generic_xss",
+                "sink": sink.get("id"), "probe": "probe_sink_xss.py",
+                "marker": marker, "done": False, "result_hash": None,
+                "recon": True})
+            plan.append({
+                "desc": "File claim for the verified generic-sink finding",
+                "kind": "claim", "module": "generic_xss",
+                "sink": sink.get("id"),
+                "probe_step_idx": len(plan) - 1,
+                "done": False, "result_hash": None,
+                "recon": True})
         # Rule #57: the SQLi probe for the same sink (PLOOP57 marker —
         # error-based keywords + boolean-blind differential with a
         # stability gate so no claim is ever grounded on noise).
-        sqli_marker = "PLOOP57|%s|%s|%s|%s" % (
-            tbq, pathq, sink.get("method", "GET"),
-            ",".join(sink.get("params", ())))
-        plan.append({
-            "desc": "Probe generic sink %s for SQL injection (%s)" %
-                    (sink.get("id"), "probe_sink_sqli.py"),
-            "kind": "probe", "module": "generic_sqli",
-            "sink": sink.get("id"), "probe": "probe_sink_sqli.py",
-            "marker": sqli_marker, "done": False, "result_hash": None,
-            "recon": True})
-        plan.append({
-            "desc": "File claim for the verified generic-sink finding",
-            "kind": "claim", "module": "generic_sqli",
-            "sink": sink.get("id"),
-            "probe_step_idx": len(plan) - 1,
-            "done": False, "result_hash": None,
-            "recon": True})
+        # (Rule #70: skipped for xml sinks — see the gate above.)
+        if sink.get("kind") != "xml":
+            sqli_marker = "PLOOP57|%s|%s|%s|%s" % (
+                tbq, pathq, sink.get("method", "GET"),
+                ",".join(sink.get("params", ())))
+            plan.append({
+                "desc": "Probe generic sink %s for SQL injection (%s)" %
+                        (sink.get("id"), "probe_sink_sqli.py"),
+                "kind": "probe", "module": "generic_sqli",
+                "sink": sink.get("id"), "probe": "probe_sink_sqli.py",
+                "marker": sqli_marker, "done": False, "result_hash": None,
+                "recon": True})
+            plan.append({
+                "desc": "File claim for the verified generic-sink finding",
+                "kind": "claim", "module": "generic_sqli",
+                "sink": sink.get("id"),
+                "probe_step_idx": len(plan) - 1,
+                "done": False, "result_hash": None,
+                "recon": True})
         # Rule #61: the CSRF state-change probe for POST-form sinks
         # only (PLOOP61 marker — control POST with the server-issued
         # token proves the sink is state-changing, then a token-less
@@ -1138,6 +1196,35 @@ def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
                 "probe_step_idx": len(plan) - 1,
                 "done": False, "result_hash": None,
                 "recon": True})
+        # Rule #70: the XXE probe for XML sinks (PLOOP70 marker — the
+        # target must RESOLVE an external entity in an
+        # application/xml POST body and reflect the file content: the
+        # /etc/passwd marker "root:x:0:0" or the win.ini marker
+        # "[fonts]" though it was never transmitted ->
+        # via=xxe-file-read; a verbatim echo of the entity reference
+        # without the content marker is reflection, not resolution,
+        # so it can never confirm). XML sinks carry ONLY this pair —
+        # the body is XML, not params/fields, so the xss/sqli/csrf
+        # pairs do not apply.
+        if sink.get("kind") == "xml":
+            xxe_marker = "PLOOP70|%s|%s|%s|" % (tbq, pathq, "POST")
+            plan.append({
+                "desc": "Probe generic sink %s for XXE (%s)" %
+                        (sink.get("id"), "probe_sink_xxe.py"),
+                "kind": "probe", "module": "generic_xxe",
+                "sink": sink.get("id"),
+                "probe": "probe_sink_xxe.py",
+                "marker": xxe_marker, "done": False,
+                "result_hash": None,
+                "recon": True})
+            plan.append({
+                "desc": "File claim for the verified generic-sink "
+                        "finding",
+                "kind": "claim", "module": "generic_xxe",
+                "sink": sink.get("id"),
+                "probe_step_idx": len(plan) - 1,
+                "done": False, "result_hash": None,
+                "recon": True})
     meta["generic_sinks"] = [s.get("id") for s in (generic_sinks or ())]
     return plan, meta
 
@@ -1204,13 +1291,14 @@ def budget_info(modules=None, generic_sinks=()):
     plan / Rule #35 blind-recon fallback). Pass the recon-found module
     list for a pruned plan. generic_sinks (Rule #56, Rule #57, Rule
     #61, Rule #62, Rule #63, Rule #64, Rule #65, Rule #66, Rule #67,
-    Rule #69)
+    Rule #69, Rule #70)
     cost 4 turns each (XSS probe+claim, SQLi
     probe+claim), 8 for POST-form sinks (the CSRF probe+claim pair
-    plus the Rule #69 open-redirect-on-POST probe+claim pair)
-    and 16 for query sinks (the open-redirect, SSRF-reachability,
+    plus the Rule #69 open-redirect-on-POST probe+claim pair),
+    16 for query sinks (the open-redirect, SSRF-reachability,
     header-injection, blind command-injection, path-traversal and
-    server-side template injection probe+claim pairs), no escalation
+    server-side template injection probe+claim pairs), and 2 for
+    xml sinks (the Rule #70 XXE probe+claim pair), no escalation
     rungs yet. Returns {planned_modules,
     generic_sinks, base_turns, max_escalation_turns, recommended_turns}.
     """
@@ -1226,12 +1314,17 @@ def budget_info(modules=None, generic_sinks=()):
         # Rule #65 + Rule #66 + Rule #67: a query sink carries eight
         # (xss + sqli + open-redirect + ssrf + header-injection +
         # blind command-injection + path-traversal + server-side
-        # template injection); every other sink shape carries two.
+        # template injection); Rule #70: an xml sink carries one
+        # (xxe); every other sink shape carries two.
         if isinstance(s, dict) and s.get("kind") == "form" and \
                 s.get("method", "GET").upper() == "POST":
             gen += 8
         elif isinstance(s, dict) and s.get("kind") == "query":
             gen += 16
+        elif isinstance(s, dict) and s.get("kind") == "xml":
+            # Rule #70: an xml sink carries only the XXE probe+claim
+            # pair — the body is XML, not params/fields.
+            gen += 2
         else:
             gen += 4
     return {"planned_modules": planned,
@@ -6013,6 +6106,178 @@ def proof_postredirect():
     return {"checks": checks}
 
 
+def proof_xxe():
+    """Rule #70 lab proof: GENERIC XXE probe for xml sinks.
+
+    mock-fresh14 (probe-lab/mock-fresh14/fresh14_app.py) is a fourteenth
+    unseen app: no DVWA module signals, so recon drops all 11 known
+    modules and only generic sinks remain. Rule #70 added XML-sink
+    discovery (the API-docs pattern: an "application/xml" mention
+    within ~200 chars of a same-origin path) — this app carries the
+    XXE class on those sinks:
+
+      /api/xml   POST application/xml. VULN: resolves external
+                 entities (simulated as a resolving parser behaves) —
+                 a body defining an entity on file:///etc/passwd
+                 answers with the canned marker "root:x:0:0" (the
+                 probe never transmits it) -> generic_xxe CONFIRMs
+                 via=xxe-file-read.
+      /api/echo  POST application/xml. Returns the raw POST body
+                 wrapped in <received> — the entity reference is
+                 reflected VERBATIM, never resolved (the probe's hard
+                 negative control: reflection, not resolution) ->
+                 every pair FAILED.
+      /api/safe  POST application/xml. Static marker-free response
+                 that ignores the body -> every pair FAILED.
+      /login.php trivial 200 (the _start_mock readiness probe).
+
+    Case A — discovery: 3 xml sinks found (and ONLY those — the
+    proof caught the discovery matching HTML closing tags like
+    "</body>" as paths; a "/" preceded by "<" is markup, fixed in
+    _lab_generic_sinks), plan is 6 steps (xxe probe+claim per xml
+    sink — the body is XML, not params/fields, so the xss/sqli pairs
+    do not apply; the proof caught them being added unconditionally,
+    fixed in _recon_driven_plan), budget prices 6 turns.
+    Case B — full cold drive: /api/echo's and /api/safe's FAILED
+    pairs cost 3 turns each (FAILED + probe DEAD_END + claim
+    DEAD_END), /api/xml's xxe CONFIRMs at turn 7 -> claim FILED;
+    exactly 1 filed claim (generic_xxe, class xxe, location /api/xml)
+    with a real evidence hash; stored output cites via=xxe-file-read
+    and ends VERDICT: CONFIRMED; process completes, no re-probe.
+    Case C — regression: the DVWA mock yields ZERO generic sinks so the
+    Rule #35 22-step plan is byte-identical.
+    """
+    checks = []
+
+    def check(name, cond):
+        assert cond, "FAILED: " + name
+        checks.append(name)
+
+    def _hist(memdir):
+        return load_json(mem_paths(memdir)["process"],
+                         {"process": None})["process"]
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    fresh14 = os.path.join(here, "probe-lab", "mock-fresh14",
+                           "fresh14_app.py")
+    dvwa = os.path.join(here, "probe-lab", "mock-dvwa.py")
+
+    # --- Case A: discovery on the fourteenth unseen target ---
+    mp = _start_mock(fresh14, 8354, [])
+    try:
+        tb = "http://127.0.0.1:8354"
+        recon = _lab_recon_map(tb)
+        check("fresh14: recon finds zero known modules",
+              recon is not None and recon["modules"] == {})
+        sinks = _lab_generic_sinks(tb, None, list(recon["modules"]))
+        ids = [s["id"] for s in sinks]
+        check("discovery: finds all 3 xml sinks (no HTML-tag false "
+              "positives)",
+              ids == ["xml:/api/echo:POST",
+                      "xml:/api/safe:POST",
+                      "xml:/api/xml:POST"])
+        check("discovery: every sink is kind=xml, method=POST",
+              all(s["kind"] == "xml" and s["method"] == "POST"
+                  for s in sinks))
+        plan, meta = _lab_plan_for_hunt([], sinks, tb)
+        check("plan: 6 steps, xxe probe+claim per xml sink ONLY "
+              "(Rule #70: no xss/sqli pairs on XML bodies)",
+              len(plan) == 6 and
+              [s["module"] for s in plan] == ["generic_xxe"] * 6 and
+              [s["kind"] for s in plan] == ["probe", "claim"] * 3 and
+              [s["probe"] for s in plan if s["kind"] == "probe"] ==
+              ["probe_sink_xxe.py"] * 3)
+        check("plan: sink spec rides in the marker argv "
+              "(PLOOP70|..|..|POST|, no literal /)",
+              all(s["marker"].startswith("PLOOP70|") and
+                  s["probe"] == "probe_sink_xxe.py"
+                  for s in plan if s["kind"] == "probe") and
+              all("/" not in s["marker"]
+                  for s in plan if s["kind"] == "probe"))
+        check("plan_meta: recon_ok=True, 3 generic sink ids recorded",
+              meta["recon_ok"] is True and
+              set(meta["generic_sinks"]) == set(ids))
+        bi = budget_info([], sinks)
+        check("budget: 3 xml sinks priced at 6 turns (Rule #70: each "
+              "xml sink costs 2)",
+              bi["recommended_turns"] == 6 and bi["generic_turns"] == 6)
+
+        # --- Case B: full autonomous cold drive vs fresh14 ---
+        memdir = tempfile.mkdtemp(prefix="ploop70-b-")
+        goal = "probe-hunt: fresh14 xxe drive"
+        ctx = {"registry_url": "http://127.0.0.1:9", "workdir": memdir,
+               "memdir": memdir, "target_base": tb}
+        verdicts, events = [], []
+        for _ in range(60):
+            r = run_turn(memdir, goal, ctx)
+            events.extend(r.get("events", []))
+            if "process_completed" in r.get("events", []):
+                break
+            verdicts.append(_hist(memdir)["history"][-1]["verdict"])
+        sq = [i for i, v in enumerate(verdicts) if v == "CONFIRMED"]
+        check("drive: exactly 1 CONFIRMED probe (/api/xml xxe at turn "
+              "7; every FAILED pair costs 3 turns: FAILED + probe "
+              "DEAD_END + claim DEAD_END)",
+              sq == [6])
+        check("drive: every CONFIRMED probe is followed by a FILED "
+              "claim",
+              all(verdicts[i + 1] == "FILED" for i in sq))
+        check("drive: 8 verdict turns executed, process completed, no "
+              "re-probe",
+              len(verdicts) == 8 and "process_completed" in events)
+        claims = json.load(open(os.path.join(memdir, "claims.json")))
+        got_pairs = {(v["module"], v.get("location"))
+                     for v in claims.values()}
+        check("drive: exactly 1 claim filed, generic_xxe at /api/xml "
+              "(class xxe)",
+              len(claims) == 1 and
+              got_pairs == {("generic_xxe", "/api/xml")} and
+              all(v["state"] == "filed" for v in claims.values()) and
+              {v.get("class") for v in claims.values()} == {"xxe"})
+        check("drive: /api/echo + /api/safe contribute zero claims "
+              "(the negative controls — reflection is not resolution)",
+              not ({"/api/echo", "/api/safe"} &
+                   {v.get("location") for v in claims.values()}))
+        store = HashStore(os.path.join(memdir, "output"))
+        got = {}
+        for v in claims.values():
+            check("drive: claim carries a real evidence hash",
+                  bool(HASH_RE.match(v.get("evidence_hash") or "")))
+            raw = _to_text(store.get(v["evidence_hash"]) or b"")
+            m = re.search(r"EVIDENCE sink=(\S+) .* via=([a-z-]+)",
+                          raw)
+            check("drive: stored output cites sink + via=<channel>",
+                  m is not None)
+            if m:
+                got[m.group(1)] = m.group(2)
+            check("drive: stored output ends VERDICT: CONFIRMED",
+                  raw.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
+        check("drive: /api/xml confirmed via=xxe-file-read (the "
+              "passwd content marker, never transmitted)",
+              got == {"/api/xml": "xxe-file-read"})
+    finally:
+        _stop_mock(mp, 8354)
+
+    # --- Case C: DVWA regression — zero generic sinks ---
+    mp2 = _start_mock(dvwa, 8341, [])
+    try:
+        recon2 = _lab_recon_map("http://127.0.0.1:8341")
+        sinks2 = _lab_generic_sinks("http://127.0.0.1:8341", None,
+                                    list(recon2["modules"]))
+        check("dvwa: auth pages skipped WITH REASON, zero generic sinks",
+              sinks2 == [])
+        plan2, meta2 = _lab_plan_for_hunt(list(recon2["modules"]),
+                                          sinks2,
+                                          "http://127.0.0.1:8341")
+        check("dvwa: Rule #35 22-step plan byte-identical",
+              len(plan2) == 22 and meta2["generic_sinks"] == [] and
+              all(s["module"] in _HUNT_MODULE_ORDER for s in plan2))
+    finally:
+        _stop_mock(mp2, 8341)
+
+    return {"checks": checks}
+
+
 def proof_fulldrive():
     """Rule #68 lab proof: OWNER-FLIP REHEARSAL DRIVE — the full generic
     set cold-driven against a twelfth unseen multi-class target.
@@ -6496,6 +6761,9 @@ def main():
                     help="Rule #69: generic open-redirect probe for "
                          "POST-form sinks (thirteenth unseen target), "
                          "DVWA regression")
+    ap.add_argument("--proof-xxe", action="store_true",
+                    help="Rule #70: generic XXE probe for xml sinks "
+                         "(fourteenth unseen target), DVWA regression")
     ap.add_argument("--proof-fulldrive", action="store_true",
                     help="Rule #68: owner-flip rehearsal drive — full "
                          "generic set cold-driven vs a twelfth unseen "
@@ -6783,6 +7051,19 @@ def main():
         dt = time.time() - t0
         print("=" * 70)
         print("RULE #69 LAB PROOF: %d/%d checks passed in %.1fs"
+              % (len(allc), len(allc), dt))
+        for c in allc:
+            print("  [ok] " + c)
+        print("PROOF: PASS")
+        return
+
+    if args.proof_xxe:
+        t0 = time.time()
+        gen14 = proof_xxe()               # Rule #70: XXE probe
+        allc = ["xxe: " + c for c in gen14["checks"]]
+        dt = time.time() - t0
+        print("=" * 70)
+        print("RULE #70 LAB PROOF: %d/%d checks passed in %.1fs"
               % (len(allc), len(allc), dt))
         for c in allc:
             print("  [ok] " + c)
