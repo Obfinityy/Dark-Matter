@@ -217,6 +217,19 @@ _LAB_CLAIM_META = {
     # are the honest generic call.
     "generic_hostheader": ("Host header injection (generic sink)",
                            "host_header_injection", "medium"),
+    # Rule #74: same for the generic-sink cookie-XSS probe — the
+    # target reflects an attacker-controlled cookie value into the
+    # response body UNESCAPED (the run-unique executable canary
+    # "<img src=x onerror=PLOOP74-<nonce>>" in the canary body
+    # though absent from the control body -> via=html; an
+    # HTML-encoded reflection is a safe encoding, not a vuln).
+    # Severity high: reflected XSS executes in the victim's browser.
+    # Same class as Rule #56 ("xss_reflected"), distinct module —
+    # dedup is (module, class, location), so a page vulnerable via
+    # both a query param and a cookie files two distinct claims
+    # (the Rule #69 rationale).
+    "generic_cookiexss": ("Reflected XSS (generic cookie sink)",
+                         "xss_reflected", "high"),
 }
 
 
@@ -724,9 +737,11 @@ def _lab_generic_sinks(target_base, opener=None, known_modules=None,
     """Discover generic attack sinks on the explicit target. Returns a
     sorted, capped list of {id, kind, method, path, params}: kind is
     'form' (action+method+input names from <form> blocks), 'query'
-    (param names from same-origin links carrying a query string), or
+    (param names from same-origin links carrying a query string),
     'xml' (Rule #70: an endpoint documented as accepting
-    application/xml POST bodies — the API-docs pattern). Paths
+    application/xml POST bodies — the API-docs pattern), or 'cookie'
+    (Rule #74: a Set-Cookie name on a crawled response — one sink
+    per (path, cookie name), GET method, the name in params). Paths
     covered by known-module signals are excluded. Empty list when
     recon fails or the target has no sinks (fail-closed: no invented
     surface)."""
@@ -738,14 +753,33 @@ def _lab_generic_sinks(target_base, opener=None, known_modules=None,
         skip_sub.update(_RECON_MODULE_SIGNALS.get(m, {}).get("paths", ()))
 
     def _get(url):
+        # Returns (code, set_cookie_headers, body). Set-Cookie is
+        # returned raw (Rule #74): duplicate headers are kept via
+        # get_all — dict(r.info()) would collapse them.
         if opener is not None:
             with opener.open(url, timeout=timeout_s) as r:
-                return r.getcode(), _to_text(r.read())
+                return (r.getcode(),
+                        r.headers.get_all("Set-Cookie", []),
+                        _to_text(r.read()))
         with urllib.request.urlopen(url, timeout=timeout_s) as r:
-            return r.getcode(), _to_text(r.read())
+            return (r.getcode(),
+                    r.headers.get_all("Set-Cookie", []),
+                    _to_text(r.read()))
+
+    def _cookie_names(set_cookie_headers):
+        # Rule #74: the Set-Cookie names a page sets. The name regex
+        # mirrors the probe's fail-closed validator
+        # ([A-Za-z0-9_.\-], max 64 chars) — recon never hands the
+        # probe a cookie name the probe must reject.
+        names = []
+        for hval in set_cookie_headers or ():
+            nm = (hval or "").split(";", 1)[0].split("=", 1)[0].strip()
+            if re.fullmatch(r"[A-Za-z0-9_.\-]{1,64}", nm or ""):
+                names.append(nm)
+        return sorted(set(names))
 
     try:
-        _code, index = _get(tb + "/")
+        _code, _index_setc, index = _get(tb + "/")
     except Exception:
         return []
     base_netloc = urllib.parse.urlparse(tb).netloc
@@ -761,6 +795,7 @@ def _lab_generic_sinks(target_base, opener=None, known_modules=None,
         return any(s in pl for s in _GENERIC_SINK_SKIP_PATH)
 
     pages = {"/": index}
+    page_cookies = {"/": _cookie_names(_index_setc)}
     for href in re.findall(r"href=['\"]([^'\"#>]+)", index):
         absu = urllib.parse.urljoin(tb + "/", href)
         pu = urllib.parse.urlparse(absu)
@@ -771,11 +806,12 @@ def _lab_generic_sinks(target_base, opener=None, known_modules=None,
         if pu.path in pages or len(pages) > 24:
             continue
         try:
-            code, body = _get(absu.split("#")[0])
+            code, setc, body = _get(absu.split("#")[0])
         except Exception:
             continue
         if code == 200:
             pages[pu.path] = body
+            page_cookies[pu.path] = _cookie_names(setc)
 
     sinks = {}
     for page_path, body in pages.items():
@@ -851,6 +887,20 @@ def _lab_generic_sinks(target_base, opener=None, known_modules=None,
                 sinks[sid] = {"id": sid, "kind": "xml",
                               "method": "POST", "path": pu.path,
                               "params": []}
+        # Rule #74: cookie sinks — one per (path, Set-Cookie name).
+        # A name the server sets is attacker-controllable input the
+        # server may reflect into a page (theme/prefs/remember-me
+        # values); the PLOOP74 probe proves unescaped reflection.
+        # Known-module paths and auth surfaces stay excluded via
+        # _skip_path, same as every other sink kind.
+        if not _skip_path(page_path):
+            for cname in page_cookies.get(page_path, ()):
+                sid = "cookie:%s:GET:%s" % (page_path, cname)
+                if sid in sinks:
+                    continue
+                sinks[sid] = {"id": sid, "kind": "cookie",
+                              "method": "GET", "path": page_path,
+                              "params": [cname]}
     return [sinks[k] for k in sorted(sinks)][: _GENERIC_SINK_CAP]
 
 
@@ -900,7 +950,15 @@ def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
     absent from the control body -> via=host-header-body, or in the
     302 Location though the control Location lacked it ->
     via=host-header-redirect) for query sinks only — the probe needs
-    no params, it rides the path. The
+    no params, it rides the path, plus cookie sinks
+    (probe_sink_cookiexss.py, PLOOP74 marker — the target must
+    reflect the attacker-controlled cookie value into the response
+    body UNESCAPED: the run-unique executable canary "<img src=x
+    onerror=PLOOP74-<nonce>>" in the canary body though absent
+    from the control body -> via=html; an HTML-encoded reflection
+    is a safe encoding, not a vuln) for cookie sinks only — cookie
+    sinks carry ONLY the cookiexss pair; the xss/sqli/csrf pairs do
+    not apply to a cookie value. The
     generic
     probe reads its sink spec from the marker argv
     (PLOOP56|<quoted-tb>|<quoted-path>|<METHOD>|<p1,p2>), so _probe_cmd
@@ -940,8 +998,12 @@ def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
         # Rule #70: an xml sink carries ONLY the XXE probe+claim pair
         # (appended at the end of the loop body) — its request body is
         # XML, not params or fields, so the param-based xss/sqli pairs
-        # below do not apply to it.
-        if sink.get("kind") != "xml":
+        # below do not apply to it. Rule #74: same exclusion for
+        # cookie sinks — the params field carries the cookie NAME,
+        # which is not a query param; the xss/sqli probes would
+        # attack the wrong injection point (?name=) instead of the
+        # Cookie header the sink was discovered for.
+        if sink.get("kind") not in ("xml", "cookie"):
             marker = "PLOOP56|%s|%s|%s|%s" % (
                 tbq, pathq, sink.get("method", "GET"),
                 ",".join(sink.get("params", ())))
@@ -962,8 +1024,10 @@ def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
         # Rule #57: the SQLi probe for the same sink (PLOOP57 marker —
         # error-based keywords + boolean-blind differential with a
         # stability gate so no claim is ever grounded on noise).
-        # (Rule #70: skipped for xml sinks — see the gate above.)
-        if sink.get("kind") != "xml":
+        # (Rule #70: skipped for xml sinks — see the gate above;
+        # Rule #74: skipped for cookie sinks — the params field
+        # carries the cookie name, not a query param.)
+        if sink.get("kind") not in ("xml", "cookie"):
             sqli_marker = "PLOOP57|%s|%s|%s|%s" % (
                 tbq, pathq, sink.get("method", "GET"),
                 ",".join(sink.get("params", ())))
@@ -1275,6 +1339,38 @@ def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
                 "probe_step_idx": len(plan) - 1,
                 "done": False, "result_hash": None,
                 "recon": True})
+        # Rule #74: the cookie-XSS probe for cookie sinks
+        # (PLOOP74 marker — the target must reflect the
+        # attacker-controlled cookie value into the response body
+        # UNESCAPED: the run-unique executable canary "<img src=x
+        # onerror=PLOOP74-<nonce>>" in the canary body though
+        # absent from the control body -> via=html; an
+        # HTML-encoded reflection is a safe encoding, not a vuln).
+        # Cookie sinks carry ONLY this pair — a cookie is neither a
+        # query param nor a form field nor an XML body, so the
+        # xss/sqli/csrf pairs do not apply.
+        if sink.get("kind") == "cookie":
+            cxss_marker = "PLOOP74|%s|%s|%s|%s" % (
+                tbq, pathq, "GET",
+                ",".join(sink.get("params", ())))
+            plan.append({
+                "desc": "Probe generic cookie sink %s for reflected "
+                        "XSS (%s)" %
+                        (sink.get("id"), "probe_sink_cookiexss.py"),
+                "kind": "probe", "module": "generic_cookiexss",
+                "sink": sink.get("id"),
+                "probe": "probe_sink_cookiexss.py",
+                "marker": cxss_marker, "done": False,
+                "result_hash": None,
+                "recon": True})
+            plan.append({
+                "desc": "File claim for the verified generic-sink "
+                        "finding",
+                "kind": "claim", "module": "generic_cookiexss",
+                "sink": sink.get("id"),
+                "probe_step_idx": len(plan) - 1,
+                "done": False, "result_hash": None,
+                "recon": True})
     meta["generic_sinks"] = [s.get("id") for s in (generic_sinks or ())]
     return plan, meta
 
@@ -1341,14 +1437,15 @@ def budget_info(modules=None, generic_sinks=()):
     plan / Rule #35 blind-recon fallback). Pass the recon-found module
     list for a pruned plan. generic_sinks (Rule #56, Rule #57, Rule
     #61, Rule #62, Rule #63, Rule #64, Rule #65, Rule #66, Rule #67,
-    Rule #69, Rule #70)
+    Rule #69, Rule #70, Rule #74)
     cost 4 turns each (XSS probe+claim, SQLi
     probe+claim), 8 for POST-form sinks (the CSRF probe+claim pair
     plus the Rule #69 open-redirect-on-POST probe+claim pair),
     16 for query sinks (the open-redirect, SSRF-reachability,
     header-injection, blind command-injection, path-traversal and
-    server-side template injection probe+claim pairs), and 2 for
-    xml sinks (the Rule #70 XXE probe+claim pair), no escalation
+    server-side template injection probe+claim pairs), 2 for
+    xml sinks (the Rule #70 XXE probe+claim pair), and 2 for cookie
+    sinks (the Rule #74 cookie-XSS probe+claim pair), no escalation
     rungs yet. Returns {planned_modules,
     generic_sinks, base_turns, max_escalation_turns, recommended_turns}.
     """
@@ -1365,7 +1462,8 @@ def budget_info(modules=None, generic_sinks=()):
         # nine (xss + sqli + open-redirect + ssrf + header-injection +
         # blind command-injection + path-traversal + server-side
         # template injection + host-header injection); Rule #70: an xml
-        # sink carries one (xxe); every other sink shape carries two.
+        # sink carries one (xxe); Rule #74: a cookie sink carries one
+        # (cookie-XSS); every other sink shape carries two.
         if isinstance(s, dict) and s.get("kind") == "form" and \
                 s.get("method", "GET").upper() == "POST":
             gen += 8
@@ -1374,6 +1472,11 @@ def budget_info(modules=None, generic_sinks=()):
         elif isinstance(s, dict) and s.get("kind") == "xml":
             # Rule #70: an xml sink carries only the XXE probe+claim
             # pair — the body is XML, not params/fields.
+            gen += 2
+        elif isinstance(s, dict) and s.get("kind") == "cookie":
+            # Rule #74: a cookie sink carries only the cookie-XSS
+            # probe+claim pair — a cookie is neither a query param
+            # nor a form field nor an XML body.
             gen += 2
         else:
             gen += 4
@@ -6588,6 +6691,197 @@ def proof_hostheader():
     return {"checks": checks}
 
 
+def proof_cookiexss():
+    """Rule #74 lab proof: generic cookie-sink reflected-XSS probe.
+
+    mock-fresh16 (probe-lab/mock-fresh16/fresh16_app.py) is a sixteenth
+    unseen app: no DVWA module signals, no query-param links, no
+    forms, no application/xml mentions — recon finds zero known
+    modules and zero query/form/xml sinks. The app sets
+    Set-Cookie: theme=light on /, /prefs and /safe, so recon must
+    discover THREE cookie sinks (one per (path, cookie name)):
+    cookie:/:GET:theme, cookie:/prefs:GET:theme,
+    cookie:/safe:GET:theme. Cookie sinks are a sink KIND the generic
+    set never covered (query 9 classes / form 4 / xml 1 / cookie 0).
+
+      /prefs  VULN: reflects the "theme" cookie RAW into the page ->
+              the PLOOP74 probe's executable canary reflects UNESCAPED
+              -> VERDICT: CONFIRMED via=html.
+      /safe   Reflects the "theme" cookie HTML-ESCAPED -> the canary
+              token reflects but the payload does not -> VERDICT:
+              FAILED (safe encoding, not a vuln — the hard negative
+              control).
+      /static Ignores cookies entirely -> FAILED (all-negative
+              control; sets no cookie, so it is not a sink at all).
+
+    Cross-negatives: no forms (zero form sinks); nothing persisted;
+    no SQL, no error keywords, no shell, no template engine, no
+    entity parsing, no Host-header trust, no redirects.
+
+    Case A — discovery: 3 cookie sinks found, plan is 6 steps (one
+    cookiexss probe+claim pair per sink — Rule #74: cookie sinks
+    carry ONLY this pair; the param-shaped xss/sqli pairs would
+    attack the wrong injection point (?theme=) instead of the
+    Cookie header), budget prices 6.
+    Case B — full cold drive: / cookiexss FAILED at turn 1 (3 turns:
+    FAILED + probe DEAD_END + claim DEAD_END); /prefs cookiexss
+    CONFIRMED->FILED at turns 4-5 (via=html); /safe cookiexss
+    FAILED at turn 6 (3 turns); exactly 1 filed claim
+    (generic_cookiexss), location /prefs; process completes, no
+    re-probe.
+    Case C — regression: the DVWA mock yields ZERO generic sinks so
+    the Rule #35 22-step plan is byte-identical (the DVWA mock only
+    sets PHPSESSID on a POST login; recon fetches GET-only, so no
+    Set-Cookie ever reaches the crawler).
+    """
+    checks = []
+
+    def check(name, cond):
+        assert cond, "FAILED: " + name
+        checks.append(name)
+
+    def _hist(memdir):
+        return load_json(mem_paths(memdir)["process"],
+                         {"process": None})["process"]
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    fresh16 = os.path.join(here, "probe-lab", "mock-fresh16",
+                           "fresh16_app.py")
+    dvwa = os.path.join(here, "probe-lab", "mock-dvwa.py")
+
+    # --- Case A: discovery on the sixteenth unseen target ---
+    mp = _start_mock(fresh16, 8356, [])
+    try:
+        tb = "http://127.0.0.1:8356"
+        recon = _lab_recon_map(tb)
+        check("fresh16: recon finds zero known modules",
+              recon is not None and recon["modules"] == {})
+        sinks = _lab_generic_sinks(tb, None, list(recon["modules"]))
+        ids = [s["id"] for s in sinks]
+        check("discovery: finds all 3 cookie sinks (/, /prefs, /safe "
+              "Set-Cookie: theme=light) in sorted order",
+              ids == ["cookie:/:GET:theme",
+                      "cookie:/prefs:GET:theme",
+                      "cookie:/safe:GET:theme"])
+        check("discovery: every sink is kind=cookie, GET, params=[theme]",
+              all(s["kind"] == "cookie" and s["method"] == "GET" and
+                  s["params"] == ["theme"] for s in sinks))
+        check("discovery: no sink touches a known module path",
+              not any("vulnerabilities" in i for i in ids))
+        plan, meta = _lab_plan_for_hunt([], sinks, tb)
+        check("plan: 6 steps — one cookiexss probe+claim pair per "
+              "cookie sink (Rule #74: the param-shaped xss/sqli "
+              "pairs do NOT apply to a cookie value)",
+              len(plan) == 6 and
+              [s["module"] for s in plan] ==
+              ["generic_cookiexss"] * 6 and
+              [s["kind"] for s in plan] ==
+              ["probe", "claim"] * 3 and
+              [s["probe"] for s in plan if s["kind"] == "probe"] ==
+              ["probe_sink_cookiexss.py"] * 3)
+        check("plan: the cookie name rides in the marker argv "
+              "(PLOOP74|<tb>|<path>|GET|theme), marker filename-safe",
+              all(s["marker"].startswith("PLOOP74|") and
+                  s["marker"].endswith("|GET|theme") and
+                  s["probe"] == "probe_sink_cookiexss.py"
+                  for s in plan if s["kind"] == "probe") and
+              all("/" not in s["marker"]
+                  for s in plan if s["kind"] == "probe"))
+        check("plan_meta: recon_ok=True, 3 cookie sink ids recorded",
+              meta["recon_ok"] is True and
+              set(meta["generic_sinks"]) == set(ids))
+        bi = budget_info([], sinks)
+        check("budget: 3 cookie sinks priced at 6 turns (Rule #74: "
+              "each costs 2)",
+              bi["recommended_turns"] == 6 and bi["generic_turns"] == 6)
+
+        # --- Case B: full autonomous cold drive vs fresh16 ---
+        memdir = tempfile.mkdtemp(prefix="ploop74-b-")
+        goal = "probe-hunt: fresh16 cookie-XSS drive"
+        ctx = {"registry_url": "http://127.0.0.1:9", "workdir": memdir,
+               "memdir": memdir, "target_base": tb}
+        verdicts, events = [], []
+        for _ in range(40):
+            r = run_turn(memdir, goal, ctx)
+            events.extend(r.get("events", []))
+            if "process_completed" in r.get("events", []):
+                break
+            verdicts.append(_hist(memdir)["history"][-1]["verdict"])
+        sq = [i for i, v in enumerate(verdicts) if v == "CONFIRMED"]
+        check("drive: / cookiexss FAILED at turn 1 (the index page "
+              "sets the cookie but never reflects it)",
+              verdicts[0] == "FAILED")
+        check("drive: /prefs cookiexss CONFIRMED at turn 4 — the / "
+              "pair cost 3 turns first (FAILED + probe DEAD_END + "
+              "claim DEAD_END)",
+              sq == [3])
+        check("drive: the CONFIRMED probe is followed by a FILED claim",
+              all(verdicts[i + 1] == "FILED" for i in sq))
+        check("drive: /safe cookiexss FAILED at turn 6 — the canary "
+              "token reflects HTML-ENCODED, not unescaped (safe "
+              "encoding, not a vuln)",
+              verdicts[5] == "FAILED")
+        check("drive: 8 verdict turns executed, process completed, no "
+              "re-probe (each FAILED pair costs 3 turns)",
+              len(verdicts) == 8 and "process_completed" in events)
+        claims = json.load(open(os.path.join(memdir, "claims.json")))
+        check("drive: exactly 1 claim filed, generic_cookiexss, "
+              "state=filed, location /prefs",
+              len(claims) == 1 and
+              all(v["state"] == "filed" for v in claims.values()) and
+              {v["module"] for v in claims.values()} ==
+              {"generic_cookiexss"} and
+              {v.get("location") for v in claims.values()} ==
+              {"/prefs"})
+        check("drive: claim class is xss_reflected, severity high "
+              "(the Rule #56 class, distinct module)",
+              all(v.get("class") == "xss_reflected" and
+                  v.get("severity") == "high"
+                  for v in claims.values()))
+        store = HashStore(os.path.join(memdir, "output"))
+        got = {}
+        for v in claims.values():
+            check("drive: claim carries a real evidence hash",
+                  bool(HASH_RE.match(v.get("evidence_hash") or "")))
+            raw = _to_text(store.get(v["evidence_hash"]) or b"")
+            m = re.search(r"EVIDENCE sink=(\S+) .* via=([a-z-]+)",
+                          raw)
+            check("drive: stored output cites sink + via=<class>",
+                  m is not None)
+            if m:
+                got[m.group(1)] = m.group(2)
+            check("drive: stored output ends VERDICT: CONFIRMED",
+                  raw.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
+        check("drive: Rule #74 — /prefs confirmed via=html (the "
+              "executable canary reflected UNESCAPED, xss-reflect "
+              "readable)",
+              got == {"/prefs": "html"})
+    finally:
+        _stop_mock(mp, 8356)
+
+    # --- Case C: DVWA regression — zero generic sinks ---
+    mp2 = _start_mock(dvwa, 8341, [])
+    try:
+        recon2 = _lab_recon_map("http://127.0.0.1:8341")
+        sinks2 = _lab_generic_sinks("http://127.0.0.1:8341", None,
+                                    list(recon2["modules"]))
+        check("dvwa: auth pages skipped WITH REASON, zero generic "
+              "sinks (the mock only sets PHPSESSID on POST login; "
+              "recon fetches GET-only)",
+              sinks2 == [])
+        plan2, meta2 = _lab_plan_for_hunt(list(recon2["modules"]),
+                                          sinks2,
+                                          "http://127.0.0.1:8341")
+        check("dvwa: Rule #35 22-step plan byte-identical",
+              len(plan2) == 22 and meta2["generic_sinks"] == [] and
+              all(s["module"] in _HUNT_MODULE_ORDER for s in plan2))
+    finally:
+        _stop_mock(mp2, 8341)
+
+    return {"checks": checks}
+
+
+
 def proof_fulldrive():
     """Rule #68 lab proof: OWNER-FLIP REHEARSAL DRIVE — the full generic
     set cold-driven against a twelfth unseen multi-class target.
@@ -7080,6 +7374,10 @@ def main():
                     help="Rule #71: generic host-header injection probe "
                          "for query sinks (fifteenth unseen target), "
                          "DVWA regression")
+    ap.add_argument("--proof-cookiexss", action="store_true",
+                    help="Rule #74: generic cookie-sink reflected-XSS "
+                         "probe (sixteenth unseen target), "
+                         "DVWA regression")
     ap.add_argument("--proof-fulldrive", action="store_true",
                     help="Rule #68: owner-flip rehearsal drive — full "
                          "generic set cold-driven vs a twelfth unseen "
@@ -7392,6 +7690,19 @@ def main():
         dt = time.time() - t0
         print("=" * 70)
         print("RULE #71 LAB PROOF: %d/%d checks passed in %.1fs"
+              % (len(allc), len(allc), dt))
+        for c in allc:
+            print("  [ok] " + c)
+        print("PROOF: PASS")
+        return
+
+    if args.proof_cookiexss:
+        t0 = time.time()
+        gen16 = proof_cookiexss()       # Rule #74: cookie-sink XSS
+        allc = ["cookiexss: " + c for c in gen16["checks"]]
+        dt = time.time() - t0
+        print("=" * 70)
+        print("RULE #74 LAB PROOF: %d/%d checks passed in %.1fs"
               % (len(allc), len(allc), dt))
         for c in allc:
             print("  [ok] " + c)
