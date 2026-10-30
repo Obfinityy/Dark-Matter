@@ -23,10 +23,15 @@ Flow (stdlib only):
   3. CONTEXT CLASSIFICATION: locate the raw token in the response:
        comment       — inside an unclosed <!-- -->
        js-dq / js-sq — inside <script>, token wrapped in " or '
+       style         — inside an unclosed <style> element (Rule #60)
        attr-dq       — double-quoted attribute value (value="TOK)
        attr-sq       — single-quoted attribute value (title='TOK)
        attr-unquoted — bare attribute value (value=TOK)
        text          — element text node (default)
+
+Rule #60: <style>-context reflection is its OWN context — a text-node
+<img> payload is inert inside CSS, so the probe classifies it
+separately and breaks out by closing the element.
   4. CONFIRMATION: fire the context-specific breakout payload:
        text            G59P<s><img src=x>
        attr-dq         G59P<s>" onGX59over="1
@@ -35,6 +40,7 @@ Flow (stdlib only):
        js-dq           G59P<s>";G59C//
        js-sq           G59P<s>';G59C//
        comment         G59P<s>-->
+       style           G59P<s></style><img src=x>  (Rule #60)
      Raw reflection of the full payload == context breakout ==
      CONFIRMED (the EVIDENCE line cites via=<context>). A context we
      cannot ground a breakout for (js-unknown) -> PROBE_NOTE + FAILED
@@ -93,6 +99,15 @@ def _classify_context(body, token):
         if tail.endswith("'"):
             return "js-sq"
         return "js-unknown"  # in script, but no grounded breakout
+    # 3b. inside <style> element content? (Rule #60) Nearest <style
+    #     (case-insensitive) before the token with no closing </style.
+    #     Placed after the script check: content written through
+    #     document.write("<style>...") classifies as js-*, which is the
+    #     correct breakout there. A text-node <img> payload is INERT
+    #     inside CSS — the context breakout closes the element.
+    lst = before.lower().rfind("<style")
+    if lst != -1 and "</style" not in before[lst:].lower():
+        return "style"
     # 4. default: element text node
     return "text"
 
@@ -107,6 +122,7 @@ def _confirm_payload(context, msuffix):
         "js-dq": p + '";G59C//',
         "js-sq": p + "';G59C//",
         "comment": p + "-->",
+        "style": p + "</style><img src=x>",
     }.get(context)
 
 
