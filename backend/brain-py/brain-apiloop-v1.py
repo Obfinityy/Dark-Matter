@@ -3456,6 +3456,159 @@ def proof_genericsink():
     return {"checks": checks}
 
 
+def proof_colddrive2():
+    """Rule #58 lab proof: COLD one-loop drive vs a SECOND unseen target.
+
+    mock-fresh2 (probe-lab/mock-fresh2/fresh2_app.py) is a different app
+    from the Rule #56 mock: /guestbook (3-param POST form, msg echoed
+    RAW -> XSS on the 2nd param), /stock?code= (boolean-blind SQLi whose
+    lone-quote response carries NO SQL error keywords -> the probe must
+    fall through to the boolean-blind differential; the code is never
+    echoed, so the page is byte-stable), /profile (POST form, both
+    fields escaped -> double negative control). Zero DVWA module
+    signals: recon drops all 11 known modules.
+
+    Case A — discovery: 3 sinks found, plan is 12 steps (xss+sqli
+    probe+claim pairs per sink), budget prices 12 turns.
+    Case B — full cold drive: guestbook XSS CONFIRMED->FILED,
+    guestbook/profile SQLi + profile/stock XSS FAILED (negative
+    controls refused), stock SQLi CONFIRMED via the BOOLEAN-BLIND path
+    (never via error keywords) -> FILED; exactly 2 filed claims with
+    real evidence hashes; process completes, no re-probe.
+    Case C — regression: the DVWA mock yields ZERO generic sinks so the
+    Rule #35 22-step plan is byte-identical.
+    """
+    checks = []
+
+    def check(name, cond):
+        assert cond, "FAILED: " + name
+        checks.append(name)
+
+    def _hist(memdir):
+        return load_json(mem_paths(memdir)["process"],
+                         {"process": None})["process"]
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    fresh2 = os.path.join(here, "probe-lab", "mock-fresh2",
+                          "fresh2_app.py")
+    dvwa = os.path.join(here, "probe-lab", "mock-dvwa.py")
+
+    # --- Case A: discovery on the second unseen target ---
+    mp = _start_mock(fresh2, 8342, [])
+    try:
+        tb = "http://127.0.0.1:8342"
+        recon = _lab_recon_map(tb)
+        check("fresh2: recon finds zero known modules",
+              recon is not None and recon["modules"] == {})
+        sinks = _lab_generic_sinks(tb, None, list(recon["modules"]))
+        ids = [s["id"] for s in sinks]
+        check("discovery: finds the /guestbook 3-param POST form sink",
+              "form:/guestbook:POST:csrf,msg,nick" in ids)
+        check("discovery: finds the /stock blind-SQLi query sink",
+              "query:/stock:GET:code" in ids)
+        check("discovery: finds the /profile POST form sink",
+              "form:/profile:POST:bio,user" in ids)
+        check("discovery: exactly 3 sinks, no known-module paths",
+              len(ids) == 3 and
+              not any("vulnerabilities" in i for i in ids))
+        plan, meta = _lab_plan_for_hunt([], sinks, tb)
+        check("plan: 12 steps, xss+sqli probe+claim per sink",
+              len(plan) == 12 and
+              [s["module"] for s in plan] ==
+              ["generic_xss", "generic_xss",
+               "generic_sqli", "generic_sqli"] * 3 and
+              [s["kind"] for s in plan] ==
+              ["probe", "claim"] * 6 and
+              [s["probe"] for s in plan if s["kind"] == "probe"] ==
+              ["probe_sink_xss.py", "probe_sink_sqli.py"] * 3)
+        check("plan: sink spec rides in the marker argv, no slashes",
+              all((s["marker"].startswith("PLOOP56|") and
+                   s["probe"] == "probe_sink_xss.py") or
+                  (s["marker"].startswith("PLOOP57|") and
+                   s["probe"] == "probe_sink_sqli.py")
+                  for s in plan if s["kind"] == "probe") and
+              all("/" not in s["marker"]
+                  for s in plan if s["kind"] == "probe"))
+        check("plan_meta: recon_ok=True, 3 generic sink ids recorded",
+              meta["recon_ok"] is True and
+              set(meta["generic_sinks"]) == set(ids))
+        bi = budget_info([], sinks)
+        check("budget: 3 sinks priced at 12 turns",
+              bi["recommended_turns"] == 12 and bi["generic_turns"] == 12)
+
+        # --- Case B: full autonomous cold drive vs fresh2 ---
+        memdir = tempfile.mkdtemp(prefix="ploop58-b-")
+        goal = "probe-hunt: fresh2 cold drive"
+        ctx = {"registry_url": "http://127.0.0.1:9", "workdir": memdir,
+               "memdir": memdir, "target_base": tb}
+        verdicts, events = [], []
+        for _ in range(20):
+            r = run_turn(memdir, goal, ctx)
+            events.extend(r.get("events", []))
+            if "process_completed" in r.get("events", []):
+                break
+            verdicts.append(_hist(memdir)["history"][-1]["verdict"])
+        check("drive: guestbook xss probe CONFIRMED, claim FILED",
+              verdicts[0] == "CONFIRMED" and verdicts[1] == "FILED")
+        check("drive: negative probes FAILED (escaped/parameterized/no "
+              "SQL semantics)", "FAILED" in verdicts)
+        sq = [i for i, v in enumerate(verdicts) if v == "CONFIRMED"]
+        check("drive: exactly 2 CONFIRMED probes (guestbook xss t1 + "
+              "stock sqli t15; each FAILED pair costs 3 turns: FAILED + "
+              "probe DEAD_END + claim DEAD_END, same as the Rule #56 "
+              "drive)", sq == [0, 14])
+        check("drive: stock sqli CONFIRMED -> claim FILED (turns 15/16)",
+              verdicts[14] == "CONFIRMED" and verdicts[15] == "FILED")
+        check("drive: 16 verdict turns executed, process completed, no "
+              "re-probe",
+              len(verdicts) == 16 and "process_completed" in events)
+        claims = json.load(open(os.path.join(memdir, "claims.json")))
+        check("drive: exactly 2 claims filed: generic_xss + generic_sqli",
+              len(claims) == 2 and
+              all(v["state"] == "filed" for v in claims.values()) and
+              {v["module"] for v in claims.values()} ==
+              {"generic_xss", "generic_sqli"})
+        store = HashStore(os.path.join(memdir, "output"))
+        by_module = {v["module"]: v for v in claims.values()}
+        cx = by_module["generic_xss"]
+        check("drive: xss claim carries a real evidence hash",
+              bool(HASH_RE.match(cx.get("evidence_hash") or "")))
+        rawx = _to_text(store.get(cx["evidence_hash"]) or b"")
+        check("drive: stored xss output cites /guestbook + VERDICT",
+              "EVIDENCE sink=/guestbook" in rawx and
+              rawx.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
+        cq = by_module["generic_sqli"]
+        check("drive: sqli claim carries a real evidence hash",
+              bool(HASH_RE.match(cq.get("evidence_hash") or "")))
+        rawq = _to_text(store.get(cq["evidence_hash"]) or b"")
+        check("drive: stored sqli output CONFIRMs via the BOOLEAN-BLIND "
+              "path (no error keywords involved)",
+              "EVIDENCE sink=/stock" in rawq and
+              "boolean-blind" in rawq and
+              rawq.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
+    finally:
+        _stop_mock(mp, 8342)
+
+    # --- Case C: DVWA regression — zero generic sinks ---
+    mp2 = _start_mock(dvwa, 8341, [])
+    try:
+        recon2 = _lab_recon_map("http://127.0.0.1:8341")
+        sinks2 = _lab_generic_sinks("http://127.0.0.1:8341", None,
+                                    list(recon2["modules"]))
+        check("dvwa: auth pages skipped WITH REASON, zero generic sinks",
+              sinks2 == [])
+        plan2, meta2 = _lab_plan_for_hunt(list(recon2["modules"]),
+                                          sinks2,
+                                          "http://127.0.0.1:8341")
+        check("dvwa: Rule #35 22-step plan byte-identical",
+              len(plan2) == 22 and meta2["generic_sinks"] == [] and
+              all(s["module"] in _HUNT_MODULE_ORDER for s in plan2))
+    finally:
+        _stop_mock(mp2, 8341)
+
+    return {"checks": checks}
+
+
 def proof_report():
     """Rule #37 — THE HUNTER DELIVERS A DOSSIER.
     1. Full mock hunt (11 modules) -> the completion turn auto-writes
@@ -3650,6 +3803,11 @@ def main():
                          "(discover unknown sinks, CONFIRM reflected "
                          "XSS on a fresh target, negative control "
                          "refused, DVWA regression)")
+    ap.add_argument("--proof-colddrive2", action="store_true",
+                    help="Rule #58: cold one-loop drive vs a SECOND "
+                         "unseen target (3-param form XSS, boolean-blind "
+                         "SQLi with no error keywords, double negative "
+                         "control, DVWA regression)")
     ap.add_argument("--proof-report", action="store_true",
                     help="Rule #37: the hunter delivers a dossier "
                          "(auto-write at completion, fail-closed "
@@ -3789,6 +3947,19 @@ def main():
         dt = time.time() - t0
         print("=" * 70)
         print("RULE #56 LAB PROOF: %d/%d checks passed in %.1fs"
+              % (len(allc), len(allc), dt))
+        for c in allc:
+            print("  [ok] " + c)
+        print("PROOF: PASS")
+        return
+
+    if args.proof_colddrive2:
+        t0 = time.time()
+        gen2 = proof_colddrive2()          # Rule #58: cold drive, target #2
+        allc = ["colddrive2: " + c for c in gen2["checks"]]
+        dt = time.time() - t0
+        print("=" * 70)
+        print("RULE #58 LAB PROOF: %d/%d checks passed in %.1fs"
               % (len(allc), len(allc), dt))
         for c in allc:
             print("  [ok] " + c)
