@@ -24,12 +24,11 @@ pre_claim_gate(claim, mem_dir, module) — FAIL-CLOSED. Blocks (ok=False):
   B. identical hash ACCEPTED      -> "already VERIFIED — A-to-Z memory,
      never re-file a verified finding"
   C. identical hash REJECTED      -> "rejected claim is a dead end"
-  D. same (module, class, location), new hash, another claim FILED
-     -> "one claim per finding-class per location — a claim for this
-     module+class+location is already FILED; wait for the terminal
-     verdict" (Rule #59: a different location is a different finding)
-  E. same (module, class, location) ACCEPTED -> "already VERIFIED"
-  F. same (module, class, location) REJECTED  -> "dead end WITH REASON"
+  D. same (module, class), new hash, another claim FILED
+     -> "one claim per finding-class — a claim for this module+class is
+     already FILED; wait for the terminal verdict"
+  E. same (module, class) ACCEPTED -> "already VERIFIED"
+  F. same (module, class) REJECTED  -> "dead end WITH REASON"
 A blocked re-file is GOOD behaviour (discipline), not an error: the drive
 records it in memory.json["claim_blocks"] WITH REASON — the counter of times
 the brain almost re-filed. Today that counter would read 3.
@@ -151,13 +150,6 @@ def _claim_fields(claim):
         "title": str(action.get("title", "")),
         "class": str(action.get("class", "")),
         "severity": str(action.get("severity", "")),
-        # Rule #59: the sink/path the finding was verified on (generic
-        # probes cite it as EVIDENCE sink=...). Dedup is per
-        # (module, class, location): the same vuln class on a DIFFERENT
-        # page is a DIFFERENT finding and files; the same page re-filed
-        # is still BLOCKED (the 29-Oct lesson stands). Empty location
-        # keeps the old global behaviour (backward compatible).
-        "location": str(action.get("location", "")),
     }
 
 
@@ -194,40 +186,32 @@ def pre_claim_gate(claim, mem_dir, module):
         raise GateError(f"claim {ch[:12]} has unknown state {state!r} — "
                         f"refusing to decide")
 
-    # Same (module, class, location), different hash — one claim per
-    # finding-class PER LOCATION (Rule #59). A reflected XSS on /pref
-    # and another on /tagline are two findings; re-filing /pref is one.
+    # Same (module, class), different hash — one claim per finding-class.
     mod = module or ""
     cls = fields["class"]
-    loc = fields["location"]
     for och, orec in claims.items():
-        if orec.get("module") == mod and orec.get("class") == cls and \
-                orec.get("location", "") == loc:
+        if orec.get("module") == mod and orec.get("class") == cls:
             ostate = orec.get("state")
             if ostate == FILED:
                 return (False,
                         f"BLOCKED-D: claim {och[:12]} for module={mod} "
-                        f"class={cls} location={loc or '(none)'} already "
-                        f"FILED (turn {orec.get('filed_turn')}) — one "
-                        f"claim per finding-class per location; wait for "
-                        f"the terminal verdict before any new evidence "
-                        f"is filed")
+                        f"class={cls} already FILED (turn "
+                        f"{orec.get('filed_turn')}) — one claim per "
+                        f"finding-class; wait for the terminal verdict "
+                        f"before any new evidence is filed")
             if ostate == ACCEPTED:
                 return (False,
-                        f"BLOCKED-E: module={mod} class={cls} "
-                        f"location={loc or '(none)'} already VERIFIED "
-                        f"(claim {och[:12]}) — never re-file a verified "
-                        f"finding")
+                        f"BLOCKED-E: module={mod} class={cls} already "
+                        f"VERIFIED (claim {och[:12]}) — never re-file a "
+                        f"verified finding")
             if ostate == REJECTED:
                 reason = (orec.get("terminal", {}) or {}).get("reason", "")
                 return (False,
-                        f"BLOCKED-F: module={mod} class={cls} "
-                        f"location={loc or '(none)'} is a dead end "
+                        f"BLOCKED-F: module={mod} class={cls} is a dead end "
                         f"WITH REASON (claim {och[:12]} rejected"
                         f"{': ' + reason if reason else ''}) — rejected "
                         f"claims are dead ends, never re-claimed")
-    return (True, "gate PASS: no prior claim for this hash or "
-                  "module+class+location")
+    return (True, "gate PASS: no prior claim for this hash or module+class")
 
 
 def record_filed(mem_dir, claim, module, turn):
@@ -249,9 +233,6 @@ def record_filed(mem_dir, claim, module, turn):
         "class": fields["class"],
         "module": module or "",
         "severity": fields["severity"],
-        # Rule #59: persist the verified location so the (module, class,
-        # location) dedup survives reloads.
-        "location": fields["location"],
         # Rule #37: the claim RECORD cites the evidence hash too (the
         # claim BODY already carries it from _build_lab_claim) so the
         # report lane can prove every finding from hash-verified bytes.
@@ -428,6 +409,16 @@ def scan_terminal_validation(events_path, mem_dir):
         for f in memory.get("findings", []):
             if f.get("claim_hash") == ch:
                 f["status"] = "verifier-accepted"
+        # Rule #73: a re-bridged claim can verify AFTER an earlier
+        # rejection folded this module into dead_ends. The verifier's
+        # latest word supersedes — drop the stale dead-end entry for
+        # THIS claim only; other modules' dead ends are untouched.
+        module = rec.get("module", "")
+        rsn = (memory.get("dead_end_reasons") or {}).get(module)
+        if module and rsn and rsn.get("claim_hash") == ch:
+            memory["dead_end_reasons"].pop(module, None)
+            if module in memory.get("dead_ends", []):
+                memory["dead_ends"].remove(module)
 
     try:
         fh = open(events_path, "r", encoding="utf-8")
@@ -436,6 +427,13 @@ def scan_terminal_validation(events_path, mem_dir):
         return result
 
     changed = False
+    # Rule #73: collect ALL terminal events per filed claim first, then
+    # apply the LATEST one per claim. A re-bridged claim (reset to filed
+    # after a fix) carries both the stale rejection and the fresh verdict
+    # in the events file — first-event-wins applied the stale one and left
+    # the fresh verdict "unmatched" (live: ssrf re-bridge, 30 Oct 2026).
+    # The verifier's latest word is authoritative.
+    per_claim_events = {}  # ch -> [(lineno, terminal, raw_verdict, ref, detail)]
     with fh:
         for lineno, line in enumerate(fh, 1):
             parsed = _parse_validation_event(line)
@@ -459,36 +457,43 @@ def scan_terminal_validation(events_path, mem_dir):
                                "human resolves; gate keeps blocking re-files"})
                 continue
             ch = cands[0]
-            rec = claims[ch]
-            # Defensive: state may have changed earlier in this same scan.
-            if rec.get("state") != FILED:
-                continue
-            at = now_ist()
-            reason = (f"terminal validation event line {lineno} "
-                      f"(pipeline verdict '{raw_verdict}' -> {terminal}, "
-                      f"ref={ref or 'none'})")
-            rec["state"] = terminal
-            rec["terminal"] = {"verdict": terminal,
-                               "pipeline_verdict": raw_verdict,
-                               "pipeline_detail": detail,
-                               "event_ref": ref,
-                               "event_line": lineno, "at_ist": at,
-                               "reason": reason}
-            rec["history"].append({"state": terminal, "at_ist": at,
-                                   "reason": reason})
-            if terminal == REJECTED:
-                fold_rejected(ch, rec, terminal, raw_verdict, ref,
-                              detail, at)
-            else:
-                fold_accepted(ch, rec)
-            # Remove from the filed index so a second event for the same
-            # title in this scan is reported unmatched, not double-applied.
-            by_title[plan_title] = []
-            result["applied"].append(
-                {"claim_hash": ch[:16], "title": rec.get("title"),
-                 "verdict": terminal, "pipeline_verdict": raw_verdict,
-                 "line": lineno})
-            changed = True
+            per_claim_events.setdefault(ch, []).append(
+                (lineno, terminal, raw_verdict, ref, detail))
+
+    for ch, evs in per_claim_events.items():
+        rec = claims[ch]
+        # Defensive: state may have changed since the index was built.
+        if rec.get("state") != FILED:
+            continue
+        # Latest terminal event wins; earlier ones are superseded.
+        evs.sort(key=lambda e: e[0])
+        lineno, terminal, raw_verdict, ref, detail = evs[-1]
+        at = now_ist()
+        reason = (f"terminal validation event line {lineno} "
+                  f"(pipeline verdict '{raw_verdict}' -> {terminal}, "
+                  f"ref={ref or 'none'})")
+        if len(evs) > 1:
+            reason += (f"; superseded {len(evs) - 1} earlier terminal "
+                       f"event(s) for this claim")
+        rec["state"] = terminal
+        rec["terminal"] = {"verdict": terminal,
+                           "pipeline_verdict": raw_verdict,
+                           "pipeline_detail": detail,
+                           "event_ref": ref,
+                           "event_line": lineno, "at_ist": at,
+                           "reason": reason}
+        rec["history"].append({"state": terminal, "at_ist": at,
+                               "reason": reason})
+        if terminal == REJECTED:
+            fold_rejected(ch, rec, terminal, raw_verdict, ref,
+                          detail, at)
+        else:
+            fold_accepted(ch, rec)
+        result["applied"].append(
+            {"claim_hash": ch[:16], "title": rec.get("title"),
+             "verdict": terminal, "pipeline_verdict": raw_verdict,
+             "line": lineno})
+        changed = True
 
     if changed:
         save_claims(mem_dir, claims)
@@ -550,24 +555,6 @@ def self_test():
         c1b["action"]["evidence"] = "different evidence text"
         ok, reason = pre_claim_gate(c1b, tmp, "xss_r")
         check("same module+class new-hash BLOCKED-D",
-              (not ok) and reason.startswith("BLOCKED-D"), reason)
-
-        # 4b. Rule #59: same module+class but a DIFFERENT verified
-        # location is a different finding -> gate PASS; the same
-        # location re-filed -> still BLOCKED-D. (Distinct title so the
-        # later scan step's title matching stays unambiguous.)
-        c1c = _tclaim("Reflected XSS in /other-page", "xss_r", "xss_r")
-        c1c["action"]["evidence"] = "different evidence text"
-        c1c["action"]["location"] = "/other-page"
-        ok, reason = pre_claim_gate(c1c, tmp, "xss_r")
-        check("same module+class different-location gate PASS",
-              ok, reason)
-        record_filed(tmp, c1c, "xss_r", 4)
-        c1d = _tclaim("Reflected XSS in /other-page", "xss_r", "xss_r")
-        c1d["action"]["evidence"] = "yet more evidence"
-        c1d["action"]["location"] = "/other-page"
-        ok, reason = pre_claim_gate(c1d, tmp, "xss_r")
-        check("same module+class+location re-file BLOCKED-D",
               (not ok) and reason.startswith("BLOCKED-D"), reason)
 
         # 5. different module+class PASS
