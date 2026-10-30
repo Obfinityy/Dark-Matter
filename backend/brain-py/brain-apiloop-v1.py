@@ -256,6 +256,22 @@ _LAB_CLAIM_META = {
     # sink.
     "generic_jsonsqli": ("SQL injection (generic JSON-body sink)",
                         "sqli", "high"),
+    # Rule #85: same for the generic-sink JSON-BODY-CMDI probe — a
+    # JSON body field passed to a shell (PLOOP85): the arithmetic
+    # result "19134" appears in the body though it was never
+    # transmitted -> via=cmdi-arith, or a delay payload slows the
+    # response proportionally to the injected number ->
+    # via=cmdi-timing; a verbatim echo without evaluation is
+    # reflection, not execution. Same class as Rule #65
+    # ("command_injection"), severity critical: command injection
+    # is remote code execution — distinct module, so dedup is
+    # (module, class, location) and an endpoint vulnerable via both
+    # a query param and a JSON field files two distinct claims
+    # (the Rule #69 rationale). The probe iterates the marker's
+    # CSV of common field names internally (first CONFIRMED wins),
+    # keeping the budget at 2 turns per sink.
+    "generic_jsoncmdi": ("Command injection (generic JSON-body sink)",
+                        "command_injection", "critical"),
     # Rule #82: same for the generic-sink HEADER-XSS probe — the
     # target reflects an attacker-controlled request-header value
     # (User-Agent / Referer / X-Forwarded-For) into the response
@@ -831,9 +847,13 @@ _GENERIC_SINK_SKIP_PATH = ("login", "logout", "signin", "sign-in",
 # list must stay inside that alphabet. Rule #84: the PLOOP84 probe
 # shares this list (its 5th marker component is the same CSV), so
 # the SQLi field names every real JSON API uses (q/term on search,
-# sku on items, id on lookups) must be in it too.
+# sku on items, id on lookups) must be in it too. Rule #85: the
+# PLOOP85 probe shares it as well — shell-backed JSON endpoints
+# take expression/command-style fields (expr on calculators, host
+# on ping/dig utilities).
 _JSON_SINK_FIELDS = ("name", "message", "q", "query", "search", "text",
-                     "value", "title", "term", "sku", "id")
+                     "value", "title", "term", "sku", "id", "expr",
+                     "host")
 
 
 # Rule #82: the header names the PLOOP82 probe tries per header sink,
@@ -1668,13 +1688,14 @@ def _recon_driven_plan(modules_present, generic_sinks=(),
         # onerror=PLOOP80-<nonce>>" in the canary body though
         # absent from the control body -> via=html; an
         # HTML-encoded reflection is a safe encoding, not a vuln).
-        # JSON sinks carry this pair PLUS the Rule #84 SQLi pair —
-        # a JSON body is neither a query param nor a form field nor
-        # an XML body nor a cookie, so the param-shaped xss/sqli/csrf
-        # pairs above do not apply, but a JSON-body SQLi probe does.
+        # JSON sinks carry this pair PLUS the Rule #84 SQLi pair
+        # PLUS the Rule #85 command-injection pair — a JSON body is
+        # neither a query param nor a form field nor an XML body nor
+        # a cookie, so the param-shaped xss/sqli/csrf pairs above do
+        # not apply, but body-shaped XSS/SQLi/cmdi probes do.
         # The marker's 5th component is the _JSON_SINK_FIELDS CSV;
-        # the probe iterates it internally (first CONFIRMED wins),
-        # keeping the budget at 2 turns per sink.
+        # each probe iterates it internally (first CONFIRMED wins),
+        # keeping the budget at 2 turns per sink per pair.
         if sink.get("kind") == "json":
             jxss_marker = "PLOOP80|%s|%s|%s|%s" % (
                 tbq, pathq, "POST",
@@ -1722,6 +1743,37 @@ def _recon_driven_plan(modules_present, generic_sinks=(),
                 "desc": "File claim for the verified generic-sink "
                         "finding",
                 "kind": "claim", "module": "generic_jsonsqli",
+                "sink": sink.get("id"),
+                "probe_step_idx": len(plan) - 1,
+                "done": False, "result_hash": None,
+                "recon": True})
+            # Rule #85: the JSON-body command-injection probe for
+            # JSON sinks (PLOOP85 marker — a JSON body field passed
+            # to a shell: the arithmetic result "19134" appears in
+            # the body though it was never transmitted ->
+            # via=cmdi-arith, or a delay payload slows the response
+            # proportionally to the injected number ->
+            # via=cmdi-timing; a verbatim echo without evaluation is
+            # reflection, not execution). JSON sinks carry this pair
+            # beside the PLOOP80/PLOOP84 pairs above — same
+            # _JSON_SINK_FIELDS CSV, first CONFIRMED wins, 2 turns
+            # per sink.
+            jcmdi_marker = "PLOOP85|%s|%s|%s|%s" % (
+                tbq, pathq, "POST",
+                ",".join(sink.get("params", ())))
+            plan.append({
+                "desc": "Probe generic JSON-body sink %s for command "
+                        "injection (%s)" %
+                        (sink.get("id"), "probe_sink_jsoncmdi.py"),
+                "kind": "probe", "module": "generic_jsoncmdi",
+                "sink": sink.get("id"),
+                "probe": "probe_sink_jsoncmdi.py",
+                "marker": jcmdi_marker, "done": False,
+                "result_hash": None, "recon": True})
+            plan.append({
+                "desc": "File claim for the verified generic-sink "
+                        "finding",
+                "kind": "claim", "module": "generic_jsoncmdi",
                 "sink": sink.get("id"),
                 "probe_step_idx": len(plan) - 1,
                 "done": False, "result_hash": None,
@@ -1861,9 +1913,10 @@ def budget_info(modules=None, generic_sinks=()):
     list for a pruned plan. generic_sinks (Rule #56, Rule #57, Rule
     #61, Rule #62, Rule #63, Rule #64, Rule #65, Rule #66, Rule #67,
     Rule #69, Rule #70, Rule #74, Rule #80, Rule #82, Rule #83,
-    Rule #84)
+    Rule #84, Rule #85)
     cost 4 turns each (XSS probe+claim, SQLi
-    probe+claim), 8 for POST-form sinks (the CSRF probe+claim pair
+    probe+claim), 6 for JSON sinks (the Rule #80 + Rule #84 +
+    Rule #85 body-shaped pairs), 8 for POST-form sinks (the CSRF probe+claim pair
     plus the Rule #69 open-redirect-on-POST probe+claim pair),
     16 for query sinks (the open-redirect, SSRF-reachability,
     header-injection, blind command-injection, path-traversal and
@@ -1913,13 +1966,14 @@ def budget_info(modules=None, generic_sinks=()):
             # nor a form field nor an XML body.
             gen += 2
         elif isinstance(s, dict) and s.get("kind") == "json":
-            # Rule #80 + Rule #84: a json sink carries TWO probe+claim
-            # pairs (JSON-body XSS + JSON-body SQLi) — a JSON body is
+            # Rule #80 + Rule #84 + Rule #85: a json sink carries
+            # THREE probe+claim pairs (JSON-body XSS + JSON-body
+            # SQLi + JSON-body command injection) — a JSON body is
             # neither a query param nor a form field nor an XML body
             # nor a cookie; each probe iterates the field-name CSV
-            # internally so two pairs (4 turns) cover all common
-            # field names for both classes.
-            gen += 4
+            # internally so three pairs (6 turns) cover all common
+            # field names for all three classes.
+            gen += 6
         elif isinstance(s, dict) and s.get("kind") == "header":
             # Rule #82: a header sink carries only the header-XSS
             # probe+claim pair — request headers are neither query
@@ -7574,18 +7628,24 @@ def proof_jsonxss():
     no SQL, no error keywords, no shell, no template engine, no
     entity parsing, no Host-header trust, no redirects.
 
-    Case A — discovery: 2 JSON sinks found, plan is 8 steps (one
-    jsonxss probe+claim pair plus one jsonsqli probe+claim pair per
-    sink — Rule #84: JSON sinks carry the PLOOP80 XSS pair AND the
-    PLOOP84 SQLi pair; the param-shaped xss/sqli pairs would attack
-    the wrong injection point (?name=) instead of the JSON body),
-    the field-name CSV rides in each marker argv, budget prices 8.
+    Case A — discovery: 2 JSON sinks found, plan is 12 steps (one
+    jsonxss probe+claim pair plus one jsonsqli probe+claim pair
+    plus one jsoncmdi probe+claim pair per sink — Rule #85: JSON
+    sinks carry the PLOOP80 XSS pair AND the PLOOP84 SQLi pair AND
+    the PLOOP85 command-injection pair; the param-shaped
+    xss/sqli pairs would attack the wrong injection point (?name=)
+    instead of the JSON body),
+    the field-name CSV rides in each marker argv, budget prices 12.
     Case B — full cold drive: /api/profile jsonxss CONFIRMED->FILED
     at turns 1-2 (via=html, json_field=name); /api/profile jsonsqli
     FAILED at turns 3-5 (3 turns: FAILED + probe DEAD_END + claim
     DEAD_END — reflection without SQL evaluation is not a vuln);
-    /api/safe jsonxss FAILED at turns 6-8 (the canary token reflects
-    HTML-ENCODED); /api/safe jsonsqli FAILED at turns 9-11;
+    /api/profile jsoncmdi FAILED at turns 6-8 (no shell
+    evaluation — the arithmetic operands echo verbatim, never
+    "19134"; sleep payloads cause no delay);
+    /api/safe jsonxss FAILED at turns 9-11 (the canary token reflects
+    HTML-ENCODED); /api/safe jsonsqli FAILED at turns 12-14;
+    /api/safe jsoncmdi FAILED at turns 15-17;
     exactly 1 filed claim (generic_jsonxss), location
     /api/profile; process completes, no re-probe.
     Case C — regression: the DVWA mock yields ZERO generic sinks
@@ -7629,25 +7689,30 @@ def proof_jsonxss():
         check("discovery: zero query/form/xml/cookie sinks on fresh19",
               all(s["kind"] == "json" for s in sinks))
         plan, meta = _lab_plan_for_hunt([], sinks, tb)
-        check("plan: 8 steps — one jsonxss probe+claim pair plus one "
-              "jsonsqli probe+claim pair per JSON sink (Rule #84: the "
-              "param-shaped xss/sqli pairs do NOT apply to a JSON "
-              "body; the body-shaped PLOOP80/PLOOP84 pairs do)",
-              len(plan) == 8 and
+        check("plan: 12 steps — one jsonxss probe+claim pair plus one "
+              "jsonsqli probe+claim pair plus one jsoncmdi probe+claim "
+              "pair per JSON sink (Rule #85: the param-shaped xss/sqli "
+              "pairs do NOT apply to a JSON body; the body-shaped "
+              "PLOOP80/PLOOP84/PLOOP85 pairs do)",
+              len(plan) == 12 and
               [s["module"] for s in plan] ==
-              (["generic_jsonxss"] * 2 + ["generic_jsonsqli"] * 2) * 2
+              (["generic_jsonxss"] * 2 + ["generic_jsonsqli"] * 2 +
+               ["generic_jsoncmdi"] * 2) * 2
               and
               [s["kind"] for s in plan] ==
-              ["probe", "claim"] * 4 and
+              ["probe", "claim"] * 6 and
               [s["probe"] for s in plan if s["kind"] == "probe"] ==
               ["probe_sink_jsonxss.py",
-               "probe_sink_jsonsqli.py"] * 2)
+               "probe_sink_jsonsqli.py",
+               "probe_sink_jsoncmdi.py"] * 2)
         check("plan: the field-name CSV rides in each marker argv "
               "(PLOOP80|<tb>|<path>|POST|name,message,... and "
-              "PLOOP84|<tb>|<path>|POST|name,message,...), markers "
+              "PLOOP84|<tb>|<path>|POST|name,message,... and "
+              "PLOOP85|<tb>|<path>|POST|name,message,...), markers "
               "filename-safe",
               all((s["marker"].startswith("PLOOP80|") or
-                   s["marker"].startswith("PLOOP84|")) and
+                   s["marker"].startswith("PLOOP84|") or
+                   s["marker"].startswith("PLOOP85|")) and
                   s["marker"].endswith(
                       "|POST|" + ",".join(_JSON_SINK_FIELDS))
                   for s in plan if s["kind"] == "probe") and
@@ -7657,10 +7722,10 @@ def proof_jsonxss():
               meta["recon_ok"] is True and
               set(meta["generic_sinks"]) == set(ids))
         bi = budget_info([], sinks)
-        check("budget: 2 JSON sinks priced at 8 turns (Rule #84: each "
-              "carries 2 pairs — the probes iterate the field CSV "
+        check("budget: 2 JSON sinks priced at 12 turns (Rule #85: each "
+              "carries 3 pairs — the probes iterate the field CSV "
               "internally)",
-              bi["recommended_turns"] == 8 and bi["generic_turns"] == 8)
+              bi["recommended_turns"] == 12 and bi["generic_turns"] == 12)
 
         # --- Case B: full autonomous cold drive vs fresh19 ---
         memdir = tempfile.mkdtemp(prefix="ploop80-b-")
@@ -7686,16 +7751,24 @@ def proof_jsonxss():
               "quote introduces no SQL error keywords, the blind "
               "true-payload reflects so true != benign)",
               verdicts[2] == "FAILED")
-        check("drive: /api/safe jsonxss FAILED at turn 6 — the canary "
+        check("drive: /api/profile jsoncmdi FAILED at turn 6 — no "
+              "shell evaluation on a reflection sink (the arithmetic "
+              "operands echo verbatim, \"19134\" never appears; sleep "
+              "payloads cause no delay)",
+              verdicts[5] == "FAILED")
+        check("drive: /api/safe jsonxss FAILED at turn 9 — the canary "
               "token reflects HTML-ENCODED, not unescaped (safe "
               "encoding, not a vuln)",
-              verdicts[5] == "FAILED")
-        check("drive: /api/safe jsonsqli FAILED at turn 9 — escaped "
-              "reflection without SQL evaluation is not a vuln",
               verdicts[8] == "FAILED")
-        check("drive: 11 verdict turns executed, process completed, no "
+        check("drive: /api/safe jsonsqli FAILED at turn 12 — escaped "
+              "reflection without SQL evaluation is not a vuln",
+              verdicts[11] == "FAILED")
+        check("drive: /api/safe jsoncmdi FAILED at turn 15 — no shell "
+              "on the encoded sink either",
+              verdicts[14] == "FAILED")
+        check("drive: 17 verdict turns executed, process completed, no "
               "re-probe (each FAILED pair costs 3 turns)",
-              len(verdicts) == 11 and "process_completed" in events)
+              len(verdicts) == 17 and "process_completed" in events)
         claims = json.load(open(os.path.join(memdir, "claims.json")))
         check("drive: exactly 1 claim filed, generic_jsonxss, "
               "state=filed, location /api/profile",
@@ -7789,19 +7862,22 @@ def proof_jsonsqli():
     differentials) — so the PLOOP80 XSS pair must FAIL on all three.
 
     Case A — discovery: 3 JSON sinks found (items, lookup, search —
-    sorted order), plan is 12 steps (one jsonxss probe+claim pair
-    plus one jsonsqli probe+claim pair per sink — Rule #84: JSON
-    sinks carry BOTH body-shaped pairs), the field-name CSV rides in
-    each marker argv, budget prices 12.
+    sorted order), plan is 18 steps (one jsonxss probe+claim pair
+    plus one jsonsqli probe+claim pair plus one jsoncmdi probe+claim
+    pair per sink — Rule #85: JSON sinks carry all THREE
+    body-shaped pairs), the field-name CSV rides in each marker
+    argv, budget prices 18.
     Case B — full cold drive: /api/items jsonxss FAILED (turns 1-3);
     /api/items jsonsqli CONFIRMED->FILED at turns 4-5
-    (via=boolean_blind, json_field=sku); /api/lookup jsonxss FAILED
-    (turns 6-8), /api/lookup jsonsqli FAILED (turns 9-11 — the
-    parameterized negative); /api/search jsonxss FAILED (turns
-    12-14); /api/search jsonsqli CONFIRMED->FILED at turns 15-16
-    (via=error_based, json_field=q); exactly 2 filed claims
-    (generic_jsonsqli), locations /api/items + /api/search; process
-    completes, no re-probe.
+    (via=boolean_blind, json_field=sku); /api/items jsoncmdi FAILED
+    (turns 6-8 — no shell on a SQL sink); /api/lookup jsonxss FAILED
+    (turns 9-11), /api/lookup jsonsqli FAILED (turns 12-14 — the
+    parameterized negative), /api/lookup jsoncmdi FAILED (turns
+    15-17); /api/search jsonxss FAILED (turns 18-20); /api/search
+    jsonsqli CONFIRMED->FILED at turns 21-22 (via=error_based,
+    json_field=q); /api/search jsoncmdi FAILED (turns 23-25);
+    exactly 2 filed claims (generic_jsonsqli), locations
+    /api/items + /api/search; process completes, no re-probe.
     Case C — regression: the DVWA mock yields ZERO generic sinks so
     the Rule #35 22-step plan is byte-identical.
     """
@@ -7846,25 +7922,30 @@ def proof_jsonsqli():
         check("discovery: zero query/form/xml/cookie sinks on fresh23",
               all(s["kind"] == "json" for s in sinks))
         plan, meta = _lab_plan_for_hunt([], sinks, tb)
-        check("plan: 12 steps — one jsonxss probe+claim pair plus one "
-              "jsonsqli probe+claim pair per JSON sink (Rule #84: the "
-              "param-shaped xss/sqli pairs do NOT apply to a JSON "
-              "body; the body-shaped PLOOP80/PLOOP84 pairs do)",
-              len(plan) == 12 and
+        check("plan: 18 steps — one jsonxss probe+claim pair plus one "
+              "jsonsqli probe+claim pair plus one jsoncmdi probe+claim "
+              "pair per JSON sink (Rule #85: the param-shaped xss/sqli "
+              "pairs do NOT apply to a JSON body; the body-shaped "
+              "PLOOP80/PLOOP84/PLOOP85 pairs do)",
+              len(plan) == 18 and
               [s["module"] for s in plan] ==
-              (["generic_jsonxss"] * 2 + ["generic_jsonsqli"] * 2) * 3
+              (["generic_jsonxss"] * 2 + ["generic_jsonsqli"] * 2 +
+               ["generic_jsoncmdi"] * 2) * 3
               and
               [s["kind"] for s in plan] ==
-              ["probe", "claim"] * 6 and
+              ["probe", "claim"] * 9 and
               [s["probe"] for s in plan if s["kind"] == "probe"] ==
               ["probe_sink_jsonxss.py",
-               "probe_sink_jsonsqli.py"] * 3)
+               "probe_sink_jsonsqli.py",
+               "probe_sink_jsoncmdi.py"] * 3)
         check("plan: the field-name CSV rides in each marker argv "
               "(PLOOP80|<tb>|<path>|POST|name,message,... and "
-              "PLOOP84|<tb>|<path>|POST|name,message,...), markers "
+              "PLOOP84|<tb>|<path>|POST|name,message,... and "
+              "PLOOP85|<tb>|<path>|POST|name,message,...), markers "
               "filename-safe",
               all((s["marker"].startswith("PLOOP80|") or
-                   s["marker"].startswith("PLOOP84|")) and
+                   s["marker"].startswith("PLOOP84|") or
+                   s["marker"].startswith("PLOOP85|")) and
                   s["marker"].endswith(
                       "|POST|" + ",".join(_JSON_SINK_FIELDS))
                   for s in plan if s["kind"] == "probe") and
@@ -7874,11 +7955,11 @@ def proof_jsonsqli():
               meta["recon_ok"] is True and
               set(meta["generic_sinks"]) == set(ids))
         bi = budget_info([], sinks)
-        check("budget: 3 JSON sinks priced at 12 turns (Rule #84: each "
-              "carries 2 pairs — the probes iterate the field CSV "
+        check("budget: 3 JSON sinks priced at 18 turns (Rule #85: each "
+              "carries 3 pairs — the probes iterate the field CSV "
               "internally)",
-              bi["recommended_turns"] == 12 and
-              bi["generic_turns"] == 12)
+              bi["recommended_turns"] == 18 and
+              bi["generic_turns"] == 18)
 
         # --- Case B: full autonomous cold drive vs fresh23 ---
         memdir = tempfile.mkdtemp(prefix="ploop84-b-")
@@ -7900,20 +7981,29 @@ def proof_jsonsqli():
               "with NO SQL keywords, so the error test cannot), "
               "followed by FILED",
               verdicts[3] == "CONFIRMED" and verdicts[4] == "FILED")
-        check("drive: /api/lookup jsonxss FAILED at turn 6 and the "
-              "jsonsqli FAILED at turn 9 — the parameterized "
-              "negative: identical bodies, no keywords",
-              verdicts[5] == "FAILED" and verdicts[8] == "FAILED")
-        check("drive: /api/search jsonxss FAILED at turn 12 — the "
+        check("drive: /api/items jsoncmdi FAILED at turn 6 — no shell "
+              "on a SQL sink (arith operands never evaluated, sleep "
+              "payloads cause no delay)",
+              verdicts[5] == "FAILED")
+        check("drive: /api/lookup jsonxss FAILED at turn 9 and the "
+              "jsonsqli FAILED at turn 12 and the jsoncmdi FAILED at "
+              "turn 15 — the parameterized negative: identical "
+              "bodies, no keywords, no shell",
+              verdicts[8] == "FAILED" and verdicts[11] == "FAILED" and
+              verdicts[14] == "FAILED")
+        check("drive: /api/search jsonxss FAILED at turn 18 — the "
               "field value is never echoed",
-              verdicts[11] == "FAILED")
-        check("drive: /api/search jsonsqli CONFIRMED at turn 15 — the "
+              verdicts[17] == "FAILED")
+        check("drive: /api/search jsonsqli CONFIRMED at turn 21 — the "
               "lone quote introduced SQL error keywords absent from "
               "the benign body, followed by FILED",
-              verdicts[14] == "CONFIRMED" and verdicts[15] == "FILED")
-        check("drive: 16 verdict turns executed, process completed, no "
+              verdicts[20] == "CONFIRMED" and verdicts[21] == "FILED")
+        check("drive: /api/search jsoncmdi FAILED at turn 23 — no "
+              "shell on the SQL sink either",
+              verdicts[22] == "FAILED")
+        check("drive: 25 verdict turns executed, process completed, no "
               "re-probe (each FAILED pair costs 3 turns)",
-              len(verdicts) == 16 and "process_completed" in events)
+              len(verdicts) == 25 and "process_completed" in events)
         claims = json.load(open(os.path.join(memdir, "claims.json")))
         check("drive: exactly 2 claims filed, generic_jsonsqli, "
               "state=filed, locations /api/items + /api/search (the "
@@ -7958,6 +8048,276 @@ def proof_jsonsqli():
               gotf == {"/api/search": "q", "/api/items": "sku"})
     finally:
         _stop_mock(mp, 8366)
+
+    # --- Case C: DVWA regression — zero generic sinks ---
+    mp2 = _start_mock(dvwa, 8341, [])
+    try:
+        recon2 = _lab_recon_map("http://127.0.0.1:8341")
+        sinks2 = _lab_generic_sinks("http://127.0.0.1:8341", None,
+                                    list(recon2["modules"]))
+        check("dvwa: zero generic sinks (no application/json mention "
+              "anywhere)",
+              sinks2 == [])
+        plan2, meta2 = _lab_plan_for_hunt(list(recon2["modules"]),
+                                          sinks2,
+                                          "http://127.0.0.1:8341")
+        check("dvwa: Rule #35 22-step plan byte-identical",
+              len(plan2) == 22 and meta2["generic_sinks"] == [] and
+              all(s["module"] in _HUNT_MODULE_ORDER for s in plan2))
+    finally:
+        _stop_mock(mp2, 8341)
+
+    return {"checks": checks}
+
+
+def proof_jsoncmdi():
+    """Rule #85 lab proof: generic JSON-body-sink command-injection probe.
+
+    mock-fresh24 (probe-lab/mock-fresh24/fresh24_app.py) is the
+    twenty-fourth unseen app: no DVWA module signals, no query-param
+    links, no forms, no application/xml mentions, no Set-Cookie —
+    recon finds zero known modules and zero query/form/xml/cookie
+    sinks. /api/calc, /api/echo, /api/lookup and /api/ping are an
+    API-documentation quartet mentioning "POST ... application/json"
+    — the Rule #70-style API-docs discovery signal. Discovery must
+    find FOUR JSON sinks (one per path), POST method, params = the
+    _JSON_SINK_FIELDS CSV (Rule #85: expr/host now in it).
+
+      /api/calc    VULN output-channel: the "expr" JSON field is
+              passed through a shell-like evaluator — $(expr 12345
+              + 6789) returns {"result": "19134"}, the computed
+              result only, the payload itself is NEVER echoed.
+      /api/ping    VULN timing-only (blind): the "host" JSON field —
+              a value containing "sleep N" makes the server actually
+              wait N seconds, then the constant {"status": "ok"} —
+              no output reflection at all, so the arithmetic channel
+              can never fire here and the blind timing differential
+              is proven independently.
+      /api/echo    NEGATIVE for cmdi: the "msg" JSON field is echoed
+              VERBATIM and never evaluated (arith operands echo,
+              "19134" absent; sleep payloads cause no delay) —
+              reflection != execution, the probe must fail closed.
+              (It IS a raw reflection sink for the XSS probe — the
+              Rule #80 semantics: verbatim reflection of the
+              executable canary CONFIRMs generic_jsonxss, exactly
+              like fresh19's /api/profile.)
+      /api/lookup  NEGATIVE: the "id" JSON field is parameterized —
+              every value returns the identical constant
+              {"result": "ok"}; benign baseline byte-stable, no
+              delay, no evaluation.
+      /            Index (200, readiness) + API-docs page mentioning
+              application/json near each path (the Rule #84 PART 2
+              discovery lesson).
+
+    Case A — discovery: 4 JSON sinks found (calc, echo, lookup, ping
+    — sorted order), plan is 24 steps (one jsonxss probe+claim pair
+    plus one jsonsqli probe+claim pair plus one jsoncmdi
+    probe+claim pair per sink — Rule #85: JSON sinks carry all
+    THREE body-shaped pairs), the field-name CSV rides in each
+    marker argv, budget prices 24.
+    Case B — full cold drive: /api/calc jsonxss FAILED (turns 1-3),
+    /api/calc jsonsqli FAILED (turns 4-6), /api/calc jsoncmdi
+    CONFIRMED->FILED at turns 7-8 (via=cmdi-arith, json_field=name
+    — the fresh24 mock reads the first string value of ANY field,
+    so the probe's first CSV field confirms);
+    /api/echo jsonxss CONFIRMED->FILED at turns 9-10 (via=html,
+    json_field=name — verbatim reflection of the executable canary,
+    the Rule #80 semantics), /api/echo jsonsqli FAILED (turns
+    11-13), /api/echo jsoncmdi FAILED (turns 14-16 — reflection,
+    not execution); /api/lookup jsonxss/jsonsqli/jsoncmdi all
+    FAILED (turns 17-25 — the parameterized negative);
+    /api/ping jsonxss FAILED (turns 26-28), /api/ping jsonsqli
+    FAILED (turns 29-31), /api/ping jsoncmdi CONFIRMED->FILED at
+    turns 32-33 (via=cmdi-timing, json_field=name — the blind
+    differential proven independently of the output channel);
+    exactly 3 filed claims (2 generic_jsoncmdi: /api/calc +
+    /api/ping; 1 generic_jsonxss: /api/echo); process completes,
+    no re-probe.
+    Case C — regression: the DVWA mock yields ZERO generic sinks so
+    the Rule #35 22-step plan is byte-identical.
+    """
+    checks = []
+
+    def check(name, cond):
+        assert cond, "FAILED: " + name
+        checks.append(name)
+
+    def _hist(memdir):
+        return load_json(mem_paths(memdir)["process"],
+                         {"process": None})["process"]
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    fresh24 = os.path.join(here, "probe-lab", "mock-fresh24",
+                           "fresh24_app.py")
+    dvwa = os.path.join(here, "probe-lab", "mock-dvwa.py")
+
+    # --- Case A: discovery on the twenty-fourth unseen target ---
+    mp = _start_mock(fresh24, 8367, [])
+    try:
+        tb = "http://127.0.0.1:8367"
+        recon = _lab_recon_map(tb)
+        check("fresh24: recon finds zero known modules",
+              recon is not None and recon["modules"] == {})
+        sinks = _lab_generic_sinks(tb, None, list(recon["modules"]))
+        ids = [s["id"] for s in sinks]
+        check("discovery: finds all four JSON sinks "
+              "(calc + echo + lookup + ping, application/json "
+              "API-docs signal) in sorted order",
+              ids == ["json:/api/calc:POST",
+                      "json:/api/echo:POST",
+                      "json:/api/lookup:POST",
+                      "json:/api/ping:POST"])
+        check("discovery: every sink is kind=json, POST, params=the "
+              "common field-name list (Rule #85: expr/host present)",
+              all(s["kind"] == "json" and s["method"] == "POST" and
+                  s["params"] == list(_JSON_SINK_FIELDS)
+                  for s in sinks) and
+              all(f in _JSON_SINK_FIELDS
+                  for f in ("expr", "host")))
+        check("discovery: zero query/form/xml/cookie sinks on fresh24",
+              all(s["kind"] == "json" for s in sinks))
+        plan, meta = _lab_plan_for_hunt([], sinks, tb)
+        check("plan: 24 steps — one jsonxss probe+claim pair plus one "
+              "jsonsqli probe+claim pair plus one jsoncmdi "
+              "probe+claim pair per JSON sink (Rule #85: the "
+              "param-shaped xss/sqli pairs do NOT apply to a JSON "
+              "body; the body-shaped PLOOP80/PLOOP84/PLOOP85 pairs "
+              "do)",
+              len(plan) == 24 and
+              [s["module"] for s in plan] ==
+              (["generic_jsonxss"] * 2 + ["generic_jsonsqli"] * 2 +
+               ["generic_jsoncmdi"] * 2) * 4
+              and
+              [s["kind"] for s in plan] ==
+              ["probe", "claim"] * 12 and
+              [s["probe"] for s in plan if s["kind"] == "probe"] ==
+              ["probe_sink_jsonxss.py",
+               "probe_sink_jsonsqli.py",
+               "probe_sink_jsoncmdi.py"] * 4)
+        check("plan: the field-name CSV rides in each marker argv "
+              "(PLOOP80|<tb>|<path>|POST|name,message,... and "
+              "PLOOP84|<tb>|<path>|POST|name,message,... and "
+              "PLOOP85|<tb>|<path>|POST|name,message,...), markers "
+              "filename-safe",
+              all((s["marker"].startswith("PLOOP80|") or
+                   s["marker"].startswith("PLOOP84|") or
+                   s["marker"].startswith("PLOOP85|")) and
+                  s["marker"].endswith(
+                      "|POST|" + ",".join(_JSON_SINK_FIELDS))
+                  for s in plan if s["kind"] == "probe") and
+              all("/" not in s["marker"]
+                  for s in plan if s["kind"] == "probe"))
+        check("plan_meta: recon_ok=True, 4 JSON sink ids recorded",
+              meta["recon_ok"] is True and
+              set(meta["generic_sinks"]) == set(ids))
+        bi = budget_info([], sinks)
+        check("budget: 4 JSON sinks priced at 24 turns (Rule #85: each "
+              "carries 3 pairs — the probes iterate the field CSV "
+              "internally)",
+              bi["recommended_turns"] == 24 and
+              bi["generic_turns"] == 24)
+
+        # --- Case B: full autonomous cold drive vs fresh24 ---
+        memdir = tempfile.mkdtemp(prefix="ploop85-b-")
+        goal = "probe-hunt: fresh24 JSON-body-cmdi drive"
+        ctx = {"registry_url": "http://127.0.0.1:9", "workdir": memdir,
+               "memdir": memdir, "target_base": tb}
+        verdicts, events = [], []
+        for _ in range(60):
+            r = run_turn(memdir, goal, ctx)
+            events.extend(r.get("events", []))
+            if "process_completed" in r.get("events", []):
+                break
+            verdicts.append(_hist(memdir)["history"][-1]["verdict"])
+        check("drive: /api/calc jsonxss FAILED at turn 1 and jsonsqli "
+              "FAILED at turn 4 — the payload is never echoed and no "
+              "SQL is built (the evaluator is not SQL)",
+              verdicts[0] == "FAILED" and verdicts[3] == "FAILED")
+        check("drive: /api/calc jsoncmdi CONFIRMED at turn 7 — the "
+              "arithmetic result \"19134\" appeared though it was "
+              "never transmitted (via=cmdi-arith, shell evaluation "
+              "proven), followed by FILED",
+              verdicts[6] == "CONFIRMED" and verdicts[7] == "FILED")
+        check("drive: /api/echo jsonxss CONFIRMED at turn 9 — the "
+              "executable canary reflected UNESCAPED (verbatim "
+              "reflection, the Rule #80 semantics), followed by "
+              "FILED",
+              verdicts[8] == "CONFIRMED" and verdicts[9] == "FILED")
+        check("drive: /api/echo jsonsqli FAILED at turn 11 and "
+              "jsoncmdi FAILED at turn 14 — reflection is not "
+              "execution (arith operands echo verbatim, no delay)",
+              verdicts[10] == "FAILED" and verdicts[13] == "FAILED")
+        check("drive: /api/lookup xss/sqli/cmdi all FAILED at turns "
+              "17/20/23 — the parameterized negative: identical "
+              "bodies, no keywords, no shell",
+              verdicts[16] == "FAILED" and verdicts[19] == "FAILED"
+              and verdicts[22] == "FAILED")
+        check("drive: /api/ping jsonxss FAILED at turn 26 and "
+              "jsonsqli FAILED at turn 29 — the timing-only blind "
+              "sink reflects nothing",
+              verdicts[25] == "FAILED" and verdicts[28] == "FAILED")
+        check("drive: /api/ping jsoncmdi CONFIRMED at turn 32 — the "
+              "delay scaled with the injected number (via=cmdi-timing,"
+              " blind differential proven independently of the "
+              "output channel), followed by FILED",
+              verdicts[31] == "CONFIRMED" and
+              verdicts[32] == "FILED")
+        check("drive: 33 verdict turns executed, process completed, no "
+              "re-probe (each FAILED pair costs 3 turns)",
+              len(verdicts) == 33 and "process_completed" in events)
+        claims = json.load(open(os.path.join(memdir, "claims.json")))
+        check("drive: exactly 3 claims filed — 2 generic_jsoncmdi "
+              "(/api/calc + /api/ping) + 1 generic_jsonxss "
+              "(/api/echo), all state=filed",
+              len(claims) == 3 and
+              all(v["state"] == "filed" for v in claims.values()) and
+              {v["module"] for v in claims.values()} ==
+              {"generic_jsoncmdi", "generic_jsonxss"} and
+              {v.get("location") for v in claims.values()} ==
+              {"/api/calc", "/api/echo", "/api/ping"})
+        check("drive: claim classes are command_injection/critical "
+              "and xss_reflected/high (the Rule #65 / Rule #56 "
+              "classes, distinct modules)",
+              all((v.get("class") == "command_injection" and
+                   v.get("severity") == "critical") or
+                  (v.get("class") == "xss_reflected" and
+                   v.get("severity") == "high")
+                  for v in claims.values()))
+        store = HashStore(os.path.join(memdir, "output"))
+        got = {}
+        gotf = {}
+        for v in claims.values():
+            check("drive: claim carries a real evidence hash",
+                  bool(HASH_RE.match(v.get("evidence_hash") or "")))
+            raw = _to_text(store.get(v["evidence_hash"]) or b"")
+            m = re.search(r"EVIDENCE class=command_injection "
+                          r"via=([a-z_-]+)", raw)
+            mx = re.search(r"EVIDENCE sink=(\S+) .* via=([a-z-]+)",
+                           raw)
+            check("drive: stored output cites class + via=<mode>",
+                  (m is not None) or (mx is not None))
+            mf = re.search(r"json_field=([A-Za-z0-9_.\[\]-]+)", raw)
+            check("drive: stored output names the confirming JSON "
+                  "field",
+                  mf is not None)
+            check("drive: stored output ends VERDICT: CONFIRMED",
+                  raw.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
+            if mf:
+                gotf[v.get("location")] = mf.group(1)
+            if m:
+                got[v.get("location")] = m.group(1)
+            elif mx:
+                got[v.get("location")] = mx.group(2)
+        check("drive: Rule #85 — /api/calc confirmed via=cmdi-arith, "
+              "/api/ping via=cmdi-timing (the blind path proven "
+              "independently of the output channel); /api/echo via=html",
+              got == {"/api/calc": "cmdi-arith",
+                      "/api/ping": "cmdi-timing",
+                      "/api/echo": "html"} and
+              gotf == {"/api/calc": "name", "/api/ping": "name",
+                       "/api/echo": "name"})
+    finally:
+        _stop_mock(mp, 8367)
 
     # --- Case C: DVWA regression — zero generic sinks ---
     mp2 = _start_mock(dvwa, 8341, [])
@@ -8408,15 +8768,18 @@ def proof_reconfirm():
     plan is 8 steps (jsonxss pair + jsonsqli pair per sink —
     UNCHANGED by Rule #81, the reconfirm lives inside the probe
     step's execution, not the plan; Rule #84 adds the jsonsqli
-    pair); budget prices 8 (the reconfirm is conditional — it fires
-    only on CONFIRMED — so recommended_turns prices only the plan).
+    pair, Rule #85 adds the jsoncmdi pair); budget prices 12 (the
+    reconfirm is conditional — it fires only on CONFIRMED — so
+    recommended_turns prices only the plan).
     Case B — full cold drive: flaky jsonxss probe FAILED at turn 1
     (CONFIRMED then FAILED on reconfirm), probe DEAD_END turn 2,
     claim DEAD_END turn 3 (paired probe dead-ended, Rule #38);
     flaky jsonsqli FAILED at turns 4-6 (no SQL evaluation on a
-    reflection sink); stable jsonxss CONFIRMED turn 7 (both runs
-    confirmed), claim FILED turn 8; stable jsonsqli FAILED at turns
-    9-11; exactly 1 filed claim (generic_jsonxss, /api/stable).
+    reflection sink); flaky jsoncmdi FAILED at turns 7-9 (no shell
+    on a reflection sink); stable jsonxss CONFIRMED turn 10 (both
+    runs confirmed), claim FILED turn 11; stable jsonsqli FAILED
+    at turns 12-14; stable jsoncmdi FAILED at turns 15-17;
+    exactly 1 filed claim (generic_jsonxss, /api/stable).
     The stable claim's stored output carries BOTH "VERDICT:
     CONFIRMED" lines plus the RECONFIRM separator; the flaky probe's
     stored output shows CONFIRMED then FAILED. Process completes, no
@@ -8455,25 +8818,28 @@ def proof_reconfirm():
         check("discovery: zero query/form/xml/cookie sinks on fresh20",
               all(s["kind"] == "json" for s in sinks))
         plan, meta = _lab_plan_for_hunt([], sinks, tb)
-        check("plan: 8 steps — one jsonxss probe+claim pair plus one "
-              "jsonsqli probe+claim pair per JSON sink (Rule #81 "
-              "changes NO plan shape: the reconfirm lives inside the "
-              "probe step's execution; Rule #84 adds the jsonsqli "
-              "pair)",
-              len(plan) == 8 and
+        check("plan: 12 steps — one jsonxss probe+claim pair plus one "
+              "jsonsqli probe+claim pair plus one jsoncmdi probe+claim "
+              "pair per JSON sink (Rule #81 changes NO plan shape: "
+              "the reconfirm lives inside the probe step's execution; "
+              "Rule #84 adds the jsonsqli pair, Rule #85 adds the "
+              "jsoncmdi pair)",
+              len(plan) == 12 and
               [s["module"] for s in plan] ==
-              (["generic_jsonxss"] * 2 + ["generic_jsonsqli"] * 2) * 2
+              (["generic_jsonxss"] * 2 + ["generic_jsonsqli"] * 2 +
+               ["generic_jsoncmdi"] * 2) * 2
               and
               [s["kind"] for s in plan] ==
-              ["probe", "claim"] * 4 and
+              ["probe", "claim"] * 6 and
               [s["probe"] for s in plan if s["kind"] == "probe"] ==
               ["probe_sink_jsonxss.py",
-               "probe_sink_jsonsqli.py"] * 2)
+               "probe_sink_jsonsqli.py",
+               "probe_sink_jsoncmdi.py"] * 2)
         bi = budget_info([], sinks)
-        check("budget: 2 JSON sinks priced at 8 turns (Rule #81: the "
+        check("budget: 2 JSON sinks priced at 12 turns (Rule #81: the "
               "reconfirm is conditional — it fires only on CONFIRMED "
               "— so recommended_turns prices only the plan)",
-              bi["recommended_turns"] == 8 and bi["generic_turns"] == 8)
+              bi["recommended_turns"] == 12 and bi["generic_turns"] == 12)
 
         # --- Case B: full autonomous cold drive vs fresh20 ---
         memdir = tempfile.mkdtemp(prefix="ploop81-b-")
@@ -8490,15 +8856,20 @@ def proof_reconfirm():
             last_proc = _hist(memdir)
             verdicts.append(last_proc["history"][-1]["verdict"])
         check("drive: verdict sequence is FAILED, DEAD_END, DEAD_END, "
-              "FAILED, DEAD_END, DEAD_END, CONFIRMED, FILED, FAILED, "
+              "FAILED, DEAD_END, DEAD_END, FAILED, DEAD_END, DEAD_END, "
+              "CONFIRMED, FILED, FAILED, DEAD_END, DEAD_END, FAILED, "
               "DEAD_END, DEAD_END — the flaky sink's jsonxss burns 3 "
               "turns (reconfirm FAILED -> probe dead-ends -> claim "
               "dead-ends), the flaky jsonsqli burns 3 (no SQL "
-              "evaluation on a reflection sink), the stable jsonxss "
-              "confirms twice then files, the stable jsonsqli burns 3",
+              "evaluation on a reflection sink), the flaky jsoncmdi "
+              "burns 3 (no shell on a reflection sink), the stable "
+              "jsonxss confirms twice then files, the stable "
+              "jsonsqli burns 3, the stable jsoncmdi burns 3",
               verdicts == ["FAILED", "DEAD_END", "DEAD_END",
                            "FAILED", "DEAD_END", "DEAD_END",
+                           "FAILED", "DEAD_END", "DEAD_END",
                            "CONFIRMED", "FILED",
+                           "FAILED", "DEAD_END", "DEAD_END",
                            "FAILED", "DEAD_END", "DEAD_END"] and
               "process_completed" in events and last_proc is not None)
         hist = last_proc["history"]
@@ -9077,6 +9448,10 @@ def main():
                     help="Rule #84: generic JSON-body-sink SQL-injection "
                          "probe (twenty-third unseen target), "
                          "DVWA regression")
+    ap.add_argument("--proof-jsoncmdi", action="store_true",
+                    help="Rule #85: generic JSON-body-sink command-"
+                         "injection probe (twenty-fourth unseen "
+                         "target), DVWA regression")
     ap.add_argument("--proof-reconfirm", action="store_true",
                     help="Rule #81: double-confirm in the probe executor "
                          "(twentieth unseen target: stable + flaky JSON "
@@ -9458,6 +9833,19 @@ def main():
         dt = time.time() - t0
         print("=" * 70)
         print("RULE #84 LAB PROOF: %d/%d checks passed in %.1fs"
+              % (len(allc), len(allc), dt))
+        for c in allc:
+            print("  [ok] " + c)
+        print("PROOF: PASS")
+        return
+
+    if args.proof_jsoncmdi:
+        t0 = time.time()
+        gen24 = proof_jsoncmdi()        # Rule #85: JSON-body-sink cmdi
+        allc = ["jsoncmdi: " + c for c in gen24["checks"]]
+        dt = time.time() - t0
+        print("=" * 70)
+        print("RULE #85 LAB PROOF: %d/%d checks passed in %.1fs"
               % (len(allc), len(allc), dt))
         for c in allc:
             print("  [ok] " + c)
