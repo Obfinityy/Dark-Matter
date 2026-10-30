@@ -245,6 +245,22 @@ _LAB_CLAIM_META = {
     # wins), keeping the budget at 2 turns per sink.
     "generic_jsonxss": ("Reflected XSS (generic JSON-body sink)",
                         "xss_reflected", "high"),
+    # Rule #82: same for the generic-sink HEADER-XSS probe — the
+    # target reflects an attacker-controlled request-header value
+    # (User-Agent / Referer / X-Forwarded-For) into the response
+    # body UNESCAPED (the run-unique executable canary
+    # "<img src=x onerror=PLOOP82-<nonce>>" in the canary body
+    # though absent from the benign-headers control body ->
+    # via=<context>; an HTML-encoded reflection is a safe encoding,
+    # not a vuln). Severity high: reflected XSS executes in the
+    # victim's browser. Same class as Rule #56 ("xss_reflected"),
+    # distinct module — dedup is (module, class, location), so a
+    # page vulnerable via both a query param and a header files two
+    # distinct claims (the Rule #69 rationale). The probe iterates
+    # the marker's CSV of common header names internally (first
+    # CONFIRMED wins), keeping the budget at 2 turns per sink.
+    "generic_headerxss": ("Reflected XSS (generic header sink)",
+                          "xss_reflected", "high"),
 }
 
 
@@ -791,6 +807,28 @@ _JSON_SINK_FIELDS = ("name", "message", "q", "query", "search", "text",
                      "value", "title")
 
 
+# Rule #82: the header names the PLOOP82 probe tries per header sink,
+# in order — first CONFIRMED wins, so the budget stays 2 turns per
+# sink. The probe validates every name up front (its fail-closed
+# [A-Za-z0-9-]{1,40} regex), so this list must stay inside that
+# alphabet.
+_HEADER_SINK_HEADERS = ("User-Agent", "Referer", "X-Forwarded-For")
+
+# Rule #82: the discovery signal for header sinks. A human hunter
+# changes their User-Agent on pages that TALK about request metadata
+# ("your browser", "you came from") — the page advertising the echo
+# is where the echo is tested. The recon crawler's served page
+# bodies are matched case-insensitively; one sink per matching path,
+# GET method, params = _HEADER_SINK_HEADERS. Fail-closed: no
+# mention, no sink. The probe itself is differential (canary token
+# vs benign-headers control), so a phrase-hit page that reflects
+# nothing just yields VERDICT: FAILED — a phrase can never ground a
+# claim, only a turn-cost.
+_HEADER_SINK_PHRASES = re.compile(
+    r"(?i)(user-agent|user agent|your browser|referr?er|"
+    r"you came from|x-forwarded-for|your ip|remote addr|client ip)")
+
+
 def _lab_generic_sinks(target_base, opener=None, known_modules=None,
                        timeout_s=5, self_cookie_names=()):
     """Discover generic attack sinks on the explicit target. Returns a
@@ -802,9 +840,14 @@ def _lab_generic_sinks(target_base, opener=None, known_modules=None,
     (Rule #80: an endpoint documented as accepting application/json
     POST bodies — same API-docs pattern; the field names are
     unknowable at recon time so params carries _JSON_SINK_FIELDS,
-    the common-name CSV the PLOOP80 probe iterates), or 'cookie'
+    the common-name CSV the PLOOP80 probe iterates), 'cookie'
     (Rule #74: a Set-Cookie name on a crawled response — one sink
-    per (path, cookie name), GET method, the name in params). Paths
+    per (path, cookie name), GET method, the name in params), or
+    'header' (Rule #82: a crawled page whose served body mentions
+    request metadata — the human-hunter signal that the page may
+    echo a header; one sink per path, GET method, params =
+    _HEADER_SINK_HEADERS, the common-name CSV the PLOOP82 probe
+    iterates). Paths
     covered by known-module signals are excluded. Rule #75: cookie
     names in self_cookie_names (the loop's own session-jar names,
     e.g. PHPSESSID from the recon login) are never sunk — they are
@@ -1017,6 +1060,23 @@ def _lab_generic_sinks(target_base, opener=None, known_modules=None,
                 sinks[sid] = {"id": sid, "kind": "json",
                               "method": "POST", "path": pu.path,
                               "params": list(_JSON_SINK_FIELDS)}
+        # Rule #82: header sinks — pages whose served body mentions
+        # request metadata (the _HEADER_SINK_PHRASES human-hunter
+        # signal: a page saying "Your browser:" is where you change
+        # your User-Agent). One sink per path, GET method, params =
+        # _HEADER_SINK_HEADERS (the real echoed header is unknowable
+        # at recon time; the PLOOP82 probe iterates the CSV and the
+        # first CONFIRMED wins). Fail-closed: no mention, no sink.
+        # Known-module paths and auth surfaces stay excluded via
+        # _skip_path, same as every other sink kind. The index page
+        # itself is eligible (it is a real served page).
+        if not _skip_path(page_path) and \
+                _HEADER_SINK_PHRASES.search(body or ""):
+            sid = "header:%s:GET" % page_path
+            if sid not in sinks:
+                sinks[sid] = {"id": sid, "kind": "header",
+                              "method": "GET", "path": page_path,
+                              "params": list(_HEADER_SINK_HEADERS)}
     return [sinks[k] for k in sorted(sinks)][: _GENERIC_SINK_CAP]
 
 
@@ -1127,8 +1187,11 @@ def _recon_driven_plan(modules_present, generic_sinks=(),
         # for json sinks — the params field carries common JSON field
         # names, not query params; the xss/sqli probes would attack
         # the wrong injection point (?name=) instead of the JSON body
-        # the sink was discovered for.
-        if sink.get("kind") not in ("xml", "cookie", "json"):
+        # the sink was discovered for. Rule #82: same for header
+        # sinks — the params field carries header NAMES; the xss/sqli
+        # probes would attack the wrong injection point (?User-Agent=)
+        # instead of the request headers the sink was discovered for.
+        if sink.get("kind") not in ("xml", "cookie", "json", "header"):
             marker = "PLOOP56|%s|%s|%s|%s" % (
                 tbq, pathq, sink.get("method", "GET"),
                 ",".join(sink.get("params", ())))
@@ -1153,8 +1216,10 @@ def _recon_driven_plan(modules_present, generic_sinks=(),
         # Rule #74: skipped for cookie sinks — the params field
         # carries the cookie name, not a query param; Rule #80:
         # skipped for json sinks — the params field carries JSON
-        # field names, not query params.)
-        if sink.get("kind") not in ("xml", "cookie", "json"):
+        # field names, not query params; Rule #82: skipped for
+        # header sinks — the params field carries header names, not
+        # query params.)
+        if sink.get("kind") not in ("xml", "cookie", "json", "header"):
             sqli_marker = "PLOOP57|%s|%s|%s|%s" % (
                 tbq, pathq, sink.get("method", "GET"),
                 ",".join(sink.get("params", ())))
@@ -1542,6 +1607,41 @@ def _recon_driven_plan(modules_present, generic_sinks=(),
                 "probe_step_idx": len(plan) - 1,
                 "done": False, "result_hash": None,
                 "recon": True})
+        # Rule #82: the header-sink XSS probe for header sinks
+        # (PLOOP82 marker — the target must reflect an
+        # attacker-controlled request-header value (User-Agent /
+        # Referer / X-Forwarded-For) into the response body UNESCAPED:
+        # the run-unique executable canary "<img src=x
+        # onerror=PLOOP82-<nonce>>" in the canary body though
+        # absent from the benign-headers control body -> via=<context>
+        # from the Rule #59 classifier; an HTML-encoded reflection is
+        # a safe encoding, not a vuln). Header sinks carry ONLY this
+        # pair — headers are neither query params nor form fields nor
+        # bodies, so the param-shaped xss/sqli pairs do not apply.
+        # The marker's 5th component is the _HEADER_SINK_HEADERS CSV;
+        # the probe iterates it internally (first CONFIRMED wins),
+        # keeping the budget at 2 turns per sink.
+        if sink.get("kind") == "header":
+            hxss_marker = "PLOOP82|%s|%s|%s|%s" % (
+                tbq, pathq, "GET",
+                ",".join(sink.get("params", ())))
+            plan.append({
+                "desc": "Probe generic header sink %s for reflected "
+                        "XSS (%s)" %
+                        (sink.get("id"), "probe_sink_headerxss.py"),
+                "kind": "probe", "module": "generic_headerxss",
+                "sink": sink.get("id"),
+                "probe": "probe_sink_headerxss.py",
+                "marker": hxss_marker, "done": False,
+                "result_hash": None, "recon": True})
+            plan.append({
+                "desc": "File claim for the verified generic-sink "
+                        "finding",
+                "kind": "claim", "module": "generic_headerxss",
+                "sink": sink.get("id"),
+                "probe_step_idx": len(plan) - 1,
+                "done": False, "result_hash": None,
+                "recon": True})
     meta["generic_sinks"] = [s.get("id") for s in (generic_sinks or ())]
     return plan, meta
 
@@ -1639,6 +1739,8 @@ def budget_info(modules=None, generic_sinks=()):
         # sink carries one (xxe); Rule #74: a cookie sink carries one
         # (cookie-XSS); Rule #80: a json sink carries one (JSON-body
         # XSS — the probe iterates the field-name CSV internally);
+        # Rule #82: a header sink carries one (header XSS — the probe
+        # iterates the header-name CSV internally);
         # every other sink shape carries two.
         if isinstance(s, dict) and s.get("kind") == "form" and \
                 s.get("method", "GET").upper() == "POST":
@@ -1660,6 +1762,13 @@ def budget_info(modules=None, generic_sinks=()):
             # nor a form field nor an XML body nor a cookie; the
             # probe iterates the field-name CSV internally so one
             # pair (2 turns) covers all common field names.
+            gen += 2
+        elif isinstance(s, dict) and s.get("kind") == "header":
+            # Rule #82: a header sink carries only the header-XSS
+            # probe+claim pair — request headers are neither query
+            # params nor form fields nor bodies; the probe iterates
+            # the header-name CSV internally so one pair (2 turns)
+            # covers User-Agent/Referer/X-Forwarded-For.
             gen += 2
         else:
             gen += 4
@@ -7466,6 +7575,216 @@ def proof_jsonxss():
 
 
 
+    return {"checks": checks}
+
+
+def proof_headerxss():
+    """Rule #82 lab proof: generic header-sink reflected-XSS probe.
+
+    mock-fresh21 (probe-lab/mock-fresh21/fresh21_app.py) is the
+    twenty-first unseen app: no DVWA module signals, no query-param
+    links, no forms, no application/xml or application/json mentions,
+    no Set-Cookie — recon finds zero known modules and zero
+    query/form/xml/cookie/json sinks. The index links /whoami,
+    /echo, /safe, /static (a real app's nav); the Rule #82
+    human-hunter discovery signal is a served page TALKING about
+    request metadata. Discovery must find THREE header sinks (one
+    per phrase-hit path), GET method, params = the
+    _HEADER_SINK_HEADERS CSV — the last client-data sink kind with
+    zero coverage (query 9 classes / form 4 / xml 1 / cookie 1 /
+    json 1 / header 0).
+
+      /whoami   VULN: reflects the User-Agent header RAW into a text
+              node -> the PLOOP82 probe's executable canary reflects
+              UNESCAPED -> VERDICT: CONFIRMED via=text
+              (header=User-Agent, first CSV header).
+      /echo     VULN: reflects the Referer header RAW into a text
+              node -> the probe's CSV iteration reaches the SECOND
+              header -> VERDICT: CONFIRMED via=text
+              (header=Referer).
+      /safe     HTML-escapes the User-Agent before reflecting -> the
+              canary token reflects only ENCODED -> VERDICT: FAILED
+              (safe encoding, not a vuln — the hard negative
+              control; it is still a sink, the probe fails closed).
+      /static   Reflects nothing -> not a sink (no phrase hit).
+      /         Index, phrase-free -> not a sink.
+
+    Cross-negatives: no forms (zero form sinks); nothing persisted;
+    no SQL, no error keywords, no shell, no template engine, no
+    entity parsing, no Host-header trust, no redirects.
+
+    Case A — discovery: 3 header sinks found, plan is 6 steps (one
+    headerxss probe+claim pair per sink — Rule #82: header sinks
+    carry ONLY this pair; the param-shaped xss/sqli pairs would
+    attack the wrong injection point (?User-Agent=) instead of the
+    request headers), the header-name CSV rides in the marker argv,
+    budget prices 6.
+    Case B — full cold drive: /echo headerxss CONFIRMED->FILED at
+    turns 1-2 (via=text, header=Referer); /safe headerxss FAILED at
+    turn 3 (3 turns: FAILED + probe DEAD_END + claim DEAD_END);
+    /whoami headerxss CONFIRMED->FILED at turns 6-7 (via=text,
+    header=User-Agent); exactly 2 filed claims (generic_headerxss),
+    locations /echo + /whoami; process completes, no re-probe.
+    Case C — regression: the DVWA mock yields ZERO generic sinks
+    (no request-metadata phrases anywhere) so the Rule #35 22-step
+    plan is byte-identical.
+    """
+    checks = []
+
+    def check(name, cond):
+        assert cond, "FAILED: " + name
+        checks.append(name)
+
+    def _hist(memdir):
+        return load_json(mem_paths(memdir)["process"],
+                         {"process": None})["process"]
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    fresh21 = os.path.join(here, "probe-lab", "mock-fresh21",
+                           "fresh21_app.py")
+    dvwa = os.path.join(here, "probe-lab", "mock-dvwa.py")
+
+    # --- Case A: discovery on the twenty-first unseen target ---
+    mp = _start_mock(fresh21, 8363, [])
+    try:
+        tb = "http://127.0.0.1:8363"
+        recon = _lab_recon_map(tb)
+        check("fresh21: recon finds zero known modules",
+              recon is not None and recon["modules"] == {})
+        sinks = _lab_generic_sinks(tb, None, list(recon["modules"]))
+        ids = [s["id"] for s in sinks]
+        check("discovery: finds all three header sinks (/echo + "
+              "/safe + /whoami, request-metadata phrase signal) in "
+              "sorted order",
+              ids == ["header:/echo:GET",
+                      "header:/safe:GET",
+                      "header:/whoami:GET"])
+        check("discovery: every sink is kind=header, GET, params=the "
+              "common header-name list",
+              all(s["kind"] == "header" and s["method"] == "GET" and
+                  s["params"] == list(_HEADER_SINK_HEADERS)
+                  for s in sinks))
+        check("discovery: zero query/form/xml/cookie/json sinks on "
+              "fresh21",
+              all(s["kind"] == "header" for s in sinks))
+        plan, meta = _lab_plan_for_hunt([], sinks, tb)
+        check("plan: 6 steps — one headerxss probe+claim pair per "
+              "header sink (Rule #82: the param-shaped xss/sqli "
+              "pairs do NOT apply to request headers)",
+              len(plan) == 6 and
+              [s["module"] for s in plan] ==
+              ["generic_headerxss"] * 6 and
+              [s["kind"] for s in plan] ==
+              ["probe", "claim"] * 3 and
+              [s["probe"] for s in plan if s["kind"] == "probe"] ==
+              ["probe_sink_headerxss.py"] * 3)
+        check("plan: the header-name CSV rides in the marker argv "
+              "(PLOOP82|<tb>|<path>|GET|User-Agent,Referer,"
+              "X-Forwarded-For), marker filename-safe",
+              all(s["marker"].startswith("PLOOP82|") and
+                  s["marker"].endswith(
+                      "|GET|" + ",".join(_HEADER_SINK_HEADERS)) and
+                  s["probe"] == "probe_sink_headerxss.py"
+                  for s in plan if s["kind"] == "probe") and
+              all("/" not in s["marker"]
+                  for s in plan if s["kind"] == "probe"))
+        check("plan_meta: recon_ok=True, 3 header sink ids recorded",
+              meta["recon_ok"] is True and
+              set(meta["generic_sinks"]) == set(ids))
+        bi = budget_info([], sinks)
+        check("budget: 3 header sinks priced at 6 turns (Rule #82: "
+              "each costs 2 — the probe iterates the header CSV "
+              "internally)",
+              bi["recommended_turns"] == 6 and bi["generic_turns"] == 6)
+
+        # --- Case B: full autonomous cold drive vs fresh21 ---
+        memdir = tempfile.mkdtemp(prefix="ploop82-b-")
+        goal = "probe-hunt: fresh21 header-sink-XSS drive"
+        ctx = {"registry_url": "http://127.0.0.1:9", "workdir": memdir,
+               "memdir": memdir, "target_base": tb}
+        verdicts, events = [], []
+        for _ in range(40):
+            r = run_turn(memdir, goal, ctx)
+            events.extend(r.get("events", []))
+            if "process_completed" in r.get("events", []):
+                break
+            verdicts.append(_hist(memdir)["history"][-1]["verdict"])
+        sq = [i for i, v in enumerate(verdicts) if v == "CONFIRMED"]
+        check("drive: /echo headerxss CONFIRMED at turn 1 and "
+              "/whoami headerxss CONFIRMED at turn 6 — the canaries "
+              "reflected UNESCAPED (Referer on /echo via CSV "
+              "iteration, User-Agent on /whoami)",
+              sq == [0, 5])
+        check("drive: each CONFIRMED probe is followed by a FILED "
+              "claim",
+              all(verdicts[i + 1] == "FILED" for i in sq))
+        check("drive: /safe headerxss FAILED at turn 3 — the canary "
+              "token reflects HTML-ENCODED, not unescaped (safe "
+              "encoding, not a vuln)",
+              verdicts[2] == "FAILED")
+        check("drive: 7 verdict turns executed, process completed, "
+              "no re-probe (each FAILED pair costs 3 turns)",
+              len(verdicts) == 7 and "process_completed" in events)
+        claims = json.load(open(os.path.join(memdir, "claims.json")))
+        check("drive: exactly 2 claims filed, generic_headerxss, "
+              "state=filed, locations /echo + /whoami",
+              len(claims) == 2 and
+              all(v["state"] == "filed" for v in claims.values()) and
+              {v["module"] for v in claims.values()} ==
+              {"generic_headerxss"} and
+              {v.get("location") for v in claims.values()} ==
+              {"/echo", "/whoami"})
+        check("drive: claim class is xss_reflected, severity high "
+              "(the Rule #56 class, distinct module)",
+              all(v.get("class") == "xss_reflected" and
+                  v.get("severity") == "high"
+                  for v in claims.values()))
+        store = HashStore(os.path.join(memdir, "output"))
+        got = {}
+        for v in claims.values():
+            check("drive: claim carries a real evidence hash",
+                  bool(HASH_RE.match(v.get("evidence_hash") or "")))
+            raw = _to_text(store.get(v["evidence_hash"]) or b"")
+            m = re.search(r"EVIDENCE sink=(\S+) .* via=([a-z-]+)",
+                          raw)
+            check("drive: stored output cites sink + via=<class>",
+                  m is not None)
+            if m:
+                got[m.group(1)] = m.group(2)
+            check("drive: stored output names the confirming header",
+                  ("header=User-Agent" in raw and
+                   v.get("location") == "/whoami") or
+                  ("header=Referer" in raw and
+                   v.get("location") == "/echo"))
+            check("drive: stored output ends VERDICT: CONFIRMED",
+                  raw.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
+        check("drive: Rule #82 — /echo confirmed via=text "
+              "(header=Referer), /whoami via=text (header=User-Agent)",
+              got == {"/echo": "text", "/whoami": "text"})
+    finally:
+        _stop_mock(mp, 8363)
+
+    # --- Case C: DVWA regression — zero generic sinks ---
+    mp2 = _start_mock(dvwa, 8341, [])
+    try:
+        recon2 = _lab_recon_map("http://127.0.0.1:8341")
+        sinks2 = _lab_generic_sinks("http://127.0.0.1:8341", None,
+                                    list(recon2["modules"]))
+        check("dvwa: zero generic sinks (no request-metadata phrase "
+              "anywhere)",
+              sinks2 == [])
+        plan2, meta2 = _lab_plan_for_hunt(list(recon2["modules"]),
+                                          sinks2,
+                                          "http://127.0.0.1:8341")
+        check("dvwa: Rule #35 22-step plan byte-identical",
+              len(plan2) == 22 and meta2["generic_sinks"] == [] and
+              all(s["module"] in _HUNT_MODULE_ORDER for s in plan2))
+    finally:
+        _stop_mock(mp2, 8341)
+
+    return {"checks": checks}
+
+
 def proof_reconfirm():
     """Rule #81 lab proof: double-confirm inside the probe executor.
 
@@ -8133,6 +8452,10 @@ def main():
                     help="Rule #80: generic JSON-body-sink reflected-XSS "
                          "probe (nineteenth unseen target), "
                          "DVWA regression")
+    ap.add_argument("--proof-headerxss", action="store_true",
+                    help="Rule #82: generic header-sink reflected-XSS "
+                         "probe (twenty-first unseen target), "
+                         "DVWA regression")
     ap.add_argument("--proof-reconfirm", action="store_true",
                     help="Rule #81: double-confirm in the probe executor "
                          "(twentieth unseen target: stable + flaky JSON "
@@ -8475,6 +8798,19 @@ def main():
         dt = time.time() - t0
         print("=" * 70)
         print("RULE #80 LAB PROOF: %d/%d checks passed in %.1fs"
+              % (len(allc), len(allc), dt))
+        for c in allc:
+            print("  [ok] " + c)
+        print("PROOF: PASS")
+        return
+
+    if args.proof_headerxss:
+        t0 = time.time()
+        gen21 = proof_headerxss()       # Rule #82: header-sink XSS
+        allc = ["headerxss: " + c for c in gen21["checks"]]
+        dt = time.time() - t0
+        print("=" * 70)
+        print("RULE #82 LAB PROOF: %d/%d checks passed in %.1fs"
               % (len(allc), len(allc), dt))
         for c in allc:
             print("  [ok] " + c)
