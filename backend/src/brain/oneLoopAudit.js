@@ -21,8 +21,8 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { oneLoopMemdir, ONELOOP_AUDIT_FILE } from './oneLoopSession.js';
 
-/** Sanitise a hunt id for a path join (no traversal). */
-function safeHuntId(huntId) {
+/** Sanitise a hunt id for a path join (no traversal). Exported for Rule #52. */
+export function safeHuntId(huntId) {
   const s = String(huntId || '');
   return /^[A-Za-z0-9_-]{1,64}$/.test(s) ? s : null;
 }

@@ -16,6 +16,7 @@ import crypto from 'node:crypto';
 import { readUsers, writeUsers } from '../store.js';
 import { requireAdmin, hashPassword } from './auth.js';
 import { readAudit, auditSummary } from '../brain/oneLoopAudit.js';
+import { flipcheckSummary } from '../brain/oneLoopFlipcheck.js';
 import { config } from '../config.js';
 
 const router = Router();
@@ -412,6 +413,20 @@ router.get('/hunts/:id/oneloop/audit/summary', requireAdmin, (req, res) => {
     return res.status(400).json({ ok: false, error: 'bad_hunt_id' });
   }
   res.json(s);
+});
+
+// ---- RULE #52: backend flip checklist (Rule #51 logic, backend-native).
+// Admin-only, read-only. Evaluates the hunt's one-loop memdir
+// (<dataDir>/hunts/<huntId>/oneloop) against the 8-item flip checklist and
+// returns READY/NOT-READY with per-item reasons. Never writes, never flips.
+//
+// GET /api/v1/admin/hunts/:id/oneloop/flip-checklist -> checklist verdict
+router.get('/hunts/:id/oneloop/flip-checklist', requireAdmin, (req, res) => {
+  const r = flipcheckSummary(config.dataDir, req.params.id);
+  if (r.fail_closed && r.reason === 'bad_hunt_id') {
+    return res.status(400).json({ ok: false, error: 'bad_hunt_id' });
+  }
+  res.json({ ok: true, ...r });
 });
 
 export default router;
