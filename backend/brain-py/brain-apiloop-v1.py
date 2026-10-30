@@ -5756,6 +5756,246 @@ def proof_ssti():
     return {"checks": checks}
 
 
+def proof_fulldrive():
+    """Rule #68 lab proof: OWNER-FLIP REHEARSAL DRIVE — the full generic
+    set cold-driven against a twelfth unseen multi-class target.
+
+    mock-fresh12 (probe-lab/mock-fresh12/fresh12_app.py) is a twelfth
+    unseen app: no DVWA module signals, so recon drops all 11 known
+    modules and only generic sinks remain. Nine query sinks (one per
+    class) plus one POST-form sink, plus /safe as the all-negative
+    control and /login.php for the readiness probe:
+
+      /xss?q=      VULN -> generic_xss CONFIRMs via=text (raw text-node
+                   reflection)
+      /sqli?id=    VULN -> generic_sqli CONFIRMs (error-based; the id is
+                   HTML-escaped in the error so xss stays FAILED)
+      /goto?url=   VULN -> generic_redirect CONFIRMs via=redirect-location
+                   (302 Location raw, empty body)
+      /fetch?url=  VULN -> generic_ssrf CONFIRMs via=ssrf-fetch-hit
+                   (server-side fetch of the probe's canary; the url is
+                   never echoed into the body)
+      /hdr?name=   VULN -> generic_header CONFIRMs via=header-crlf (raw
+                   X-Echo response header; the body never carries it)
+      /calc?expr=  VULN -> generic_cmdi CONFIRMs via=cmdi-arith (the
+                   output channel: $(expr 12345 + 6789) evaluates to
+                   19134, never transmitted)
+      /docs?file=  VULN -> generic_trav CONFIRMs via=trav-passwd (canned
+                   /etc/passwd on ".." / absolute paths; benign
+                   baseline marker-free)
+      /render?name=VULN -> generic_ssti CONFIRMs via=ssti-jinja
+                   (template arithmetic evaluates before escaping)
+      /profile     POST form, no token -> generic_csrf CONFIRMs
+                   via=csrf-no-token (canary persists on a FRESH GET;
+                   bio escaped so xss FAILED, no SQL errors so sqli
+                   FAILED)
+      /safe?q=     static -> every sink probe FAILED (negative control)
+
+    Case A — discovery: 10 sinks found (1 form + 9 query), plan is 150
+    steps (form: xss+sqli+csrf probe+claim triples = 6; each query
+    sink: 8 probe+claim pairs = 16), budget prices 150 turns.
+    Case B — full autonomous cold drive: 9 CONFIRMED probes, each
+    followed by a FILED claim (modules + locations as above), /safe
+    contributes zero CONFIRMs, process completes, no re-probe, every
+    claim carries a real evidence_hash and its stored output ends
+    VERDICT: CONFIRMED.
+    Case C — regression: the DVWA mock yields ZERO generic sinks so the
+    Rule #35 22-step plan is byte-identical.
+    Case D — flip-checklist rehearsal evidence: brain-flipcheck-v1.py
+    (Rule #51) evaluated against the drive memdir, machine-checked
+    item-by-item. Expected: overall NOT-READY (claims are local-only
+    'filed', never bridged through the real pipeline — the flip's
+    remaining items need the live bridged rehearsal, Rule #48 path),
+    with S4/S5/S6/S7 PASS.
+    """
+    checks = []
+
+    def check(name, cond):
+        assert cond, "FAILED: " + name
+        checks.append(name)
+
+    def _hist(memdir):
+        return load_json(mem_paths(memdir)["process"],
+                         {"process": None})["process"]
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    fresh12 = os.path.join(here, "probe-lab", "mock-fresh12",
+                           "fresh12_app.py")
+    dvwa = os.path.join(here, "probe-lab", "mock-dvwa.py")
+    flipcheck = os.path.join(here, "brain-flipcheck-v1.py")
+
+    EXPECTED = {("generic_xss", "/xss"),
+                ("generic_sqli", "/sqli"),
+                ("generic_redirect", "/goto"),
+                ("generic_ssrf", "/fetch"),
+                ("generic_header", "/hdr"),
+                ("generic_cmdi", "/calc"),
+                ("generic_trav", "/docs"),
+                ("generic_ssti", "/render"),
+                ("generic_csrf", "/profile")}
+    EXPECTED_IDS = ["form:/profile:POST:bio",
+                    "query:/calc:GET:expr",
+                    "query:/docs:GET:file",
+                    "query:/fetch:GET:url",
+                    "query:/goto:GET:url",
+                    "query:/hdr:GET:name",
+                    "query:/render:GET:name",
+                    "query:/safe:GET:q",
+                    "query:/sqli:GET:id",
+                    "query:/xss:GET:q"]
+    EXPECTED_VIA = {"/xss": "via=text",
+                    "/goto": "via=redirect-location",
+                    "/fetch": "via=ssrf-fetch-hit",
+                    "/hdr": "via=header-crlf",
+                    "/calc": "via=cmdi-arith",
+                    "/docs": "via=trav-passwd",
+                    "/render": "via=ssti-jinja"}
+
+    # --- Case A: discovery on the twelfth unseen target ---
+    mp = _start_mock(fresh12, 8352, [])
+    drive_memdir = None
+    try:
+        tb = "http://127.0.0.1:8352"
+        recon = _lab_recon_map(tb)
+        check("fresh12: recon finds zero known modules",
+              recon is not None and recon["modules"] == {})
+        sinks = _lab_generic_sinks(tb, None, list(recon["modules"]))
+        ids = [s["id"] for s in sinks]
+        check("discovery: finds all 10 sinks (9 query + 1 POST form)",
+              ids == EXPECTED_IDS)
+        check("discovery: no sink touches a known module path",
+              not any("vulnerabilities" in i for i in ids))
+        plan, meta = _lab_plan_for_hunt([], sinks, tb)
+        qmods = (["generic_xss", "generic_xss",
+                  "generic_sqli", "generic_sqli",
+                  "generic_redirect", "generic_redirect",
+                  "generic_ssrf", "generic_ssrf",
+                  "generic_header", "generic_header",
+                  "generic_cmdi", "generic_cmdi",
+                  "generic_trav", "generic_trav",
+                  "generic_ssti", "generic_ssti"])
+        fmods = ["generic_xss", "generic_xss",
+                 "generic_sqli", "generic_sqli",
+                 "generic_csrf", "generic_csrf"]
+        check("plan: 150 steps (form triple + 9 query octuples, "
+              "Rule #68)",
+              len(plan) == 150 and
+              [s["module"] for s in plan] == fmods + qmods * 9 and
+              [s["kind"] for s in plan] ==
+              ["probe", "claim"] * 75)
+        check("plan: sink spec rides in the marker argv for all 10 "
+              "sinks",
+              all(s["marker"].split("|", 1)[0] in
+                  ("PLOOP56", "PLOOP57", "PLOOP61", "PLOOP62",
+                   "PLOOP63", "PLOOP64", "PLOOP65", "PLOOP66",
+                   "PLOOP67")
+                  for s in plan if s["kind"] == "probe") and
+              all("/" not in s["marker"]
+                  for s in plan if s["kind"] == "probe"))
+        check("plan_meta: recon_ok=True, 10 generic sink ids recorded",
+              meta["recon_ok"] is True and
+              set(meta["generic_sinks"]) == set(ids))
+        bi = budget_info([], sinks)
+        check("budget: 10 sinks priced at 150 turns (9 query x 16 + "
+              "1 POST form x 6, Rule #47+#67)",
+              bi["recommended_turns"] == 150 and
+              bi["generic_turns"] == 150)
+
+        # --- Case B: full autonomous cold drive vs fresh12 ---
+        drive_memdir = tempfile.mkdtemp(prefix="ploop68-b-")
+        memdir = drive_memdir
+        goal = "probe-hunt: fresh12 full generic-set drive"
+        ctx = {"registry_url": "http://127.0.0.1:9", "workdir": memdir,
+               "memdir": memdir, "target_base": tb}
+        verdicts, events = [], []
+        for _ in range(280):
+            r = run_turn(memdir, goal, ctx)
+            events.extend(r.get("events", []))
+            if "process_completed" in r.get("events", []):
+                break
+            verdicts.append(_hist(memdir)["history"][-1]["verdict"])
+        sq = [i for i, v in enumerate(verdicts) if v == "CONFIRMED"]
+        check("drive: exactly 9 CONFIRMED probes (one per vuln class)",
+              len(sq) == 9)
+        check("drive: every CONFIRMED probe is followed by a FILED "
+              "claim",
+              all(verdicts[i + 1] == "FILED" for i in sq))
+        check("drive: process completed, no re-probe",
+              "process_completed" in events and
+              len(verdicts) == 216)
+        claims = json.load(open(os.path.join(memdir, "claims.json")))
+        got_pairs = {(v["module"], v.get("location"))
+                     for v in claims.values()}
+        check("drive: exactly 9 claims filed, modules+locations match "
+              "the 9 vuln classes",
+              len(claims) == 9 and got_pairs == EXPECTED and
+              all(v["state"] == "filed" for v in claims.values()))
+        check("drive: /safe contributes zero claims (the negative "
+              "control — its 8 probe pairs all FAILED)",
+              "/safe" not in {v.get("location")
+                              for v in claims.values()})
+        store = HashStore(os.path.join(memdir, "output"))
+        for v in claims.values():
+            check("drive: claim carries a real evidence hash",
+                  bool(HASH_RE.match(v.get("evidence_hash") or "")))
+            raw = _to_text(store.get(v["evidence_hash"]) or b"")
+            check("drive: stored output ends VERDICT: CONFIRMED",
+                  raw.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
+            loc = v.get("location")
+            if loc in EXPECTED_VIA:
+                check("drive: %s confirmed on its class channel %s"
+                      % (loc, EXPECTED_VIA[loc]),
+                      EXPECTED_VIA[loc] in raw)
+    finally:
+        _stop_mock(mp, 8352)
+
+    # --- Case C: DVWA regression — zero generic sinks ---
+    mp2 = _start_mock(dvwa, 8341, [])
+    try:
+        recon2 = _lab_recon_map("http://127.0.0.1:8341")
+        sinks2 = _lab_generic_sinks("http://127.0.0.1:8341", None,
+                                    list(recon2["modules"]))
+        check("dvwa: auth pages skipped WITH REASON, zero generic sinks",
+              sinks2 == [])
+        plan2, meta2 = _lab_plan_for_hunt(list(recon2["modules"]),
+                                          sinks2,
+                                          "http://127.0.0.1:8341")
+        check("dvwa: Rule #35 22-step plan byte-identical",
+              len(plan2) == 22 and meta2["generic_sinks"] == [] and
+              all(s["module"] in _HUNT_MODULE_ORDER for s in plan2))
+    finally:
+        _stop_mock(mp2, 8341)
+
+    # --- Case D: flip-checklist rehearsal evidence (Rule #51) ---
+    fc = subprocess.run(
+        [sys.executable, flipcheck, "--memdir", drive_memdir],
+        capture_output=True, text=True, timeout=60)
+    check("flipcheck: brain-flipcheck-v1.py runs clean on the drive "
+          "memdir", fc.returncode in (0, 1) and fc.stdout.strip())
+    rep = json.loads(fc.stdout)
+    items = {i["name"]: i["result"] for i in rep.get("items", [])}
+    check("flipcheck: overall NOT-READY — claims are local-only "
+          "'filed', never bridged through the real pipeline (the "
+          "flip's remaining items need the live bridged rehearsal; "
+          "the flip decision stays with the owner)",
+          rep.get("overall") == "NOT-READY")
+    check("flipcheck: S4 no_half_turns PASS (every turn ok)",
+          items.get("no_half_turns") == "PASS")
+    check("flipcheck: S5 zero_llm_zero_cost PASS ($0, 0 LLM)",
+          items.get("zero_llm_zero_cost") == "PASS")
+    check("flipcheck: S6 evidence_hash_every_claim PASS (Rule #37)",
+          items.get("evidence_hash_every_claim") == "PASS")
+    check("flipcheck: S7 rule20_invariants PASS (outputs by hash)",
+          items.get("rule20_invariants") == "PASS")
+    check("flipcheck: S1/S2/S3 FAIL for the documented reason "
+          "(filed, not accepted; no rehearsal.json)",
+          items.get("all_claims_accepted") == "FAIL" and
+          items.get("no_filed_leftovers") == "FAIL" and
+          items.get("validations_terminal") == "FAIL")
+
+    return {"checks": checks}
+
+
 def proof_report():
     """Rule #37 — THE HUNTER DELIVERS A DOSSIER.
     1. Full mock hunt (11 modules) -> the completion turn auto-writes
@@ -5992,6 +6232,11 @@ def main():
                     help="Rule #67: generic server-side template "
                          "injection probe for query sinks (eleventh "
                          "unseen target), DVWA regression")
+    ap.add_argument("--proof-fulldrive", action="store_true",
+                    help="Rule #68: owner-flip rehearsal drive — full "
+                         "generic set cold-driven vs a twelfth unseen "
+                         "multi-class target, flip-checklist evidence, "
+                         "DVWA regression")
     ap.add_argument("--proof-report", action="store_true",
                     help="Rule #37: the hunter delivers a dossier "
                          "(auto-write at completion, fail-closed "
@@ -6261,6 +6506,19 @@ def main():
         dt = time.time() - t0
         print("=" * 70)
         print("RULE #67 LAB PROOF: %d/%d checks passed in %.1fs"
+              % (len(allc), len(allc), dt))
+        for c in allc:
+            print("  [ok] " + c)
+        print("PROOF: PASS")
+        return
+
+    if args.proof_fulldrive:
+        t0 = time.time()
+        gen12 = proof_fulldrive()         # Rule #68: rehearsal drive
+        allc = ["fulldrive: " + c for c in gen12["checks"]]
+        dt = time.time() - t0
+        print("=" * 70)
+        print("RULE #68 LAB PROOF: %d/%d checks passed in %.1fs"
               % (len(allc), len(allc), dt))
         for c in allc:
             print("  [ok] " + c)
