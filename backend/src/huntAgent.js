@@ -1758,6 +1758,17 @@ export async function executeWithEvasion(huntId, target, command) {
       think(huntId, 'Replaced a literal target placeholder with the real target before executing (model wrote a placeholder).');
     }
   }
+  // QUOTING-ROBUSTNESS (31 Oct 2026): the 8B brain emits probe commands
+  // with unbalanced payload quotes (seen live: SQLi probe died exit 2 on
+  // sh -c). repairShellQuoting only rewrites already-unparseable commands
+  // — balanced commands pass through byte-identical.
+  {
+    const repaired = repairShellQuoting(command);
+    if (repaired !== command) {
+      think(huntId, 'Fixed unbalanced shell quoting in the probe command before executing (unquoted payload URL wrapped / dangling quote closed).');
+      command = repaired;
+    }
+  }
   // Person capability: web search mid-hunt. If the model doesn't know
   // something, it can ask via "SEARCH: <query>" instead of guessing.
   const searchMatch = /^\s*SEARCH:\s*(.+)/i.exec(command);
@@ -2073,6 +2084,83 @@ async function getTargetBaselines(huntId, target) {
 //   2026-10-20T12:57:24.801Z (episode #15923, retracted 21 Oct 2026).
 //   Superseded by canary-controlled 'ftp-kdbx-exposure-v3' (58a6140).
 const RETIRED_DET_IDS = new Set(['ftp-kdbx-exposure', 'ftp-kdbx-exposure-v2']);
+
+// ---------------------------------------------------------------------------
+// QUOTING-ROBUSTNESS (31 Oct 2026): the 8B brain emits probe commands with
+// payload quotes it never closes — seen live on h_6e909d3c1965 iter 22:
+//   curl -s -o /dev/null -w 'HTTP_CODE:%{http_code}' http://172.17.0.1:3100/login.php?username=' OR 1=1--'&password='
+// `sh -c` rejects that with a syntax error (exit 2): the trailing ' leaves
+// a quote unterminated, and the bare & would background the command even if
+// the quotes balanced. The probe was discarded as execution-failed, so the
+// brain never learned whether the SQLi test itself had any signal.
+// A human hunter wraps the URL in double quotes instead. repairShellQuoting
+// does exactly that, and ONLY when the command is already unparseable — a
+// balanced command is returned byte-identical, so this repair can only turn
+// a guaranteed exit-2 into a possible run. It never touches already-quoted
+// URLs, and anything it cannot repair deterministically (a URL containing
+// both quote kinds) falls through to the close-the-dangling-quote fallback.
+// ---------------------------------------------------------------------------
+export function repairShellQuoting(command) {
+  const cmd = String(command || '');
+  if (!cmd) return cmd;
+  // POSIX-ish quote-balance scan: a backslash escapes the next char only
+  // OUTSIDE single quotes (inside single quotes it is literal).
+  const scan = (s) => {
+    let inSingle = false, inDouble = false, escaped = false;
+    for (const ch of s) {
+      if (escaped) { escaped = false; continue; }
+      if (ch === '\\' && !inSingle) { escaped = true; continue; }
+      if (ch === "'" && !inDouble) inSingle = !inSingle;
+      else if (ch === '"' && !inSingle) inDouble = !inDouble;
+    }
+    return { inSingle, inDouble };
+  };
+  let st = scan(cmd);
+  if (!st.inSingle && !st.inDouble) return cmd; // balanced — never touch
+
+  // Per-index quote state, so URLs already inside quotes are skipped.
+  const quotedAt = new Array(cmd.length).fill(false);
+  {
+    let inSingle = false, inDouble = false, escaped = false;
+    for (let i = 0; i < cmd.length; i++) {
+      const ch = cmd[i];
+      quotedAt[i] = inSingle || inDouble;
+      if (escaped) { escaped = false; continue; }
+      if (ch === '\\' && !inSingle) { escaped = true; continue; }
+      if (ch === "'" && !inDouble) inSingle = !inSingle;
+      else if (ch === '"' && !inSingle) inDouble = !inDouble;
+    }
+  }
+  // The URL is the payload carrier: wrap the FIRST unquoted http(s):// URL
+  // and everything after it (SQLi payloads carry spaces — ' OR 1=1-- —
+  // so the span runs to end-of-command, not to the next whitespace).
+  // Extending to EOL is also the safe direction for ';': swallowing it
+  // into the URL beats letting sh execute what follows it.
+  const urlRe = /https?:\/\//g;
+  let m = null, hit = null;
+  while ((m = urlRe.exec(cmd)) !== null) {
+    if (!quotedAt[m.index]) { hit = m; break; }
+  }
+  if (hit) {
+    const url = cmd.slice(hit.index); // to end of command
+    let wrapped = null;
+    const escDq = (u) => '"' + u.replace(/\\/g, '\\\\').replace(/\$/g, '\\$').replace(/`/g, '\\`') + '"';
+    if (url.includes("'") && !url.includes('"')) wrapped = escDq(url);
+    else if (url.includes('"') && !url.includes("'")) wrapped = "'" + url + "'";
+    else if (!url.includes("'") && !url.includes('"')) wrapped = escDq(url);
+    // both quote kinds inside: no deterministic wrap — fall through
+    if (wrapped !== null) {
+      const repaired = cmd.slice(0, hit.index) + wrapped;
+      st = scan(repaired);
+      if (!st.inSingle && !st.inDouble) return repaired;
+      // Still unbalanced (stray quote before the URL) — close it.
+      return repaired + (st.inSingle ? "'" : '"');
+    }
+  }
+  // No wrappable URL: last resort — close the dangling quote so sh can
+  // parse (e.g. `echo 'hello` -> `echo 'hello'`). Better than exit 2.
+  return cmd + (st.inSingle ? "'" : '"');
+}
 
 // W6 FIX (28 Oct 2026, gate-interesting-xss lane): the 'interesting'
 // pre-filter decides whether a claim's evidence is worth sending to the
