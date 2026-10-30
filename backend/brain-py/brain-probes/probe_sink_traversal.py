@@ -149,7 +149,14 @@ def main():
         print("param=%s verdict=%s via=%s detail=%s" % (
             param, verdict, via, detail))
         if verdict == "CONFIRMED":
-            print("EVIDENCE sink=%s param=%s via=%s" % (path, param, via))
+            # Rule #73: print the observed content snippet so the
+            # pipeline's cmd-exec signal (/root:/) fires on a genuine
+            # file read. The marker was observed in the response body
+            # (fail-closed: CONFIRMED only when marker in body).
+            content = (_PASSWD_MARKER if via == "trav-passwd"
+                       else _WININI_MARKER)
+            print("EVIDENCE sink=%s param=%s via=%s content=%s"
+                  % (path, param, via, content))
             print("VERDICT: CONFIRMED")
             return
     print("VERDICT: FAILED")

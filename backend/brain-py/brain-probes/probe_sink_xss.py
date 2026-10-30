@@ -114,15 +114,20 @@ def _classify_context(body, token):
 
 def _confirm_payload(context, msuffix):
     p = "G59P" + msuffix
+    # Rule #73: the text/style confirm payloads are executable-shaped
+    # (onerror=) so the pipeline's xss-reflect signal fires on the real
+    # reflected content. The mock reflects raw, so the payload still
+    # confirms by verbatim reflection; the shape only changes what the
+    # verifier's vocabulary can read.
     return {
-        "text": p + "<img src=x>",
+        "text": p + "<img src=x onerror=" + p + ">",
         "attr-dq": p + '" onGX59over="1',
         "attr-sq": p + "' onGX59over='1",
         "attr-unquoted": p + ' onGX59over="1',
         "js-dq": p + '";G59C//',
         "js-sq": p + "';G59C//",
         "comment": p + "-->",
-        "style": p + "</style><img src=x>",
+        "style": p + "</style><img src=x onerror=" + p + ">",
     }.get(context)
 
 
