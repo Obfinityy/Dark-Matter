@@ -30,6 +30,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { oneLoopMemdir } from './oneLoopSession.js';
 import { safeHuntId } from './oneLoopAudit.js';
+import { REHEARSAL_FILE as BRIDGE_REHEARSAL_FILE } from './oneLoopClaimBridge.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -37,8 +38,12 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const DEFAULT_ADVISORY_MARKER_FILE = path.resolve(HERE, '..', 'llm.js');
 export const DEFAULT_ADVISORY_MARKER_STRING = 'OLLAMA_ADVISORY_TIMEOUT_MS';
 
-/** Rehearsal evidence file inside a hunt's one-loop memdir (optional). */
-export const REHEARSAL_FILE = 'rehearsal.json';
+/**
+ * Rehearsal evidence file inside a hunt's one-loop memdir (optional).
+ * Owned by the bridge (oneLoopClaimBridge.js, Rule #53 — the writer);
+ * re-exported here so the checklist and its callers keep one name.
+ */
+export const REHEARSAL_FILE = BRIDGE_REHEARSAL_FILE;
 
 const TERMINAL_VERDICTS = new Set([
   'verified', 'accepted', 'rejected', 'gate-rejected', 'not-interesting',
