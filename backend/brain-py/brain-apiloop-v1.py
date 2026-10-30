@@ -1617,7 +1617,10 @@ def budget_info(modules=None, generic_sinks=()):
     server-side template injection probe+claim pairs), 2 for
     xml sinks (the Rule #70 XXE probe+claim pair), and 2 for cookie
     sinks (the Rule #74 cookie-XSS probe+claim pair), no escalation
-    rungs yet. Returns {planned_modules,
+    rungs yet. Rule #81: the double-confirm reconfirm is NOT priced
+    here — it fires only when the first probe run CONFIRMs (rare),
+    and it executes inside the probe step's own action (its wall
+    time is bounded by 2x the probe timeout, ceiling 2*pto+60). Returns {planned_modules,
     generic_sinks, base_turns, max_escalation_turns, recommended_turns}.
     """
     planned = [m for m in _HUNT_MODULE_ORDER
@@ -1677,7 +1680,12 @@ def _sandbox_dir(ctx):
 def _probe_cmd(probe_file, marker, target_base, sandbox, timeout_s=120):
     """Build the fail-closed shell command that runs ONE probe. The
     command always ends with a VERDICT line so the loop's extractor
-    (Rule #30) can judge the step."""
+    (Rule #30) can judge the step. Rule #81: a probe whose first run
+    prints VERDICT:CONFIRMED is re-run once, immediately, with the
+    identical marker — the step verdict is CONFIRMED only when BOTH
+    runs confirm (the human "run it again before you report it"); a
+    flaky first CONFIRMED becomes a FAILED step, never a filed claim.
+    """
     tb = (target_base or "").strip()
     if not tb:
         return "echo PROBE_BLOCKED_NO_TARGET_BASE; echo VERDICT:FAILED"
@@ -1717,6 +1725,21 @@ def _probe_cmd(probe_file, marker, target_base, sandbox, timeout_s=120):
         # is a FAILED probe, never a silent neutral step.
         "timeout \"$TO\" \"$RUN\" \"$DST\" \"$MK\" > \"$DST.out\" 2>&1",
         "rc=$?",
+        # Rule #81 DOUBLE-CONFIRM: a CONFIRMED first run re-runs the
+        # probe once, immediately, with the identical marker. Probes
+        # mint their own run-unique canaries, so the two runs are
+        # independent confirmations. The step verdict is the SECOND
+        # run's verdict: CONFIRMED only when both runs confirm; a
+        # flaky first CONFIRMED (run 2 FAILED) becomes a FAILED step —
+        # it stays open for escalation / dead-end WITH REASON and is
+        # never filed as a claim.
+        "last1=$(grep -v '^[[:space:]]*$' \"$DST.out\" | tail -n 1 | "
+        "tr -d '[:space:]')",
+        "if [ \"$last1\" = \"VERDICT:CONFIRMED\" ]; then "
+        "printf '\\n--- RECONFIRM (Rule #81): re-running %s with the same "
+        "marker ---\\n' \"$PF\" >> \"$DST.out\"; "
+        "timeout \"$TO\" \"$RUN\" \"$DST\" \"$MK\" >> \"$DST.out\" 2>&1; "
+        "rc=$?; fi",
         "cat \"$DST.out\"",
         "if [ $rc -eq 124 ]; then echo PROBE_TIMEOUT; fi",
         "last=$(grep -v '^[[:space:]]*$' \"$DST.out\" | tail -n 1 | "
@@ -1780,7 +1803,12 @@ def _probe_step_reply(step, plan, goal, ctx, new_process=None):
         "I did not skip this module because the title index shows no "
         "prior probe-hunt against this target; I did not invent a "
         "payload because the live-proven probe is the grounded move.",
-        {"type": "shell", "command": cmd, "timeout_s": pto + 60,
+        {"type": "shell", "command": cmd,
+         # Rule #81: the action ceiling covers BOTH probe runs (first +
+         # reconfirm); each run is still bounded by pto via the wrapper's
+         # inner timeout, so a hung probe costs at most 2*pto, not the
+         # ceiling.
+         "timeout_s": 2 * pto + 60,
          "no_echo": True},  # Rule #49: stored output is the probe's own
         new_process=new_process)
 
@@ -2174,7 +2202,8 @@ def decide(turn_input, ctx, correction=None):
                                        _sandbox_dir(ctx),
                                        timeout_s=_probe_timeout_for(
                                            step.get("module"))),
-                 "timeout_s": _probe_timeout_for(step.get("module")) + 60,
+                 # Rule #81: ceiling covers both runs (first + reconfirm).
+                 "timeout_s": 2 * _probe_timeout_for(step.get("module")) + 60,
                  "no_echo": True})  # Rule #49: stored output is the probe's own
         base_url = _toolkit_url_from_recalls(proc)
         alt = None
@@ -7437,6 +7466,173 @@ def proof_jsonxss():
 
 
 
+def proof_reconfirm():
+    """Rule #81 lab proof: double-confirm inside the probe executor.
+
+    mock-fresh20 (probe-lab/mock-fresh20/fresh20_app.py) is the
+    twentieth unseen app: zero known modules, zero query/form/xml/
+    cookie sinks, TWO JSON sinks via the Rule #80 API-docs signal:
+
+      /api/stable  STABLE VULN: reflects the "name" JSON field RAW on
+              every POST -> run 1 CONFIRMED, Rule #81 reconfirm run 2
+              CONFIRMED -> step VERDICT: CONFIRMED -> claim FILED.
+      /api/flaky   FLAKY: reflects RAW for the first 2 POSTs, then
+              HTML-ESCAPED. The probe's first run (control + canary =
+              2 POSTs) CONFIRMs, but the reconfirm run sees only
+              encoded reflections -> run 2 FAILED -> step VERDICT:
+              FAILED -> probe dead-ends, claim dead-ends WITH REASON,
+              NO claim filed. A single-confirm loop would have filed
+              this — the double-confirm gate is what refuses it.
+
+    Case A — discovery: 2 JSON sinks (flaky, stable — sorted order);
+    plan is 4 steps (probe+claim per sink — UNCHANGED by Rule #81,
+    the reconfirm lives inside the probe step's execution, not the
+    plan); budget prices 4 (the reconfirm is conditional — it fires
+    only on CONFIRMED — so recommended_turns is unchanged).
+    Case B — full cold drive: flaky probe FAILED at turn 1
+    (CONFIRMED then FAILED on reconfirm), probe DEAD_END turn 2,
+    claim DEAD_END turn 3 (paired probe dead-ended, Rule #38);
+    stable probe CONFIRMED turn 4 (both runs confirmed), claim FILED
+    turn 5; exactly 1 filed claim (generic_jsonxss, /api/stable).
+    The stable claim's stored output carries BOTH "VERDICT:
+    CONFIRMED" lines plus the RECONFIRM separator; the flaky probe's
+    stored output shows CONFIRMED then FAILED. Process completes, no
+    re-probe.
+    Case C — regression: the DVWA mock yields ZERO generic sinks so
+    the Rule #35 22-step plan is byte-identical.
+    """
+    checks = []
+
+    def check(name, cond):
+        assert cond, "FAILED: " + name
+        checks.append(name)
+
+    def _hist(memdir):
+        return load_json(mem_paths(memdir)["process"],
+                         {"process": None})["process"]
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    fresh20 = os.path.join(here, "probe-lab", "mock-fresh20",
+                           "fresh20_app.py")
+    dvwa = os.path.join(here, "probe-lab", "mock-dvwa.py")
+
+    # --- Case A: discovery on the twentieth unseen target ---
+    mp = _start_mock(fresh20, 8361, [])
+    try:
+        tb = "http://127.0.0.1:8361"
+        recon = _lab_recon_map(tb)
+        check("fresh20: recon finds zero known modules",
+              recon is not None and recon["modules"] == {})
+        sinks = _lab_generic_sinks(tb, None, list(recon["modules"]))
+        ids = [s["id"] for s in sinks]
+        check("discovery: finds both JSON sinks (flaky + stable, "
+              "application/json API-docs signal) in sorted order",
+              ids == ["json:/api/flaky:POST",
+                      "json:/api/stable:POST"])
+        check("discovery: zero query/form/xml/cookie sinks on fresh20",
+              all(s["kind"] == "json" for s in sinks))
+        plan, meta = _lab_plan_for_hunt([], sinks, tb)
+        check("plan: 4 steps — one jsonxss probe+claim pair per JSON "
+              "sink (Rule #81 changes NO plan shape: the reconfirm "
+              "lives inside the probe step's execution)",
+              len(plan) == 4 and
+              [s["module"] for s in plan] ==
+              ["generic_jsonxss"] * 4 and
+              [s["kind"] for s in plan] ==
+              ["probe", "claim"] * 2 and
+              [s["probe"] for s in plan if s["kind"] == "probe"] ==
+              ["probe_sink_jsonxss.py"] * 2)
+        bi = budget_info([], sinks)
+        check("budget: 2 JSON sinks priced at 4 turns (Rule #81: the "
+              "reconfirm is conditional — it fires only on CONFIRMED "
+              "— so recommended_turns is unchanged)",
+              bi["recommended_turns"] == 4 and bi["generic_turns"] == 4)
+
+        # --- Case B: full autonomous cold drive vs fresh20 ---
+        memdir = tempfile.mkdtemp(prefix="ploop81-b-")
+        goal = "probe-hunt: fresh20 double-confirm drive"
+        ctx = {"registry_url": "http://127.0.0.1:9", "workdir": memdir,
+               "memdir": memdir, "target_base": tb}
+        verdicts, events = [], []
+        last_proc = None
+        for _ in range(40):
+            r = run_turn(memdir, goal, ctx)
+            events.extend(r.get("events", []))
+            if "process_completed" in r.get("events", []):
+                break
+            last_proc = _hist(memdir)
+            verdicts.append(last_proc["history"][-1]["verdict"])
+        check("drive: verdict sequence is FAILED, DEAD_END, DEAD_END, "
+              "CONFIRMED, FILED — the flaky sink burns 3 turns "
+              "(reconfirm FAILED -> probe dead-ends -> claim dead-ends) "
+              "and the stable sink confirms twice then files",
+              verdicts == ["FAILED", "DEAD_END", "DEAD_END",
+                           "CONFIRMED", "FILED"] and
+              "process_completed" in events and last_proc is not None)
+        hist = last_proc["history"]
+        flaky_out = _to_text(
+            HashStore(os.path.join(memdir, "output")).get(
+                hist[0]["result_hash"]) or b"")
+        check("drive: flaky probe's stored output shows run 1 "
+              "VERDICT: CONFIRMED, then the RECONFIRM separator, then "
+              "run 2 VERDICT: FAILED (the double-confirm caught the "
+              "flake)",
+              "--- RECONFIRM (Rule #81)" in flaky_out and
+              flaky_out.strip().splitlines()[-1] == "VERDICT: FAILED" and
+              "VERDICT: CONFIRMED" in flaky_out)
+        plan_done = last_proc["plan"]
+        check("drive: flaky claim step dead-ended WITH REASON (a single "
+              "CONFIRMED that fails reconfirm is never filed)",
+              plan_done[1]["kind"] == "claim" and
+              plan_done[1].get("dead_end") is True)
+        claims = json.load(open(os.path.join(memdir, "claims.json")))
+        check("drive: exactly 1 claim filed, generic_jsonxss, "
+              "state=filed, location /api/stable (the flaky sink "
+              "filed nothing)",
+              len(claims) == 1 and
+              all(v["state"] == "filed" for v in claims.values()) and
+              {v["module"] for v in claims.values()} ==
+              {"generic_jsonxss"} and
+              {v.get("location") for v in claims.values()} ==
+              {"/api/stable"})
+        store = HashStore(os.path.join(memdir, "output"))
+        for v in claims.values():
+            check("drive: claim carries a real evidence hash",
+                  bool(HASH_RE.match(v.get("evidence_hash") or "")))
+            raw = _to_text(store.get(v["evidence_hash"]) or b"")
+            check("drive: stable claim's stored output carries the "
+                  "RECONFIRM separator and BOTH VERDICT: CONFIRMED "
+                  "lines (two independent confirmations on record)",
+                  "--- RECONFIRM (Rule #81)" in raw and
+                  raw.count("VERDICT: CONFIRMED") == 2)
+            check("drive: stored output ends VERDICT: CONFIRMED",
+                  raw.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
+            check("drive: stored output names the confirming JSON field",
+                  "json_field=name" in raw)
+    finally:
+        _stop_mock(mp, 8361)
+
+    # --- Case C: DVWA regression — zero generic sinks ---
+    mp2 = _start_mock(dvwa, 8341, [])
+    try:
+        recon2 = _lab_recon_map("http://127.0.0.1:8341")
+        sinks2 = _lab_generic_sinks("http://127.0.0.1:8341", None,
+                                    list(recon2["modules"]))
+        check("dvwa: zero generic sinks (no application/json mention "
+              "anywhere)",
+              sinks2 == [])
+        plan2, meta2 = _lab_plan_for_hunt(list(recon2["modules"]),
+                                          sinks2,
+                                          "http://127.0.0.1:8341")
+        check("dvwa: Rule #35 22-step plan byte-identical",
+              len(plan2) == 22 and meta2["generic_sinks"] == [] and
+              all(s["module"] in _HUNT_MODULE_ORDER for s in plan2))
+    finally:
+        _stop_mock(mp2, 8341)
+
+    return {"checks": checks}
+
+
 def proof_fulldrive():
     """Rule #68 lab proof: OWNER-FLIP REHEARSAL DRIVE — the full generic
     set cold-driven against a twelfth unseen multi-class target.
@@ -7937,6 +8133,10 @@ def main():
                     help="Rule #80: generic JSON-body-sink reflected-XSS "
                          "probe (nineteenth unseen target), "
                          "DVWA regression")
+    ap.add_argument("--proof-reconfirm", action="store_true",
+                    help="Rule #81: double-confirm in the probe executor "
+                         "(twentieth unseen target: stable + flaky JSON "
+                         "sinks), DVWA regression")
     ap.add_argument("--proof-fulldrive", action="store_true",
                     help="Rule #68: owner-flip rehearsal drive — full "
                          "generic set cold-driven vs a twelfth unseen "
@@ -8275,6 +8475,19 @@ def main():
         dt = time.time() - t0
         print("=" * 70)
         print("RULE #80 LAB PROOF: %d/%d checks passed in %.1fs"
+              % (len(allc), len(allc), dt))
+        for c in allc:
+            print("  [ok] " + c)
+        print("PROOF: PASS")
+        return
+
+    if args.proof_reconfirm:
+        t0 = time.time()
+        gen20 = proof_reconfirm()       # Rule #81: double-confirm gate
+        allc = ["reconfirm: " + c for c in gen20["checks"]]
+        dt = time.time() - t0
+        print("=" * 70)
+        print("RULE #81 LAB PROOF: %d/%d checks passed in %.1fs"
               % (len(allc), len(allc), dt))
         for c in allc:
             print("  [ok] " + c)
