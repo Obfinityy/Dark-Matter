@@ -134,6 +134,13 @@ _LAB_CLAIM_META = {
     # mutates observable server state.
     "generic_csrf": ("CSRF (generic sink)", "csrf",
                      "high"),
+    # Rule #62: same for the generic-sink open-redirect probe — the
+    # target redirects the browser to an external canary host
+    # carried by a query param (302 Location / meta refresh /
+    # JS location assignment). Severity medium: phishing-adjacent,
+    # not direct data theft.
+    "generic_redirect": ("Open redirect (generic sink)", "open_redirect",
+                         "medium"),
 }
 
 
@@ -740,12 +747,13 @@ def _lab_generic_sinks(target_base, opener=None, known_modules=None,
 def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
     """Build the probe/claim-interleaved plan for ONLY the recon-found
     modules, in _HUNT_MODULE_ORDER (csrf stays last), then the GENERIC
-    SINK steps (Rule #56, Rule #57, Rule #61): every sink recon
+    SINK steps (Rule #56, Rule #57, Rule #61, Rule #62): every sink recon
     discovered that matches no known module gets probe+claim pairs —
     reflected XSS (probe_sink_xss.py, PLOOP56 marker) and SQLi
     (probe_sink_sqli.py, PLOOP57 marker) for every sink, plus CSRF
     state-change (probe_sink_csrf.py, PLOOP61 marker) for POST-form
-    sinks only. The generic
+    sinks only, plus open-redirect (probe_sink_redirect.py, PLOOP62
+    marker) for query sinks only. The generic
     probe reads its sink spec from the marker argv
     (PLOOP56|<quoted-tb>|<quoted-path>|<METHOD>|<p1,p2>), so _probe_cmd
     needs no changes; the marker is URL-quoted to stay filename-safe
@@ -824,6 +832,34 @@ def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
         # POST must reproduce the change for CONFIRMED). GET/query
         # sinks get no CSRF pair: CSRF is a state-change class and a
         # GET form is not one.
+        #
+        # Rule #62: the open-redirect probe for QUERY sinks only
+        # (PLOOP62 marker — the target must redirect the browser to
+        # an external canary host carried by a query param: 302
+        # Location / meta refresh / JS location assignment, read
+        # from the raw response without following). Placed right
+        # after the sqli pair so every query sink reads
+        # xss, sqli, redirect; POST forms read xss, sqli, csrf.
+        if sink.get("kind") == "query":
+            redirect_marker = "PLOOP62|%s|%s|%s|%s" % (
+                tbq, pathq, "GET",
+                ",".join(sink.get("params", ())))
+            plan.append({
+                "desc": "Probe generic sink %s for open redirect (%s)" %
+                        (sink.get("id"), "probe_sink_redirect.py"),
+                "kind": "probe", "module": "generic_redirect",
+                "sink": sink.get("id"), "probe": "probe_sink_redirect.py",
+                "marker": redirect_marker, "done": False,
+                "result_hash": None,
+                "recon": True})
+            plan.append({
+                "desc": "File claim for the verified generic-sink "
+                        "finding",
+                "kind": "claim", "module": "generic_redirect",
+                "sink": sink.get("id"),
+                "probe_step_idx": len(plan) - 1,
+                "done": False, "result_hash": None,
+                "recon": True})
         if sink.get("kind") == "form" and \
                 sink.get("method", "GET").upper() == "POST":
             csrf_marker = "PLOOP61|%s|%s|%s|%s" % (
@@ -909,9 +945,10 @@ def budget_info(modules=None, generic_sinks=()):
     modules=None -> the full _HUNT_MODULE_ORDER (the Rule #34 fixed
     plan / Rule #35 blind-recon fallback). Pass the recon-found module
     list for a pruned plan. generic_sinks (Rule #56, Rule #57, Rule
-    #61) cost 4 turns each (XSS probe+claim, SQLi probe+claim), 6 for
-    POST-form sinks (the CSRF probe+claim pair, no escalation rungs
-    yet). Returns {planned_modules,
+    #61, Rule #62) cost 4 turns each (XSS probe+claim, SQLi probe+claim),
+    6 for POST-form sinks (the CSRF probe+claim pair) and 6 for query
+    sinks (the open-redirect probe+claim pair), no escalation rungs
+    yet. Returns {planned_modules,
     generic_sinks, base_turns, max_escalation_turns, recommended_turns}.
     """
     planned = [m for m in _HUNT_MODULE_ORDER
@@ -921,9 +958,13 @@ def budget_info(modules=None, generic_sinks=()):
     gen = 0
     for s in (generic_sinks or ()):
         # Rule #61: a POST-form sink carries three probe+claim pairs
-        # (xss + sqli + csrf); every other sink shape carries two.
+        # (xss + sqli + csrf); Rule #62: a query sink carries three
+        # (xss + sqli + open-redirect); every other sink shape carries
+        # two.
         if isinstance(s, dict) and s.get("kind") == "form" and \
                 s.get("method", "GET").upper() == "POST":
+            gen += 6
+        elif isinstance(s, dict) and s.get("kind") == "query":
             gen += 6
         else:
             gen += 4
@@ -3414,29 +3455,34 @@ def proof_genericsink():
         check("discovery: no sink touches a known module path",
               not any("vulnerabilities" in i for i in ids))
         plan, meta = _lab_plan_for_hunt([], sinks, tb)
-        check("plan: 18 steps, xss+sqli pairs per sink + csrf pair for "
-              "the /feedback POST form (Rule #61)",
-              len(plan) == 18 and
+        check("plan: 24 steps, xss+sqli pairs per sink + csrf pair for "
+              "the /feedback POST form (Rule #61) + redirect pair for "
+              "each query sink (Rule #62)",
+              len(plan) == 24 and
               [s["module"] for s in plan] ==
               ["generic_xss", "generic_xss",
                "generic_sqli", "generic_sqli",
                "generic_csrf", "generic_csrf"] +
               ["generic_xss", "generic_xss",
-               "generic_sqli", "generic_sqli"] * 3 and
+               "generic_sqli", "generic_sqli",
+               "generic_redirect", "generic_redirect"] * 3 and
               [s["kind"] for s in plan] ==
-              ["probe", "claim"] * 9 and
+              ["probe", "claim"] * 12 and
               [s["probe"] for s in plan if s["kind"] == "probe"] ==
               ["probe_sink_xss.py", "probe_sink_sqli.py",
                "probe_sink_csrf.py"] +
-              ["probe_sink_xss.py", "probe_sink_sqli.py"] * 3)
+              ["probe_sink_xss.py", "probe_sink_sqli.py",
+               "probe_sink_redirect.py"] * 3)
         check("plan: sink spec rides in the marker argv "
-              "(PLOOP56|../PLOOP57|../PLOOP61|..)",
+              "(PLOOP56|../PLOOP57|../PLOOP61|../PLOOP62|..)",
               all((s["marker"].startswith("PLOOP56|") and
                    s["probe"] == "probe_sink_xss.py") or
                   (s["marker"].startswith("PLOOP57|") and
                    s["probe"] == "probe_sink_sqli.py") or
                   (s["marker"].startswith("PLOOP61|") and
-                   s["probe"] == "probe_sink_csrf.py")
+                   s["probe"] == "probe_sink_csrf.py") or
+                  (s["marker"].startswith("PLOOP62|") and
+                   s["probe"] == "probe_sink_redirect.py")
                   for s in plan if s["kind"] == "probe") and
               all("/" not in s["marker"]
                   for s in plan if s["kind"] == "probe"))
@@ -3444,9 +3490,9 @@ def proof_genericsink():
               meta["recon_ok"] is True and
               set(meta["generic_sinks"]) == set(ids))
         bi = budget_info([], sinks)
-        check("budget: 4 sinks priced at 18 turns (Rule #61: the POST "
-              "form costs 6)",
-              bi["recommended_turns"] == 18 and bi["generic_turns"] == 18)
+        check("budget: 4 sinks priced at 24 turns (Rule #61: the POST "
+              "form costs 6; Rule #62: each query sink costs 6)",
+              bi["recommended_turns"] == 24 and bi["generic_turns"] == 24)
 
         # --- Case B: full autonomous drive vs the fresh target ---
         memdir = tempfile.mkdtemp(prefix="ploop56-b-")
@@ -3471,8 +3517,10 @@ def proof_genericsink():
               "at verdicts[11]/[12])",
               len(verdicts) >= 13 and
               verdicts[11] == "CONFIRMED" and verdicts[12] == "FILED")
-        check("drive: 25 verdict turns, process completed, no re-probe",
-              len(verdicts) == 25 and "process_completed" in events)
+        check("drive: 34 verdict turns, process completed, no re-probe "
+              "(Rule #62: the 3 query sinks each carry a FAILED "
+              "redirect pair costing 3 turns)",
+              len(verdicts) == 34 and "process_completed" in events)
         check("drive: negative probes FAILED (escaped/parameterized "
               "sinks)", "FAILED" in verdicts)
         check("drive: negative probes FAILED (escaped/parameterized "
@@ -3581,10 +3629,11 @@ def proof_colddrive2():
               len(ids) == 3 and
               not any("vulnerabilities" in i for i in ids))
         plan, meta = _lab_plan_for_hunt([], sinks, tb)
-        check("plan: 16 steps, xss+sqli pairs per sink + csrf pair for "
-              "each POST form (Rule #61); sink order is guestbook, "
+        check("plan: 18 steps, xss+sqli pairs per sink + csrf pair for "
+              "each POST form (Rule #61) + redirect pair for the stock "
+              "query sink (Rule #62); sink order is guestbook, "
               "profile, stock",
-              len(plan) == 16 and
+              len(plan) == 18 and
               [s["module"] for s in plan] ==
               ["generic_xss", "generic_xss",
                "generic_sqli", "generic_sqli",
@@ -3593,22 +3642,26 @@ def proof_colddrive2():
                "generic_sqli", "generic_sqli",
                "generic_csrf", "generic_csrf",
                "generic_xss", "generic_xss",
-               "generic_sqli", "generic_sqli"] and
+               "generic_sqli", "generic_sqli",
+               "generic_redirect", "generic_redirect"] and
               [s["kind"] for s in plan] ==
-              ["probe", "claim"] * 8 and
+              ["probe", "claim"] * 9 and
               [s["probe"] for s in plan if s["kind"] == "probe"] ==
               ["probe_sink_xss.py", "probe_sink_sqli.py",
                "probe_sink_csrf.py",
                "probe_sink_xss.py", "probe_sink_sqli.py",
                "probe_sink_csrf.py",
-               "probe_sink_xss.py", "probe_sink_sqli.py"])
+               "probe_sink_xss.py", "probe_sink_sqli.py",
+               "probe_sink_redirect.py"])
         check("plan: sink spec rides in the marker argv, no slashes",
               all((s["marker"].startswith("PLOOP56|") and
                    s["probe"] == "probe_sink_xss.py") or
                   (s["marker"].startswith("PLOOP57|") and
                    s["probe"] == "probe_sink_sqli.py") or
                   (s["marker"].startswith("PLOOP61|") and
-                   s["probe"] == "probe_sink_csrf.py")
+                   s["probe"] == "probe_sink_csrf.py") or
+                  (s["marker"].startswith("PLOOP62|") and
+                   s["probe"] == "probe_sink_redirect.py")
                   for s in plan if s["kind"] == "probe") and
               all("/" not in s["marker"]
                   for s in plan if s["kind"] == "probe"))
@@ -3616,9 +3669,10 @@ def proof_colddrive2():
               meta["recon_ok"] is True and
               set(meta["generic_sinks"]) == set(ids))
         bi = budget_info([], sinks)
-        check("budget: 3 sinks priced at 16 turns (Rule #61: the two "
-              "POST forms cost 6 each)",
-              bi["recommended_turns"] == 16 and bi["generic_turns"] == 16)
+        check("budget: 3 sinks priced at 18 turns (Rule #61: the two "
+              "POST forms cost 6 each; Rule #62: the stock query sink "
+              "costs 6)",
+              bi["recommended_turns"] == 18 and bi["generic_turns"] == 18)
 
         # --- Case B: full autonomous cold drive vs fresh2 ---
         memdir = tempfile.mkdtemp(prefix="ploop58-b-")
@@ -3645,12 +3699,15 @@ def proof_colddrive2():
               "stock sqli t21; each FAILED pair costs 3 turns: FAILED + "
               "probe DEAD_END + claim DEAD_END, same as the Rule #56 "
               "drive; the two Rule #61 csrf pairs add 6 turns before "
-              "stock)", sq == [0, 20])
+              "stock; Rule #62 appends the stock redirect pair AFTER "
+              "the sqli CONFIRM so indices are unchanged)",
+              sq == [0, 20])
         check("drive: stock sqli CONFIRMED -> claim FILED (turns 21/22)",
               verdicts[20] == "CONFIRMED" and verdicts[21] == "FILED")
-        check("drive: 22 verdict turns executed, process completed, no "
-              "re-probe",
-              len(verdicts) == 22 and "process_completed" in events)
+        check("drive: 25 verdict turns executed, process completed, no "
+              "re-probe (Rule #62: the stock redirect FAILED pair "
+              "adds 3 turns at the end)",
+              len(verdicts) == 25 and "process_completed" in events)
         claims = json.load(open(os.path.join(memdir, "claims.json")))
         check("drive: exactly 2 claims filed: generic_xss + generic_sqli",
               len(claims) == 2 and
@@ -3765,20 +3822,25 @@ def proof_attrxss():
         check("discovery: no sink touches a known module path",
               not any("vulnerabilities" in i for i in ids))
         plan, meta = _lab_plan_for_hunt([], sinks, tb)
-        check("plan: 20 steps, xss+sqli probe+claim per sink",
-              len(plan) == 20 and
+        check("plan: 30 steps, xss+sqli+redirect probe+claim per sink "
+              "(Rule #62)",
+              len(plan) == 30 and
               [s["module"] for s in plan] ==
               ["generic_xss", "generic_xss",
-               "generic_sqli", "generic_sqli"] * 5 and
+               "generic_sqli", "generic_sqli",
+               "generic_redirect", "generic_redirect"] * 5 and
               [s["kind"] for s in plan] ==
-              ["probe", "claim"] * 10 and
+              ["probe", "claim"] * 15 and
               [s["probe"] for s in plan if s["kind"] == "probe"] ==
-              ["probe_sink_xss.py", "probe_sink_sqli.py"] * 5)
+              ["probe_sink_xss.py", "probe_sink_sqli.py",
+               "probe_sink_redirect.py"] * 5)
         check("plan: sink spec rides in the marker argv, no slashes",
               all((s["marker"].startswith("PLOOP56|") and
                    s["probe"] == "probe_sink_xss.py") or
                   (s["marker"].startswith("PLOOP57|") and
-                   s["probe"] == "probe_sink_sqli.py")
+                   s["probe"] == "probe_sink_sqli.py") or
+                  (s["marker"].startswith("PLOOP62|") and
+                   s["probe"] == "probe_sink_redirect.py")
                   for s in plan if s["kind"] == "probe") and
               all("/" not in s["marker"]
                   for s in plan if s["kind"] == "probe"))
@@ -3786,8 +3848,9 @@ def proof_attrxss():
               meta["recon_ok"] is True and
               set(meta["generic_sinks"]) == set(ids))
         bi = budget_info([], sinks)
-        check("budget: 5 sinks priced at 20 turns",
-              bi["recommended_turns"] == 20 and bi["generic_turns"] == 20)
+        check("budget: 5 sinks priced at 30 turns (Rule #62: each "
+              "query sink costs 6)",
+              bi["recommended_turns"] == 30 and bi["generic_turns"] == 30)
 
         # --- Case B: full autonomous cold drive vs fresh3 ---
         memdir = tempfile.mkdtemp(prefix="ploop59-b-")
@@ -3795,22 +3858,24 @@ def proof_attrxss():
         ctx = {"registry_url": "http://127.0.0.1:9", "workdir": memdir,
                "memdir": memdir, "target_base": tb}
         verdicts, events = [], []
-        for _ in range(36):
+        for _ in range(52):
             r = run_turn(memdir, goal, ctx)
             events.extend(r.get("events", []))
             if "process_completed" in r.get("events", []):
                 break
             verdicts.append(_hist(memdir)["history"][-1]["verdict"])
         sq = [i for i, v in enumerate(verdicts) if v == "CONFIRMED"]
-        check("drive: exactly 4 CONFIRMED probes at turns 7/12/17/22 "
+        check("drive: exactly 4 CONFIRMED probes at turns 10/18/26/34 "
               "(greet, note, pref, tagline; each FAILED pair costs 3 "
-              "turns: FAILED + probe DEAD_END + claim DEAD_END)",
-              sq == [6, 11, 16, 21])
+              "turns: FAILED + probe DEAD_END + claim DEAD_END; Rule "
+              "#62 adds a FAILED redirect pair per sink before each "
+              "sink's xss CONFIRM)",
+              sq == [9, 17, 25, 33])
         check("drive: each CONFIRMED probe is followed by a FILED claim",
               all(verdicts[i + 1] == "FILED" for i in sq))
-        check("drive: 26 verdict turns executed, process completed, no "
+        check("drive: 41 verdict turns executed, process completed, no "
               "re-probe",
-              len(verdicts) == 26 and "process_completed" in events)
+              len(verdicts) == 41 and "process_completed" in events)
         check("drive: negative probes FAILED (escaped/parameterized "
               "sinks)", "FAILED" in verdicts)
         claims = json.load(open(os.path.join(memdir, "claims.json")))
@@ -3916,20 +3981,25 @@ def proof_stylexss():
         check("discovery: no sink touches a known module path",
               not any("vulnerabilities" in i for i in ids))
         plan, meta = _lab_plan_for_hunt([], sinks, tb)
-        check("plan: 8 steps, xss+sqli probe+claim per sink",
-              len(plan) == 8 and
+        check("plan: 12 steps, xss+sqli+redirect probe+claim per sink "
+              "(Rule #62)",
+              len(plan) == 12 and
               [s["module"] for s in plan] ==
               ["generic_xss", "generic_xss",
-               "generic_sqli", "generic_sqli"] * 2 and
+               "generic_sqli", "generic_sqli",
+               "generic_redirect", "generic_redirect"] * 2 and
               [s["kind"] for s in plan] ==
-              ["probe", "claim"] * 4 and
+              ["probe", "claim"] * 6 and
               [s["probe"] for s in plan if s["kind"] == "probe"] ==
-              ["probe_sink_xss.py", "probe_sink_sqli.py"] * 2)
+              ["probe_sink_xss.py", "probe_sink_sqli.py",
+               "probe_sink_redirect.py"] * 2)
         check("plan: sink spec rides in the marker argv, no slashes",
               all((s["marker"].startswith("PLOOP56|") and
                    s["probe"] == "probe_sink_xss.py") or
                   (s["marker"].startswith("PLOOP57|") and
-                   s["probe"] == "probe_sink_sqli.py")
+                   s["probe"] == "probe_sink_sqli.py") or
+                  (s["marker"].startswith("PLOOP62|") and
+                   s["probe"] == "probe_sink_redirect.py")
                   for s in plan if s["kind"] == "probe") and
               all("/" not in s["marker"]
                   for s in plan if s["kind"] == "probe"))
@@ -3937,8 +4007,9 @@ def proof_stylexss():
               meta["recon_ok"] is True and
               set(meta["generic_sinks"]) == set(ids))
         bi = budget_info([], sinks)
-        check("budget: 2 sinks priced at 8 turns",
-              bi["recommended_turns"] == 8 and bi["generic_turns"] == 8)
+        check("budget: 2 sinks priced at 12 turns (Rule #62: each "
+              "query sink costs 6)",
+              bi["recommended_turns"] == 12 and bi["generic_turns"] == 12)
 
         # --- Case B: full autonomous cold drive vs fresh4 ---
         memdir = tempfile.mkdtemp(prefix="ploop60-b-")
@@ -3953,15 +4024,15 @@ def proof_stylexss():
                 break
             verdicts.append(_hist(memdir)["history"][-1]["verdict"])
         sq = [i for i, v in enumerate(verdicts) if v == "CONFIRMED"]
-        check("drive: exactly 1 CONFIRMED probe at turn 7 (theme xss; "
-              "the two st FAILED pairs each cost 3 turns: FAILED + "
-              "probe DEAD_END + claim DEAD_END)",
-              sq == [6])
+        check("drive: exactly 1 CONFIRMED probe at turn 10 (theme xss; "
+              "the st xss+sqli+redirect FAILED triples each cost 3 "
+              "turns: FAILED + probe DEAD_END + claim DEAD_END)",
+              sq == [9])
         check("drive: the CONFIRMED probe is followed by a FILED claim",
               all(verdicts[i + 1] == "FILED" for i in sq))
-        check("drive: 11 verdict turns executed, process completed, no "
+        check("drive: 17 verdict turns executed, process completed, no "
               "re-probe",
-              len(verdicts) == 11 and "process_completed" in events)
+              len(verdicts) == 17 and "process_completed" in events)
         check("drive: negative probes FAILED (escaped/parameterized "
               "sinks)", "FAILED" in verdicts)
         claims = json.load(open(os.path.join(memdir, "claims.json")))
@@ -4140,6 +4211,167 @@ def proof_csrfsink():
                   raw.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
     finally:
         _stop_mock(mp, 8345)
+
+    # --- Case C: DVWA regression — zero generic sinks ---
+    mp2 = _start_mock(dvwa, 8341, [])
+    try:
+        recon2 = _lab_recon_map("http://127.0.0.1:8341")
+        sinks2 = _lab_generic_sinks("http://127.0.0.1:8341", None,
+                                    list(recon2["modules"]))
+        check("dvwa: auth pages skipped WITH REASON, zero generic sinks",
+              sinks2 == [])
+        plan2, meta2 = _lab_plan_for_hunt(list(recon2["modules"]),
+                                          sinks2,
+                                          "http://127.0.0.1:8341")
+        check("dvwa: Rule #35 22-step plan byte-identical",
+              len(plan2) == 22 and meta2["generic_sinks"] == [] and
+              all(s["module"] in _HUNT_MODULE_ORDER for s in plan2))
+    finally:
+        _stop_mock(mp2, 8341)
+
+    return {"checks": checks}
+
+
+def proof_redirect():
+    """Rule #62 lab proof: generic open-redirect probe for query sinks.
+
+    mock-fresh6 (probe-lab/mock-fresh6/fresh6_app.py) is a sixth unseen
+    app: no DVWA module signals, so recon drops all 11 known modules
+    and only generic sinks remain. /go?next= 302s with the raw next
+    value as Location -> the redirect probe must CONFIRM
+    (via=redirect-location). /jump?to= answers 200 with an escaped
+    meta-refresh to the to value -> CONFIRM (via=redirect-meta).
+    /safe?dest= only honors relative destinations (else 302 to /home)
+    -> the redirect probe must FAILED (negative control). All three
+    pages are reflection-free and DB-free (XSS/SQLi negatives).
+
+    Case A — discovery: 3 query sinks found, plan is 18 steps
+    (xss+sqli+redirect probe+claim triples per sink), budget prices 18.
+    Case B — full cold drive: go redirect CONFIRMED->FILED at turn 7
+    (via=redirect-location), jump redirect CONFIRMED->FILED at turn 15
+    (via=redirect-meta); safe redirect FAILED (canary never leaves
+    the host); all xss/sqli FAILED; exactly 2 filed claims
+    (generic_redirect), locations /go and /jump; process completes,
+    no re-probe.
+    Case C — regression: the DVWA mock yields ZERO generic sinks so
+    the Rule #35 22-step plan is byte-identical.
+    """
+    checks = []
+
+    def check(name, cond):
+        assert cond, "FAILED: " + name
+        checks.append(name)
+
+    def _hist(memdir):
+        return load_json(mem_paths(memdir)["process"],
+                         {"process": None})["process"]
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    fresh6 = os.path.join(here, "probe-lab", "mock-fresh6",
+                          "fresh6_app.py")
+    dvwa = os.path.join(here, "probe-lab", "mock-dvwa.py")
+
+    # --- Case A: discovery on the sixth unseen target ---
+    mp = _start_mock(fresh6, 8346, [])
+    try:
+        tb = "http://127.0.0.1:8346"
+        recon = _lab_recon_map(tb)
+        check("fresh6: recon finds zero known modules",
+              recon is not None and recon["modules"] == {})
+        sinks = _lab_generic_sinks(tb, None, list(recon["modules"]))
+        ids = [s["id"] for s in sinks]
+        check("discovery: finds all 3 query sinks (go, jump, safe)",
+              ids == ["query:/go:GET:next",
+                      "query:/jump:GET:to",
+                      "query:/safe:GET:dest"])
+        check("discovery: no sink touches a known module path",
+              not any("vulnerabilities" in i for i in ids))
+        plan, meta = _lab_plan_for_hunt([], sinks, tb)
+        check("plan: 18 steps, xss+sqli+redirect probe+claim per "
+              "query sink (Rule #62)",
+              len(plan) == 18 and
+              [s["module"] for s in plan] ==
+              ["generic_xss", "generic_xss",
+               "generic_sqli", "generic_sqli",
+               "generic_redirect", "generic_redirect"] * 3 and
+              [s["kind"] for s in plan] ==
+              ["probe", "claim"] * 9 and
+              [s["probe"] for s in plan if s["kind"] == "probe"] ==
+              ["probe_sink_xss.py", "probe_sink_sqli.py",
+               "probe_sink_redirect.py"] * 3)
+        check("plan: sink spec rides in the marker argv "
+              "(PLOOP56|../PLOOP57|../PLOOP62|..)",
+              all((s["marker"].startswith("PLOOP56|") and
+                   s["probe"] == "probe_sink_xss.py") or
+                  (s["marker"].startswith("PLOOP57|") and
+                   s["probe"] == "probe_sink_sqli.py") or
+                  (s["marker"].startswith("PLOOP62|") and
+                   s["probe"] == "probe_sink_redirect.py")
+                  for s in plan if s["kind"] == "probe") and
+              all("/" not in s["marker"]
+                  for s in plan if s["kind"] == "probe"))
+        check("plan_meta: recon_ok=True, 3 generic sink ids recorded",
+              meta["recon_ok"] is True and
+              set(meta["generic_sinks"]) == set(ids))
+        bi = budget_info([], sinks)
+        check("budget: 3 query sinks priced at 18 turns (Rule #62: "
+              "each costs 6)",
+              bi["recommended_turns"] == 18 and bi["generic_turns"] == 18)
+
+        # --- Case B: full autonomous cold drive vs fresh6 ---
+        memdir = tempfile.mkdtemp(prefix="ploop62-b-")
+        goal = "probe-hunt: fresh6 open-redirect drive"
+        ctx = {"registry_url": "http://127.0.0.1:9", "workdir": memdir,
+               "memdir": memdir, "target_base": tb}
+        verdicts, events = [], []
+        for _ in range(40):
+            r = run_turn(memdir, goal, ctx)
+            events.extend(r.get("events", []))
+            if "process_completed" in r.get("events", []):
+                break
+            verdicts.append(_hist(memdir)["history"][-1]["verdict"])
+        sq = [i for i, v in enumerate(verdicts) if v == "CONFIRMED"]
+        check("drive: exactly 2 CONFIRMED probes at turns 7 and 15 "
+              "(go + jump redirect; a FAILED pair costs 3 turns: "
+              "FAILED + probe DEAD_END + claim DEAD_END)",
+              sq == [6, 14])
+        check("drive: each CONFIRMED probe is followed by a FILED claim",
+              all(verdicts[i + 1] == "FILED" for i in sq))
+        check("drive: safe redirect FAILED (negative control — the "
+              "canary never leaves the host)",
+              verdicts[22] == "FAILED")
+        check("drive: 25 verdict turns executed, process completed, no "
+              "re-probe",
+              len(verdicts) == 25 and "process_completed" in events)
+        claims = json.load(open(os.path.join(memdir, "claims.json")))
+        check("drive: exactly 2 claims filed, both generic_redirect, "
+              "state=filed, locations /go and /jump",
+              len(claims) == 2 and
+              all(v["state"] == "filed" for v in claims.values()) and
+              {v["module"] for v in claims.values()} ==
+              {"generic_redirect"} and
+              {v.get("location") for v in claims.values()} ==
+              {"/go", "/jump"})
+        store = HashStore(os.path.join(memdir, "output"))
+        got = {}
+        for v in claims.values():
+            check("drive: claim carries a real evidence hash",
+                  bool(HASH_RE.match(v.get("evidence_hash") or "")))
+            raw = _to_text(store.get(v["evidence_hash"]) or b"")
+            m = re.search(r"EVIDENCE sink=(\S+) .* via=([a-z-]+)",
+                          raw)
+            check("drive: stored output cites sink + via=<class>",
+                  m is not None)
+            if m:
+                got[m.group(1)] = m.group(2)
+            check("drive: stored output ends VERDICT: CONFIRMED",
+                  raw.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
+        check("drive: Rule #62 — /go confirmed via=redirect-location, "
+              "/jump via=redirect-meta (302 Location + meta refresh)",
+              got == {"/go": "redirect-location",
+                      "/jump": "redirect-meta"})
+    finally:
+        _stop_mock(mp, 8346)
 
     # --- Case C: DVWA regression — zero generic sinks ---
     mp2 = _start_mock(dvwa, 8341, [])
@@ -4373,6 +4605,10 @@ def main():
                     help="Rule #61: generic CSRF state-change probe for "
                          "POST sinks (fifth unseen target), DVWA "
                          "regression")
+    ap.add_argument("--proof-redirect", action="store_true",
+                    help="Rule #62: generic open-redirect probe for "
+                         "query sinks (sixth unseen target), DVWA "
+                         "regression")
     ap.add_argument("--proof-report", action="store_true",
                     help="Rule #37: the hunter delivers a dossier "
                          "(auto-write at completion, fail-closed "
@@ -4564,6 +4800,19 @@ def main():
         dt = time.time() - t0
         print("=" * 70)
         print("RULE #61 LAB PROOF: %d/%d checks passed in %.1fs"
+              % (len(allc), len(allc), dt))
+        for c in allc:
+            print("  [ok] " + c)
+        print("PROOF: PASS")
+        return
+
+    if args.proof_redirect:
+        t0 = time.time()
+        gen6 = proof_redirect()           # Rule #62: open-redirect probe
+        allc = ["redirect: " + c for c in gen6["checks"]]
+        dt = time.time() - t0
+        print("=" * 70)
+        print("RULE #62 LAB PROOF: %d/%d checks passed in %.1fs"
               % (len(allc), len(allc), dt))
         for c in allc:
             print("  [ok] " + c)
