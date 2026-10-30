@@ -640,7 +640,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         <span className="hunt-id-badge" title={`Full hunt ID: ${hunt.huntId}`}>{hunt.huntId ? hunt.huntId.slice(0, 12) : ''}</span>
         <span className="hunt-status-text">{statusText(status, hunt.target)}</span>
         {brainMode === 'parent' && (
-          <span className="brain-mode-badge" role="status" title="The AI loop is paused — you are driving this hunt from the Brain Console">
+          <span className="brain-mode-badge" role="status" title={isPaused ? "The AI loop is paused — you are driving this hunt from the Brain Console" : "Parent-brain mode — the hunt loop is live; you supply each turn's decision from the Brain Console"}>
             🧠 You are the brain
           </span>
         )}
