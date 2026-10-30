@@ -125,6 +125,10 @@ _LAB_CLAIM_META = {
     # the loop discovered itself (no known module). Same claim minimums.
     "generic_xss": ("Reflected XSS (generic sink)", "xss_reflected",
                     "high"),
+    # Rule #57: same for the generic-sink SQLi differential probe —
+    # error keywords or a stable boolean-blind differential.
+    "generic_sqli": ("SQL injection (generic sink)", "sqli",
+                     "high"),
 }
 
 
@@ -731,8 +735,10 @@ def _lab_generic_sinks(target_base, opener=None, known_modules=None,
 def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
     """Build the probe/claim-interleaved plan for ONLY the recon-found
     modules, in _HUNT_MODULE_ORDER (csrf stays last), then the GENERIC
-    SINK steps (Rule #56): every sink recon discovered that matches no
-    known module gets a (probe_sink_xss.py, claim) pair. The generic
+    SINK steps (Rule #56, Rule #57): every sink recon discovered that
+    matches no known module gets TWO probe+claim pairs — reflected XSS
+    (probe_sink_xss.py, PLOOP56 marker) and SQLi (probe_sink_sqli.py,
+    PLOOP57 marker). The generic
     probe reads its sink spec from the marker argv
     (PLOOP56|<quoted-tb>|<quoted-path>|<METHOD>|<p1,p2>), so _probe_cmd
     needs no changes; the marker is URL-quoted to stay filename-safe
@@ -760,6 +766,11 @@ def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
             "dropped_modules": dropped}
     # Rule #56: generic sinks AFTER the known modules — the loop hunts
     # the surface that is really there, not just the 11 DVWA paths.
+    # Rule #57: each sink gets TWO probe+claim pairs — reflected XSS
+    # (probe_sink_xss.py, PLOOP56 marker) and SQLi (probe_sink_sqli.py,
+    # PLOOP57 marker). Both probes read the sink spec from the marker
+    # argv, so _probe_cmd needs no changes; the marker is URL-quoted
+    # to stay filename-safe for the sandbox DST path.
     for sink in (generic_sinks or ()):
         tbq = urllib.parse.quote((target_base or "").rstrip("/"), safe="")
         pathq = urllib.parse.quote(sink.get("path", ""), safe="")
@@ -776,6 +787,26 @@ def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
         plan.append({
             "desc": "File claim for the verified generic-sink finding",
             "kind": "claim", "module": "generic_xss",
+            "sink": sink.get("id"),
+            "probe_step_idx": len(plan) - 1,
+            "done": False, "result_hash": None,
+            "recon": True})
+        # Rule #57: the SQLi probe for the same sink (PLOOP57 marker —
+        # error-based keywords + boolean-blind differential with a
+        # stability gate so no claim is ever grounded on noise).
+        sqli_marker = "PLOOP57|%s|%s|%s|%s" % (
+            tbq, pathq, sink.get("method", "GET"),
+            ",".join(sink.get("params", ())))
+        plan.append({
+            "desc": "Probe generic sink %s for SQL injection (%s)" %
+                    (sink.get("id"), "probe_sink_sqli.py"),
+            "kind": "probe", "module": "generic_sqli",
+            "sink": sink.get("id"), "probe": "probe_sink_sqli.py",
+            "marker": sqli_marker, "done": False, "result_hash": None,
+            "recon": True})
+        plan.append({
+            "desc": "File claim for the verified generic-sink finding",
+            "kind": "claim", "module": "generic_sqli",
             "sink": sink.get("id"),
             "probe_step_idx": len(plan) - 1,
             "done": False, "result_hash": None,
@@ -844,15 +875,16 @@ def budget_info(modules=None, generic_sinks=()):
 
     modules=None -> the full _HUNT_MODULE_ORDER (the Rule #34 fixed
     plan / Rule #35 blind-recon fallback). Pass the recon-found module
-    list for a pruned plan. generic_sinks (Rule #56) each cost 2 turns
-    (probe+claim, no escalation rungs yet). Returns {planned_modules,
+    list for a pruned plan. generic_sinks (Rule #56, Rule #57) each
+    cost 4 turns (XSS probe+claim, SQLi probe+claim, no escalation
+    rungs yet). Returns {planned_modules,
     generic_sinks, base_turns, max_escalation_turns, recommended_turns}.
     """
     planned = [m for m in _HUNT_MODULE_ORDER
                if modules is None or m in set(modules or ())]
     base = 2 * len(planned)
     esc = sum(len(PROBE_LADDERS.get(m, ())) for m in planned)
-    gen = 2 * len(generic_sinks or ())
+    gen = 4 * len(generic_sinks or ())
     return {"planned_modules": planned,
             "generic_sinks": [s.get("id") if isinstance(s, dict) else s
                               for s in (generic_sinks or ())],
@@ -931,8 +963,9 @@ def _lab_plan_for_hunt(modules=None, generic_sinks=None, target_base=""):
     modules=None keeps the legacy full 11-module fixed plan and reports
     recon_ok=False (fallback when recon is blind); pass the recon-found
     module set for a recon-driven plan. generic_sinks (from
-    _lab_generic_sinks) appends a (probe_sink_xss, claim) pair per
-    unknown sink AFTER the module steps. Returns (plan, plan_meta)."""
+    _lab_generic_sinks) appends two probe+claim pairs per unknown sink
+    (probe_sink_xss + probe_sink_sqli, Rule #56/#57) AFTER the module
+    steps. Returns (plan, plan_meta)."""
     if modules is None:
         plan, meta = _recon_driven_plan(list(_HUNT_MODULE_ORDER),
                                         (), target_base)
@@ -3266,24 +3299,31 @@ def proof_reconplan():
 
 
 def proof_genericsink():
-    """Rule #56 lab proof: the loop hunts sinks it has never seen.
+    """Rule #56 lab proof (extended Rule #57): the loop hunts sinks it
+    has never seen.
 
     Fresh mock (probe-lab/mock-fresh/fresh_app.py) exposes ZERO DVWA
     module signals: /feedback (POST form, name reflected RAW ->
-    reflected XSS) and /search?q= (q reflected HTML-ESCAPED -> negative
-    control). The loop must discover both via recon, CONFIRM the first,
-    refuse the second, file exactly one claim, and terminate.
+    reflected XSS, no SQLi), /search?q= (q reflected HTML-ESCAPED ->
+    negative control for both probes), /item?id= (boolean-blind SQLi,
+    id HTML-ESCAPED -> XSS negative control), /lookup?q=
+    (parameterized -> SQLi negative control). The loop must discover
+    all four via recon, CONFIRM exactly the two real vulns, refuse the
+    negatives, file exactly two claims, and terminate.
 
-    Case A — discovery: _lab_generic_sinks finds the form sink and the
-    query sink, neither touching a known module path or an auth path;
-    _lab_plan_for_hunt([], sinks, tb) yields exactly 4 steps (2 generic
-    probe+claim pairs, module generic_xss); budget_info prices them at
-    4 turns.
-    Case B — full drive: run_turn vs the fresh mock. feedback probe ->
-    CONFIRMED, claim -> FILED, search probe -> FAILED (escaped echo is
-    a negative control), probe dead-ends WITH REASON, its claim dies
-    WITH REASON, process completes. claims.json holds exactly 1 filed
-    generic_xss claim with a real evidence hash citing /feedback.
+    Case A — discovery: _lab_generic_sinks finds the four sinks,
+    neither touching a known module path or an auth path;
+    _lab_plan_for_hunt([], sinks, tb) yields exactly 16 steps (2
+    probe+claim pairs per sink: generic_xss then generic_sqli);
+    budget_info prices them at 16 turns.
+    Case B — full drive: run_turn vs the fresh mock. feedback xss ->
+    CONFIRMED, claim -> FILED; feedback sqli -> FAILED; item xss ->
+    FAILED (escaped echo is a negative control); item sqli ->
+    CONFIRMED, claim -> FILED; lookup/search -> both FAILED, probes
+    dead-end WITH REASON, their claims die WITH REASON, process
+    completes. claims.json holds exactly 2 filed claims (generic_xss
+    citing /feedback, generic_sqli citing /item) with real evidence
+    hashes.
     Case C — regression: the DVWA mock yields ZERO generic sinks (auth
     pages skipped WITH REASON, module paths skipped) so the Rule #35
     22-step plan is byte-identical.
@@ -3315,25 +3355,38 @@ def proof_genericsink():
               "form:/feedback:POST:message,name" in ids)
         check("discovery: finds the /search query sink",
               "query:/search:GET:q" in ids)
+        check("discovery: finds the /item SQLi query sink (Rule #57)",
+              "query:/item:GET:id" in ids)
+        check("discovery: finds the /lookup query sink (Rule #57)",
+              "query:/lookup:GET:q" in ids)
         check("discovery: no sink touches a known module path",
               not any("vulnerabilities" in i for i in ids))
         plan, meta = _lab_plan_for_hunt([], sinks, tb)
-        check("plan: 4 steps, 2 generic probe+claim pairs",
-              len(plan) == 4 and
-              [s["module"] for s in plan] == ["generic_xss"] * 4 and
+        check("plan: 16 steps, 2 probe+claim pairs per sink "
+              "(xss then sqli)",
+              len(plan) == 16 and
+              [s["module"] for s in plan] ==
+              ["generic_xss", "generic_xss",
+               "generic_sqli", "generic_sqli"] * 4 and
               [s["kind"] for s in plan] ==
-              ["probe", "claim", "probe", "claim"] and
-              all(s["probe"] == "probe_sink_xss.py"
+              ["probe", "claim"] * 8 and
+              [s["probe"] for s in plan if s["kind"] == "probe"] ==
+              ["probe_sink_xss.py", "probe_sink_sqli.py"] * 4)
+        check("plan: sink spec rides in the marker argv "
+              "(PLOOP56|../PLOOP57|..)",
+              all((s["marker"].startswith("PLOOP56|") and
+                   s["probe"] == "probe_sink_xss.py") or
+                  (s["marker"].startswith("PLOOP57|") and
+                   s["probe"] == "probe_sink_sqli.py")
+                  for s in plan if s["kind"] == "probe") and
+              all("/" not in s["marker"]
                   for s in plan if s["kind"] == "probe"))
-        check("plan: sink spec rides in the marker argv (PLOOP56|..)",
-              all(s["marker"].startswith("PLOOP56|") and "/" not in
-                  s["marker"] for s in plan if s["kind"] == "probe"))
         check("plan_meta: recon_ok=True, generic sink ids recorded",
               meta["recon_ok"] is True and
               set(meta["generic_sinks"]) == set(ids))
         bi = budget_info([], sinks)
-        check("budget: 2 sinks priced at 4 turns",
-              bi["recommended_turns"] == 4 and bi["generic_turns"] == 4)
+        check("budget: 4 sinks priced at 16 turns",
+              bi["recommended_turns"] == 16 and bi["generic_turns"] == 16)
 
         # --- Case B: full autonomous drive vs the fresh target ---
         memdir = tempfile.mkdtemp(prefix="ploop56-b-")
@@ -3341,32 +3394,45 @@ def proof_genericsink():
         ctx = {"registry_url": "http://127.0.0.1:9", "workdir": memdir,
                "memdir": memdir, "target_base": tb}
         verdicts, events = [], []
-        for _ in range(8):
+        for _ in range(24):
             r = run_turn(memdir, goal, ctx)
             events.extend(r.get("events", []))
             if "process_completed" in r.get("events", []):
                 break
             verdicts.append(_hist(memdir)["history"][-1]["verdict"])
-        check("drive: feedback probe CONFIRMED, claim FILED",
+        check("drive: feedback xss probe CONFIRMED, claim FILED",
               verdicts[0] == "CONFIRMED" and verdicts[1] == "FILED")
-        check("drive: search probe FAILED (escaped echo, negative "
-              "control)", "FAILED" in verdicts)
+        check("drive: item sqli probe CONFIRMED, claim FILED "
+              "(a FAILED probe costs a dead-end turn, so the pair lands "
+              "at verdicts[8]/[9])",
+              len(verdicts) >= 10 and
+              verdicts[8] == "CONFIRMED" and verdicts[9] == "FILED")
+        check("drive: negative probes FAILED (escaped/parameterized "
+              "sinks)", "FAILED" in verdicts)
         check("drive: process completed (no infinite re-probe)",
               "process_completed" in events)
         claims = json.load(open(os.path.join(memdir, "claims.json")))
-        check("drive: exactly 1 claim filed, module generic_xss",
-              len(claims) == 1 and
-              all(v["state"] == "filed" and
-                  v["module"] == "generic_xss"
-                  for v in claims.values()))
-        cv = next(iter(claims.values()))
-        check("drive: claim carries a real evidence hash",
-              bool(HASH_RE.match(cv.get("evidence_hash") or "")))
+        check("drive: exactly 2 claims filed: generic_xss + generic_sqli",
+              len(claims) == 2 and
+              all(v["state"] == "filed" for v in claims.values()) and
+              {v["module"] for v in claims.values()} ==
+              {"generic_xss", "generic_sqli"})
         store = HashStore(os.path.join(memdir, "output"))
-        raw = _to_text(store.get(cv["evidence_hash"]) or b"")
-        check("drive: stored probe output cites the sink + VERDICT",
-              "EVIDENCE sink=/feedback" in raw and
-              raw.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
+        by_module = {v["module"]: v for v in claims.values()}
+        cx = by_module["generic_xss"]
+        check("drive: xss claim carries a real evidence hash",
+              bool(HASH_RE.match(cx.get("evidence_hash") or "")))
+        rawx = _to_text(store.get(cx["evidence_hash"]) or b"")
+        check("drive: stored xss output cites the sink + VERDICT",
+              "EVIDENCE sink=/feedback" in rawx and
+              rawx.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
+        cq = by_module["generic_sqli"]
+        check("drive: sqli claim carries a real evidence hash",
+              bool(HASH_RE.match(cq.get("evidence_hash") or "")))
+        rawq = _to_text(store.get(cq["evidence_hash"]) or b"")
+        check("drive: stored sqli output cites the sink + VERDICT",
+              "EVIDENCE sink=/item" in rawq and
+              rawq.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
     finally:
         _stop_mock(mp, 8340)
 
