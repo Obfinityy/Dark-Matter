@@ -653,6 +653,41 @@ def _lab_login_opener(target_base, timeout_s=8):
         return None
 
 
+def _lab_session_cookie_names(opener):
+    """Names of cookies the LOOP ITSELF owns (its session jar).
+
+    Rule #75: recon logs in via _lab_login_opener, so the jar carries
+    the loop's own session cookie (PHPSESSID on DVWA). A Set-Cookie
+    name the loop owns is not attacker-controllable input — probing
+    it would burn turns attacking the loop's own session, and any
+    "reflection" would be the loop echoing its own state back as a
+    self-inflicted "finding". Names are read from the opener's
+    HTTPCookieProcessor jar(s); ANY failure yields the empty set
+    (fail-closed: no invented names, and an unauthenticated recon
+    simply excludes nothing).
+
+    ORDERING (load-bearing): call this BEFORE the recon crawl. The
+    crawl stores every Set-Cookie the target sends into the same jar,
+    so a post-crawl read would mistake genuine sinks for loop-owned
+    cookies and exclude the real attack surface too. Turn 0 snapshots
+    the login-time jar for exactly this reason.
+    """
+    names = set()
+    try:
+        handlers = getattr(opener, "handlers", None) or ()
+        for h in handlers:
+            jar = getattr(h, "cookiejar", None)
+            if jar is None:
+                continue
+            for c in jar:
+                nm = getattr(c, "name", None)
+                if nm:
+                    names.add(nm)
+    except Exception:
+        pass
+    return names
+
+
 def _lab_recon_map(target_base, timeout_s=5, opener=None):
     """Lab attack-surface recon. Crawls the EXPLICIT target_base only:
     GET / for the link graph, then GETs each found
@@ -733,7 +768,7 @@ _GENERIC_SINK_SKIP_PATH = ("login", "logout", "signin", "sign-in",
 
 
 def _lab_generic_sinks(target_base, opener=None, known_modules=None,
-                       timeout_s=5):
+                       timeout_s=5, self_cookie_names=()):
     """Discover generic attack sinks on the explicit target. Returns a
     sorted, capped list of {id, kind, method, path, params}: kind is
     'form' (action+method+input names from <form> blocks), 'query'
@@ -742,15 +777,22 @@ def _lab_generic_sinks(target_base, opener=None, known_modules=None,
     application/xml POST bodies — the API-docs pattern), or 'cookie'
     (Rule #74: a Set-Cookie name on a crawled response — one sink
     per (path, cookie name), GET method, the name in params). Paths
-    covered by known-module signals are excluded. Empty list when
-    recon fails or the target has no sinks (fail-closed: no invented
-    surface)."""
+    covered by known-module signals are excluded. Rule #75: cookie
+    names in self_cookie_names (the loop's own session-jar names,
+    e.g. PHPSESSID from the recon login) are never sunk — they are
+    not attacker-controllable input. Empty list when recon fails or
+    the target has no sinks (fail-closed: no invented surface)."""
     tb = (target_base or "").rstrip("/")
     if not tb:
         return []
     skip_sub = set()
     for m in (known_modules or ()):
         skip_sub.update(_RECON_MODULE_SIGNALS.get(m, {}).get("paths", ()))
+    # Rule #75: the loop's own session-cookie names, excluded from
+    # cookie sinks at capture time (no turns burned on the loop's own
+    # session). The exclusion is recorded on the plan meta by the
+    # caller (turn 0) — the set itself is the record.
+    self_owned = set(self_cookie_names or ())
 
     def _get(url):
         # Returns (code, set_cookie_headers, body). Set-Cookie is
@@ -898,13 +940,23 @@ def _lab_generic_sinks(target_base, opener=None, known_modules=None,
                 sid = "cookie:%s:GET:%s" % (page_path, cname)
                 if sid in sinks:
                     continue
+                # Rule #75: never sink the loop's OWN session cookies —
+                # a name the loop's jar owns (PHPSESSID from the recon
+                # login) is not attacker-controllable input. Probing it
+                # would attack the loop's own session, and any echo
+                # would be a self-inflicted "finding". Skipped WITH
+                # REASON; the excluded names ride on the plan meta so
+                # the decision is auditable.
+                if cname in self_owned:
+                    continue
                 sinks[sid] = {"id": sid, "kind": "cookie",
                               "method": "GET", "path": page_path,
                               "params": [cname]}
     return [sinks[k] for k in sorted(sinks)][: _GENERIC_SINK_CAP]
 
 
-def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
+def _recon_driven_plan(modules_present, generic_sinks=(),
+                       target_base="", exclude_cookie_names=()):
     """Build the probe/claim-interleaved plan for ONLY the recon-found
     modules, in _HUNT_MODULE_ORDER (csrf stays last), then the GENERIC
     SINK steps (Rule #56, Rule #57, Rule #61, Rule #62, Rule #63,
@@ -970,6 +1022,10 @@ def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
     ordered = [m for m in _HUNT_MODULE_ORDER if m in modules_present]
     dropped = [m for m in _HUNT_MODULE_ORDER if m not in modules_present]
     plan = []
+    # Rule #75: cookie names the loop itself owns (its session jar) —
+    # the plan gate refuses to build pairs for them (defense in depth
+    # behind the capture-time exclusion in _lab_generic_sinks).
+    _excl_cookies = set(exclude_cookie_names or ())
     for module in ordered:
         probe, marker = _PROBE_MODULES[module]
         plan.append({"desc": "Probe %s (%s) for a verified finding" %
@@ -1349,7 +1405,17 @@ def _recon_driven_plan(modules_present, generic_sinks=(), target_base=""):
         # Cookie sinks carry ONLY this pair — a cookie is neither a
         # query param nor a form field nor an XML body, so the
         # xss/sqli/csrf pairs do not apply.
+        # Rule #75 (plan gate, defense in depth): a hand-built sink
+        # list could carry a loop-owned session cookie past the
+        # capture exclusion — refuse the pair WITH REASON instead of
+        # burning 2 turns on the loop's own session.
         if sink.get("kind") == "cookie":
+            _ck = (sink.get("params") or [None])[0]
+            if _ck in _excl_cookies:
+                meta.setdefault("excluded_cookie_sinks", []).append(
+                    "%s — Rule #75: %r is a loop-owned session cookie, "
+                    "not an attack surface" % (sink.get("id"), _ck))
+                continue
             cxss_marker = "PLOOP74|%s|%s|%s|%s" % (
                 tbq, pathq, "GET",
                 ",".join(sink.get("params", ())))
@@ -1546,7 +1612,8 @@ def _probe_cmd(probe_file, marker, target_base, sandbox, timeout_s=120):
     ])
 
 
-def _lab_plan_for_hunt(modules=None, generic_sinks=None, target_base=""):
+def _lab_plan_for_hunt(modules=None, generic_sinks=None, target_base="",
+                       exclude_cookie_names=()):
     """Lab plan template (Rule #31, extended Rule #32, full 11-module
     plan Rule #34, recon-driven Rule #35, generic sinks Rule #56): a goal containing
     'probe-hunt' drives the one loop through real parent probes against
@@ -1561,14 +1628,18 @@ def _lab_plan_for_hunt(modules=None, generic_sinks=None, target_base=""):
     _lab_generic_sinks) appends probe+claim pairs per unknown sink
     (probe_sink_xss + probe_sink_sqli, Rule #56/#57, plus
     probe_sink_csrf for POST-form sinks, Rule #61) AFTER the module
-    steps. Returns (plan, plan_meta)."""
+    steps. exclude_cookie_names (Rule #75): cookie names the loop
+    itself owns — no pairs are planned for them, and the refusal is
+    recorded on the plan meta. Returns (plan, plan_meta)."""
     if modules is None:
         plan, meta = _recon_driven_plan(list(_HUNT_MODULE_ORDER),
-                                        (), target_base)
+                                        (), target_base,
+                                        exclude_cookie_names)
         meta = dict(meta, recon_ok=False,
                     note="fixed-plan fallback: recon blind or unavailable")
         return plan, meta
-    return _recon_driven_plan(modules, generic_sinks or (), target_base)
+    return _recon_driven_plan(modules, generic_sinks or (), target_base,
+                              exclude_cookie_names)
 
 
 def _probe_step_reply(step, plan, goal, ctx, new_process=None):
@@ -1600,7 +1671,21 @@ def _probe_step_reply(step, plan, goal, ctx, new_process=None):
         new_process=new_process)
 
 
-def _build_lab_claim(proc, module, probe_step_idx, store):
+def _cookie_name_of_sink(sink_id):
+    """Extract the cookie name from a cookie sink id
+    (cookie:<path>:GET:<name>); None for anything else. Rule #75."""
+    try:
+        parts = (sink_id or "").rsplit(":", 2)
+        if len(parts) == 3 and parts[0].startswith("cookie:") \
+                and parts[1] == "GET":
+            return parts[2] or None
+    except Exception:
+        pass
+    return None
+
+
+def _build_lab_claim(proc, module, probe_step_idx, store, sink_id=None,
+                     self_cookie_names=None):
     """Assemble a claim object from a CONFIRMED probe's stored output.
 
     Rule #32. The scripted (lab) brain cannot read the hash store except
@@ -1622,6 +1707,18 @@ def _build_lab_claim(proc, module, probe_step_idx, store):
     h = hits[-1]
     raw = store.get(h.get("result_hash") or "") or b""
     text = _to_text(raw)
+    # Rule #75 (claim-layer gate): even with CONFIRMED output, a
+    # generic_cookiexss claim against the loop's OWN session cookie is
+    # never filed — the "finding" would be the loop echoing its own
+    # session state, a self-inflicted claim no elite hunter would make.
+    # The sink id carries the name (cookie:<path>:GET:<name>).
+    if module == "generic_cookiexss":
+        _cn = _cookie_name_of_sink(sink_id)
+        if _cn and _cn in set(self_cookie_names or ()):
+            return None, ("Rule #75: refusing claim — %r is a loop-owned "
+                          "session cookie, not an attack surface; filing "
+                          "here would be a self-inflicted finding "
+                          "(fail-closed)" % _cn)
     cmd = (h.get("action") or {}).get("command", "")
     m = re.search(r"([A-Za-z0-9_]+\.(?:py|sh))\b", cmd)
     probe_file = m.group(1) if m else "probe"
@@ -1723,7 +1820,10 @@ def _claim_step_reply(step, nxt, plan, goal, proc, ctx):
         "I did not delay filing because the evidence is verified and "
         "hash-stored; I did not file twice because the gate blocks "
         "re-files as discipline, counted in memory.",
-        {"type": "claim", "module": module, "probe_step_idx": pair})
+        {"type": "claim", "module": module, "probe_step_idx": pair,
+         # Rule #75: the sink id lets the claim layer refuse claims
+         # against the loop's own session cookies.
+         "sink": step.get("sink")})
 
 
 def _reply(task, goal, progress, why_this, why_not, action,
@@ -1786,20 +1886,30 @@ def decide(turn_input, ctx, correction=None):
             # fail-closed: recon proceeds unauthenticated as before.
             tb = ctx.get("target_base") or ""
             opener = _lab_login_opener(tb) if tb else None
+            # Rule #75: snapshot the loop's OWN session-jar cookie names
+            # BEFORE the recon crawl — the crawl itself stores every
+            # Set-Cookie the target sends into the jar, so reading the
+            # jar after recon would exclude genuine sinks too. At login
+            # time the jar holds exactly the loop's own session cookies
+            # (PHPSESSID from the recon login).
+            self_cookie_names = _lab_session_cookie_names(opener)
             recon = _lab_recon_map(tb, opener=opener) if tb else None
             # Rule #56: generic sinks ride along with the module plan —
             # a fresh target with zero known modules still gets hunted
             # via its discovered forms/query params.
             sinks = (_lab_generic_sinks(tb, opener,
-                                        (recon or {}).get("modules"))
+                                        (recon or {}).get("modules"),
+                                        self_cookie_names=self_cookie_names)
                      if recon else [])
             if recon and (recon.get("modules") or sinks):
                 plan, plan_meta = _lab_plan_for_hunt(
-                    list(recon["modules"]), sinks, tb)
+                    list(recon["modules"]), sinks, tb,
+                    exclude_cookie_names=self_cookie_names)
             else:
                 plan, plan_meta = _lab_plan_for_hunt()
             if plan_meta is not None:
                 plan_meta["recon_auth"] = opener is not None
+                plan_meta["self_cookie_names"] = sorted(self_cookie_names)
         if plan is None:
             return _idle_reply(
                 "assess goal", goal, "no plan template matches this goal",
@@ -2237,7 +2347,10 @@ def validate_reply(reply, process_active):
                                  len(cmd.strip()) < CLAIM_COMMAND_MIN):
                             errors.append("claim command too short (< %d)"
                                           % CLAIM_COMMAND_MIN)
-                ak -= {"module", "probe_step_idx", "claim"}
+                ak -= {"module", "probe_step_idx", "claim",
+                       # Rule #75: the sink id lets the claim layer refuse
+                       # claims against the loop's own session cookies.
+                       "sink"}
             if ak:
                 errors.append("unknown action params for %s: %s"
                               % (t, sorted(ak)))
@@ -2376,8 +2489,14 @@ class LabBackend:
                         "VERDICT: FAILED"}
             proc = load_json(mem_paths(self.memdir)["process"],
                              {"process": None})["process"]
-            claim_body, why_not = _build_lab_claim(proc, module, psi,
-                                                   self.store)
+            # Rule #75: the claim layer refuses generic_cookiexss claims
+            # against the loop's own session cookies — the exclusion set
+            # rides on the persisted plan meta (written at turn 0).
+            claim_body, why_not = _build_lab_claim(
+                proc, module, psi, self.store,
+                sink_id=action.get("sink"),
+                self_cookie_names=(proc.get("plan_meta") or {}).get(
+                    "self_cookie_names"))
             if claim_body is None:
                 return {"ok": True, "verdict": "FAILED",
                         "output": "CLAIM REFUSED: %s\nVERDICT: FAILED"
@@ -6733,6 +6852,16 @@ def proof_cookiexss():
     the Rule #35 22-step plan is byte-identical (the DVWA mock only
     sets PHPSESSID on a POST login; recon fetches GET-only, so no
     Set-Cookie ever reaches the crawler).
+    Case D — Rule #75: mock-fresh17 sets the loop's OWN session cookie
+    (PHPSESSID) on every page — without the exclusion it would be sunk
+    (pre-gate control proves the defect); with the exclusion only the
+    genuine theme sinks remain, the plan builds 6 steps, and a
+    hand-built PHPSESSID sink is refused at plan time WITH REASON.
+    Case E — Rule #75: the claim layer REFUSES a CONFIRMED
+    generic_cookiexss output against a loop-owned session cookie
+    (self-inflicted findings are never filed); the same output
+    against a genuine cookie still builds, and callers without sink
+    info behave exactly as before.
     """
     checks = []
 
@@ -6877,6 +7006,113 @@ def proof_cookiexss():
               all(s["module"] in _HUNT_MODULE_ORDER for s in plan2))
     finally:
         _stop_mock(mp2, 8341)
+
+    # --- Case D (Rule #75): the loop's OWN session cookie is never a sink ---
+    # mock-fresh17 is fresh16 + Set-Cookie: PHPSESSID=fresh17sess on every
+    # cookie-setting page — exactly what a real login session looks like
+    # to the crawler. The loop owns PHPSESSID (it sits in the session
+    # jar); it must never become an attack sink.
+    import http.cookiejar
+    fresh17 = os.path.join(here, "probe-lab", "mock-fresh17",
+                           "fresh17_app.py")
+    mp3 = _start_mock(fresh17, 8357, [])
+    try:
+        tb3 = "http://127.0.0.1:8357"
+        # simulate the post-login session jar: the loop owns PHPSESSID
+        jar3 = http.cookiejar.CookieJar()
+        jar3.set_cookie(http.cookiejar.Cookie(
+            0, "PHPSESSID", "fresh17sess", None, False, "127.0.0.1",
+            False, False, "/", True, False, None, False, None, None,
+            {}, False))
+        op3 = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(jar3))
+        check("Rule #75: _lab_session_cookie_names reads the loop's own "
+              "session cookie (PHPSESSID) from the opener's jar",
+              _lab_session_cookie_names(op3) == {"PHPSESSID"})
+        check("Rule #75: a jar-less (None) opener yields no names — "
+              "fail-closed, unauthenticated recon excludes nothing",
+              _lab_session_cookie_names(None) == set())
+        # Rule #75 ordering (load-bearing): snapshot the loop's OWN
+        # names BEFORE the crawl — the crawl stores the target's
+        # Set-Cookie headers (theme=light) into the same jar, and a
+        # post-crawl read would wrongly exclude the genuine sink too.
+        own3 = _lab_session_cookie_names(op3)
+        recon3 = _lab_recon_map(tb3, opener=op3)
+        check("fresh17: recon finds zero known modules",
+              recon3 is not None and recon3["modules"] == {})
+        check("Rule #75 ordering: the crawl stored the target's theme "
+              "cookie into the jar, but the pre-crawl snapshot still "
+              "names only the loop's own session cookie",
+              own3 == {"PHPSESSID"})
+        raw3 = _lab_generic_sinks(tb3, op3, list(recon3["modules"]))
+        raw3 = _lab_generic_sinks(tb3, op3, list(recon3["modules"]))
+        check("pre-gate control: WITHOUT the Rule #75 exclusion the "
+              "loop's own PHPSESSID WOULD be sunk on / (the defect this "
+              "rule closes)",
+              "cookie:/:GET:PHPSESSID" in [s["id"] for s in raw3])
+        sinks3 = _lab_generic_sinks(tb3, op3, list(recon3["modules"]),
+                                    self_cookie_names=own3)
+        ids3 = [s["id"] for s in sinks3]
+        check("Rule #75 capture gate: the loop's own PHPSESSID is "
+              "excluded WITH REASON — only the genuine theme sinks remain",
+              ids3 == ["cookie:/:GET:theme",
+                       "cookie:/prefs:GET:theme",
+                       "cookie:/safe:GET:theme"])
+        plan3, meta3 = _lab_plan_for_hunt([], sinks3, tb3,
+                                          exclude_cookie_names=own3)
+        check("Rule #75 plan gate: 6 steps — one cookiexss pair per "
+              "theme sink, zero steps for the excluded session cookie",
+              len(plan3) == 6 and
+              all(s["module"] == "generic_cookiexss" for s in plan3) and
+              meta3.get("excluded_cookie_sinks", []) == [])
+        # defense in depth: a hand-built sink list that bypasses the
+        # capture gate is still refused at plan time, WITH REASON
+        hand = [{"id": "cookie:/:GET:PHPSESSID", "kind": "cookie",
+                 "method": "GET", "path": "/", "params": ["PHPSESSID"]}]
+        plan4, meta4 = _lab_plan_for_hunt([], hand, tb3,
+                                          exclude_cookie_names=own3)
+        check("Rule #75 plan gate (defense in depth): a hand-built sink "
+              "for the loop's own session cookie plans ZERO steps and "
+              "records the refusal WITH REASON",
+              plan4 == [] and
+              meta4.get("excluded_cookie_sinks") ==
+              ["cookie:/:GET:PHPSESSID \u2014 Rule #75: 'PHPSESSID' is a "
+               "loop-owned session cookie, not an attack surface"])
+    finally:
+        _stop_mock(mp3, 8357)
+
+    # --- Case E (Rule #75): the claim layer refuses self-owned cookies ---
+    proc5 = {"history": [{"step_idx": 0, "verdict": "CONFIRMED",
+                          "result_hash": "e" * 64,
+                          "action": {"command":
+                                     "python3 probe_sink_cookiexss.py "
+                                     "PLOOP74|dummy"}}]}
+    store5 = {"e" * 64:
+              b"probe marker PLOOP74 observed in response body; "
+              b"EVIDENCE sink=/ marker=PLOOP74\nVERDICT: CONFIRMED\n"}
+    body5, why5 = _build_lab_claim(
+        proc5, "generic_cookiexss", 0, store5,
+        sink_id="cookie:/:GET:PHPSESSID",
+        self_cookie_names={"PHPSESSID"})
+    check("Rule #75 claim-layer gate: a CONFIRMED output against the "
+          "loop's OWN session cookie is REFUSED with a Rule #75 reason "
+          "(never file a self-inflicted finding)",
+          body5 is None and "Rule #75" in (why5 or "") and
+          "PHPSESSID" in (why5 or ""))
+    body6, _ = _build_lab_claim(
+        proc5, "generic_cookiexss", 0, store5,
+        sink_id="cookie:/prefs:GET:theme",
+        self_cookie_names={"PHPSESSID"})
+    check("Rule #75 claim-layer control: the same CONFIRMED output "
+          "against a genuinely attacker-controlled cookie still builds "
+          "a claim (class xss_reflected, high)",
+          body6 is not None and body6["class"] == "xss_reflected" and
+          body6["severity"] == "high")
+    body7, _ = _build_lab_claim(proc5, "generic_cookiexss", 0, store5)
+    check("Rule #75 backward-compat: with no sink/exclusion info the "
+          "claim builds exactly as before (all existing callers "
+          "unaffected)",
+          body7 is not None)
 
     return {"checks": checks}
 
