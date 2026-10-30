@@ -42,6 +42,7 @@ VERDICT line. Any exception -> PROBE_ERROR + VERDICT: FAILED.
 import http.client
 import os
 import re
+import socket
 import sys
 import threading
 import time
@@ -83,11 +84,42 @@ class _CanaryHandler(BaseHTTPRequestHandler):
 def _start_listener(token):
     _CanaryHandler.token = token
     _CanaryHandler.hits = []
-    srv = ThreadingHTTPServer(("127.0.0.1", 0), _CanaryHandler)
+    # Rule #73: bind all interfaces — the verifier re-runs this probe
+    # inside the hunt container, where 127.0.0.1 is the container's own
+    # loopback and the target (on the host) could never reach a
+    # loopback-bound listener. The canary URL advertises a
+    # target-routable IP (see _advertise_ip); the listener only serves
+    # the run-unique token path and shuts down with the probe.
+    srv = ThreadingHTTPServer(("0.0.0.0", 0), _CanaryHandler)
     port = srv.server_address[1]
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
     return srv, port
+
+
+def _advertise_ip(tb):
+    """IP address the TARGET can reach back for the canary fetch.
+
+    The source IP the OS would use to reach the target: inside a hunt
+    container that is the container's bridge IP (the host routes it via
+    docker0); on the host it is the host's own IP. No traffic is sent
+    (UDP connect only). Falls back to 127.0.0.1 (the pre-Rule-#73
+    behavior) on any error — fail-safe, never fail-open.
+    """
+    try:
+        pu = urllib.parse.urlparse(tb.rstrip("/"))
+        host = pu.hostname or "127.0.0.1"
+        port = pu.port or (443 if pu.scheme == "https" else 80)
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(3)
+        s.connect((host, port))
+        ip = s.getsockname()[0]
+        s.close()
+        if ip and ip != "0.0.0.0":
+            return ip
+    except Exception:
+        pass
+    return "127.0.0.1"
 
 
 def _raw_get(tb, path, params):
@@ -161,7 +193,9 @@ def main():
             with _CanaryHandler.lock:
                 seen = len(_CanaryHandler.hits)
             # 2. CANARY: the full listener URL as the param value.
-            canary = "http://127.0.0.1:%d/%s" % (port, token)
+            # Rule #73: advertise a target-routable IP, not 127.0.0.1 —
+            # the verifier re-runs this probe inside the hunt container.
+            canary = "http://%s:%d/%s" % (_advertise_ip(tb), port, token)
             try:
                 code, body = _raw_get(tb, path, {p: canary})
             except Exception as e:
