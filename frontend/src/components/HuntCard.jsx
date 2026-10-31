@@ -604,7 +604,16 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   // report building live. Leads now render as lead rows (title +
   // severity + evidence snippet + "under investigation" badge) while
   // the verified list above stays verified-only.
-  const verifiedFindings = findings.filter((f) => f && f.verified === true);
+  // P0 (31 Oct 2026): probe/test names must never count as verified
+  // findings, even if the backend stamped verified:true (defense in
+  // depth — the backend guard is primary). A title starting with
+  // "probe_" (or matching test-name patterns) is a probe note, not a
+  // vulnerability.
+  const isProbeName = (t) => {
+    const s = String(t || '').trim().toLowerCase();
+    return /^probe[_-]/.test(s) || /[_-]probe([_-]|$)/.test(s) || /[_-]test([_-]|$)/.test(s) || /^test[_-]/.test(s);
+  };
+  const verifiedFindings = findings.filter((f) => f && f.verified === true && !isProbeName(f.title));
   const unverifiedFindings = findings.filter((f) => f && f.verified !== true);
   const unverifiedCount = unverifiedFindings.length;
 

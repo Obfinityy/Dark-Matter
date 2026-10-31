@@ -28,6 +28,8 @@ import { HuntOrchestrator } from './orchestrator.js';
 import { pendingChatQuestions, chatQuestionScreenLines, extractChatAnswers, parseChatAnswerLines } from './chatQueue.js';
 import { isErrorPageFinding } from './huntMemory.js';
 import { findWrongTargetPaths } from './knownApps.js';
+// P0 (31 Oct 2026): probe-name titles must never become verified findings.
+import { guardClaimTitle } from './claimTitleGuard.js';
 
 // Active orchestrators by huntId — so assessResult can report verified
 // findings to the head even though it doesn't receive it as a parameter.
@@ -2295,6 +2297,30 @@ function inferSeverity(testName, output) {
   // own framing (verbatim in the executed command). A deterministic
   // probe can no longer confirm itself by re-printing its banner.
   const sigs = evidenceSignalIds(output, plan.command).join(',');
+  // P0 (31 Oct 2026): probe/test names must never become verified
+  // findings. If the plan's test name looks like a probe name, bounce
+  // it here — BEFORE the verifier runs — and record it as an unverified
+  // probe note, not a finding. The brain must re-title with the
+  // VULNERABILITY name.
+  try {
+    const titleGuard = guardClaimTitle(plan.test || '', readHuntEvents(huntId));
+    if (!titleGuard.ok) {
+      think(huntId, `Claim guard bounced "${plan.test}": ${titleGuard.error} — recording as unverified probe note.`);
+      appendHuntEvent(huntId, {
+        type: 'finding',
+        class: 'agent_finding',
+        title: plan.test || 'agent-discovered anomaly',
+        severity: 'medium',
+        url: target,
+        evidence: { request: plan.command, response: output.slice(0, 800) },
+        verified: false,
+        verification: `bounced by claim guard (${titleGuard.error}): ${titleGuard.message}`,
+        via: 'assessResult',
+      });
+      recordValidation(huntId, plan, 'rejected', `claim guard: ${titleGuard.error}`);
+      return null;
+    }
+  } catch { /* guard is best-effort; verification proceeds on guard failure */ }
   const cand = {
     class: 'agent_finding',
     title: plan.test || 'agent-discovered anomaly',
