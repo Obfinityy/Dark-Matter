@@ -178,11 +178,13 @@ export default function BrainConsole({ huntId, target, onClose, onBrainModeChang
     setComposerError('');
     setLastResult(null);
     const fields = {
-      command, url, selector, text: typeText, id: recallId,
+      command, url, selector,
+      text: actionType === 'browser_type' ? typeText : osText,
+      id: recallId,
       title: findingTitle, severity: findingSeverity, detail: findingDetail,
       claimCommand: findingCommand, counterevidence: findingCounterevidence,
       confidence: findingConfidence, confidenceRationale: findingConfidenceRationale,
-      window: osWindow, keys: osKeys, text: osText, x: osX, y: osY,
+      window: osWindow, keys: osKeys, x: osX, y: osY,
       control: osControl, tool: osTool, index: osIndex,
       // intercept_replay's optional URL override lives in `url` for
       // buildBrainAction; browser_open's `url` is a different field,

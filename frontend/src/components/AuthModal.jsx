@@ -15,7 +15,7 @@ function friendlyError(res) {
   return res.message || code || 'Something went wrong. Try again.';
 }
 
-export function AuthCard({ onDone }) {
+export function AuthCard({ onDone, onNavigate }) {
   const { login } = useAuth();
   const [mode, setMode] = useState('login'); // 'login' | 'signup' | 'pending'
   const [username, setUsername] = useState('');
@@ -134,19 +134,23 @@ export function AuthCard({ onDone }) {
         .link-btn:hover { color: #004499; }
       `}</style>
       <div className="auth-legal">
-        <a href="#terms" onClick={(e) => e.preventDefault()}>Terms of Use</a>
+        <a href="/terms" onClick={(e) => { if (onNavigate) { e.preventDefault(); onNavigate('terms'); } }}>Terms of Service</a>
         {' | '}
-        <a href="#privacy" onClick={(e) => e.preventDefault()}>Privacy Policy</a>
+        <a href="/privacy" onClick={(e) => { if (onNavigate) { e.preventDefault(); onNavigate('privacy'); } }}>Privacy Policy</a>
       </div>
     </div>
   );
 }
 
-export default function AuthModal({ onClose, onDone }) {
+export default function AuthModal({ onClose, onDone, onNavigate }) {
   return (
     <div className="auth-scrim" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: 400 }}>
         <AuthCard
+          onNavigate={(page) => {
+            onClose && onClose();
+            onNavigate && onNavigate(page);
+          }}
           onDone={() => {
             onDone && onDone();
             onClose && onClose();

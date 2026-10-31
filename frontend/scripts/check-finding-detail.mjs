@@ -26,7 +26,7 @@
 //
 // Run: node scripts/check-finding-detail.mjs   (exit 0 = all checks pass)
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -103,7 +103,7 @@ const api = await (async () => {
   // file URL and load the module from a data: URL. The code under
   // test is api.js itself, byte-for-byte apart from that import.
   const apiSrcRaw = readFileSync(join(srcDir, 'lib', 'api.js'), 'utf8');
-  const configUrl = new URL(`file://${join(srcDir, 'config.js')}`).href;
+  const configUrl = pathToFileURL(join(srcDir, 'config.js')).href;
   const rewritten = apiSrcRaw.replace(
     /from '\.\.\/config'/,
     `from '${configUrl}'`,
@@ -141,7 +141,7 @@ check('GET finding detail (unknown) → ok:false, 404, error unknown_finding',
 // ---------------------------------------------------------------------------
 // 2. Pure helpers in src/lib/findingDetail.js (imported for real).
 // ---------------------------------------------------------------------------
-const fd = await import(join(srcDir, 'lib', 'findingDetail.js'));
+const fd = await import(pathToFileURL(join(srcDir, 'lib', 'findingDetail.js')).href);
 const f = MOCK_VERIFIED.finding;
 const lead = MOCK_LEAD.finding;
 

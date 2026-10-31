@@ -2,10 +2,10 @@
 import React from 'react';
 import { AuthCard } from '../components/AuthModal';
 
-export default function AuthPage({ onDone }) {
+export default function AuthPage({ onDone, onNavigate }) {
   return (
     <div className="auth-page">
-      <AuthCard onDone={onDone} />
+      <AuthCard onDone={onDone} onNavigate={onNavigate} />
     </div>
   );
 }

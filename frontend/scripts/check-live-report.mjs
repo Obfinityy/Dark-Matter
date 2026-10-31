@@ -30,7 +30,7 @@ function check(name, ok, detail = '') {
 
 // 1. HuntCard renders unverified leads as rows, not just a count.
 check('HuntCard computes an unverifiedFindings list', huntCard.includes('const unverifiedFindings = findings.filter((f) => f && f.verified !== true);'));
-check('lead rows render title + severity + detail', huntCard.includes('findings-leads') && huntCard.includes('{f.detail && <div className="finding-detail">{f.detail}</div>}'));
+check('lead rows render title + severity + detail', huntCard.includes('findings-leads') && huntCard.includes('{f.detail && <span className="finding-detail">{f.detail}</span>}'));
 check('lead rows carry the under-investigation badge', huntCard.includes('finding-unverified') && huntCard.includes('under investigation'));
 check(
   'lead rows never carry a verified badge',

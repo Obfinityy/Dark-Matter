@@ -72,15 +72,18 @@ export default function ChatInput({
   onToggleSpeaker,
   onOpenVoice,
   editText,
+  onCancelEdit,
 }) {
   const [value, setValue] = useState('');
+  const editingMessage = editText && typeof editText === 'object' ? editText : null;
   // External edit request (from message edit button) fills the composer.
   useEffect(() => {
-    if (editText) {
-      setValue(editText);
+    const nextValue = editingMessage ? editingMessage.text : '';
+    setValue(nextValue);
+    if (nextValue) {
       try { textareaRef.current && textareaRef.current.focus(); } catch {}
     }
-  }, [editText]);
+  }, [editingMessage]);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -212,23 +215,28 @@ export default function ChatInput({
 
   function submit() {
     const text = value.trim();
-    // CHAT-ANSWERS (26 Oct 2026): follow-ups send even while a reply
-    // is pending — the old `sending || generating` guard locked the
-    // composer for the whole generation, so the owner's next message
-    // could not even be typed out. ChatPage queues the send behind
-    // the in-flight reply; nothing is lost.
     if (!text) return;
+    const editingId = editingMessage ? editingMessage.id : null;
     setValue('');
+    if (onCancelEdit) onCancelEdit();
     requestAnimationFrame(() => {
       if (textareaRef.current) textareaRef.current.style.height = 'auto';
     });
-    onSend(text, speak);
+    onSend(text, speak, editingId);
   }
 
   const hasText = value.trim().length > 0;
 
   return (
     <div className="composer-wrap">
+      {editingMessage && (
+        <div className="composer-edit-bar">
+          <span>Editing message</span>
+          <button type="button" className="composer-edit-cancel" onClick={() => onCancelEdit && onCancelEdit()}>
+            Cancel
+          </button>
+        </div>
+      )}
       <div className="composer">
         <div className="composer-left" ref={attachRef}>
           <button
@@ -304,20 +312,27 @@ export default function ChatInput({
           >
             <IconWave />
           </button>
-          {generating ? (
+          {generating && !hasText ? (
             <button className="send-btn stop" onClick={onStop} title="Stop" aria-label="Stop generating">
               <IconStop />
             </button>
           ) : (
-            <button
-              className={`send-btn${hasText ? ' ready' : ''}`}
-              disabled={!hasText}
-              onClick={submit}
-              title="Send message"
-              aria-label="Send message"
-            >
-              <IconArrowUp />
-            </button>
+            <>
+              {generating && (
+                <button className="send-btn stop" onClick={onStop} title="Stop" aria-label="Stop generating">
+                  <IconStop />
+                </button>
+              )}
+              <button
+                className={`send-btn${hasText ? ' ready' : ''}`}
+                disabled={!hasText}
+                onClick={submit}
+                title={editingMessage ? 'Save edited message' : 'Send message'}
+                aria-label={editingMessage ? 'Save edited message' : 'Send message'}
+              >
+                {editingMessage ? 'Save' : <IconArrowUp />}
+              </button>
+            </>
           )}
         </div>
       </div>

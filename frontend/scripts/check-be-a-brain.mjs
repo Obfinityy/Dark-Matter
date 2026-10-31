@@ -26,7 +26,7 @@
 //
 // Run: node scripts/check-be-a-brain.mjs   (exit 0 = all checks pass)
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -83,7 +83,7 @@ const api = await (async () => {
   // file URL and load the module from a data: URL. The code under
   // test is api.js itself, byte-for-byte apart from that import.
   const apiSrcRaw = readFileSync(join(srcDir, 'lib', 'api.js'), 'utf8');
-  const configUrl = new URL(`file://${join(srcDir, 'config.js')}`).href;
+  const configUrl = pathToFileURL(join(srcDir, 'config.js')).href;
   const rewritten = apiSrcRaw.replace(
     /from '\.\.\/config'/,
     `from '${configUrl}'`,
@@ -150,7 +150,7 @@ check('brain-action rejected while AI is brain → ok:false, error surfaced',
 // ---------------------------------------------------------------------------
 // 2. Pure helpers in src/lib/brainActions.js (imported for real).
 // ---------------------------------------------------------------------------
-const brain = await import(join(srcDir, 'lib', 'brainActions.js'));
+const brain = await import(pathToFileURL(join(srcDir, 'lib', 'brainActions.js')).href);
 
 const expect = (type, fields, action) => {
   const b = brain.buildBrainAction(type, fields);

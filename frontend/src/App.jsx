@@ -10,6 +10,7 @@ import ReportsPage from './pages/ReportsPage';
 import LiveMachinesPage from './pages/LiveMachinesPage';
 import SettingsPage from './pages/SettingsPage';
 import AuthPage from './pages/AuthPage';
+import LegalPage from './pages/LegalPage';
 import AuthModal from './components/AuthModal';
 import ToastHost from './components/ToastHost';
 import { AuthProvider, useAuth } from './lib/auth';
@@ -73,6 +74,8 @@ function routeFromPath() {
     const p = window.location.pathname.replace(/\/+$/, '') || '/';
     if (p === '/login') return 'login';
     if (p === '/admin') return 'admin';
+    if (p === '/privacy') return 'privacy';
+    if (p === '/terms') return 'terms';
   } catch { /* ignore */ }
   return 'chat';
 }
@@ -438,7 +441,7 @@ function AppInner() {
     return () => window.removeEventListener('dm:go-pay', onGoPay);
   }, []);
 
-  // Back/forward button support for /login and /admin.
+  // Back/forward button support for app and legal routes.
   useEffect(() => {
     function onPop() {
       setPage(routeFromPath());
@@ -660,7 +663,8 @@ function AppInner() {
   function navigate(p) {
     setPage(p);
     try {
-      const path = p === 'login' ? '/login' : p === 'admin' ? '/admin' : '/';
+      const routes = { login: '/login', admin: '/admin', privacy: '/privacy', terms: '/terms' };
+      const path = routes[p] || '/';
       window.history.replaceState(null, '', path);
     } catch { /* ignore */ }
     // Opening the auth pages from the app shell should not leave the modal up.
@@ -693,7 +697,7 @@ function AppInner() {
   if (page === 'login') {
     return (
       <div className="app">
-        <AuthPage onDone={() => navigate('chat')} />
+        <AuthPage onDone={() => navigate('chat')} onNavigate={navigate} />
         <ToastHost />
       </div>
     );
@@ -759,6 +763,9 @@ function AppInner() {
           onOpenHunt={openHuntChat}
         />
         <ActivityDrawer open={activityOpen} onClose={() => setActivityOpen(false)} />
+        {(page === 'privacy' || page === 'terms') && (
+          <LegalPage type={page} onNavigate={navigate} />
+        )}
         {page === 'chat' && (
           <ChatPage
             chat={activeChat}
@@ -783,6 +790,7 @@ function AppInner() {
           mode={authModal}
           onClose={() => setAuthModal(null)}
           onDone={() => setPage('chat')}
+          onNavigate={navigate}
         />
       )}
       <ToastHost />

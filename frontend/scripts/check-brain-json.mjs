@@ -47,7 +47,7 @@
 //
 // Run: node scripts/check-brain-json.mjs   (exit 0 = all checks pass)
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -93,7 +93,7 @@ globalThis.fetch = async (url, opts = {}) => {
 
 const api = await (async () => {
   const apiSrcRaw = readFileSync(join(srcDir, 'lib', 'api.js'), 'utf8');
-  const configUrl = new URL(`file://${join(srcDir, 'config.js')}`).href;
+  const configUrl = pathToFileURL(join(srcDir, 'config.js')).href;
   const rewritten = apiSrcRaw.replace(
     /from '\.\.\/config'/,
     `from '${configUrl}'`,
@@ -135,7 +135,7 @@ check('brain-action-json rejected while AI is brain → ok:false, 409, refusal s
 // ---------------------------------------------------------------------------
 // 2. Pure helpers in src/lib/brainActions.js (imported for real).
 // ---------------------------------------------------------------------------
-const brain = await import(join(srcDir, 'lib', 'brainActions.js'));
+const brain = await import(pathToFileURL(join(srcDir, 'lib', 'brainActions.js')).href);
 
 // formatBrainError — the console's display string for a failed call.
 check('formatBrainError shows the bad field from errors[0], not the bare code',
@@ -384,7 +384,7 @@ const cssSrc = readFileSync(join(srcDir, 'index.css'), 'utf8');
 check('api.js exports submitBrainActionJson',
   /export async function submitBrainActionJson\b/.test(apiSrc));
 check('api.js brain-action-json posts {reply} to the json route',
-  /brain-action-json`, \{ reply \}\)/.test(apiSrc));
+  /return post\(`\/api\/v1\/hunts\/\$\{encodeURIComponent\(id\)\}\/brain-action-json`,\s*\{\s*reply\s*\}(?:,\s*\{[^)]*\})?\);/.test(apiSrc));
 check('HuntCard dropdown has a "Be a Brain (you)" parent option',
   /PARENT_BRAIN_VALUE = 'parent-brain'/.test(cardSrc)
   && /<option value=\{PARENT_BRAIN_VALUE\}>🧠 Be a Brain \(you\)<\/option>/.test(cardSrc));

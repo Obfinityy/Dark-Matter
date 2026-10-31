@@ -31,7 +31,8 @@ check("no hunt.mode || 'normal' fallback remains in ChatPage", !chatPage.include
 const resolveCalls = (chatPage.match(/await resolveHuntMode\(hunt\)/g) || []).length;
 check('handleRerunHunt + handleStartFreshHunt resolve the real mode', resolveCalls === 2, `found ${resolveCalls}`);
 // 3. The locally-built hunt card carries the mode it was started with.
-check('local hunt card carries mode', /^\s+mode,\n\s+status: 'idle',/m.test(chatPage));
+const localHunt = chatPage.match(/const hunt = \{([\s\S]*?)\n\s+\};/);
+check('local hunt card carries mode', !!localHunt && /\bmode,/.test(localHunt[1]) && /status: 'idle'/.test(localHunt[1]));
 // 4. The detail-fetch helper exists for stale cards.
 check('api.js exports getHunt', api.includes('export async function getHunt('));
 // 5. The resolver never falls back to 'normal'.
