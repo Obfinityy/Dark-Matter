@@ -5045,6 +5045,17 @@ export async function humanIteration(huntId, target, opts = {}) {
       if (res && res.ok !== false) {
         try { sessionPageState = markElementClicked(sessionPageState, currentPageUrl, text); savePageState(huntId, sessionPageState); } catch { /* best-effort */ }
       }
+      // MISSION Stage 5 (31 Oct 2026): post-navigation scope guard. A
+      // click can follow a link off the programme's assets — if the
+      // landing URL is out of scope, flag it loudly. The brain must
+      // navigate back; it must not interact with the out-of-scope page.
+      try {
+        const postClickBad = scopeViolation(currentPageUrl, target, parsedScope);
+        if (postClickBad) {
+          observation = `${observation}\n[SCOPE WARNING] OUT OF SCOPE: ${postClickBad} is not part of this programme. Navigate back to ${target} — do not interact with this page.`;
+          say(`browser_click landed out of scope: ${String(postClickBad).slice(0, 120)}`);
+        }
+      } catch { /* scope warning never breaks the loop */ }
       note({ action: `browser_click: ${text.slice(0, 80)}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'browser_type') {
       const text = String(action.text || '');
