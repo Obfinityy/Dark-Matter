@@ -71,7 +71,33 @@ export const BRAIN_MODELS = [
   { id: 'muse-spark-1.3-contributor', label: 'Muse Spark 1.3 Contributor', provider: 'meta', model: 'muse-spark-1.3-contributor', blurb: 'Meta fast brain — API, contributor build' },
   { id: 'muse-spark-1.2-contributor', label: 'Muse Spark 1.2 Contributor', provider: 'meta', model: 'muse-spark-1.2-contributor', blurb: 'Meta fast brain — API, contributor build' },
   { id: 'muse-wonder-1.0', label: 'Muse Wonder 1.0', provider: 'meta', model: 'muse-wonder-1.0', blurb: 'Meta reasoning brain — API' },
+  // API PROVIDERS (1 Nov 2026): OpenAI-compatible API brains.
+  // Credentials via env vars only — never hardcoded.
+  // Cost controls: see API_BUDGET_DEFAULTS below.
+  { id: 'openrouter-free', label: 'OpenRouter (Free)', provider: 'openrouter', model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', blurb: 'OpenRouter free tier — API, no cost', capabilities: { contextWindow: 8192, vision: false, reliability: 'medium', costPer1kTokens: 0 } },
 ];
+
+/**
+ * API COST CONTROLS (1 Nov 2026)
+ * Prevents uncontrolled spending. All limits configurable via env.
+ */
+export const API_BUDGET_DEFAULTS = {
+  maxTokensPerRequest: parseInt(process.env.API_MAX_TOKENS_PER_REQUEST || '2000', 10),
+  maxRequestsPerHunt: parseInt(process.env.API_MAX_REQUESTS_PER_HUNT || '500', 10),
+  maxRequestsPerHour: parseInt(process.env.API_MAX_REQUESTS_PER_HOUR || '100', 10),
+  maxRetries: parseInt(process.env.API_MAX_RETRIES || '2', 10),
+  requestTimeoutMs: parseInt(process.env.API_REQUEST_TIMEOUT_MS || '120000', 10),
+  // Spend ceiling in USD (0 = no limit, but logging still active)
+  maxSpendUsdPerHunt: parseFloat(process.env.API_MAX_SPEND_USD_PER_HUNT || '5.00'),
+};
+
+/**
+ * Check if OpenRouter API is configured (key present).
+ * Never logs or returns the key value.
+ */
+export function openRouterAvailable() {
+  return Boolean((process.env.OPENROUTER_API_KEY || '').trim());
+}
 
 export const META_API_BASE = 'https://api.meta.ai/v1';
 /** Full Meta attempt for a brain turn (primary path, not in fallback). */
@@ -107,6 +133,14 @@ export function findBrainModel(id) {
 export function isMetaModel(id) {
   const m = findBrainModel(id);
   return Boolean(m && m.provider === 'meta');
+}
+
+/**
+ * True if the model uses the OpenRouter API provider.
+ */
+export function isOpenRouterModel(id) {
+  const m = findBrainModel(id);
+  return Boolean(m && m.provider === 'openrouter');
 }
 
 /** The switcher list for the UI: each model with its availability. */
@@ -318,6 +352,26 @@ export async function callBrain(messages, system, ctx, { huntId, readMeta, write
   // The Meta path keeps its own probe timeouts (unchanged).
   const chatOpts = { advisory: Boolean(advisory) };
   const state = getBrainState(huntId, { readMeta });
+  // OPENROUTER API PROVIDER (1 Nov 2026): If hunt selected an OpenRouter model,
+  // route via providerOverride. Falls back to 8B if API key missing.
+  if (isOpenRouterModel(state.selected)) {
+    if (!openRouterAvailable()) {
+      // No API key: fall back to 8B, record once
+      if (!state.fallback) {
+        saveBrainState(huntId, { ...state, active: DEFAULT_BRAIN_MODEL, fallback: true }, { writeMeta });
+        recordSwitch(huntId, { from: state.selected, to: DEFAULT_BRAIN_MODEL, reason: 'openrouter_unavailable', manual: false }, { record });
+      }
+      return chat(messages, system, ctx, chatOpts);
+    }
+    // API key present: use OpenRouter via provider override.
+    // The model ID from BRAIN_MODELS is passed through; chatWithOpenRouter
+    // uses OPENROUTER_MODEL env or the default free model.
+    // Record active provider for visibility.
+    if (state.active !== state.selected) {
+      saveBrainState(huntId, { ...state, active: state.selected }, { writeMeta });
+    }
+    return chat(messages, system, ctx, { ...chatOpts, providerOverride: 'openrouter' });
+  }
   if (!isMetaModel(state.selected)) {
     return chat(messages, system, ctx, chatOpts);
   }
