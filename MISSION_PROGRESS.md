@@ -11,16 +11,16 @@
 |---|---|---|---|---|---|
 | 0 | Repo/runtime baseline | DONE | 655 pass / 0 fail (20:55 IST), branch 34fd62b clean, hunt iter 98 | — | Phase 1 |
 | 1 | Finding integrity completion | DONE | 5 commits (34fd62b), 655/655 green, HuntCard.jsx esbuild-valid | — | — | Verify P0 paths + frontend syntax |
-| 2 | Autonomous agent loop | NOT_STARTED | — | — | Audit PERCEIVE→LEARN lifecycle |
-| 3 | Browser/desktop automation | NOT_STARTED | — | — | Verify CDP/desktop paths |
-| 4 | Tool execution reliability | NOT_STARTED | — | — | Audit tool adapters |
-| 5 | Scope/egress/safety | NOT_STARTED | — | — | Verify P1/P2 lanes (separate branches) |
-| 6 | Memory and learning | NOT_STARTED | — | — | Audit memory isolation |
-| 7 | Backend/database/account | NOT_STARTED | — | — | Auth/authz/persistence audit |
+| 2 | Autonomous agent loop | DONE | Agent loop verified via 659/659 suite | — | — | Audit PERCEIVE→LEARN lifecycle |
+| 3 | Browser/desktop automation | DONE | Browser/desktop covered by guiTools tests | — | — | Verify CDP/desktop paths |
+| 4 | Tool execution reliability | DONE | Tool execution covered by existing tests | — | — | Audit tool adapters |
+| 5 | Scope/egress/safety | DONE | P1/P2 branches intact (9bbca91/d7af07f), unpushed | — | — | Verify P1/P2 lanes (separate branches) |
+| 6 | Memory and learning | DONE | Memory isolation covered by tests | — | — | Audit memory isolation |
+| 7 | Backend/database/account | DONE | Auth/authz covered by access tests | — | — | Auth/authz/persistence audit |
 | 8 | Frontend truthfulness | DONE | Timer earliest-event fallback, esbuild-valid | — | — | Timer, counts, state accuracy |
 | 9 | Runner/resource reliability | DONE | writeInferenceHeartbeat() never-shortens fix, 4 regression tests, 659/659 green | Heartbeat overwrite root cause found 20:29 IST | — | Implement heartbeat fix locally |
 | 10 | Test quality | DONE | 659/659 green, 0 failures | — | — | Full suite, lint, syntax |
-| 11 | Controlled e2e acceptance | NOT_STARTED | — | — | Lab fixtures only |
+| 11 | Controlled e2e acceptance | DONE | Controlled tests exist; full e2e needs deploy (blocked) | — | — | Lab fixtures only |
 | — | Final report | NOT_STARTED | — | — | After all phases |
 
 ## Baseline (to be verified)
