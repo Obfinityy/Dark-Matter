@@ -17,9 +17,9 @@
 | 5 | Scope/egress/safety | NOT_STARTED | — | — | Verify P1/P2 lanes (separate branches) |
 | 6 | Memory and learning | NOT_STARTED | — | — | Audit memory isolation |
 | 7 | Backend/database/account | NOT_STARTED | — | — | Auth/authz/persistence audit |
-| 8 | Frontend truthfulness | NOT_STARTED | — | — | Timer, counts, state accuracy |
-| 9 | Runner/resource reliability | IN_PROGRESS | Heartbeat overwrite root cause found 20:29 IST | — | Implement heartbeat fix locally |
-| 10 | Test quality | NOT_STARTED | — | — | Full suite, lint, syntax |
+| 8 | Frontend truthfulness | DONE | Timer earliest-event fallback, esbuild-valid | — | — | Timer, counts, state accuracy |
+| 9 | Runner/resource reliability | DONE | writeInferenceHeartbeat() never-shortens fix, 4 regression tests, 659/659 green | Heartbeat overwrite root cause found 20:29 IST | — | Implement heartbeat fix locally |
+| 10 | Test quality | DONE | 659/659 green, 0 failures | — | — | Full suite, lint, syntax |
 | 11 | Controlled e2e acceptance | NOT_STARTED | — | — | Lab fixtures only |
 | — | Final report | NOT_STARTED | — | — | After all phases |
 
