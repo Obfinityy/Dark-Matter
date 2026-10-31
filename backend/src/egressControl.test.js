@@ -11,6 +11,7 @@ import {
   egressNetName,
   egressSetName,
   egressChainName,
+  egressLogPrefix,
   proxyPortForHunt,
   PROXY_ONLY_PORTS,
   tupleEntry,
@@ -179,11 +180,28 @@ test('buildEgressPlan: exact iptables chain strings and order', () => {
   );
   assert.equal(
     body[8],
-    `iptables -A ${CHAIN} -m limit --limit 5/min -j LOG --log-prefix "dm-egress-drop:${HUNT} " --log-level 4`,
+    `iptables -A ${CHAIN} -m limit --limit 5/min -j LOG --log-prefix "${egressLogPrefix(HUNT)}" --log-level 4`,
     'rate-limited LOG with exact prefix'
   );
   assert.equal(body[9], `iptables -A ${CHAIN} -d 169.254.169.254/32 -j DROP`, 'metadata drop');
   assert.equal(body[body.length - 1], `iptables -A ${CHAIN} -j DROP`, 'default DROP last');
+});
+
+test('kernel limits: names and log-prefix stay within caps for real hunt ids', () => {
+  // Real hunt ids are 14+ chars (e.g. h_6e909d3c1965); sanitizeHuntId allows 32.
+  // The kernel rejects --log-prefix > 29 chars, ipset names > 31, chains > 29.
+  for (const hid of ['h_6e909d3c1965', 'h_bench_d69e5746', 'a'.repeat(32)]) {
+    assert.ok(egressSetName(hid).length <= 31, `tuple set name <=31 for ${hid}`);
+    assert.ok(egressChainName(hid).length <= 29, `chain name <=29 for ${hid}`);
+    // NOTE: docker network names have no such kernel cap (bridge ifname is hashed).
+    const prefix = egressLogPrefix(hid);
+    assert.ok(prefix.length <= 29, `log-prefix <=29 for ${hid} (got ${prefix.length})`);
+    assert.ok(prefix.startsWith('dm-egress-drop:'), 'prefix keeps brand');
+    const p = buildEgressPlan(hid, SCOPE, { containerIps: [CIP], gatewayIp: GW, resolverIp: RESOLVER });
+    const logRule = p.iptables.find((c) => c.includes('-j LOG'));
+    const m = logRule.match(/--log-prefix "([^"]+)"/);
+    assert.ok(m && m[1].length <= 29, `emitted LOG rule prefix <=29 for ${hid}`);
+  }
 });
 
 test('buildEgressPlan: per-container jumps and NAT pin (exact)', () => {

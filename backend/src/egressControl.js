@@ -64,6 +64,13 @@ export function egressChainName(huntId) {
   return `dm-egress-${sanitizeHuntId(huntId).slice(0, 18)}`;
 }
 
+/** LOG prefix for dropped packets. Kernel caps --log-prefix at 29 chars:
+ *  "dm-egress-drop:" (15) + hunt id truncated to 13 + " " (1) = 29 max.
+ *  Longer hunt ids are truncated; the id head stays identifiable. */
+export function egressLogPrefix(huntId) {
+  return `dm-egress-drop:${sanitizeHuntId(huntId).slice(0, 13)} `;
+}
+
 /** Per-hunt proxy port, hash-derived like the ttyd ports (different range). */
 export const EGRESS_PROXY_PORT_MIN = 17881;
 export const EGRESS_PROXY_PORT_RANGE = 100; // 17881-17980
@@ -181,7 +188,7 @@ export function buildEgressPlan(huntId, scope, opts = {}) {
     `iptables -A ${chain} -p udp --dport 53 -d ${resolverIp} -j ACCEPT`,
     `iptables -A ${chain} -p tcp --dport 53 -d ${resolverIp} -j ACCEPT`,
     `iptables -A ${chain} -p icmp --icmp-type echo-request -m set --match-set ${ipSetName} dst -j ACCEPT`,
-    `iptables -A ${chain} -m limit --limit 5/min -j LOG --log-prefix "dm-egress-drop:${san} " --log-level 4`,
+    `iptables -A ${chain} -m limit --limit 5/min -j LOG --log-prefix "${egressLogPrefix(huntId)}" --log-level 4`,
     `iptables -A ${chain} -d 169.254.169.254/32 -j DROP`,
     `iptables -A ${chain} -j DROP`,
   ];
