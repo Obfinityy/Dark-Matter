@@ -97,6 +97,10 @@ import {
   normalisePageUrl,
   classifyPageType,
 } from './pageState.js';
+// MISSION Stage 2 (31 Oct 2026): explicit action verification — the brain
+// may declare what it expects (action.expect); the verdict is appended to
+// the turn's observation so success is proven, never assumed.
+import { verifyExpectation } from './actionVerify.js';
 // WHOLE-OS CONTROL (26 Oct 2026): the desktop channel — xdotool on
 // the same X :99 the Take Control x11vnc serves (see desktopControl.js
 // for why xdotool, not a from-scratch RFB client).
@@ -1193,6 +1197,9 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"desktop_screenshot"} — capture the WHOLE desktop (not just the browser) to a JPG artifact; you also get the desktop state text',
     '{"action":"see_screen"} — LOOK at the desktop yourself: read the whole screen into a text map — every visible word with its (x, y) position, e.g. `"Log in" at (1240, 310)`. This is how you see what is on screen (you never see the image itself). Use it before clicking anything on the desktop, and again after acting to confirm the screen changed. If it says OCR is not installed, the image rebuild has not landed yet — use desktop_snapshot instead.',
     '{"action":"desktop_click_at","x":1240,"y":310} — click at a point FROM THE SCREEN MAP (see_screen first; never guess coordinates). The mouse moves to (x, y) and clicks. Then see_screen again to confirm what changed.',
+    // MISSION Stage 2 (31 Oct 2026): explicit expectation — the brain
+    // declares what the action should achieve; the loop verifies it.
+    'EXPECTATION (proves your action worked — use it on important actions): add "expect" to any action, e.g. {"action":"browser_click","text":"Login","expect":"url contains /dashboard"}. Clauses, ";"-separated: "url contains <text>", "url is <url>", "url not <text>", "text contains <text>", "text absent <text>". The next observation carries [EXPECTATION VERIFIED] or [EXPECTATION NOT VERIFIED] with evidence — on NOT VERIFIED, diagnose and retry instead of assuming success.',
     // TOOLS/OS AUTONOMY (27 Oct 2026, owner order): named tool
     // launches, allow-listed installs, and control lists — the
     // structured actions behind the desktop-tools skill card.
@@ -5624,6 +5631,22 @@ export async function humanIteration(huntId, target, opts = {}) {
         }
       } catch { /* proof counting is best-effort */ }
     }
+
+    // MISSION Stage 2 (31 Oct 2026): explicit action verification. If the
+    // brain declared what it expected this action to achieve
+    // (action.expect), check it against the fresh observation and the
+    // current page URL, and append the verdict. VERIFIED means the
+    // intended state change is proven; NOT VERIFIED means the brain must
+    // diagnose and retry — never assume success.
+    try {
+      const expectText = action && typeof action.expect === 'string' ? action.expect.trim() : '';
+      if (expectText) {
+        const verdict = verifyExpectation({ expect: expectText, observation, pageUrl: currentPageUrl });
+        if (verdict.checked) {
+          observation = `${observation}\n[EXPECTATION ${verdict.verified ? 'VERIFIED' : 'NOT VERIFIED'}] ${verdict.evidence}`;
+        }
+      }
+    } catch { /* verification never breaks the loop */ }
 
     // Lane AI: the session log is scrubbed like every other
     // recorded surface — a one-turn secret (generated password,
