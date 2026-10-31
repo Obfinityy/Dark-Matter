@@ -11,7 +11,8 @@
 | L2 | Screenshots captured | ✅ VERIFIED | CDP; frontend displays |
 | L2 | Brain sees images | ❌ BLOCKED | Text-only 8B; fundamental limitation |
 | L3 | Structured JSON | ✅ VERIFIED | Schema validation; 14 mock tests pass |
-| L3 | Live brain | ❌ BLOCKED | Ollama 8B OOM; 1.5B loaded but hunt expects 8B |
+| L3 | Live brain (8B) | ❌ BLOCKED | Ollama 8B OOM on 8GB; 1.5B loaded but hunt expects 8B |
+| L3 | Fallback policy | ✅ VERIFIED | `getFallbackModel()`; 7 tests pass; 8B→1.5B on oom/timeout/no_reply |
 | L4 | Context assembly | ✅ VERIFIED | 12K SOM budget; deterministic |
 | L4 | Token budgeting | ✅ VERIFIED | Per-section caps; prioritized truncation |
 | L5 | 7 memory types | ✅ VERIFIED | Working, episodic, semantic, procedural, negative, target, global |
