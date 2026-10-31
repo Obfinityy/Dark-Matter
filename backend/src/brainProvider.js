@@ -63,7 +63,8 @@ export const DEFAULT_BRAIN_MODEL = 'darkmatter-v1';
  * are not text chat models and are not listed).
  */
 export const BRAIN_MODELS = [
-  { id: 'darkmatter-v1', label: 'Dark Matter V1', provider: 'ollama', model: 'dm-hunter', blurb: 'Local dm-hunter 8B (uncensored) — the default hunt brain' },
+  { id: 'darkmatter-v1', label: 'Dark Matter V1', provider: 'ollama', model: 'dm-hunter', blurb: 'Local dm-hunter 8B (uncensored) — the default hunt brain', capabilities: { contextWindow: 8192, vision: false, reliability: 'low-8gb-oom-risk' } },
+  { id: 'darkmatter-1.5b', label: 'Dark Matter 1.5B (Fallback)', provider: 'ollama', model: 'deepseek-r1:1.5b', blurb: 'Local 1.5B fallback — loads reliably on 8GB, weaker reasoning', capabilities: { contextWindow: 4096, vision: false, reliability: 'high' } },
   { id: 'muse-spark-1.3', label: 'Muse Spark 1.3', provider: 'meta', model: 'muse-spark-1.3', blurb: 'Meta fast brain — API, seconds per turn' },
   { id: 'muse-spark-1.2', label: 'Muse Spark 1.2', provider: 'meta', model: 'muse-spark-1.2', blurb: 'Meta fast brain — API, seconds per turn' },
   { id: 'muse-spark-1.1', label: 'Muse Spark 1.1', provider: 'meta', model: 'muse-spark-1.1', blurb: 'Meta fast brain — API, seconds per turn' },
@@ -111,6 +112,31 @@ export function isMetaModel(id) {
 /** The switcher list for the UI: each model with its availability. */
 export function listBrainModels() {
   return BRAIN_MODELS.map((m) => ({ ...m, available: m.provider !== 'meta' || metaAvailable() }));
+}
+
+/**
+ * FALLBACK POLICY (1 Nov 2026): When the primary 8B model fails (OOM,
+ * timeout, no-response), fall back to the 1.5B model.
+ *
+ * Rules:
+ * - Default remains darkmatter-v1 (8B). Never silently downgrade.
+ * - Fallback triggers on: OOM kill, 3 consecutive timeouts, ai_no_reply pause.
+ * - Fallback is logged as a `model_fallback` event with reason.
+ * - UI shows the ACTIVE model, not just the selected one.
+ * - Manual override: owner can select darkmatter-1.5b directly.
+ *
+ * @param {string} currentId - Currently selected model ID
+ * @param {string} reason - Why fallback is needed (oom, timeout, no_reply)
+ * @returns {object|null} Fallback model or null if none available
+ */
+export function getFallbackModel(currentId, reason) {
+  if (currentId === 'darkmatter-v1' && ['oom', 'timeout', 'no_reply'].includes(reason)) {
+    const fallback = findBrainModel('darkmatter-1.5b');
+    if (fallback) {
+      return { ...fallback, fallbackReason: reason, fallbackFrom: currentId };
+    }
+  }
+  return null;
 }
 
 /**
