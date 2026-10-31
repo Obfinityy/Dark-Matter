@@ -251,6 +251,28 @@ export async function waitForOllamaReady({ baseUrl, waitMs, pollMs, sleepFn } = 
   }
 }
 
+// PHASE 9 (31 Oct 2026): heartbeat write with never-shorten semantics.
+// An advisory (short) call must never overwrite a main turn's (long)
+// deadline. Returns true if the file was written, false if the existing
+// longer deadline was kept. Exported for testing.
+export function writeInferenceHeartbeat(hbPath, newDeadline, huntId) {
+  try {
+    try {
+      const existing = JSON.parse(fs.readFileSync(hbPath, 'utf8'));
+      if (typeof existing.deadline === 'number' && existing.deadline > newDeadline) {
+        return false; // keep the longer deadline — do not shorten
+      }
+    } catch { /* no valid existing heartbeat — write fresh */ }
+    fs.writeFileSync(hbPath, JSON.stringify({
+      startedAt: new Date().toISOString(),
+      deadline: newDeadline,
+      huntId: huntId || null,
+    }));
+    return true;
+  } catch { /* heartbeat is best-effort */ }
+  return false;
+}
+
 async function chatWithOllama(messages, system, ctx, opts = {}) {
   const advisory = Boolean(opts && opts.advisory);
   // Privacy gateway: strip secrets/PII before the model — same as Bedrock.
@@ -368,13 +390,12 @@ async function chatWithOllama(messages, system, ctx, opts = {}) {
     : 0;
   const attemptMs = advisoryMs > 0 ? Math.min(hbTimeoutMs, advisoryMs) : hbTimeoutMs;
   const writeHeartbeat = () => {
-    try {
-      fs.writeFileSync(hbPath, JSON.stringify({
-        startedAt: new Date().toISOString(),
-        deadline: Date.now() + attemptMs * 2 + 120000,
-        huntId: (ctx && ctx.huntId) || null,
-      }));
-    } catch { /* heartbeat is best-effort */ }
+    const newDeadline = Date.now() + attemptMs * 2 + 120000;
+    // PHASE 9 (31 Oct 2026): NEVER shorten an existing future deadline.
+    // An advisory (short-timeout) call must not overwrite a main turn's
+    // (long-timeout) deadline, or the watchdog kills a healthy-busy
+    // runner mid-inference (seen live 20:15 IST 31 Oct 2026).
+    writeInferenceHeartbeat(hbPath, newDeadline, (ctx && ctx.huntId) || null);
   };
   const clearHeartbeat = () => { try { fs.unlinkSync(hbPath); } catch { /* ignore */ } };
   writeHeartbeat();

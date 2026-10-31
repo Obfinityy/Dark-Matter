@@ -18,6 +18,8 @@ import { requireAdmin, hashPassword } from './auth.js';
 import { readAudit, auditSummary } from '../brain/oneLoopAudit.js';
 import { flipcheckSummary } from '../brain/oneLoopFlipcheck.js';
 import { config } from '../config.js';
+// P0 (31 Oct 2026): probe/test names are never confirmed findings.
+import { isProbeNameTitle } from '../claimTitleGuard.js';
 
 const router = Router();
 
@@ -345,11 +347,16 @@ router.get('/hunts/:id/memory', requireAdmin, async (req, res) => {
         current.action = (current.action ? current.action + '; ' : '') + String(detail).slice(0, 300);
       } else if (e.type === 'finding') {
         pushCurrent();
+        // P0 (31 Oct 2026): probe/test names are never CONFIRMED.
+        let isConfirmed = !!e.verified;
+        try {
+          if (isProbeNameTitle(e.title)) isConfirmed = false;
+        } catch { /* probe check is best-effort */ }
         narrative.push({
           at, thought: `I believe I found something: ${e.title}`,
           action: `Evidence: ${JSON.stringify(e.evidence || {}).slice(0, 300)}`,
           observation: null,
-          conclusion: e.verified ? `CONFIRMED vulnerability (${e.severity}).` : 'Not yet verified — treating as a lead, not a vulnerability.',
+          conclusion: isConfirmed ? `CONFIRMED vulnerability (${e.severity}).` : 'Not yet verified — treating as a lead, not a vulnerability.',
         });
       } else if (e.type === 'steer') {
         pushCurrent();
@@ -369,7 +376,15 @@ router.get('/hunts/:id/memory', requireAdmin, async (req, res) => {
         state: meta.state,
         totalThoughts: narrative.length,
         findings: findings.length,
-        verified: findings.filter((f) => f.verified).length,
+        // P0 (31 Oct 2026): probe/test names never count as verified.
+        verified: findings.filter((f) => {
+          if (!f.verified) return false;
+          try {
+            return !isProbeNameTitle(f.title);
+          } catch {
+            return true;
+          }
+        }).length,
       },
       targetIntel: intel,
       // The hunter's memory, as a human would recall it

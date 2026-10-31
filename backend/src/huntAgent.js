@@ -28,6 +28,8 @@ import { HuntOrchestrator } from './orchestrator.js';
 import { pendingChatQuestions, chatQuestionScreenLines, extractChatAnswers, parseChatAnswerLines } from './chatQueue.js';
 import { isErrorPageFinding } from './huntMemory.js';
 import { findWrongTargetPaths } from './knownApps.js';
+// P0 (31 Oct 2026): probe-name titles must never become verified findings.
+import { guardClaimTitle, isProbeNameTitle } from './claimTitleGuard.js';
 
 // Active orchestrators by huntId — so assessResult can report verified
 // findings to the head even though it doesn't receive it as a parameter.
@@ -334,7 +336,21 @@ function detectAndPursueIntent(huntId, thinkingText) {
 }
 
 function finding(huntId, f) {
-  appendHuntEvent(huntId, { type: 'finding', ...f });
+  // P0 (31 Oct 2026, defense in depth): the finding() function is the
+  // FINAL gate before persistence. If a probe/test name somehow reaches
+  // here with verified:true (bypassing the assessResult guard), downgrade
+  // it to verified:false. A probe name is never a vulnerability.
+  let rec = f;
+  try {
+    if (rec && rec.verified === true && isProbeNameTitle(rec.title)) {
+      rec = {
+        ...rec,
+        verified: false,
+        verification: `downgraded by finding() final gate: "${rec.title}" is a probe/test name, not a vulnerability title`,
+      };
+    }
+  } catch { /* final gate is best-effort */ }
+  appendHuntEvent(huntId, { type: 'finding', ...rec });
   // BI-TEMPORAL FACTS (Job 6 stage 8): a validator-confirmed class is a
   // durable fact about the target — recorded by code, presence-level
   // only, superseding cleanly if the same class is ever reclassified.
@@ -2295,6 +2311,30 @@ function inferSeverity(testName, output) {
   // own framing (verbatim in the executed command). A deterministic
   // probe can no longer confirm itself by re-printing its banner.
   const sigs = evidenceSignalIds(output, plan.command).join(',');
+  // P0 (31 Oct 2026): probe/test names must never become verified
+  // findings. If the plan's test name looks like a probe name, bounce
+  // it here — BEFORE the verifier runs — and record it as an unverified
+  // probe note, not a finding. The brain must re-title with the
+  // VULNERABILITY name.
+  try {
+    const titleGuard = guardClaimTitle(plan.test || '', readHuntEvents(huntId));
+    if (!titleGuard.ok) {
+      think(huntId, `Claim guard bounced "${plan.test}": ${titleGuard.error} — recording as unverified probe note.`);
+      appendHuntEvent(huntId, {
+        type: 'finding',
+        class: 'agent_finding',
+        title: plan.test || 'agent-discovered anomaly',
+        severity: 'medium',
+        url: target,
+        evidence: { request: plan.command, response: output.slice(0, 800) },
+        verified: false,
+        verification: `bounced by claim guard (${titleGuard.error}): ${titleGuard.message}`,
+        via: 'assessResult',
+      });
+      recordValidation(huntId, plan, 'rejected', `claim guard: ${titleGuard.error}`);
+      return null;
+    }
+  } catch { /* guard is best-effort; verification proceeds on guard failure */ }
   const cand = {
     class: 'agent_finding',
     title: plan.test || 'agent-discovered anomaly',

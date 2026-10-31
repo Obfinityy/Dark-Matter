@@ -245,6 +245,16 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
           })
           .filter((l) => l.text);
         if (mapped.length) setLogs(mapped.slice(-99));
+        // PHASE 8 (31 Oct 2026): if createdAt still unresolved, fall back to
+        // the earliest event timestamp — prevents the --:--:-- timer on
+        // fresh loads where hunt.createdAt and listHunts() lack the field.
+        const earliest = evts
+          .map((e) => (e.at || e.cachedAt) ? new Date(e.at || e.cachedAt).getTime() : 0)
+          .filter((t) => t > 0)
+          .sort((a, b) => a - b)[0];
+        if (earliest) {
+          setResolvedCreatedAt((prev) => prev || new Date(earliest).toISOString());
+        }
       }).catch(() => { if (!cancelled) setHistoryLoaded(true); })
     );
     return () => { cancelled = true; };
@@ -604,18 +614,38 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   // report building live. Leads now render as lead rows (title +
   // severity + evidence snippet + "under investigation" badge) while
   // the verified list above stays verified-only.
-  const verifiedFindings = findings.filter((f) => f && f.verified === true);
+  // P0 (31 Oct 2026): probe/test names must never count as verified
+  // findings, even if the backend stamped verified:true (defense in
+  // depth — the backend guard is primary). A title starting with
+  // "probe_" (or matching test-name patterns) is a probe note, not a
+  // vulnerability.
+  const isProbeName = (t) => {
+    const s = String(t || '').trim().toLowerCase();
+    return /^probe[_-]/.test(s) || /[_-]probe([_-]|$)/.test(s) || /[_-]test([_-]|$)/.test(s) || /^test[_-]/.test(s);
+  };
+  const verifiedFindings = findings.filter((f) => f && f.verified === true && !isProbeName(f.title));
+  // Deduplicate by normalized title — the same vulnerability verified
+  // twice (e.g. sql_injection_login filed @345 and @453) must count as
+  // ONE unique finding, not two events.
+  const uniqueVerifiedFindings = [];
+  const seenTitles = new Set();
+  for (const f of verifiedFindings) {
+    const norm = String(f.title || '').toLowerCase().replace(/[_\-\s]+/g, ' ').trim();
+    if (!norm || seenTitles.has(norm)) continue;
+    seenTitles.add(norm);
+    uniqueVerifiedFindings.push(f);
+  }
   const unverifiedFindings = findings.filter((f) => f && f.verified !== true);
   const unverifiedCount = unverifiedFindings.length;
 
   const counts = useMemo(() => {
     const c = { critical: 0, high: 0, medium: 0, low: 0 };
-    verifiedFindings.forEach((f) => {
+    uniqueVerifiedFindings.forEach((f) => {
       if (c[f.severity] !== undefined) c[f.severity] += 1;
       else c.low += 1;
     });
     return c;
-  }, [verifiedFindings]);
+  }, [uniqueVerifiedFindings]);
 
   async function runControl(action, fn, successMsg) {
     setBusy(true);
@@ -631,7 +661,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
     }
   }
 
-  const totalFindings = verifiedFindings.length;
+  const totalFindings = uniqueVerifiedFindings.length;
 
   return (
     <div className="hunt-card">
@@ -757,7 +787,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
           )}
           {totalFindings > 0 && (
           <ul className="findings-list">
-            {verifiedFindings.map((f, idx) => (
+            {uniqueVerifiedFindings.map((f, idx) => (
               <li key={idx} className="finding-item">
                 {/* FINDING DETAIL (28 Oct 2026): rows are buttons —
                     clicking one opens the detail modal for that
