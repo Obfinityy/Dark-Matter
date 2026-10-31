@@ -614,17 +614,28 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
     return /^probe[_-]/.test(s) || /[_-]probe([_-]|$)/.test(s) || /[_-]test([_-]|$)/.test(s) || /^test[_-]/.test(s);
   };
   const verifiedFindings = findings.filter((f) => f && f.verified === true && !isProbeName(f.title));
+  // Deduplicate by normalized title — the same vulnerability verified
+  // twice (e.g. sql_injection_login filed @345 and @453) must count as
+  // ONE unique finding, not two events.
+  const uniqueVerifiedFindings = [];
+  const seenTitles = new Set();
+  for (const f of verifiedFindings) {
+    const norm = String(f.title || '').toLowerCase().replace(/[_\-\s]+/g, ' ').trim();
+    if (!norm || seenTitles.has(norm)) continue;
+    seenTitles.add(norm);
+    uniqueVerifiedFindings.push(f);
+  }
   const unverifiedFindings = findings.filter((f) => f && f.verified !== true);
   const unverifiedCount = unverifiedFindings.length;
 
   const counts = useMemo(() => {
     const c = { critical: 0, high: 0, medium: 0, low: 0 };
-    verifiedFindings.forEach((f) => {
+    uniqueVerifiedFindings.forEach((f) => {
       if (c[f.severity] !== undefined) c[f.severity] += 1;
       else c.low += 1;
     });
     return c;
-  }, [verifiedFindings]);
+  }, [uniqueVerifiedFindings]);
 
   async function runControl(action, fn, successMsg) {
     setBusy(true);
@@ -640,7 +651,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
     }
   }
 
-  const totalFindings = verifiedFindings.length;
+  const totalFindings = uniqueVerifiedFindings.length;
 
   return (
     <div className="hunt-card">
@@ -766,7 +777,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
           )}
           {totalFindings > 0 && (
           <ul className="findings-list">
-            {verifiedFindings.map((f, idx) => (
+            {uniqueVerifiedFindings.map((f, idx) => (
               <li key={idx} className="finding-item">
                 {/* FINDING DETAIL (28 Oct 2026): rows are buttons —
                     clicking one opens the detail modal for that

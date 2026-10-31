@@ -29,7 +29,7 @@ import { pendingChatQuestions, chatQuestionScreenLines, extractChatAnswers, pars
 import { isErrorPageFinding } from './huntMemory.js';
 import { findWrongTargetPaths } from './knownApps.js';
 // P0 (31 Oct 2026): probe-name titles must never become verified findings.
-import { guardClaimTitle } from './claimTitleGuard.js';
+import { guardClaimTitle, isProbeNameTitle } from './claimTitleGuard.js';
 
 // Active orchestrators by huntId — so assessResult can report verified
 // findings to the head even though it doesn't receive it as a parameter.
@@ -336,7 +336,21 @@ function detectAndPursueIntent(huntId, thinkingText) {
 }
 
 function finding(huntId, f) {
-  appendHuntEvent(huntId, { type: 'finding', ...f });
+  // P0 (31 Oct 2026, defense in depth): the finding() function is the
+  // FINAL gate before persistence. If a probe/test name somehow reaches
+  // here with verified:true (bypassing the assessResult guard), downgrade
+  // it to verified:false. A probe name is never a vulnerability.
+  let rec = f;
+  try {
+    if (rec && rec.verified === true && isProbeNameTitle(rec.title)) {
+      rec = {
+        ...rec,
+        verified: false,
+        verification: `downgraded by finding() final gate: "${rec.title}" is a probe/test name, not a vulnerability title`,
+      };
+    }
+  } catch { /* final gate is best-effort */ }
+  appendHuntEvent(huntId, { type: 'finding', ...rec });
   // BI-TEMPORAL FACTS (Job 6 stage 8): a validator-confirmed class is a
   // durable fact about the target — recorded by code, presence-level
   // only, superseding cleanly if the same class is ever reclassified.
