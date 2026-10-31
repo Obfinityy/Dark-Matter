@@ -245,6 +245,16 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
           })
           .filter((l) => l.text);
         if (mapped.length) setLogs(mapped.slice(-99));
+        // PHASE 8 (31 Oct 2026): if createdAt still unresolved, fall back to
+        // the earliest event timestamp — prevents the --:--:-- timer on
+        // fresh loads where hunt.createdAt and listHunts() lack the field.
+        const earliest = evts
+          .map((e) => (e.at || e.cachedAt) ? new Date(e.at || e.cachedAt).getTime() : 0)
+          .filter((t) => t > 0)
+          .sort((a, b) => a - b)[0];
+        if (earliest) {
+          setResolvedCreatedAt((prev) => prev || new Date(earliest).toISOString());
+        }
       }).catch(() => { if (!cancelled) setHistoryLoaded(true); })
     );
     return () => { cancelled = true; };
