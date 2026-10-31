@@ -14,6 +14,7 @@ import path from 'path';
 import { dataDir } from './store.js';
 import { scopeGlobalMemoriesForTarget } from './globalMemory.js';
 import { findWrongTargetPaths } from './knownApps.js';
+import { extractPremise, premiseKey, UNKNOWN_PREMISE_KEY } from './premiseDedup.js';
 
 function reasoningFile(huntId) {
   return path.join(dataDir(), 'hunts', huntId, 'reasoning.jsonl');
@@ -219,6 +220,66 @@ export function getHypothesisLedger(huntId, { knownApp = null } = {}) {
 }
 
 /**
+ * Premise-level ledger (31 Oct 2026, audit R-05 fix): same counting rules
+ * as getHypothesisLedger, but rows are grouped by NORMALIZED SEMANTIC
+ * PREMISE (vulnClass|sink from premiseDedup.js) instead of raw hypothesis
+ * text. This is what stops the rewording loop: "Login endpoint may be
+ * vulnerable to SQL injection" and "Check if the login form accepts SQLi
+ * on the username field" are both (sqli|login), so their failures
+ * accumulate toward the SAME death toll.
+ *
+ * A premise is DEAD when it has >= FAIL_DEATH_TOLL failures and zero
+ * verifications. Retirement is recorded once per premise as a
+ * hypothesis-retirement audit row (action 'hypothesis-retirement',
+ * why carries `premise:<key>`); the `retired` flag tells the caller
+ * whether the marker already exists so it is written exactly once.
+ * Reconsideration: a dead premise may be retried only with genuinely new
+ * evidence — the plan must carry a non-empty `newPremiseEvidence` field,
+ * which the filter logs when it allows the retry through.
+ */
+export function getPremiseLedger(huntId, { knownApp = null } = {}) {
+  const rows = readAllReasoning(huntId);
+  const retiredKeys = new Set();
+  for (const r of rows) {
+    if (r.action !== 'hypothesis-retirement') continue;
+    const m = String(r.why || '').match(/premise:([a-z]+\|[a-z0-9_-]+)/);
+    if (m) retiredKeys.add(m[1]);
+  }
+  const byPremise = new Map();
+  let wrongTargetSkipped = 0;
+  for (const r of rows) {
+    if (r.action === 'hypothesis-retirement') continue;
+    const key = premiseKey(extractPremise({ hypothesis: r.hypothesis, action: r.action, command: r.command }));
+    if (key === UNKNOWN_PREMISE_KEY) continue;
+    if (knownApp && isWrongTargetRow(knownApp, r)) {
+      wrongTargetSkipped++;
+      continue;
+    }
+    if (!byPremise.has(key)) {
+      const p = extractPremise({ hypothesis: r.hypothesis, action: r.action });
+      byPremise.set(key, {
+        key, vulnClass: p.vulnClass, sink: p.sink,
+        failed: 0, verified: 0, samples: [],
+        retired: retiredKeys.has(key),
+      });
+    }
+    const e = byPremise.get(key);
+    const res = String(r.result || '');
+    if (res.startsWith('VERIFIED')) e.verified++;
+    else if (/no assessment|not verified/i.test(res)) e.failed++;
+    if (e.samples.length < 3 && r.hypothesis) e.samples.push(String(r.hypothesis).slice(0, 90));
+  }
+  const verified = [];
+  const dead = [];
+  for (const e of byPremise.values()) {
+    if (e.verified > 0) verified.push(e);
+    else if (e.failed >= FAIL_DEATH_TOLL) dead.push(e);
+  }
+  dead.sort((a, b) => b.failed - a.failed);
+  return { verified, dead, wrongTargetSkipped };
+}
+
+/**
  * Verified-instance pairs (19 Oct 2026, elite-gap cycle): the set of
  * normalized (hypothesis || test) pairs this hunt has ALREADY verified.
  * assessResult sets rec.title to plan.test (huntAgent.js:1558), and
@@ -249,7 +310,8 @@ export function getVerifiedPairs(huntId) {
  */
 export function formatLedgerForPrompt(huntId, { knownApp = null } = {}) {
   const { verified, dead, wrongTargetSkipped } = getHypothesisLedger(huntId, { knownApp });
-  if (!verified.length && !dead.length && !wrongTargetSkipped) return '';
+  const premiseLedger = getPremiseLedger(huntId, { knownApp });
+  if (!verified.length && !dead.length && !wrongTargetSkipped && !premiseLedger.dead.length) return '';
 
   // Failure-pivot rule: log the forced hypothesis change. Idempotent — a
   // hypothesis already carrying a RETIRED marker is never logged twice.
@@ -285,6 +347,15 @@ export function formatLedgerForPrompt(huntId, { knownApp = null } = {}) {
     for (const d of dead.slice(0, 8)) {
       s += `  - "${d.text}" (failed ${d.failed}x)\n`;
     }
+  }
+  if (premiseLedger.dead.length) {
+    s += 'DEAD PREMISES (semantic — rewording the label does NOT reopen them; the filter blocks all variants):\n';
+    for (const d of premiseLedger.dead.slice(0, 8)) {
+      s += `  - premise ${d.key} — ${d.vulnClass} on ${d.sink} (failed ${d.failed}x across rewordings, 0 verified)\n`;
+    }
+    s += 'To retry a dead premise you MUST supply genuinely new evidence: set the plan field "newPremiseEvidence" ' +
+      'to a concrete new technique, changed target state, or new proof (one sentence). ' +
+      'Without it the plan is dropped. Trying the same class on a DIFFERENT sink needs no evidence — that is a new premise.\n';
   }
   if (wrongTargetSkipped > 0) {
     s += `NOTE — ${wrongTargetSkipped} row(s) probed another app's endpoints, not this target's. They do not count toward any premise: a hypothesis "retired" on those rows is NOT dead — re-test it on the real target's surface.\n`;

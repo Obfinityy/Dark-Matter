@@ -273,7 +273,37 @@ export function writeInferenceHeartbeat(hbPath, newDeadline, huntId) {
   return false;
 }
 
+/**
+ * LATENCY OBSERVABILITY (31 Oct 2026, audit R-12): every Ollama call is
+ * timed and logged with its outcome — the loop's "latency pressure" was
+ * previously invisible (timeouts fired, but nobody could see the
+ * duration distribution or correlate slow calls with memory pressure).
+ * One stderr line per call: hunt, advisory/main, outcome, duration_ms.
+ * Outcome: ok | null_reply (settled with no text) | threw:<msg>.
+ * The inner function's own logs keep the detailed classification
+ * (connection error vs 5xx vs deadline); this line adds the duration
+ * dimension. Logging never breaks the call.
+ */
 async function chatWithOllama(messages, system, ctx, opts = {}) {
+  const callStart = Date.now();
+  const huntId = (ctx && ctx.huntId) || null;
+  const advisory = Boolean(opts && opts.advisory);
+  let outcome = 'unknown';
+  try {
+    const text = await chatWithOllamaInner(messages, system, ctx, opts);
+    outcome = text ? 'ok' : 'null_reply';
+    return text;
+  } catch (err) {
+    outcome = 'threw:' + String((err && err.message) || 'unknown').slice(0, 60).replace(/\s+/g, ' ');
+    throw err;
+  } finally {
+    try {
+      console.error(`[llm] ollama call hunt=${huntId} advisory=${advisory} outcome=${outcome} duration_ms=${Date.now() - callStart}`);
+    } catch { /* logging never breaks the call */ }
+  }
+}
+
+async function chatWithOllamaInner(messages, system, ctx, opts = {}) {
   const advisory = Boolean(opts && opts.advisory);
   // Privacy gateway: strip secrets/PII before the model — same as Bedrock.
   const clean = (t) => sanitizeForModel(String(t || ''));
