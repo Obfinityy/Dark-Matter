@@ -97,6 +97,13 @@ import {
   normalisePageUrl,
   classifyPageType,
 } from './pageState.js';
+// MISSION Stage 2 (31 Oct 2026): explicit action verification — the brain
+// may declare what it expects (action.expect); the verdict is appended to
+// the turn's observation so success is proven, never assumed.
+import { verifyExpectation } from './actionVerify.js';
+// MISSION Stage 3 (31 Oct 2026): structured action plans — objective,
+// state, expected, risk, fallback; fallback surfaces on verify-fail.
+import { parsePlan, fallbackLine } from './actionPlan.js';
 // WHOLE-OS CONTROL (26 Oct 2026): the desktop channel — xdotool on
 // the same X :99 the Take Control x11vnc serves (see desktopControl.js
 // for why xdotool, not a from-scratch RFB client).
@@ -1193,6 +1200,12 @@ function systemPromptFor(target, parsedScope) {
     '{"action":"desktop_screenshot"} — capture the WHOLE desktop (not just the browser) to a JPG artifact; you also get the desktop state text',
     '{"action":"see_screen"} — LOOK at the desktop yourself: read the whole screen into a text map — every visible word with its (x, y) position, e.g. `"Log in" at (1240, 310)`. This is how you see what is on screen (you never see the image itself). Use it before clicking anything on the desktop, and again after acting to confirm the screen changed. If it says OCR is not installed, the image rebuild has not landed yet — use desktop_snapshot instead.',
     '{"action":"desktop_click_at","x":1240,"y":310} — click at a point FROM THE SCREEN MAP (see_screen first; never guess coordinates). The mouse moves to (x, y) and clicks. Then see_screen again to confirm what changed.',
+    // MISSION Stage 2 (31 Oct 2026): explicit expectation — the brain
+    // declares what the action should achieve; the loop verifies it.
+    'EXPECTATION (proves your action worked — use it on important actions): add "expect" to any action, e.g. {"action":"browser_click","text":"Login","expect":"url contains /dashboard"}. Clauses, ";"-separated: "url contains <text>", "url is <url>", "url not <text>", "text contains <text>", "text absent <text>". The next observation carries [EXPECTATION VERIFIED] or [EXPECTATION NOT VERIFIED] with evidence — on NOT VERIFIED, diagnose and retry instead of assuming success.',
+    // MISSION Stage 3 (31 Oct 2026): structured plan — objective, state,
+    // risk, fallback alongside the machine-checkable expect.
+    'STRUCTURED PLAN (makes your reasoning auditable — use it on multi-step work): add "plan" to any action, e.g. {"action":"browser_click","text":"Login","expect":"url contains /dashboard","plan":{"objective":"log in to DVWA","state":"on the login page with a vaulted credential","expected":"dashboard loads","risk":"low — lab target, in scope","fallback":"if login fails, read the error text and re-type the password"}}. The plan is recorded; on [EXPECTATION NOT VERIFIED] your fallback is surfaced back to you.',
     // TOOLS/OS AUTONOMY (27 Oct 2026, owner order): named tool
     // launches, allow-listed installs, and control lists — the
     // structured actions behind the desktop-tools skill card.
@@ -5032,6 +5045,17 @@ export async function humanIteration(huntId, target, opts = {}) {
       if (res && res.ok !== false) {
         try { sessionPageState = markElementClicked(sessionPageState, currentPageUrl, text); savePageState(huntId, sessionPageState); } catch { /* best-effort */ }
       }
+      // MISSION Stage 5 (31 Oct 2026): post-navigation scope guard. A
+      // click can follow a link off the programme's assets — if the
+      // landing URL is out of scope, flag it loudly. The brain must
+      // navigate back; it must not interact with the out-of-scope page.
+      try {
+        const postClickBad = scopeViolation(currentPageUrl, target, parsedScope);
+        if (postClickBad) {
+          observation = `${observation}\n[SCOPE WARNING] OUT OF SCOPE: ${postClickBad} is not part of this programme. Navigate back to ${target} — do not interact with this page.`;
+          say(`browser_click landed out of scope: ${String(postClickBad).slice(0, 120)}`);
+        }
+      } catch { /* scope warning never breaks the loop */ }
       note({ action: `browser_click: ${text.slice(0, 80)}`, why: thinkingText, result: clipResult(observation), learned: '' });
     } else if (kind === 'browser_type') {
       const text = String(action.text || '');
@@ -5624,6 +5648,60 @@ export async function humanIteration(huntId, target, opts = {}) {
         }
       } catch { /* proof counting is best-effort */ }
     }
+
+    // MISSION Stage 2+3 (31 Oct 2026): structured plan + explicit action
+    // verification. If the brain attached a plan (action.plan), record its
+    // objective/state/risk on the observation. If it declared what it
+    // expected (action.expect), check it against the fresh observation and
+    // the current page URL, and append the verdict. VERIFIED means the
+    // intended state change is proven; NOT VERIFIED surfaces the plan's
+    // fallback — the brain must diagnose and retry, never assume success.
+    try {
+      const planParsed = parsePlan(action.plan);
+      const plan = planParsed.valid ? planParsed.plan : null;
+      if (plan) {
+        const parts = [];
+        if (plan.objective) parts.push(`objective: ${plan.objective}`);
+        if (plan.state) parts.push(`state: ${plan.state}`);
+        if (plan.risk) parts.push(`risk: ${plan.risk}`);
+        if (parts.length > 0) observation = `${observation}\n[PLAN] ${parts.join(' | ')}`;
+      }
+      const expectText = action && typeof action.expect === 'string' ? action.expect.trim() : '';
+      if (expectText) {
+        const verdict = verifyExpectation({ expect: expectText, observation, pageUrl: currentPageUrl });
+        if (verdict.checked) {
+          observation = `${observation}\n[EXPECTATION ${verdict.verified ? 'VERIFIED' : 'NOT VERIFIED'}] ${verdict.evidence}`;
+          // MISSION Stage 6 (31 Oct 2026): UI observability — emit a
+          // structured verification event so the frontend can display
+          // real Verified/Failed status instead of inferring it.
+          try {
+            deps.record(huntId, {
+              type: 'verification',
+              action: kind,
+              verified: verdict.verified,
+              evidence: scrub(String(verdict.evidence)).slice(0, 300),
+              via: 'human-mode',
+            });
+          } catch { /* observability is best-effort */ }
+          // MISSION Stage 4 (31 Oct 2026): the Learn step — synthesize what
+          // this turn taught us from the verification verdict, so the
+          // lesson is explicit in the loop's observable state and the next
+          // screen, not just implied. VERIFIED confirms the premise;
+          // NOT VERIFIED retires the approach for this turn.
+          const actionLabel = (() => {
+            try {
+              const d = action.text || action.command || action.url || action.target || '';
+              return `${kind}${d ? ` '${String(d).slice(0, 60)}'` : ''}`;
+            } catch { return kind; }
+          })();
+          observation = `${observation}\n[LEARNED] ${actionLabel}: ${verdict.verified ? 'premise CONFIRMED' : 'approach FAILED'} — ${verdict.evidence}`;
+          if (!verdict.verified) {
+            const fb = fallbackLine(plan);
+            if (fb) observation = `${observation}\n${fb}`;
+          }
+        }
+      }
+    } catch { /* plan/verification never breaks the loop */ }
 
     // Lane AI: the session log is scrubbed like every other
     // recorded surface — a one-turn secret (generated password,

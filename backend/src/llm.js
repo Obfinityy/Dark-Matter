@@ -251,7 +251,59 @@ export async function waitForOllamaReady({ baseUrl, waitMs, pollMs, sleepFn } = 
   }
 }
 
+// PHASE 9 (31 Oct 2026): heartbeat write with never-shorten semantics.
+// An advisory (short) call must never overwrite a main turn's (long)
+// deadline. Returns true if the file was written, false if the existing
+// longer deadline was kept. Exported for testing.
+export function writeInferenceHeartbeat(hbPath, newDeadline, huntId) {
+  try {
+    try {
+      const existing = JSON.parse(fs.readFileSync(hbPath, 'utf8'));
+      if (typeof existing.deadline === 'number' && existing.deadline > newDeadline) {
+        return false; // keep the longer deadline — do not shorten
+      }
+    } catch { /* no valid existing heartbeat — write fresh */ }
+    fs.writeFileSync(hbPath, JSON.stringify({
+      startedAt: new Date().toISOString(),
+      deadline: newDeadline,
+      huntId: huntId || null,
+    }));
+    return true;
+  } catch { /* heartbeat is best-effort */ }
+  return false;
+}
+
+/**
+ * LATENCY OBSERVABILITY (31 Oct 2026, audit R-12): every Ollama call is
+ * timed and logged with its outcome — the loop's "latency pressure" was
+ * previously invisible (timeouts fired, but nobody could see the
+ * duration distribution or correlate slow calls with memory pressure).
+ * One stderr line per call: hunt, advisory/main, outcome, duration_ms.
+ * Outcome: ok | null_reply (settled with no text) | threw:<msg>.
+ * The inner function's own logs keep the detailed classification
+ * (connection error vs 5xx vs deadline); this line adds the duration
+ * dimension. Logging never breaks the call.
+ */
 async function chatWithOllama(messages, system, ctx, opts = {}) {
+  const callStart = Date.now();
+  const huntId = (ctx && ctx.huntId) || null;
+  const advisory = Boolean(opts && opts.advisory);
+  let outcome = 'unknown';
+  try {
+    const text = await chatWithOllamaInner(messages, system, ctx, opts);
+    outcome = text ? 'ok' : 'null_reply';
+    return text;
+  } catch (err) {
+    outcome = 'threw:' + String((err && err.message) || 'unknown').slice(0, 60).replace(/\s+/g, ' ');
+    throw err;
+  } finally {
+    try {
+      console.error(`[llm] ollama call hunt=${huntId} advisory=${advisory} outcome=${outcome} duration_ms=${Date.now() - callStart}`);
+    } catch { /* logging never breaks the call */ }
+  }
+}
+
+async function chatWithOllamaInner(messages, system, ctx, opts = {}) {
   const advisory = Boolean(opts && opts.advisory);
   // Privacy gateway: strip secrets/PII before the model — same as Bedrock.
   const clean = (t) => sanitizeForModel(String(t || ''));
@@ -368,13 +420,12 @@ async function chatWithOllama(messages, system, ctx, opts = {}) {
     : 0;
   const attemptMs = advisoryMs > 0 ? Math.min(hbTimeoutMs, advisoryMs) : hbTimeoutMs;
   const writeHeartbeat = () => {
-    try {
-      fs.writeFileSync(hbPath, JSON.stringify({
-        startedAt: new Date().toISOString(),
-        deadline: Date.now() + attemptMs * 2 + 120000,
-        huntId: (ctx && ctx.huntId) || null,
-      }));
-    } catch { /* heartbeat is best-effort */ }
+    const newDeadline = Date.now() + attemptMs * 2 + 120000;
+    // PHASE 9 (31 Oct 2026): NEVER shorten an existing future deadline.
+    // An advisory (short-timeout) call must not overwrite a main turn's
+    // (long-timeout) deadline, or the watchdog kills a healthy-busy
+    // runner mid-inference (seen live 20:15 IST 31 Oct 2026).
+    writeInferenceHeartbeat(hbPath, newDeadline, (ctx && ctx.huntId) || null);
   };
   const clearHeartbeat = () => { try { fs.unlinkSync(hbPath); } catch { /* ignore */ } };
   writeHeartbeat();

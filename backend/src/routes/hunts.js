@@ -376,11 +376,23 @@ router.post('/', requireAuth, async (req, res) => {
     const { parseScope } = await import('../scopeParser.js');
     const parsedScope = parseScope(target, scope);
     console.log(`[hunts] Scope parsed for ${huntId}: UA=${parsedScope.rules.customUserAgent || 'default'}, noHeavyScan=${parsedScope.rules.noHeavyScan}`);
+    // P1 SCOPE ENFORCEMENT (31 Oct 2026, AUD-H1): immutable per-hunt scope
+    // for the app-layer guard (scopeGuard.js) and P2's network-layer egress
+    // control. Best-effort — a build failure must never break hunt creation;
+    // the gate falls back to building from the target at execution time.
+    let scopeGuard = null;
+    try {
+      const { buildScope } = await import('../scopeGuard.js');
+      scopeGuard = buildScope({ target, scope, labTargets: process.env.LAB_TARGETS || '' });
+    } catch (err) {
+      console.warn(`[hunts] scopeGuard build failed for ${huntId}: ${err.message}`);
+    }
     writeHuntMeta(huntId, {
       huntId,
       target,
       scope: scope || null,
       parsedScope,
+      scopeGuard,
       mode: huntMode.id,
       // HUMAN MODE: flag both keys the human path checks
       // (huntAgent.js: meta.humanMode === true || mode/meta.mode ===
@@ -557,6 +569,36 @@ router.get('/:id', requireAuth, async (req, res) => {
       return res.json({ ok: true, hunt: { ...meta, hostSide: true } });
     }
     engineErrorResponse(res, err);
+  }
+});
+
+// DELETE /api/v1/hunts/:id — Remove hunt container (31 Oct 2026, Phase 3)
+// Removes the Docker container for a hunt. PRESERVES the hunt data directory
+// (/opt/Dark-Matter/backend/data/hunts/<id>/) — never delete hunt data.
+// Used for resource cleanup of paused/completed hunts.
+router.delete('/:id', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const huntId = req.params.id;
+  try {
+    const removed = await teardownHuntContainer(huntId);
+    // Note: hunt data directory is intentionally preserved.
+    // The owner order (31 Oct 14:31 IST) says: NEVER delete hunt data dirs.
+    res.json({
+      ok: true,
+      huntId,
+      containerRemoved: removed,
+      dataPreserved: true,
+      message: removed
+        ? 'Container removed; hunt data preserved.'
+        : 'Container was not running; hunt data preserved.',
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: 'Failed to remove container',
+      detail: err.message,
+    });
   }
 });
 

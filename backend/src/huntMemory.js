@@ -64,6 +64,8 @@ import { loadCoverage, emptyCoverage, classLabelFor } from './coverageLedger.js'
 import { getRuledOut } from './episodeStore.js';
 import { buildActionIndex, indexLines } from './actionIndex.js';
 import { isHttpErrorPage } from './hunt-intel/differential.js';
+// P0 (31 Oct 2026): probe/test names are never confirmed findings.
+import { isProbeNameTitle } from './claimTitleGuard.js';
 
 const clip = (s, n) => {
   const t = String(s || '').replace(/\s+/g, ' ').trim();
@@ -188,7 +190,11 @@ export function panelFindings(findings) {
     // verified — the verifier stamped 404 pages before the gate
     // learned to reject them. The row stays a lead, never a confirmed
     // vulnerability, until the finding is retracted or re-proven.
-    const countsAsVerified = Boolean(f.verified) && !isErrorPageFinding(f);
+    // P0 (31 Oct 2026): probe/test names never count as verified.
+    let countsAsVerified = Boolean(f.verified) && !isErrorPageFinding(f);
+    try {
+      if (countsAsVerified && isProbeNameTitle(title)) countsAsVerified = false;
+    } catch { /* probe check is best-effort */ }
     const sev = String(f.severity || '').toLowerCase();
     if (PANEL_SEVERITIES.has(sev)) {
       if (countsAsVerified) { row.severity = sev; slot.sevFromVerified = true; slot.sevSet = true; }

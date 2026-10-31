@@ -55,11 +55,23 @@ export function formatRecordedAt(value) {
 }
 
 /** Status line for the modal header. */
+// P0 (31 Oct 2026): probe/test names are never "verified" — even if the
+// backend stamped them. A probe name is a note, not a vulnerability.
+const isProbeName = (t) => {
+  const s = String(t || '').trim().toLowerCase();
+  return /^probe[_-]/.test(s) || /[_-]probe([_-]|$)/.test(s) || /[_-]test([_-]|$)/.test(s) || /^test[_-]/.test(s);
+};
 export function findingStatus(finding) {
-  if (finding && finding.verified === true) {
+  if (finding && finding.verified === true && !isProbeName(finding.title)) {
     return {
       label: '✓ verified',
       note: finding.verification || 'Verified',
+    };
+  }
+  if (finding && finding.verified === true && isProbeName(finding.title)) {
+    return {
+      label: 'probe note',
+      note: 'This is a probe/test note, not a verified vulnerability. It was recorded for investigation only.',
     };
   }
   return {
