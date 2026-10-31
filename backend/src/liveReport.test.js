@@ -198,3 +198,32 @@ test('buildReportMarkdown: live shape with 0 genuine — no "0 raw → 0 unique"
   assert.match(md, /- \*\*Findings:\*\* 11 raw → 6 unique → 0 confirmed → 0 likely exploitable/);
   assert.doesNotMatch(md, /0 raw → 0 unique/);
 });
+
+// P0 (31 Oct 2026): probe-name titles stamped verified:true must appear
+// as leads (under investigation), never as confirmed vulnerabilities,
+// in panelFindings output.
+test('panelFindings: probe-name "verified" findings are leads, not confirmed', () => {
+  const rows = panelFindings([
+    { title: 'probe_session_handling', severity: 'medium', verified: true, type: 'finding' },
+    { title: 'probe_username_handling', severity: 'medium', verified: true, type: 'finding' },
+    { title: 'sql_injection_login', severity: 'medium', verified: true, type: 'finding' },
+  ]);
+  const byTitle = new Map(rows.map((r) => [r.title, r]));
+  // Probe notes are demoted to leads
+  assert.equal(byTitle.get('probe_session_handling').verified, false);
+  assert.equal(byTitle.get('probe_username_handling').verified, false);
+  // Genuine finding stays verified
+  assert.equal(byTitle.get('sql_injection_login').verified, true);
+});
+
+// P0 (31 Oct 2026): duplicate verified stamps for the same vulnerability
+// produce ONE row, not two.
+test('panelFindings: duplicate verified stamps deduplicate to one row', () => {
+  const rows = panelFindings([
+    { title: 'sql_injection_login', severity: 'medium', verified: true, type: 'finding' },
+    { title: 'sql_injection_login', severity: 'medium', verified: true, type: 'finding' },
+  ]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].verified, true);
+  assert.equal(rows[0].stamps, 2);
+});
