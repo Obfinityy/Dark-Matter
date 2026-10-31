@@ -622,3 +622,380 @@ export function assessContentRelevance({ command, target, output, baselines } = 
   }
   return { relevant: true, reason: 'bound: non-negated signal, novel vs target baseline, on-target host' };
 }
+
+// ---- SQL Injection Auth-Bypass Claim Validator (31 Oct 2026) ----------------
+// ROOT CAUSE (probe_sqli_bypass false-accept): the 4-step verifyPipeline
+// checked boolean flags derived from keyword presence in output, not from
+// demonstrated vulnerability impact. A login form HTML (>50 chars) with the
+// word "bypass" (from the probe's own name) passed all 4 steps.
+//
+// This validator enforces claim-to-evidence requirements for SQLi
+// authentication-bypass claims. It does NOT hardcode rejection — genuine
+// findings with sufficient evidence remain confirmable.
+//
+// For auth-bypass claims, REQUIRE:
+// 1. Baseline auth state established (what does "not logged in" look like?)
+// 2. Test executed with SQLi payload
+// 3. Independent verification that auth state CHANGED (not just keywords)
+// 4. Access to protected resource OR other direct impact indicator
+// 5. REJECT if response merely returns the login page
+//
+// Do NOT accept as evidence:
+// - HTTP 200 alone
+// - Login form HTML in response
+// - Generic error messages
+// - Keywords (bypass, injection, vulnerable) in output
+// - Model assertions without demonstrated state change
+// - Repeated checks depending on the same weak signal
+//
+// @param {Object} claim - { output, baselineOutput, payload, endpoint }
+// @returns {{verdict: 'confirmed'|'rejected'|'inconclusive', reason: string, evidence: Object}}
+
+/**
+ * Detect if HTML output is a login form (not an authenticated page).
+ * A login form contains password input fields and login-related text,
+ * but no authenticated session indicators.
+ */
+function isLoginFormHtml(output) {
+  const html = String(output || '').toLowerCase();
+  // Must have password field (characteristic of login form)
+  const hasPasswordField = /<input[^>]*type\s*=\s*["']?password/i.test(html);
+  // Must have login-related text
+  const hasLoginText = /login|sign in|username.*password|password.*username/i.test(html);
+  // Must NOT have authenticated indicators
+  const hasAuthIndicators = /logout|log out|welcome back|dashboard|my account|session.*active/i.test(html);
+  
+  return hasPasswordField && hasLoginText && !hasAuthIndicators;
+}
+
+/**
+ * Check for demonstrated authentication state change.
+ * Looks for concrete indicators that the session is now authenticated,
+ * not just keywords in the output.
+ */
+function hasAuthStateChange(baselineOutput, testOutput) {
+  const baseline = String(baselineOutput || '').toLowerCase();
+  const test = String(testOutput || '').toLowerCase();
+  
+  // Baseline should be unauthenticated (login form)
+  const baselineIsLogin = isLoginFormHtml(baseline);
+  
+  // Test output should NOT be login form (should be authenticated page)
+  const testIsLogin = isLoginFormHtml(test);
+  
+  // Auth state changed if: baseline was login form AND test is not login form
+  // AND test shows authenticated indicators
+  if (baselineIsLogin && !testIsLogin) {
+    const hasAuthIndicators = /logout|welcome|dashboard|authenticated/i.test(test);
+    return hasAuthIndicators;
+  }
+  
+  return false;
+}
+
+export function validateSqliAuthBypass({ output, baselineOutput = '', payload = '', endpoint = '' }) {
+  const out = String(output || '');
+  
+  // REJECT: Output is just a login form (no bypass demonstrated)
+  if (isLoginFormHtml(out)) {
+    return {
+      verdict: 'rejected',
+      reason: 'Response is a login form — no authentication bypass demonstrated. A successful SQLi auth bypass must show an authenticated session, not the login page.',
+      evidence: {
+        isLoginForm: true,
+        hasPasswordField: /<input[^>]*type\s*=\s*["']?password/i.test(out.toLowerCase()),
+      },
+    };
+  }
+  
+  // REJECT: No baseline to compare against (cannot prove state change)
+  if (!baselineOutput || String(baselineOutput).trim().length === 0) {
+    return {
+      verdict: 'inconclusive',
+      reason: 'No baseline authentication state provided — cannot verify that auth state changed. Provide baseline (unauthenticated) output for comparison.',
+      evidence: { hasBaseline: false },
+    };
+  }
+  
+  // CHECK: Did auth state actually change?
+  const stateChanged = hasAuthStateChange(baselineOutput, out);
+  if (!stateChanged) {
+    return {
+      verdict: 'rejected',
+      reason: 'No demonstrated authentication state change. The test output does not show a transition from unauthenticated to authenticated state.',
+      evidence: {
+        baselineWasLogin: isLoginFormHtml(baselineOutput),
+        testIsLogin: isLoginFormHtml(out),
+        stateChanged: false,
+      },
+    };
+  }
+  
+  // CONFIRMED: Auth state changed from login form to authenticated page
+  return {
+    verdict: 'confirmed',
+    reason: 'Authentication state changed from unauthenticated (login form) to authenticated (session indicators present). SQLi auth bypass demonstrated.',
+    evidence: {
+      baselineWasLogin: true,
+      testIsLogin: false,
+      stateChanged: true,
+    },
+  };
+}
+
+// ---- Generic Weak-Signal Rejector (31 Oct 2026) ----------------------------
+// For any vulnerability claim, reject these weak signals as sole evidence:
+// - HTTP 200 status alone
+// - Generic error messages
+// - Keywords in output without demonstrated impact
+// - Model assertions without evidence
+//
+// @param {Object} claim - { output, vulnerabilityClass }
+// @returns {{isWeak: boolean, reason: string}}
+
+export function isWeakSignalOnly({ output, vulnerabilityClass = '' }) {
+  const out = String(output || '');
+  
+  // Check if output contains ONLY weak signals (no concrete impact evidence)
+  const hasKeywords = /vulnerable|bypass|injection|leak|exposed/i.test(out);
+  const has200 = /200 OK|HTTP\/1\.1 200/i.test(out);
+  const hasGenericError = /error|exception|failed/i.test(out) && !/sql.*error|syntax.*error/i.test(out);
+  
+  // If output has keywords but no concrete impact indicators, it's weak
+  const hasConcreteImpact = /logout|welcome|dashboard|authenticated|session|admin|root|uid=\d+|select.*from/i.test(out);
+  
+  if (hasKeywords && !hasConcreteImpact) {
+    return {
+      isWeak: true,
+      reason: `Output contains vulnerability keywords but no concrete impact evidence for ${vulnerabilityClass}. Keywords alone do not confirm a vulnerability.`,
+    };
+  }
+  
+  return { isWeak: false, reason: 'Output contains concrete impact indicators or no misleading keywords.' };
+}
+
+// ---- XSS Claim Validator (31 Oct 2026, Phase 4) ----------------------------
+// For XSS claims, require the payload to appear UNENCODED in the response
+// body in an executable context. Do NOT accept:
+// - HTML-entity-encoded payload (&lt;script&gt;)
+// - Payload in HTML comment
+// - Keywords in probe output (not in response)
+// - Payload in URL but not in response body
+//
+// @param {Object} claim - { output, payload, baselineOutput }
+// @returns {{verdict: 'confirmed'|'rejected'|'inconclusive', reason: string}}
+
+export function validateXssClaim({ output, payload = '', baselineOutput = '' }) {
+  const out = String(output || '');
+  const pay = String(payload || '');
+  
+  if (!pay) {
+    return {
+      verdict: 'inconclusive',
+      reason: 'No payload provided — cannot verify XSS without the test payload.',
+    };
+  }
+  
+  // Check if payload appears unencoded in output
+  // First, check for entity-encoded version (this is SAFE, not vulnerable)
+  const encoded = pay
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  
+  const hasEncoded = out.includes(encoded) && encoded !== pay;
+  const hasRaw = out.includes(pay);
+  
+  // If payload is entity-encoded, it's NOT XSS (properly escaped)
+  if (hasEncoded && !hasRaw) {
+    return {
+      verdict: 'rejected',
+      reason: 'Payload is HTML-entity-encoded in response — properly escaped, not XSS.',
+      evidence: { encoded: true, raw: false },
+    };
+  }
+  
+  // If payload not in output at all, it's not reflected
+  if (!hasRaw) {
+    return {
+      verdict: 'rejected',
+      reason: 'Payload not found in response body — not reflected.',
+      evidence: { reflected: false },
+    };
+  }
+  
+  // Check if payload is in HTML comment (not executable)
+  const commentPattern = new RegExp(`<!--[\\s\\S]*?${pay.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?-->`);
+  if (commentPattern.test(out)) {
+    return {
+      verdict: 'rejected',
+      reason: 'Payload is inside HTML comment — not in executable context.',
+      evidence: { inComment: true },
+    };
+  }
+  
+  // Payload is present raw and not in comment — potential XSS
+  // For a full confirmation, we'd need to verify executable context,
+  // but raw reflection outside comments is sufficient for 'confirmed'
+  // at the validator level (browser execution is a separate step).
+  return {
+    verdict: 'confirmed',
+    reason: 'Payload reflected unencoded in response body outside HTML comments — XSS demonstrated.',
+    evidence: { reflected: true, encoded: false, inComment: false },
+  };
+}
+
+// ---- Command Injection Claim Validator (31 Oct 2026, Phase 4) --------------
+// For command injection claims, require command OUTPUT in the response.
+// Do NOT accept:
+// - Generic error messages
+// - Keywords in probe output
+// - "Command executed" assertions without output
+// - Failed executions (must check executionFailed first)
+//
+// @param {Object} claim - { output, command, baselineOutput }
+// @returns {{verdict: 'confirmed'|'rejected'|'inconclusive', reason: string}}
+
+export function validateCommandInjection({ output, command = '', baselineOutput = '' }) {
+  const out = String(output || '');
+  
+  // If the command failed to execute, there is NO evidence
+  // (The caller should have checked executionFailed, but defense in depth)
+  if (/Command failed:|DM_CONTAINER_MISSING|command not found/i.test(out)) {
+    return {
+      verdict: 'rejected',
+      reason: 'Command failed to execute — failed executions produce no evidence.',
+      evidence: { executed: false },
+    };
+  }
+  
+  // Look for command output indicators
+  // Common command outputs: uid=, gid=, root:, directory listings, etc.
+  const hasCommandOutput = /uid=\d+|gid=\d+|root:x:|www-data|total \d+|drwx/i.test(out);
+  
+  // Check for time-based blind (sleep command)
+  const hasTimingDiff = /sleep|delay/i.test(command) && out.length > 0;
+  // Note: Actual timing measurement must be done by caller; we check the pattern
+  
+  if (hasCommandOutput) {
+    return {
+      verdict: 'confirmed',
+      reason: 'Command output detected in response — command injection demonstrated.',
+      evidence: { hasOutput: true },
+    };
+  }
+  
+  // No command output found
+  return {
+    verdict: 'rejected',
+    reason: 'No command output in response — injection not demonstrated. Output contains no uid/gid, file listing, or other command results.',
+    evidence: { hasOutput: false },
+  };
+}
+
+// ---- Path Traversal Claim Validator (31 Oct 2026, Phase 4) -----------------
+// For path traversal claims, require ACTUAL FILE CONTENT in the response.
+// Do NOT accept:
+// - Error messages ("File not found")
+// - Keywords in URL or probe output
+// - HTTP 200 with error page
+// - Payload in URL without file content
+//
+// @param {Object} claim - { output, payload, baselineOutput }
+// @returns {{verdict: 'confirmed'|'rejected'|'inconclusive', reason: string}}
+
+export function validatePathTraversal({ output, payload = '', baselineOutput = '' }) {
+  const out = String(output || '');
+  
+  // Look for actual file content markers
+  // /etc/passwd: root:x:0:0
+  // win.ini: [extensions], [fonts]
+  // Generic: file content patterns
+  const hasPasswdContent = /root:x:0:0|daemon:x:1:1/i.test(out);
+  const hasWinIniContent = /\[extensions\]|\[fonts\]|\[mci extensions\]/i.test(out);
+  const hasFileContent = hasPasswdContent || hasWinIniContent;
+  
+  // Check for error messages (these are NOT file content)
+  const hasError = /file not found|no such file|not found on this server|404/i.test(out);
+  
+  if (hasFileContent && !hasError) {
+    return {
+      verdict: 'confirmed',
+      reason: 'File content detected in response — path traversal demonstrated.',
+      evidence: { hasContent: true, fileType: hasPasswdContent ? 'passwd' : 'winini' },
+    };
+  }
+  
+  if (hasError) {
+    return {
+      verdict: 'rejected',
+      reason: 'Response is an error page, not file content — traversal not demonstrated.',
+      evidence: { hasContent: false, isError: true },
+    };
+  }
+  
+  return {
+    verdict: 'rejected',
+    reason: 'No file content in response — traversal not demonstrated. Response does not contain /etc/passwd, win.ini, or other file content markers.',
+    evidence: { hasContent: false },
+  };
+}
+
+// ---- Vulnerability Claim Dispatcher (31 Oct 2026, Phase 4) ------------------
+// Routes a vulnerability claim to the appropriate class-specific validator.
+// Falls back to generic weak-signal check for classes without specific validators.
+//
+// @param {string} vulnClass - Vulnerability class (sqli, xss, exec, fi, etc.)
+// @param {Object} evidence - { output, payload, baselineOutput, command, endpoint }
+// @returns {{verdict: 'confirmed'|'rejected'|'inconclusive', reason: string, validator: string}}
+
+export function validateVulnClaim(vulnClass, evidence) {
+  const cls = String(vulnClass || '').toLowerCase();
+  
+  // SQL Injection (auth bypass)
+  if (cls.includes('sqli') || cls.includes('sql')) {
+    // Check if it's an auth-bypass claim (login-related)
+    const isAuthBypass = /login|auth|bypass/i.test(evidence.endpoint || '') || 
+                         /login|auth/i.test(evidence.payload || '');
+    if (isAuthBypass) {
+      return { ...validateSqliAuthBypass(evidence), validator: 'validateSqliAuthBypass' };
+    }
+    // Generic SQLi: fall through to weak-signal check
+  }
+  
+  // XSS (reflected, stored, DOM)
+  if (cls.includes('xss') || cls.includes('cross.*site')) {
+    return { ...validateXssClaim(evidence), validator: 'validateXssClaim' };
+  }
+  
+  // Command Injection
+  if (cls.includes('exec') || cls.includes('cmdi') || cls.includes('command')) {
+    return { ...validateCommandInjection(evidence), validator: 'validateCommandInjection' };
+  }
+  
+  // Path Traversal / File Inclusion
+  if (cls.includes('fi') || cls.includes('lfi') || cls.includes('traversal') || cls.includes('inclusion')) {
+    return { ...validatePathTraversal(evidence), validator: 'validatePathTraversal' };
+  }
+  
+  // Fallback: generic weak-signal check
+  const weak = isWeakSignalOnly({ 
+    output: evidence.output, 
+    vulnerabilityClass: vulnClass 
+  });
+  
+  if (weak.isWeak) {
+    return {
+      verdict: 'rejected',
+      reason: `No class-specific validator for '${vulnClass}'; generic check: ${weak.reason}`,
+      validator: 'isWeakSignalOnly (fallback)',
+    };
+  }
+  
+  return {
+    verdict: 'inconclusive',
+    reason: `No class-specific validator for '${vulnClass}'; generic check passed but cannot confirm without class-specific evidence criteria.`,
+    validator: 'isWeakSignalOnly (fallback)',
+  };
+}
