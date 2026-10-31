@@ -164,7 +164,7 @@ export function getOrchestrator(huntId) {
 import { aiAvailable } from './llm.js';
 import { callBrain } from './brainProvider.js';
 import { generateHypotheses, formatHypothesesForPrompt, scoreInterestingness, buildAppModel, formatAppModelForPrompt } from './curiosity.js';
-import { recordReasoning, formatReasoningForPrompt, formatLedgerForPrompt, getHypothesisLedger, getVerifiedPairs, normalizeHypothesis, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
+import { recordReasoning, formatReasoningForPrompt, formatLedgerForPrompt, getHypothesisLedger, getPremiseLedger, getVerifiedPairs, normalizeHypothesis, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
 import { recordGlobalLearning, getRelevantMemories, formatGlobalMemoryForPrompt, inferTechnique, readAllGlobalMemories } from './globalMemory.js';
 import { webSearch, searchCVE } from './webSearch.js';
 import { runBrowserTask, crawlScript } from './browserAgent.js';
@@ -172,6 +172,7 @@ import { getHuntCost } from './costTracker.js';
 import { checkBudget } from './budgetCap.js';
 import { appendHuntEvent, writeHuntMeta, writeHuntMetaCheckpoint, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel, huntDir } from './store.js';
 import { episodeLedgerEnabled, retrieveEpisodes, formatRetrievalForPrompt, recordRuledOut, getRuledOutCounts, formatLessonsForPrompt, RETRY_BUDGET, recordFact } from './episodeStore.js';
+import { extractPremise, premiseKey, UNKNOWN_PREMISE_KEY } from './premiseDedup.js';
 import { proposePlaybook, formatPlaybookForPrompt } from './playbook.js';
 import { ensurePlanTree, renderPlanTree, recordPlanOutcome } from './planTree.js';
 import { summarizeToolOutput } from './toolOutput.js';
@@ -1561,16 +1562,63 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // test, counted by code. At RETRY_BUDGET the instance is ruled out —
     // the forced pivot is logged, not suggested.
     const ruledCounts = getRuledOutCounts(huntId);
-    if (deadKeys.size || vPairs.size || ruledCounts.size) {
+    // PREMISE-LEVEL DEDUP (31 Oct 2026, audit R-05): the text-keyed filters
+    // above are defeated by rewording — the same (vulnClass, sink) premise
+    // proposed under a new label never matches deadKeys/ruledCounts. Group
+    // dead premises AND validator rejections by normalized semantic premise
+    // key (premiseDedup.js): failures across rewordings accumulate toward
+    // the same toll. detId probes stay exempt (machine-grounded).
+    // Reconsideration: a plan carrying non-empty `newPremiseEvidence` is
+    // allowed through a retired premise and logged — the brain's only
+    // legitimate path to retry with genuinely new evidence.
+    const premiseLedger = getPremiseLedger(huntId, { knownApp: recon.knownApp || null });
+    const deadPremiseKeys = new Set(premiseLedger.dead.map((d) => d.key));
+    const ruledPremiseCounts = new Map();
+    for (const [key, count] of ruledCounts) {
+      const pk = premiseKey(extractPremise({ hypothesis: key, test: key }));
+      if (pk === UNKNOWN_PREMISE_KEY) continue;
+      ruledPremiseCounts.set(pk, (ruledPremiseCounts.get(pk) || 0) + count);
+    }
+    // Write-once retirement audit rows for newly dead premises (the
+    // `retired` flag from getPremiseLedger makes this idempotent across
+    // turns — the marker is read before this write within the same turn).
+    for (const d of premiseLedger.dead) {
+      if (d.retired) continue;
+      try {
+        recordReasoning(huntId, {
+          hypothesis: `premise ${d.key} retired`,
+          action: 'hypothesis-retirement',
+          why: `premise:${d.key} reason:death-toll(${d.failed} failures across rewordings, 0 verified) evidence:${d.samples.join(' / ').slice(0, 160)}`,
+          result: `RETIRED: ${d.key} — forced pivot to a genuinely new premise`,
+          learned: `Do not re-test ${d.vulnClass} on ${d.sink} without genuinely new evidence (new technique, changed target state, or new proof). Retry requires the newPremiseEvidence plan field. Variants of this class on OTHER sinks stay legitimate.`,
+        });
+      } catch { /* audit row is best-effort */ }
+    }
+    if (deadKeys.size || vPairs.size || ruledCounts.size || deadPremiseKeys.size || ruledPremiseCounts.size) {
       const kept = plans.filter((p) => {
         if (p.detId) return true; // machine-generated deterministic/sweep probe — exempt
         if (deadKeys.has(normalizeHypothesis(p.hypothesis))) {
           think(huntId, `Plan SKIPPED (ledger-retired premise): ${p.test || p.hypothesis || 'unnamed'}`);
           return false;
         }
+        const pKey = premiseKey(extractPremise(p));
+        if (pKey !== UNKNOWN_PREMISE_KEY && deadPremiseKeys.has(pKey)) {
+          const evidence = typeof p.newPremiseEvidence === 'string' && p.newPremiseEvidence.trim();
+          if (evidence) {
+            think(huntId, `Plan ALLOWED (premise ${pKey} retired, new evidence claimed: ${evidence.slice(0, 90)}): ${p.test || p.hypothesis || 'unnamed'}`);
+            return true;
+          }
+          think(huntId, `Plan SKIPPED (premise retired: ${pKey} — ${premiseLedger.dead.find((d) => d.key === pKey)?.failed || '?'} failures across rewordings, forced pivot): ${p.test || p.hypothesis || 'unnamed'}`);
+          return false;
+        }
         const ruled = ruledCounts.get(normalizeHypothesis(p.test || p.action || '')) || 0;
         if (ruled >= RETRY_BUDGET) {
           think(huntId, `Plan SKIPPED (dead-end registry: ${ruled} validator rejections — forced pivot): ${p.test || p.hypothesis || 'unnamed'}`);
+          return false;
+        }
+        const ruledP = pKey !== UNKNOWN_PREMISE_KEY ? (ruledPremiseCounts.get(pKey) || 0) : 0;
+        if (ruledP >= RETRY_BUDGET) {
+          think(huntId, `Plan SKIPPED (dead-end registry, premise-level: ${ruledP} validator rejections across rewordings — forced pivot): ${p.test || p.hypothesis || 'unnamed'}`);
           return false;
         }
         const pair = normalizeHypothesis(p.hypothesis) + '||' + normalizeHypothesis(p.test || p.action || '');
