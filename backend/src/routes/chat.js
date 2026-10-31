@@ -26,6 +26,8 @@ import { hasActiveAccessById } from '../access.js';
 import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
 import { isInferenceActive } from '../llm.js';
 import { callChatMeta, metaAvailable } from '../brainProvider.js';
+// P0 (31 Oct 2026): probe/test names are never confirmed findings.
+import { isProbeNameTitle } from '../claimTitleGuard.js';
 import { analyzeFindings } from '../hunt-intel/index.js';
 import { loadHuntMemory, normTitle, findingCounts, isErrorPageFinding } from '../huntMemory.js';
 import { pageUrlFromObservation } from '../humanLoop.js';
@@ -50,6 +52,11 @@ export function confirmedTitles(findings) {
   const seen = new Map();
   for (const f of findings || []) {
     if (!f || !f.verified) continue;
+    // P0 (31 Oct 2026): probe/test names are never confirmed findings,
+    // even if stamped verified:true.
+    try {
+      if (isProbeNameTitle(f.title)) continue;
+    } catch { /* probe check is best-effort */ }
     // LIVE REPORT (27 Oct 2026, feat/live-report-fix): a stamp
     // whose evidence is an HTTP error page is demoted read-time
     // everywhere else (panelFindings, the brain's VERIFIED list) —
