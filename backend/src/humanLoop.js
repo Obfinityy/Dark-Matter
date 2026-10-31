@@ -5671,6 +5671,18 @@ export async function humanIteration(huntId, target, opts = {}) {
         const verdict = verifyExpectation({ expect: expectText, observation, pageUrl: currentPageUrl });
         if (verdict.checked) {
           observation = `${observation}\n[EXPECTATION ${verdict.verified ? 'VERIFIED' : 'NOT VERIFIED'}] ${verdict.evidence}`;
+          // MISSION Stage 6 (31 Oct 2026): UI observability — emit a
+          // structured verification event so the frontend can display
+          // real Verified/Failed status instead of inferring it.
+          try {
+            deps.record(huntId, {
+              type: 'verification',
+              action: kind,
+              verified: verdict.verified,
+              evidence: scrub(String(verdict.evidence)).slice(0, 300),
+              via: 'human-mode',
+            });
+          } catch { /* observability is best-effort */ }
           // MISSION Stage 4 (31 Oct 2026): the Learn step — synthesize what
           // this turn taught us from the verification verdict, so the
           // lesson is explicit in the loop's observable state and the next
