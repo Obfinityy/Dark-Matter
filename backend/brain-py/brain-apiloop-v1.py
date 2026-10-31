@@ -343,6 +343,20 @@ _LAB_CLAIM_META = {
     # CONFIRMED wins), keeping the budget at 2 turns per sink.
     "generic_headerxss": ("Reflected XSS (generic header sink)",
                           "xss_reflected", "high"),
+    # Rule #91: same for the generic-sink HEADER-SQLi probe — a
+    # request header value (User-Agent / Referer / X-Forwarded-For)
+    # fed raw into a SQL query: the lone quote produces SQL error
+    # keywords absent from the benign body (error_based), or the
+    # boolean-blind differential holds (true == benign, false
+    # differs — both repeated, Rule #81 nonces). Same class as
+    # Rule #57 ("sqli"), distinct module — dedup is (module, class,
+    # location), so a page vulnerable via both a header and a query
+    # param files two distinct claims (the Rule #69 rationale). The
+    # probe iterates the marker's CSV of common header names
+    # internally (first CONFIRMED wins), keeping the budget at 2
+    # turns per sink.
+    "generic_headersqli": ("SQL injection (generic header sink)",
+                           "sqli", "high"),
     # Rule #83: same for the generic-sink PATH/404-XSS probe — the
     # target's 404/error page reflects a bogus URL path UNESCAPED
     # (the run-unique executable canary "G83P<nonce>...<img src=x
@@ -1982,12 +1996,14 @@ def _recon_driven_plan(modules_present, generic_sinks=(),
         # onerror=PLOOP82-<nonce>>" in the canary body though
         # absent from the benign-headers control body -> via=<context>
         # from the Rule #59 classifier; an HTML-encoded reflection is
-        # a safe encoding, not a vuln). Header sinks carry ONLY this
-        # pair — headers are neither query params nor form fields nor
-        # bodies, so the param-shaped xss/sqli pairs do not apply.
-        # The marker's 5th component is the _HEADER_SINK_HEADERS CSV;
-        # the probe iterates it internally (first CONFIRMED wins),
-        # keeping the budget at 2 turns per sink.
+        # a safe encoding, not a vuln). Header sinks carry the header
+        # XSS pair (PLOOP82) plus the Rule #91 header-SQLi pair
+        # (PLOOP91) appended right after — the param-shaped xss/sqli
+        # pairs still do not apply (headers are neither query params
+        # nor form fields nor bodies). The marker's 5th component is
+        # the _HEADER_SINK_HEADERS CSV; the probe iterates it
+        # internally (first CONFIRMED wins), keeping the budget at 2
+        # turns per sink pair.
         if sink.get("kind") == "header":
             hxss_marker = "PLOOP82|%s|%s|%s|%s" % (
                 tbq, pathq, "GET",
@@ -2005,6 +2021,39 @@ def _recon_driven_plan(modules_present, generic_sinks=(),
                 "desc": "File claim for the verified generic-sink "
                         "finding",
                 "kind": "claim", "module": "generic_headerxss",
+                "sink": sink.get("id"),
+                "probe_step_idx": len(plan) - 1,
+                "done": False, "result_hash": None,
+                "recon": True})
+            # Rule #91: the header-sink SQLi probe for the SAME header
+            # sinks (PLOOP91 marker — a request header value
+            # (User-Agent / Referer / X-Forwarded-For) fed raw into a
+            # SQL query: lone quote -> SQL error keywords absent from
+            # the benign body, or the boolean-blind differential
+            # holds). Header sinks carry TWO pairs — a header is
+            # neither a query param nor a form field nor a body, so
+            # the param-shaped pairs do not apply; the XSS pair
+            # (PLOOP82) probes the reflection channel, the SQLi pair
+            # (PLOOP91) probes the query channel. The marker's 5th
+            # component is the _HEADER_SINK_HEADERS CSV; the probe
+            # iterates it internally (first CONFIRMED wins), keeping
+            # the budget at 2 turns per pair (4 per sink).
+            hsqli_marker = "PLOOP91|%s|%s|%s|%s" % (
+                tbq, pathq, "GET",
+                ",".join(sink.get("params", ())))
+            plan.append({
+                "desc": "Probe generic header sink %s for SQL "
+                        "injection (%s)" %
+                        (sink.get("id"), "probe_sink_headersqli.py"),
+                "kind": "probe", "module": "generic_headersqli",
+                "sink": sink.get("id"),
+                "probe": "probe_sink_headersqli.py",
+                "marker": hsqli_marker, "done": False,
+                "result_hash": None, "recon": True})
+            plan.append({
+                "desc": "File claim for the verified generic-sink "
+                        "finding",
+                "kind": "claim", "module": "generic_headersqli",
                 "sink": sink.get("id"),
                 "probe_step_idx": len(plan) - 1,
                 "done": False, "result_hash": None,
@@ -2146,8 +2195,10 @@ def budget_info(modules=None, generic_sinks=()):
         # (cookie-XSS); Rule #80 + Rule #84: a json sink carries two
         # (JSON-body XSS + JSON-body SQLi — each probe iterates the
         # field-name CSV internally);
-        # Rule #82: a header sink carries one (header XSS — the probe
-        # iterates the header-name CSV internally);
+        # Rule #82 + Rule #91: a header sink carries TWO probe+claim
+        # pairs (header XSS + header SQLi — each probe iterates the
+        # header-name CSV internally so two pairs (4 turns) cover
+        # User-Agent/Referer/X-Forwarded-For for both classes).
         # Rule #83: a path sink carries one (path/404 XSS — one bogus
         # subpath per known directory prefix);
         # every other sink shape carries two.
@@ -2179,12 +2230,13 @@ def budget_info(modules=None, generic_sinks=()):
             # four classes.
             gen += 8
         elif isinstance(s, dict) and s.get("kind") == "header":
-            # Rule #82: a header sink carries only the header-XSS
-            # probe+claim pair — request headers are neither query
-            # params nor form fields nor bodies; the probe iterates
-            # the header-name CSV internally so one pair (2 turns)
-            # covers User-Agent/Referer/X-Forwarded-For.
-            gen += 2
+            # Rule #82 + Rule #91: a header sink carries TWO
+            # probe+claim pairs (header-XSS + header-SQLi) — request
+            # headers are neither query params nor form fields nor
+            # bodies; each probe iterates the header-name CSV
+            # internally so two pairs (4 turns) cover
+            # User-Agent/Referer/X-Forwarded-For for both classes.
+            gen += 4
         elif isinstance(s, dict) and s.get("kind") == "path":
             # Rule #83: a path sink carries only the path-XSS
             # probe+claim pair — the URL path is neither a query param
@@ -9653,17 +9705,20 @@ def proof_headerxss():
     no SQL, no error keywords, no shell, no template engine, no
     entity parsing, no Host-header trust, no redirects.
 
-    Case A — discovery: 3 header sinks found, plan is 6 steps (one
-    headerxss probe+claim pair per sink — Rule #82: header sinks
-    carry ONLY this pair; the param-shaped xss/sqli pairs would
-    attack the wrong injection point (?User-Agent=) instead of the
-    request headers), the header-name CSV rides in the marker argv,
-    budget prices 6.
+    Case A — discovery: 3 header sinks found, plan is 12 steps (one
+    headerxss + one headersqli probe+claim pair per sink — Rule #82 +
+    Rule #91: header sinks carry both pairs; the param-shaped
+    xss/sqli pairs would attack the wrong injection point
+    (?User-Agent=) instead of the request headers), the header-name
+    CSV rides in both markers' argv, budget prices 12.
     Case B — full cold drive: /echo headerxss CONFIRMED->FILED at
-    turns 1-2 (via=text, header=Referer); /safe headerxss FAILED at
-    turn 3 (3 turns: FAILED + probe DEAD_END + claim DEAD_END);
-    /whoami headerxss CONFIRMED->FILED at turns 6-7 (via=text,
-    header=User-Agent); exactly 2 filed claims (generic_headerxss),
+    turns 1-2 (via=text, header=Referer), headersqli FAILED at
+    turns 3-5 (the fresh21 fixture has no SQL — the XSS fixture is
+    the SQLi hard negative); /safe headerxss FAILED at turns 6-8
+    (3 turns: FAILED + probe DEAD_END + claim DEAD_END), headersqli
+    FAILED at turns 9-11; /whoami headerxss CONFIRMED->FILED at
+    turns 12-13 (via=text, header=User-Agent), headersqli FAILED at
+    turns 14-16; exactly 2 filed claims (generic_headerxss),
     locations /echo + /whoami; process completes, no re-probe.
     Case C — regression: the DVWA mock yields ZERO generic sinks
     (no request-metadata phrases anywhere) so the Rule #35 22-step
@@ -9708,23 +9763,30 @@ def proof_headerxss():
               "fresh21",
               all(s["kind"] == "header" for s in sinks))
         plan, meta = _lab_plan_for_hunt([], sinks, tb)
-        check("plan: 6 steps — one headerxss probe+claim pair per "
-              "header sink (Rule #82: the param-shaped xss/sqli "
-              "pairs do NOT apply to request headers)",
-              len(plan) == 6 and
+        check("plan: 12 steps — one headerxss + one headersqli "
+              "probe+claim pair per header sink (Rule #82 + Rule #91: "
+              "the param-shaped xss/sqli pairs do NOT apply to request "
+              "headers; XSS probes the reflection channel, SQLi the "
+              "query channel)",
+              len(plan) == 12 and
               [s["module"] for s in plan] ==
-              ["generic_headerxss"] * 6 and
+              ["generic_headerxss", "generic_headerxss",
+               "generic_headersqli", "generic_headersqli"] * 3 and
               [s["kind"] for s in plan] ==
-              ["probe", "claim"] * 3 and
+              ["probe", "claim"] * 6 and
               [s["probe"] for s in plan if s["kind"] == "probe"] ==
-              ["probe_sink_headerxss.py"] * 3)
+              ["probe_sink_headerxss.py",
+               "probe_sink_headersqli.py"] * 3)
         check("plan: the header-name CSV rides in the marker argv "
-              "(PLOOP82|<tb>|<path>|GET|User-Agent,Referer,"
+              "(PLOOP82/PLOOP91|<tb>|<path>|GET|User-Agent,Referer,"
               "X-Forwarded-For), marker filename-safe",
-              all(s["marker"].startswith("PLOOP82|") and
-                  s["marker"].endswith(
-                      "|GET|" + ",".join(_HEADER_SINK_HEADERS)) and
-                  s["probe"] == "probe_sink_headerxss.py"
+              all(((s["marker"].startswith("PLOOP82|") and
+                    s["probe"] == "probe_sink_headerxss.py") or
+                   (s["marker"].startswith("PLOOP91|") and
+                    s["probe"] == "probe_sink_headersqli.py"))
+                  for s in plan if s["kind"] == "probe") and
+              all(s["marker"].endswith(
+                  "|GET|" + ",".join(_HEADER_SINK_HEADERS))
                   for s in plan if s["kind"] == "probe") and
               all("/" not in s["marker"]
                   for s in plan if s["kind"] == "probe"))
@@ -9732,10 +9794,10 @@ def proof_headerxss():
               meta["recon_ok"] is True and
               set(meta["generic_sinks"]) == set(ids))
         bi = budget_info([], sinks)
-        check("budget: 3 header sinks priced at 6 turns (Rule #82: "
-              "each costs 2 — the probe iterates the header CSV "
-              "internally)",
-              bi["recommended_turns"] == 6 and bi["generic_turns"] == 6)
+        check("budget: 3 header sinks priced at 12 turns (Rule #82 + "
+              "Rule #91: each costs 4 — two pairs, each probe "
+              "iterates the header CSV internally)",
+              bi["recommended_turns"] == 12 and bi["generic_turns"] == 12)
 
         # --- Case B: full autonomous cold drive vs fresh21 ---
         memdir = tempfile.mkdtemp(prefix="ploop82-b-")
@@ -9751,20 +9813,25 @@ def proof_headerxss():
             verdicts.append(_hist(memdir)["history"][-1]["verdict"])
         sq = [i for i, v in enumerate(verdicts) if v == "CONFIRMED"]
         check("drive: /echo headerxss CONFIRMED at turn 1 and "
-              "/whoami headerxss CONFIRMED at turn 6 — the canaries "
+              "/whoami headerxss CONFIRMED at turn 12 — the canaries "
               "reflected UNESCAPED (Referer on /echo via CSV "
-              "iteration, User-Agent on /whoami)",
-              sq == [0, 5])
+              "iteration, User-Agent on /whoami); each sink now "
+              "carries the Rule #91 sqli pair after the XSS pair",
+              sq == [0, 11])
         check("drive: each CONFIRMED probe is followed by a FILED "
               "claim",
               all(verdicts[i + 1] == "FILED" for i in sq))
-        check("drive: /safe headerxss FAILED at turn 3 — the canary "
-              "token reflects HTML-ENCODED, not unescaped (safe "
-              "encoding, not a vuln)",
+        check("drive: /echo headersqli FAILED at turn 3 — fresh21 "
+              "has no SQL; the XSS fixture is the SQLi hard "
+              "negative (reflection is not an SQL signal)",
               verdicts[2] == "FAILED")
-        check("drive: 7 verdict turns executed, process completed, "
-              "no re-probe (each FAILED pair costs 3 turns)",
-              len(verdicts) == 7 and "process_completed" in events)
+        check("drive: /safe headersqli FAILED at turn 9 and "
+              "/whoami headersqli FAILED at turn 14",
+              verdicts[8] == "FAILED" and verdicts[13] == "FAILED")
+        check("drive: 16 verdict turns executed, process completed, "
+              "no re-probe (each FAILED pair costs 3 turns, each "
+              "CONFIRMED pair costs 2)",
+              len(verdicts) == 16 and "process_completed" in events)
         claims = json.load(open(os.path.join(memdir, "claims.json")))
         check("drive: exactly 2 claims filed, generic_headerxss, "
               "state=filed, locations /echo + /whoami",
@@ -9803,6 +9870,233 @@ def proof_headerxss():
               got == {"/echo": "text", "/whoami": "text"})
     finally:
         _stop_mock(mp, 8363)
+
+    # --- Case C: DVWA regression — zero generic sinks ---
+    mp2 = _start_mock(dvwa, 8341, [])
+    try:
+        recon2 = _lab_recon_map("http://127.0.0.1:8341")
+        sinks2 = _lab_generic_sinks("http://127.0.0.1:8341", None,
+                                    list(recon2["modules"]))
+        check("dvwa: zero generic sinks (no request-metadata phrase "
+              "anywhere)",
+              sinks2 == [])
+        plan2, meta2 = _lab_plan_for_hunt(list(recon2["modules"]),
+                                          sinks2,
+                                          "http://127.0.0.1:8341")
+        check("dvwa: Rule #35 22-step plan byte-identical",
+              len(plan2) == 22 and meta2["generic_sinks"] == [] and
+              all(s["module"] in _HUNT_MODULE_ORDER for s in plan2))
+    finally:
+        _stop_mock(mp2, 8341)
+
+    return {"checks": checks}
+
+
+def proof_headersqli():
+    """Rule #91 lab proof: generic header-sink SQLi probe (PLOOP91).
+
+    mock-fresh29 (probe-lab/mock-fresh29/fresh29_app.py) is the
+    twenty-ninth unseen app: no DVWA module signals, no query-param
+    links, no forms, no application/xml or application/json mentions,
+    no Set-Cookie — recon finds zero known modules and zero
+    query/form/xml/cookie/json sinks. The index links /stats, /redir,
+    /about, /static (a real app's nav); the Rule #82 human-hunter
+    discovery signal is a served page TALKING about request metadata
+    ("in your browser" / "you came from" / "your ip"). Discovery must
+    find THREE header sinks (one per phrase-hit path), GET method,
+    params = the _HEADER_SINK_HEADERS CSV — /static and the index are
+    phrase-free and stay out. Header values are NEVER echoed (the
+    fixture is XSS-negative, byte-exact).
+
+      /stats    VULN error-based: User-Agent fed raw into a query —
+              the lone quote returns a Database error page carrying
+              SQL keywords ("syntax error near", "sqlite3") the
+              benign body never has; blind payloads also
+              differential (true == benign, false differs) ->
+              VERDICT: CONFIRMED via=error_based (header=User-Agent,
+              first CSV header).
+      /redir    VULN blind-only: Referer fed raw into a query — the
+              lone quote returns a keyword-free 400 (forces the
+              boolean-blind path); true == benign body, false ->
+              different body -> VERDICT: CONFIRMED via=boolean_blind
+              (header=Referer, second CSV header — CSV iteration
+              genuinely proven).
+      /about    NEGATIVE parameterized: every User-Agent value
+              returns the identical body; a lone quote is a plain
+              keyword-free 400 -> VERDICT: FAILED (the hard negative
+              control; it is still a sink, the probe fails closed).
+      /static   Ignores request headers -> not a sink (no phrase
+              hit — the discovery-exclusion control).
+      /         Index, phrase-free -> not a sink.
+
+    Cross-negatives: no forms (zero form sinks); nothing persisted;
+    nothing reflected (the XSS pair fails closed on every sink);
+    no shell, no template engine, no redirects.
+
+    Case A — discovery: 3 header sinks found, plan is 12 steps (one
+    headerxss + one headersqli probe+claim pair per sink — Rule #82 +
+    Rule #91; the param-shaped xss/sqli pairs would attack the wrong
+    injection point (?User-Agent=) instead of the request headers),
+    the header-name CSV rides in both markers' argv, budget prices
+    12.
+    Case B — full cold drive: /about xss FAILED at turns 1-3 and
+    sqli FAILED at turns 4-6 (parameterized negative); /redir xss
+    FAILED at turns 7-9, sqli CONFIRMED->FILED at turns 10-11
+    (via=boolean_blind, header=Referer); /stats xss FAILED at turns
+    12-14, sqli CONFIRMED->FILED at turns 15-16
+    (via=error_based, header=User-Agent); exactly 2 filed claims
+    (generic_headersqli), locations /redir + /stats; process
+    completes, no re-probe.
+    Case C — regression: the DVWA mock yields ZERO generic sinks
+    (no request-metadata phrases anywhere) so the Rule #35 22-step
+    plan is byte-identical.
+    """
+    checks = []
+
+    def check(name, cond):
+        assert cond, "FAILED: " + name
+        checks.append(name)
+
+    def _hist(memdir):
+        return load_json(mem_paths(memdir)["process"],
+                         {"process": None})["process"]
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    fresh29 = os.path.join(here, "probe-lab", "mock-fresh29",
+                           "fresh29_app.py")
+    dvwa = os.path.join(here, "probe-lab", "mock-dvwa.py")
+
+    # --- Case A: discovery on the twenty-ninth unseen target ---
+    mp = _start_mock(fresh29, 8372, [])
+    try:
+        tb = "http://127.0.0.1:8372"
+        recon = _lab_recon_map(tb)
+        check("fresh29: recon finds zero known modules",
+              recon is not None and recon["modules"] == {})
+        sinks = _lab_generic_sinks(tb, None, list(recon["modules"]))
+        ids = [s["id"] for s in sinks]
+        check("discovery: finds all three header sinks (/about + "
+              "/redir + /stats, request-metadata phrase signal) in "
+              "sorted order, /static and the index excluded",
+              ids == ["header:/about:GET",
+                      "header:/redir:GET",
+                      "header:/stats:GET"])
+        check("discovery: every sink is kind=header, GET, params=the "
+              "common header-name list",
+              all(s["kind"] == "header" and s["method"] == "GET" and
+                  s["params"] == list(_HEADER_SINK_HEADERS)
+                  for s in sinks))
+        check("discovery: zero query/form/xml/cookie/json sinks on "
+              "fresh29",
+              all(s["kind"] == "header" for s in sinks))
+        plan, meta = _lab_plan_for_hunt([], sinks, tb)
+        check("plan: 12 steps — one headerxss + one headersqli "
+              "probe+claim pair per header sink (Rule #82 + Rule #91)",
+              len(plan) == 12 and
+              [s["module"] for s in plan] ==
+              ["generic_headerxss", "generic_headerxss",
+               "generic_headersqli", "generic_headersqli"] * 3 and
+              [s["kind"] for s in plan] ==
+              ["probe", "claim"] * 6 and
+              [s["probe"] for s in plan if s["kind"] == "probe"] ==
+              ["probe_sink_headerxss.py",
+               "probe_sink_headersqli.py"] * 3)
+        check("plan: the header-name CSV rides in the marker argv "
+              "(PLOOP82/PLOOP91|<tb>|<path>|GET|User-Agent,Referer,"
+              "X-Forwarded-For), marker filename-safe",
+              all(((s["marker"].startswith("PLOOP82|") and
+                    s["probe"] == "probe_sink_headerxss.py") or
+                   (s["marker"].startswith("PLOOP91|") and
+                    s["probe"] == "probe_sink_headersqli.py"))
+                  for s in plan if s["kind"] == "probe") and
+              all(s["marker"].endswith(
+                  "|GET|" + ",".join(_HEADER_SINK_HEADERS))
+                  for s in plan if s["kind"] == "probe") and
+              all("/" not in s["marker"]
+                  for s in plan if s["kind"] == "probe"))
+        check("plan_meta: recon_ok=True, 3 header sink ids recorded",
+              meta["recon_ok"] is True and
+              set(meta["generic_sinks"]) == set(ids))
+        bi = budget_info([], sinks)
+        check("budget: 3 header sinks priced at 12 turns (Rule #82 + "
+              "Rule #91: each costs 4 — two pairs, each probe "
+              "iterates the header CSV internally)",
+              bi["recommended_turns"] == 12 and bi["generic_turns"] == 12)
+
+        # --- Case B: full autonomous cold drive vs fresh29 ---
+        memdir = tempfile.mkdtemp(prefix="ploop91-b-")
+        goal = "probe-hunt: fresh29 header-sink-SQLi drive"
+        ctx = {"registry_url": "http://127.0.0.1:9", "workdir": memdir,
+               "memdir": memdir, "target_base": tb}
+        verdicts, events = [], []
+        for _ in range(40):
+            r = run_turn(memdir, goal, ctx)
+            events.extend(r.get("events", []))
+            if "process_completed" in r.get("events", []):
+                break
+            verdicts.append(_hist(memdir)["history"][-1]["verdict"])
+        sq = [i for i, v in enumerate(verdicts) if v == "CONFIRMED"]
+        check("drive: /about headerxss FAILED at turn 1 and "
+              "headersqli FAILED at turn 4 — the parameterized "
+              "negative (headers never echoed, blind payloads "
+              "cannot differentiate)",
+              verdicts[0] == "FAILED" and verdicts[3] == "FAILED")
+        check("drive: /redir headerxss FAILED at turn 7 (the mock "
+              "never echoes headers — XSS-negative fixture)",
+              verdicts[6] == "FAILED")
+        check("drive: /redir headersqli CONFIRMED at turn 10 and "
+              "/stats headersqli CONFIRMED at turn 15 — blind-only "
+              "then error-based",
+              sq == [9, 14])
+        check("drive: each CONFIRMED probe is followed by a FILED claim",
+              all(verdicts[i + 1] == "FILED" for i in sq))
+        check("drive: /stats headerxss FAILED at turn 12 (never "
+              "echoed)",
+              verdicts[11] == "FAILED")
+        check("drive: 16 verdict turns executed, process completed, "
+              "no re-probe",
+              len(verdicts) == 16 and "process_completed" in events)
+        claims = json.load(open(os.path.join(memdir, "claims.json")))
+        check("drive: exactly 2 claims filed, generic_headersqli, "
+              "state=filed, locations /redir + /stats",
+              len(claims) == 2 and
+              all(v["state"] == "filed" for v in claims.values()) and
+              {v["module"] for v in claims.values()} ==
+              {"generic_headersqli"} and
+              {v.get("location") for v in claims.values()} ==
+              {"/redir", "/stats"})
+        check("drive: claim class is sqli, severity high (the Rule "
+              "#57 class, distinct module)",
+              all(v.get("class") == "sqli" and
+                  v.get("severity") == "high"
+                  for v in claims.values()))
+        store = HashStore(os.path.join(memdir, "output"))
+        got = {}
+        for v in claims.values():
+            check("drive: claim carries a real evidence hash",
+                  bool(HASH_RE.match(v.get("evidence_hash") or "")))
+            raw = _to_text(store.get(v["evidence_hash"]) or b"")
+            m = re.search(r"EVIDENCE sink=(\S+)", raw)
+            n = re.search(r"EVIDENCE class=sql_injection "
+                          r"via=([a-z_]+)", raw)
+            check("drive: stored output cites sink + via=<class>",
+                  m is not None and n is not None)
+            if m and n:
+                got[m.group(1)] = n.group(1)
+            check("drive: stored output names the confirming header",
+                  ("header=User-Agent" in raw and
+                   v.get("location") == "/stats") or
+                  ("header=Referer" in raw and
+                   v.get("location") == "/redir"))
+            check("drive: stored output ends VERDICT: CONFIRMED",
+                  raw.strip().splitlines()[-1] == "VERDICT: CONFIRMED")
+        check("drive: Rule #91 — /stats confirmed via=error_based "
+              "(SQL error keywords), /redir via=boolean_blind "
+              "(stable blind differential)",
+              got == {"/stats": "error_based",
+                      "/redir": "boolean_blind"})
+    finally:
+        _stop_mock(mp, 8372)
 
     # --- Case C: DVWA regression — zero generic sinks ---
     mp2 = _start_mock(dvwa, 8341, [])
@@ -10737,6 +11031,10 @@ def main():
                     help="Rule #82: generic header-sink reflected-XSS "
                          "probe (twenty-first unseen target), "
                          "DVWA regression")
+    ap.add_argument("--proof-headersqli", action="store_true",
+                    help="Rule #91: generic header-sink SQL-injection "
+                         "probe (twenty-ninth unseen target), "
+                         "DVWA regression")
     ap.add_argument("--proof-pathxss", action="store_true",
                     help="Rule #83: generic path/404-sink reflected-XSS "
                          "probe (twenty-second unseen target), "
@@ -11120,6 +11418,19 @@ def main():
         dt = time.time() - t0
         print("=" * 70)
         print("RULE #82 LAB PROOF: %d/%d checks passed in %.1fs"
+              % (len(allc), len(allc), dt))
+        for c in allc:
+            print("  [ok] " + c)
+        print("PROOF: PASS")
+        return
+
+    if args.proof_headersqli:
+        t0 = time.time()
+        gen91 = proof_headersqli()      # Rule #91: header-sink SQLi
+        allc = ["headersqli: " + c for c in gen91["checks"]]
+        dt = time.time() - t0
+        print("=" * 70)
+        print("RULE #91 LAB PROOF: %d/%d checks passed in %.1fs"
               % (len(allc), len(allc), dt))
         for c in allc:
             print("  [ok] " + c)
