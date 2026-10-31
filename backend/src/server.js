@@ -645,6 +645,30 @@ server.listen(config.port, () => {
   setTimeout(() => scanAndResumeRunningHunts('boot'), 8000);
   setInterval(() => scanAndResumeRunningHunts('periodic'), 60000);
 
+  // P2 — EGRESS RECONCILER (60s): for RUNNING hunts WITH egress state,
+  // ensure the per-hunt filtering proxy is alive (backend restarts kill
+  // it) and refresh the ipset tuple set (DNS re-resolution). Hunts
+  // without meta.egress (legacy / pre-P2) are skipped untouched — the
+  // guard is inside ensureHuntEgressAlive.
+  setInterval(() => refreshEgressTick('periodic'), 60000);
+  async function refreshEgressTick(tag) {
+    try {
+      const { listHuntMetas } = await import('./store.js');
+      const { ensureHuntEgressAlive } = await import('./egressControl.js');
+      for (const meta of listHuntMetas()) {
+        if (!meta || meta.state !== 'running' || !meta.huntId) continue;
+        if (!meta.egress || !meta.egress.setName) continue;
+        try {
+          await ensureHuntEgressAlive(meta.huntId);
+        } catch (err) {
+          console.error(`[egress:${tag}] ${meta.huntId}:`, err && err.message ? err.message : err);
+        }
+      }
+    } catch (err) {
+      console.error(`[egress:${tag}] scan failed:`, err && err.message ? err.message : err);
+    }
+  }
+
   // CHROMIUM WATCHDOG — periodic liveness check for RUNNING hunts.
   // The supervisor (startHuntDesktop) revives a dead Chromium, but it
   // only runs when something calls it — the screenshot poller (only

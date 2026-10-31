@@ -155,10 +155,17 @@ export const HUNT_ZONEINFO_PATH = '/usr/share/zoneinfo';
  * exported so the TZ fix is unit-testable without Docker.
  * @param {string} huntId
  * @param {string} target
- * @param {{mode?: string, zoneinfoPath?: string|null}} opts — pass
+ * @param {{mode?: string, zoneinfoPath?: string|null, network?: string, egressProxy?: {gatewayIp: string, proxyPort: number}|null}} opts — pass
  *   zoneinfoPath: null to skip the zoneinfo mount (the caller guards
  *   with fs.existsSync: a mount of a nonexistent host path would
  *   create an empty dir on the host).
+ *   network: docker network (default 'bridge' — legacy hunts unchanged).
+ *   egressProxy: when set (P2 hunts), HTTP(S) is forced through the
+ *   per-hunt filtering proxy and IPv6 is disabled in-container.
+ *   dnsIp: when set (P2 hunts), the container's resolver is pinned via
+ *   --dns (bypasses Docker's embedded DNS so all queries hit the pinned
+ *   resolver; the NAT PREROUTING rule stays as backstop for hardcoded
+ *   `dig @other` queries).
  */
 export function buildHuntContainerRunArgs(huntId, target, opts = {}) {
   const name = containerName(huntId);
@@ -173,6 +180,7 @@ export function buildHuntContainerRunArgs(huntId, target, opts = {}) {
     TTYD_PORT = ttydPortForHunt(huntId);
   }
   const zoneinfo = opts.zoneinfoPath === undefined ? HUNT_ZONEINFO_PATH : opts.zoneinfoPath;
+  const network = opts.network || 'bridge';
   const env = [
     '-e', `DM_HUNT_ID=${huntId}`,
     '-e', `DM_TARGET=${target}`,
@@ -183,18 +191,45 @@ export function buildHuntContainerRunArgs(huntId, target, opts = {}) {
     // backend is the sole brain (LLM lives on the host); the container is
     // only hands (tools). This keeps AWS keys out of the sandbox.
   ];
+  // P2: force HTTP(S) through the per-hunt filtering proxy. Tools that
+  // honor proxy env vars (curl, wget, python, git) are validated by
+  // hostname at the proxy; direct 80/443 is dropped by iptables anyway.
+  if (opts.egressProxy && opts.egressProxy.gatewayIp && opts.egressProxy.proxyPort) {
+    const purl = `http://${opts.egressProxy.gatewayIp}:${opts.egressProxy.proxyPort}`;
+    env.push('-e', `http_proxy=${purl}`, '-e', `https_proxy=${purl}`, '-e', `HTTP_PROXY=${purl}`, '-e', `HTTPS_PROXY=${purl}`);
+  }
   return [
     'run', '-d',
     '--name', name,
     '--memory', HUNT_MEMORY,
     '--cpus', HUNT_CPUS,
-    '--network', 'bridge',
+    '--network', network,
     '--restart', 'no',
+    // P2: IPv6 disabled inside egress-controlled hunt containers (the
+    // iptables design is IPv4; v6 would be an unenforced side channel).
+    ...(opts.egressProxy ? ['--sysctl', 'net.ipv6.conf.all.disable_ipv6=1'] : []),
+    // P2: pin the container resolver (see dnsIp doc above).
+    ...(opts.dnsIp ? ['--dns', opts.dnsIp] : []),
     '-p', `127.0.0.1:${TTYD_PORT}:${TTYD_PORT}`,
     ...(zoneinfo ? ['-v', `${zoneinfo}:/usr/share/zoneinfo:ro`] : []),
     ...env,
     HUNT_IMAGE,
   ];
+}
+
+/**
+ * Read the P1 immutable scope for a hunt (if any). Hunts created before P1
+ * carry no scopeGuard — they keep the legacy path and are never touched
+ * by P2 egress.
+ */
+async function readEgressScope(huntId, impl) {
+  try {
+    const readMeta = impl.readMeta || ((await import('./store.js')).readHuntMeta);
+    const meta = readMeta(huntId) || {};
+    const s = meta.scopeGuard;
+    if (s && s.version === 1) return { scope: s, meta };
+  } catch { /* a failed read proves nothing — legacy path */ }
+  return { scope: null, meta: {} };
 }
 
 export async function spawnHuntContainer(huntId, target, opts = {}) {
@@ -222,6 +257,23 @@ export async function spawnHuntContainer(huntId, target, opts = {}) {
   }
   await freeName();
 
+  // P2 — network isolation + egress control. Gated on the P1 immutable
+  // scope: hunts created before P1 carry no scopeGuard and keep the
+  // legacy bridge path untouched. Fail-closed: if egress setup fails,
+  // the hunt does NOT start unisolated (opts.noEgress escapes for tests).
+  let egress = null;
+  if (!opts.noEgress) {
+    const { scope } = await readEgressScope(huntId, impl);
+    if (scope) {
+      const { setupHuntEgress } = await import('./egressControl.js');
+      egress = await setupHuntEgress(huntId, scope, {
+        docker: run,
+        startProxy: true,
+      });
+      egress.scope = scope;
+    }
+  }
+
   // Rule #78 — port-collision retry. The per-hunt ttyd port is
   // hash-derived over a 100-port range, so it CAN collide with a live
   // hunt's container port (seen live 30 Oct: 17745 = Juice Shop
@@ -241,11 +293,35 @@ export async function spawnHuntContainer(huntId, target, opts = {}) {
   const candidates = ttydPortCandidates(huntId, storedPort);
   let lastError = null;
   for (const port of candidates) {
-    const runArgs = buildHuntContainerRunArgs(huntId, target, { ...opts, zoneinfoPath, ttydPort: port });
+    const runArgs = buildHuntContainerRunArgs(huntId, target, {
+      ...opts,
+      zoneinfoPath,
+      ttydPort: port,
+      network: egress ? egress.netName : undefined,
+      egressProxy: egress ? { gatewayIp: egress.gatewayIp, proxyPort: egress.proxyPort } : null,
+      dnsIp: egress ? egress.resolverIp : undefined,
+    });
     let retriedName = false;
     for (;;) {
       try {
         await run(runArgs);
+        // P2: with the container up, inspect its IP and apply the
+        // iptables/ipset egress plan. Fail-closed: a failure here
+        // destroys the just-started container rather than leaving it
+        // unisolated.
+        if (egress) {
+          try {
+            const { finalizeHuntEgress } = await import('./egressControl.js');
+            await finalizeHuntEgress(huntId, name, egress, { docker: run });
+          } catch (egressErr) {
+            try { await run(['rm', '-f', name]); } catch { /* ignore */ }
+            try {
+              const { stopProxyForHunt } = await import('./egressControl.js');
+              await stopProxyForHunt(huntId);
+            } catch { /* ignore */ }
+            throw new Error(`egress setup failed (fail-closed): ${egressErr.message || egressErr}`);
+          }
+        }
         // Persist the RESOLVED port in the hunt meta (merge, never
         // wholesale — the 21 Oct pause checkpoint-race rule): the
         // terminal WS proxy dials it via resolveTtydPort. A persist
@@ -312,15 +388,31 @@ export async function huntContainerRunning(huntId) {
   }
 }
 
-/** Destroy a hunt container (idempotent). */
+/** Destroy a hunt container (idempotent). Also removes P2 egress state
+ * (iptables/ipset/proxy/network) for hunts that carry it — best-effort,
+ * never breaks the teardown itself. */
 export async function teardownHuntContainer(huntId) {
   const name = containerName(huntId);
   try {
     await docker(['rm', '-f', name]);
-    return true;
   } catch {
     return false;
   }
+  // P2: clean up egress state for hunts that have it. Hunts without
+  // meta.egress (legacy / pre-P2) skip silently.
+  try {
+    const { readHuntMeta } = await import('./store.js');
+    const meta = readHuntMeta(huntId) || {};
+    if (meta.egress && meta.egress.setName) {
+      const { stopProxyForHunt, removeHuntEgress } = await import('./egressControl.js');
+      await stopProxyForHunt(huntId).catch(() => {});
+      await removeHuntEgress(huntId, {
+        containerIps: meta.egress.containerIps,
+        resolverIp: meta.egress.resolverIp,
+      }).catch(() => {});
+    }
+  } catch { /* best-effort only */ }
+  return true;
 }
 
 /**
