@@ -5660,6 +5660,18 @@ export async function humanIteration(huntId, target, opts = {}) {
         const verdict = verifyExpectation({ expect: expectText, observation, pageUrl: currentPageUrl });
         if (verdict.checked) {
           observation = `${observation}\n[EXPECTATION ${verdict.verified ? 'VERIFIED' : 'NOT VERIFIED'}] ${verdict.evidence}`;
+          // MISSION Stage 4 (31 Oct 2026): the Learn step — synthesize what
+          // this turn taught us from the verification verdict, so the
+          // lesson is explicit in the loop's observable state and the next
+          // screen, not just implied. VERIFIED confirms the premise;
+          // NOT VERIFIED retires the approach for this turn.
+          const actionLabel = (() => {
+            try {
+              const d = action.text || action.command || action.url || action.target || '';
+              return `${kind}${d ? ` '${String(d).slice(0, 60)}'` : ''}`;
+            } catch { return kind; }
+          })();
+          observation = `${observation}\n[LEARNED] ${actionLabel}: ${verdict.verified ? 'premise CONFIRMED' : 'approach FAILED'} — ${verdict.evidence}`;
           if (!verdict.verified) {
             const fb = fallbackLine(plan);
             if (fb) observation = `${observation}\n${fb}`;
