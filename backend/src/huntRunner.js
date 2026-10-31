@@ -201,6 +201,12 @@ export function buildHuntContainerRunArgs(huntId, target, opts = {}) {
   return [
     'run', '-d',
     '--name', name,
+    // ZOMBIE FIX (1 Nov 2026): use --init to run tini as PID 1.
+    // Without an init, the container's PID 1 is 'sleep infinity' which
+    // never calls wait(), so exited children (XFCE desktop processes,
+    // chromium, etc.) accumulate as zombies. tini reaps them.
+    // Evidence: 514 zombies on EC2 (31 Oct), parents were sleep infinity.
+    '--init',
     '--memory', HUNT_MEMORY,
     '--cpus', HUNT_CPUS,
     '--network', network,
