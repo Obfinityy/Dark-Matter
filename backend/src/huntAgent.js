@@ -24,6 +24,9 @@ import {
   execInHuntContainerWithRespawn,
   dockerAvailable,
 } from './huntRunner.js';
+// P1 SCOPE ENFORCEMENT (31 Oct 2026, AUD-H1): deterministic destination
+// validation before any Docker execution. See backend/src/scopeGuard.js.
+import { guardCommand, scopeFromMeta } from './scopeGuard.js';
 import { HuntOrchestrator } from './orchestrator.js';
 import { pendingChatQuestions, chatQuestionScreenLines, extractChatAnswers, parseChatAnswerLines } from './chatQueue.js';
 import { isErrorPageFinding } from './huntMemory.js';
@@ -1893,6 +1896,36 @@ export async function executeWithEvasion(huntId, target, command) {
     return r;
   };
 
+  // P1 SCOPE ENFORCEMENT (31 Oct 2026, AUD-H1): deterministic destination
+  // validation BEFORE any Docker execution — the last gate before the
+  // command reaches the container. Placement is deliberate: AFTER the
+  // placeholder substitution + quoting repair (so we validate the real
+  // command) and AFTER the pseudo-command early-returns (SEARCH:/RECALL:/
+  // artifacts are internal, not network traffic). Fail-closed: a blocked
+  // command is NOT executed; the block is logged as an audit event so it
+  // is visible on the frontend stream. guardCommand() also accepts
+  // structured `destinations` for callers that provide them (preferred —
+  // robust); here we validate the command text.
+  {
+    let gscope = null;
+    try {
+      gscope = scopeFromMeta(readHuntMeta(huntId) || {}, target, process.env.LAB_TARGETS || '');
+    } catch { /* fall through to fail-closed below */ }
+    const gate = guardCommand({ command, scope: gscope });
+    if (!gate.allowed) {
+      const reason = gate.reason || 'scope validation failed';
+      try {
+        appendHuntEvent(huntId, {
+          type: 'scope_block',
+          reason,
+          blocked: gate.blocked || null,
+          command: String(command).slice(0, 500),
+        });
+      } catch { /* the audit event must never break the hunt */ }
+      think(huntId, `Scope guard blocked this command before execution: ${reason}. Staying inside the authorized hunt scope.`);
+      return { stdout: '', stderr: `[scope-guard] blocked: ${reason}`, exitCode: 99, scopeBlocked: true };
+    }
+  }
   // Lane E: the human-mode shell path self-heals a missing container
   // (respawn + one retry) instead of handing the brain a dead machine —
   // pipeline mode had this via execWithRespawn, human mode did not.

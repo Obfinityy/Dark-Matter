@@ -376,11 +376,23 @@ router.post('/', requireAuth, async (req, res) => {
     const { parseScope } = await import('../scopeParser.js');
     const parsedScope = parseScope(target, scope);
     console.log(`[hunts] Scope parsed for ${huntId}: UA=${parsedScope.rules.customUserAgent || 'default'}, noHeavyScan=${parsedScope.rules.noHeavyScan}`);
+    // P1 SCOPE ENFORCEMENT (31 Oct 2026, AUD-H1): immutable per-hunt scope
+    // for the app-layer guard (scopeGuard.js) and P2's network-layer egress
+    // control. Best-effort — a build failure must never break hunt creation;
+    // the gate falls back to building from the target at execution time.
+    let scopeGuard = null;
+    try {
+      const { buildScope } = await import('../scopeGuard.js');
+      scopeGuard = buildScope({ target, scope, labTargets: process.env.LAB_TARGETS || '' });
+    } catch (err) {
+      console.warn(`[hunts] scopeGuard build failed for ${huntId}: ${err.message}`);
+    }
     writeHuntMeta(huntId, {
       huntId,
       target,
       scope: scope || null,
       parsedScope,
+      scopeGuard,
       mode: huntMode.id,
       // HUMAN MODE: flag both keys the human path checks
       // (huntAgent.js: meta.humanMode === true || mode/meta.mode ===
