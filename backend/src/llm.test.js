@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
-import { isInferenceActive, isOllamaConnectionError, waitForOllamaReady } from './llm.js';
+import { isInferenceActive, isOllamaConnectionError, waitForOllamaReady, writeInferenceHeartbeat } from './llm.js';
 
 function withHeartbeatFile(contents, fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'llm-hb-'));
@@ -112,4 +112,50 @@ test('waitForOllamaReady waits out a server that comes up late', async () => {
     return waitForOllamaReady({ baseUrl, waitMs: 1000, pollMs: 10 });
   });
   assert.equal(ok, true);
+});
+
+// PHASE 9 (31 Oct 2026): heartbeat never-shorten regression tests.
+// An advisory (short) call must never overwrite a main turn's (long)
+// deadline — the 20:15 IST 31 Oct 2026 watchdog kill root cause.
+
+test('writeInferenceHeartbeat: advisory short deadline does NOT overwrite main-turn long deadline', () => {
+  const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hb-')), 'hb.json');
+  const longDeadline = Date.now() + 3600000; // main turn: 1h
+  const shortDeadline = Date.now() + 60000;  // advisory: 1min
+  assert.equal(writeInferenceHeartbeat(f, longDeadline, 'h1'), true);
+  assert.equal(writeInferenceHeartbeat(f, shortDeadline, 'h1'), false);
+  const hb = JSON.parse(fs.readFileSync(f, 'utf8'));
+  assert.equal(hb.deadline, longDeadline);
+  fs.rmSync(path.dirname(f), { recursive: true });
+});
+
+test('writeInferenceHeartbeat: longer deadline DOES overwrite shorter one', () => {
+  const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hb-')), 'hb.json');
+  const shortDeadline = Date.now() + 60000;
+  const longDeadline = Date.now() + 3600000;
+  assert.equal(writeInferenceHeartbeat(f, shortDeadline, 'h1'), true);
+  assert.equal(writeInferenceHeartbeat(f, longDeadline, 'h1'), true);
+  const hb = JSON.parse(fs.readFileSync(f, 'utf8'));
+  assert.equal(hb.deadline, longDeadline);
+  fs.rmSync(path.dirname(f), { recursive: true });
+});
+
+test('writeInferenceHeartbeat: writes fresh when no existing file', () => {
+  const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hb-')), 'hb.json');
+  const d = Date.now() + 120000;
+  assert.equal(writeInferenceHeartbeat(f, d, 'h2'), true);
+  const hb = JSON.parse(fs.readFileSync(f, 'utf8'));
+  assert.equal(hb.deadline, d);
+  assert.equal(hb.huntId, 'h2');
+  fs.rmSync(path.dirname(f), { recursive: true });
+});
+
+test('writeInferenceHeartbeat: corrupt existing file is overwritten', () => {
+  const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hb-')), 'hb.json');
+  fs.writeFileSync(f, 'not json{');
+  const d = Date.now() + 120000;
+  assert.equal(writeInferenceHeartbeat(f, d, 'h3'), true);
+  const hb = JSON.parse(fs.readFileSync(f, 'utf8'));
+  assert.equal(hb.deadline, d);
+  fs.rmSync(path.dirname(f), { recursive: true });
 });
