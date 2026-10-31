@@ -163,12 +163,9 @@ export function listBrainModels() {
  * @returns {object|null} Fallback model or null if none available
  */
 export function getFallbackModel(currentId, reason) {
-  if (currentId === 'darkmatter-v1' && ['oom', 'timeout', 'no_reply'].includes(reason)) {
-    const fallback = findBrainModel('darkmatter-1.5b');
-    if (fallback) {
-      return { ...fallback, fallbackReason: reason, fallbackFrom: currentId };
-    }
-  }
+  // OWNER ORDER 1 Nov 2026: Local models (8B/1.5B) removed.
+  // No automatic fallback available. Parent-as-brain is the testing path.
+  // Meta API reserved for final testing (owner activates personally).
   return null;
 }
 

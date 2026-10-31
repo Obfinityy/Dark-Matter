@@ -2,47 +2,36 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getFallbackModel, findBrainModel, DEFAULT_BRAIN_MODEL } from './brainProvider.js';
 
-test('default brain model is darkmatter-v1 (8B)', () => {
-  assert.equal(DEFAULT_BRAIN_MODEL, 'darkmatter-v1');
+// OWNER ORDER 1 Nov 2026: Local models (8B/1.5B) removed from BRAIN_MODELS.
+// Testing uses parent-as-brain. Meta API reserved for final testing.
+// These tests verify the fallback is correctly disabled.
+
+test('DEFAULT_BRAIN_MODEL is defined', () => {
+  assert.ok(DEFAULT_BRAIN_MODEL);
+  assert.equal(typeof DEFAULT_BRAIN_MODEL, 'string');
+});
+
+test('darkmatter-v1 (8B) is removed', () => {
   const m = findBrainModel('darkmatter-v1');
-  assert.ok(m);
-  assert.equal(m.model, 'dm-hunter');
+  assert.equal(m, null, '8B model should not be in BRAIN_MODELS');
 });
 
-test('1.5B fallback model exists with capabilities', () => {
+test('darkmatter-1.5b is removed', () => {
   const m = findBrainModel('darkmatter-1.5b');
-  assert.ok(m, 'darkmatter-1.5b should exist');
-  assert.equal(m.model, 'deepseek-r1:1.5b');
-  assert.ok(m.capabilities);
-  assert.equal(m.capabilities.reliability, 'high');
+  assert.equal(m, null, '1.5B model should not be in BRAIN_MODELS');
 });
 
-test('getFallbackModel returns 1.5B on OOM', () => {
-  const fb = getFallbackModel('darkmatter-v1', 'oom');
-  assert.ok(fb);
-  assert.equal(fb.id, 'darkmatter-1.5b');
-  assert.equal(fb.fallbackReason, 'oom');
-  assert.equal(fb.fallbackFrom, 'darkmatter-v1');
-});
-
-test('getFallbackModel returns 1.5B on timeout', () => {
-  const fb = getFallbackModel('darkmatter-v1', 'timeout');
-  assert.ok(fb);
-  assert.equal(fb.id, 'darkmatter-1.5b');
-});
-
-test('getFallbackModel returns 1.5B on no_reply', () => {
-  const fb = getFallbackModel('darkmatter-v1', 'no_reply');
-  assert.ok(fb);
-  assert.equal(fb.id, 'darkmatter-1.5b');
+test('getFallbackModel returns null (no local fallback)', () => {
+  assert.equal(getFallbackModel('darkmatter-v1', 'oom'), null);
+  assert.equal(getFallbackModel('darkmatter-v1', 'timeout'), null);
+  assert.equal(getFallbackModel('darkmatter-v1', 'no_reply'), null);
+  assert.equal(getFallbackModel('muse-spark-1.3', 'oom'), null);
 });
 
 test('getFallbackModel returns null for unknown reason', () => {
-  const fb = getFallbackModel('darkmatter-v1', 'unknown');
-  assert.equal(fb, null);
+  assert.equal(getFallbackModel('darkmatter-v1', 'unknown'), null);
 });
 
-test('getFallbackModel returns null if already on fallback', () => {
-  const fb = getFallbackModel('darkmatter-1.5b', 'oom');
-  assert.equal(fb, null, 'No fallback from fallback to prevent loops');
+test('getFallbackModel returns null for unknown model', () => {
+  assert.equal(getFallbackModel('nonexistent', 'oom'), null);
 });
