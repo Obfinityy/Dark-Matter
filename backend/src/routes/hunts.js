@@ -572,6 +572,36 @@ router.get('/:id', requireAuth, async (req, res) => {
   }
 });
 
+// DELETE /api/v1/hunts/:id — Remove hunt container (31 Oct 2026, Phase 3)
+// Removes the Docker container for a hunt. PRESERVES the hunt data directory
+// (/opt/Dark-Matter/backend/data/hunts/<id>/) — never delete hunt data.
+// Used for resource cleanup of paused/completed hunts.
+router.delete('/:id', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const huntId = req.params.id;
+  try {
+    const removed = await teardownHuntContainer(huntId);
+    // Note: hunt data directory is intentionally preserved.
+    // The owner order (31 Oct 14:31 IST) says: NEVER delete hunt data dirs.
+    res.json({
+      ok: true,
+      huntId,
+      containerRemoved: removed,
+      dataPreserved: true,
+      message: removed
+        ? 'Container removed; hunt data preserved.'
+        : 'Container was not running; hunt data preserved.',
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: 'Failed to remove container',
+      detail: err.message,
+    });
+  }
+});
+
 for (const [route, fn, verb] of [
   ['pause', pauseEngineHunt, 'paused'],
   ['resume', resumeEngineHunt, 'resumed'],
