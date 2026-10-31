@@ -57,20 +57,19 @@ export const DEFAULT_BRAIN_MODEL = 'darkmatter-v1';
 
 /**
  * Every brain the switcher can offer. `provider` is the call path
- * ('ollama' = the local 8B through chatWithAI, 'meta' = the Meta
- * Model API). The Meta text models are the ones verified live on
- * 26 Oct 2026 (muse-image-1.0, sam-3.1 and muse-voice-transcribe
- * are not text chat models and are not listed).
+ * ('meta' = the Meta Model API, 'openrouter' = OpenRouter API).
+ *
+ * OWNER ORDER 1 Nov 2026: Local Ollama models (8B/1.5B) REMOVED from
+ * selectable list. Testing uses parent-as-brain (file handoff lane).
+ * Meta API reserved for final testing (owner activates personally).
  */
 export const BRAIN_MODELS = [
-  { id: 'darkmatter-v1', label: 'Dark Matter V1', provider: 'ollama', model: 'dm-hunter', blurb: 'Local dm-hunter 8B (uncensored) — the default hunt brain', capabilities: { contextWindow: 8192, vision: false, reliability: 'low-8gb-oom-risk' } },
-  { id: 'darkmatter-1.5b', label: 'Dark Matter 1.5B (Fallback)', provider: 'ollama', model: 'deepseek-r1:1.5b', blurb: 'Local 1.5B fallback — loads reliably on 8GB, weaker reasoning', capabilities: { contextWindow: 4096, vision: false, reliability: 'high' } },
-  { id: 'muse-spark-1.3', label: 'Muse Spark 1.3', provider: 'meta', model: 'muse-spark-1.3', blurb: 'Meta fast brain — API, seconds per turn' },
-  { id: 'muse-spark-1.2', label: 'Muse Spark 1.2', provider: 'meta', model: 'muse-spark-1.2', blurb: 'Meta fast brain — API, seconds per turn' },
-  { id: 'muse-spark-1.1', label: 'Muse Spark 1.1', provider: 'meta', model: 'muse-spark-1.1', blurb: 'Meta fast brain — API, seconds per turn' },
-  { id: 'muse-spark-1.3-contributor', label: 'Muse Spark 1.3 Contributor', provider: 'meta', model: 'muse-spark-1.3-contributor', blurb: 'Meta fast brain — API, contributor build' },
-  { id: 'muse-spark-1.2-contributor', label: 'Muse Spark 1.2 Contributor', provider: 'meta', model: 'muse-spark-1.2-contributor', blurb: 'Meta fast brain — API, contributor build' },
-  { id: 'muse-wonder-1.0', label: 'Muse Wonder 1.0', provider: 'meta', model: 'muse-wonder-1.0', blurb: 'Meta reasoning brain — API' },
+  { id: 'muse-spark-1.3', label: 'Muse Spark 1.3', provider: 'meta', model: 'muse-spark-1.3', blurb: 'Meta fast brain — API, seconds per turn (final testing only)' },
+  { id: 'muse-spark-1.2', label: 'Muse Spark 1.2', provider: 'meta', model: 'muse-spark-1.2', blurb: 'Meta fast brain — API, seconds per turn (final testing only)' },
+  { id: 'muse-spark-1.1', label: 'Muse Spark 1.1', provider: 'meta', model: 'muse-spark-1.1', blurb: 'Meta fast brain — API, seconds per turn (final testing only)' },
+  { id: 'muse-spark-1.3-contributor', label: 'Muse Spark 1.3 Contributor', provider: 'meta', model: 'muse-spark-1.3-contributor', blurb: 'Meta fast brain — API, contributor build (final testing only)' },
+  { id: 'muse-spark-1.2-contributor', label: 'Muse Spark 1.2 Contributor', provider: 'meta', model: 'muse-spark-1.2-contributor', blurb: 'Meta fast brain — API, contributor build (final testing only)' },
+  { id: 'muse-wonder-1.0', label: 'Muse Wonder 1.0', provider: 'meta', model: 'muse-wonder-1.0', blurb: 'Meta reasoning brain — API (final testing only)' },
   // API PROVIDERS (1 Nov 2026): OpenAI-compatible API brains.
   // Credentials via env vars only — never hardcoded.
   // Cost controls: see API_BUDGET_DEFAULTS below.

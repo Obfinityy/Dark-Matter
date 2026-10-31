@@ -304,7 +304,7 @@ test('MS-11: manual switch mid-hunt flips state, records the event, and the SAME
     assert.equal(metaCalls[0].system, eightCalls[0].system);
     // The switcher list marks Meta models available while the key is set.
     assert.equal(listBrainModels().find((m) => m.id === 'muse-spark-1.3').available, true);
-    assert.equal(BRAIN_MODELS.length, 9);
+    assert.equal(BRAIN_MODELS.length, 7);
   });
 });
 
