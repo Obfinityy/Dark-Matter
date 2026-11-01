@@ -670,7 +670,7 @@ Resource constraints (2 vCPU, 8GB RAM) and focus. One elite hunter does one targ
 ### As of 1 Nov 2026, 21:00 IST
 
 **Built (infrastructure):**
-- ✅ Full OS control (17 actions)
+- ✅ Full OS control (23 contracted actions — see §5.3)
 - ✅ Per-hunt memory system
 - ✅ Auto-filer with strict evidence gate
 - ✅ OCR pipeline (screenMap.js)
