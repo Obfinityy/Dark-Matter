@@ -1010,7 +1010,9 @@ router.post('/:id/brain', requireAuth, (req, res) => {
       error: result.error,
       message: result.error === 'meta_unavailable'
         ? 'That Meta model is not available right now — the Meta API key is not configured on the backend (or the card verification is still pending). The hunt stays on Dark Matter V1.'
-        : 'Unknown brain model.',
+        : result.error === 'openrouter_unavailable'
+          ? 'That OpenRouter model is not available right now — the OpenRouter API key is not configured on the backend. The hunt stays on Dark Matter V1.'
+          : 'Unknown brain model.',
     });
   }
   return res.json({ ok: true, brain: result.brain });
@@ -1548,3 +1550,4 @@ function engineErrorResponse(res, err) {
 }
 
 export default router;
+
