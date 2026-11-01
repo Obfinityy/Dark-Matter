@@ -37,12 +37,25 @@ function entryFor(all, userId) {
   return all[userId];
 }
 
-/** Balance in dollars (float, 2dp). */
+/** Balance in dollars (float, 2dp). For DISPLAY only — never compare
+ *  it against integer cents: `balanceUsd * 100` miscompares for 573
+ *  of 10000 cent values (e.g. 29/100*100 = 28.999999999999996, #336).
+ *  Use getBalanceCents for every affordability check. */
 export function getBalanceUsd(userId) {
   if (!userId) return 0;
   const all = readAll();
   const e = all[userId];
   return e ? e.balanceCents / 100 : 0;
+}
+
+/** Balance in integer cents — the ONLY value affordability checks
+ *  may compare against integer-cent prices (#336). The ledger
+ *  already stores integer cents; this avoids the dollars round-trip. */
+export function getBalanceCents(userId) {
+  if (!userId) return 0;
+  const all = readAll();
+  const e = all[userId];
+  return e ? e.balanceCents : 0;
 }
 
 /** Add credits. Returns new balance (USD). */
