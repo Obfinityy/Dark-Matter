@@ -132,6 +132,30 @@ export function verifyControlTicket(token) {
   return payload;
 }
 
+// ---- Live-stream tickets (FIX #450) ------------------------------------
+// Same 60s typed-ticket pattern as terminal/control: the frontend used
+// to put the long-lived login JWT in the stream WS query string
+// (?access_token=...), where it lands in proxy logs, browser history,
+// and error reports. The stream now authenticates with a short-lived
+// ticket bound to (user, hunt), minted via GET /hunts/:id/stream/ticket.
+export function issueStreamTicket(userId, username, huntId) {
+  const now = Math.floor(Date.now() / 1000);
+  return signToken({
+    sub: userId,
+    username,
+    type: 'stream',
+    huntId,
+    iat: now,
+    exp: now + 60,
+  });
+}
+
+export function verifyStreamTicket(token) {
+  const payload = verifyToken(token);
+  if (!payload || payload.type !== 'stream' || !payload.huntId) return null;
+  return payload;
+}
+
 // ---- Password hashing (scrypt) ----------------------------------------------
 
 export function hashPassword(password) {
