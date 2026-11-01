@@ -238,6 +238,13 @@ export function requireAdmin(req, res, next) {
   });
 }
 
+/** Authorization for the private hunt-event WebSocket (HTTP upgrade bypasses Express). */
+export function canAccessHuntStream(payload, meta) {
+  if (!payload || !meta || !payload.sub) return false;
+  if (meta.userId) return String(meta.userId) === String(payload.sub);
+  return payload.role === 'admin';
+}
+
 // ---- Routes -------------------------------------------------------------------
 
 // Public signup — creates a PENDING account. The user CANNOT log in or use
