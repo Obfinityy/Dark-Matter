@@ -245,11 +245,41 @@ export function canAccessHuntStream(payload, meta) {
   return payload.role === 'admin';
 }
 
+// Bound expensive password hashing against unauthenticated request floods.
+// req.ip is Express's socket-derived address (trust proxy is not enabled here).
+export function createIpRateLimiter({ limit, windowMs, now = Date.now, maxKeys = 10000 }) {
+  const buckets = new Map();
+  return function rateLimit(req, res, next) {
+    const key = String(req.ip || req.socket?.remoteAddress || 'unknown').slice(0, 128);
+    const time = now();
+    let bucket = buckets.get(key);
+    if (!bucket || time - bucket.startedAt >= windowMs) {
+      bucket = { startedAt: time, count: 0 };
+      buckets.set(key, bucket);
+    }
+    bucket.count += 1;
+    if (buckets.size > maxKeys) {
+      for (const [ip, entry] of buckets) {
+        if (time - entry.startedAt >= windowMs) buckets.delete(ip);
+      }
+      while (buckets.size > maxKeys) buckets.delete(buckets.keys().next().value);
+    }
+    if (bucket.count > limit) {
+      res.setHeader('Retry-After', String(Math.max(1, Math.ceil((bucket.startedAt + windowMs - time) / 1000))));
+      return res.status(429).json({ ok: false, error: 'rate_limited', message: 'Too many attempts. Please try again later.' });
+    }
+    next();
+  };
+}
+
+const limitLoginAttempts = createIpRateLimiter({ limit: 10, windowMs: 15 * 60 * 1000 });
+const limitSignupAttempts = createIpRateLimiter({ limit: 5, windowMs: 15 * 60 * 1000 });
+
 // ---- Routes -------------------------------------------------------------------
 
 // Public signup — creates a PENDING account. The user CANNOT log in or use
 // the service until an admin approves them.
-router.post('/signup', (req, res) => {
+router.post('/signup', limitSignupAttempts, (req, res) => {
   const { username, password } = req.body || {};
   const cleanUsername = String(username || '').trim().toLowerCase();
   if (!cleanUsername || cleanUsername.length < 3) {
@@ -283,7 +313,7 @@ router.post('/signup', (req, res) => {
 });
 
 // Login only. There is NO public signup — accounts are created by the admin.
-router.post('/login', (req, res) => {
+router.post('/login', limitLoginAttempts, (req, res) => {
   const { username, password } = req.body || {};
   const cleanUsername = String(username || '').trim().toLowerCase();
   if (!cleanUsername || typeof password !== 'string') {
