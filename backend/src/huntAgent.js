@@ -179,7 +179,7 @@ import { appendHuntEvent, writeHuntMeta, writeHuntMetaCheckpoint, readHuntMeta, 
 import { episodeLedgerEnabled, retrieveEpisodes, formatRetrievalForPrompt, recordRuledOut, getRuledOutCounts, formatLessonsForPrompt, RETRY_BUDGET, recordFact } from './episodeStore.js';
 import { extractPremise, premiseKey, UNKNOWN_PREMISE_KEY } from './premiseDedup.js';
 import { proposePlaybook, formatPlaybookForPrompt } from './playbook.js';
-import { ensurePlanTree, renderPlanTree, recordPlanOutcome } from './planTree.js';
+import { recordPlanOutcome } from './planTree.js';
 import { summarizeToolOutput } from './toolOutput.js';
 import { handleArtifactCommand, spillOutput } from './artifacts.js';
 import { notifyFinding } from './notifications.js';
@@ -983,7 +983,9 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
   // failed. Placing it last meant it was the FIRST section truncated when
   // the prompt exceeded budget, silently disabling the learning mechanism
   // in exactly the fully-loaded hunts where it matters most.
-  try { ensurePlanTree(huntId, { target }); } catch { /* plan tree is best-effort */ }
+  // OWNER ORDER 1 Nov 2026: NO pre-written plan. The brain decides FRESH every
+  // turn from memory + live observation — never from a seeded checklist.
+  // (planTree.js kept for recordPlanOutcome only; seeding/render removed.)
   const prompt = [
     'You are an ELITE bug-bounty hunter. You think like a HUMAN, not a scanner.',
     '',
@@ -1021,9 +1023,8 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
     // PLAYBOOK + SKILLS (Job 6 stage 5): rules earned by verified
     // successes, plus at most 5 fingerprint-matched skill guides.
     formatPlaybookForPrompt({ appType: appFingerprint.appType, techStack: appFingerprint.techStack, query: target }),
-    // PLAN TREE (Job 6 stage 6): code-owned goal→phase→leaf checklist
-    // with counter-based re-plan triggers (seeded just above the prompt).
-    renderPlanTree(huntId),
+    // PLAN TREE removed 1 Nov 2026 (owner order): no pre-written checklist in
+    // the prompt — the brain decides fresh every turn from memory + observation.
     fullHistorySection,
     globalMemorySection,
     recalledSection,

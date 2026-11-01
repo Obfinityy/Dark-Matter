@@ -618,10 +618,14 @@ async function chatWithOpenRouter(messages, system, ctx) {
 }
 
 export async function chatWithAI(messages, system, ctx, opts = {}) {
-  if (PROVIDER === 'ollama') return chatWithOllama(messages, system, ctx, opts);
-  if (PROVIDER === 'sagemaker') return chatWithSageMaker(messages, system, ctx);
-  if (PROVIDER === 'openrouter') return chatWithOpenRouter(messages, system, ctx);
-  if (PROVIDER === 'kaggle') return chatWithKaggle(messages, system, ctx);
+  // Per-hunt provider override (1 Nov 2026): allows a hunt to use a specific
+  // API provider without changing the global LLM_PROVIDER env var.
+  // Used by brainProvider.callBrain for OpenRouter-selected hunts.
+  const provider = (opts.providerOverride || PROVIDER).toLowerCase();
+  if (provider === 'ollama') return chatWithOllama(messages, system, ctx, opts);
+  if (provider === 'sagemaker') return chatWithSageMaker(messages, system, ctx);
+  if (provider === 'openrouter') return chatWithOpenRouter(messages, system, ctx);
+  if (provider === 'kaggle') return chatWithKaggle(messages, system, ctx);
   return chatWithBedrock(messages, system, ctx);
 }
 
