@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 const MODES = [
   { id: 'normal', name: 'Normal', tagline: 'Quick recon + top checks', tier: 'free' },
@@ -16,29 +17,46 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching }) {
   // until stopped. All six modes stay selectable in the picker.
   const [mode, setMode] = useState('infinity');
   const [confirmed, setConfirmed] = useState(false);
+  const [error, setError] = useState('');
+  // FIX (#452): Escape closes, Tab stays inside, focus returns to
+  // the opener on close. Called before the `if (!open)` return so
+  // hook order stays stable; inactive while closed.
+  const dialogRef = useFocusTrap(open, onClose);
 
   if (!open) return null;
 
   function submit() {
     const t = target.trim();
-    if (!t || !confirmed) return;
+    // FIX (#308): the old code silently returned here, so pressing
+    // Enter (or any submit attempt) with an empty target or an
+    // unchecked authorization box did nothing at all — no error, no
+    // feedback. Say what is missing instead.
+    if (!t) { setError('Enter a target to hunt.'); return; }
+    if (!confirmed) { setError('Confirm you are authorized to test this target.'); return; }
+    setError('');
     onSubmit(t, scope.trim(), mode, confirmed);
   }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Start a new hunt">
+      <div ref={dialogRef} className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Start a new hunt">
         <h3>Start a bug-bounty hunt</h3>
         <p className="modal-sub">
           The hunt runs in the background. You can keep chatting while it works.
         </p>
+        {/* FIX (#308): a real <form> so Enter in the target field
+            submits (the old markup had no form and no key handler,
+            so Enter did nothing). The Start button stays enabled
+            except while launching so invalid submits reach the
+            validation above and show the inline error. */}
+        <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
         <label className="field-label">
           Target
           <input
             className="text-input"
             placeholder="https://target.example or bug-bounty program URL"
             value={target}
-            onChange={(e) => setTarget(e.target.value)}
+            onChange={(e) => { setTarget(e.target.value); setError(''); }}
             autoFocus
           />
         </label>
@@ -74,18 +92,30 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching }) {
           <input
             type="checkbox"
             checked={confirmed}
-            onChange={(e) => setConfirmed(e.target.checked)}
+            onChange={(e) => { setConfirmed(e.target.checked); setError(''); }}
           />
           <span>I am authorized to test this target (I own it or it is an in-scope bug-bounty asset).</span>
         </label>
+        {error && <div className="alert alert-error">{error}</div>}
         <div className="modal-actions">
-          <button className="btn btn-ghost" onClick={onClose} disabled={launching}>
+          {/* FIX (#447): Cancel stays enabled while launching. The
+              launch is not tied to the modal — ChatPage's submit
+              handler keeps awaiting startHunt and still toasts /
+              navigates on completion — so closing mid-launch is
+              safe, and the old disabled Cancel (plus the timeout-
+              less startHunt) left the user trapped on "Starting…"
+              forever when the backend hung. The backdrop already
+              closed the modal while launching, so the disabled
+              Cancel never actually prevented escape — it only
+              removed the honest way out. */}
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={submit} disabled={!target.trim() || !confirmed || launching}>
+          <button type="submit" className="btn btn-primary" disabled={launching}>
             {launching ? 'Starting…' : 'Start hunt'}
           </button>
         </div>
+        </form>
         <p className="modal-note">Only hunt targets you are authorized to test.</p>
       </div>
     </div>
