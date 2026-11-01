@@ -16,7 +16,7 @@ import {
 import { recordEngineEvent, getCachedEvents } from './routes/hunts.js';
 import huntsRouter from './routes/hunts.js';
 import authRouter from './routes/auth.js';
-import { ensureAdmin, verifyToken, canAccessHuntStream, verifyTerminalTicket, verifyControlTicket } from './routes/auth.js';
+import { ensureAdmin, canAccessHuntStream, verifyTerminalTicket, verifyControlTicket, verifyStreamTicket } from './routes/auth.js';
 import {
   getControl,
   releaseControl,
@@ -143,13 +143,21 @@ server.on('upgrade', (req, socket, head) => {
     // The stream bypasses Express middleware during the HTTP upgrade.
     // Authenticate here and enforce the same per-hunt ownership boundary
     // as REST routes before replaying private events.
+    // FIX (#450): the stream authenticates with a short-lived ticket
+    // (?ticket=...), minted via GET /hunts/:id/stream/ticket — NOT the
+    // long-lived login JWT (?access_token=...), which the old frontend
+    // sent and which lands in proxy logs and browser history. The
+    // access_token parameter is no longer accepted at all: the
+    // frontend is the stream's only consumer. Ticket payloads carry
+    // sub/username/huntId, so the same ownership check applies, plus
+    // the ticket's huntId must match the URL's huntId.
     const url = new URL(req.url, 'http://localhost');
-    const token = url.searchParams.get('access_token');
-    const payload = verifyToken(token);
+    const ticket = url.searchParams.get('ticket');
+    const payload = verifyStreamTicket(ticket);
     let huntId;
     try { huntId = decodeURIComponent(streamMatch[1]); } catch { huntId = ''; }
     const meta = huntId ? readHuntMeta(huntId) : null;
-    const authorized = canAccessHuntStream(payload, meta);
+    const authorized = payload && payload.huntId === huntId && canAccessHuntStream(payload, meta);
     if (!authorized) {
       socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
       socket.destroy();
