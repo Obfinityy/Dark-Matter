@@ -4449,7 +4449,13 @@ export async function humanIteration(huntId, target, opts = {}) {
     // STUCK-DETECTOR v3: if the brain itself says it's stuck looping,
     // inject FILE NOW immediately (don't wait for 5 recalls)
     const thinkingLower = String(thinkingText || '').toLowerCase();
-    if (thinkingLower.includes('stuck looping') || thinkingLower.includes('stuck in a loop')) {
+    const isStuckTalk = thinkingLower.includes('stuck looping') ||
+      thinkingLower.includes('stuck in a loop') ||
+      thinkingLower.includes('stuck in that') ||
+      (thinkingLower.includes('stuck') && thinkingLower.includes('login loop')) ||
+      thinkingLower.includes('breaking out') ||
+      thinkingLower.includes('break this login loop');
+    if (isStuckTalk) {
       observation = 'YOU SAID YOU ARE STUCK LOOPING. STOP. You have SQLi evidence (password hashes dumped). FILE THE CLAIM NOW: {"action":"claim_finding","title":"SQL Injection in DVWA User ID","class":"sqli","evidence":"First name: admin, Surname: 5f4dcc3b5aa765d61d8327deb882c (MD5 of password)","command":"curl -s http://172.17.0.1:3100/vulnerabilities/sqli/?id=1%27+UNION+SELECT+user%2Cpassword+FROM+users%23&Submit=Submit","counterevidence":"Normal id=1 returns only first name Gordon, no hashes","confidence":"high"}. FILE NOW, DO NOT RECALL.';
       try { deps.record(huntId, { type: 'stuck_detector_v3_triggered', via: 'human-mode' }); } catch {}
     }
