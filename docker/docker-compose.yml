@@ -65,15 +65,21 @@ services:
       TENANT_ID: ${TENANT_ID:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-*}
       # --- LLM: custom OpenAI-compatible provider (Ollama default; no external key needed) ---
-      LLM_SERVER_URL: ${LLM_BASE_URL:-http://localhost:11434/v1}
+      # FIX (#351): the old default was http://localhost:11434/v1, but
+      # localhost INSIDE the engine container is the container itself,
+      # not the host — host Ollama was unreachable by default. The
+      # default now matches this file's own plumbing (extra_hosts maps
+      # host.docker.internal to the host gateway) and its NOTE below.
+      LLM_SERVER_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
       LLM_SERVER_KEY: ${LLM_API_KEY:-ollama}
       LLM_SERVER_MODEL: ${LLM_MODEL:-qwen3:32b}
       # NOTE: LLM_BASE_URL points at the LLM server as seen FROM INSIDE the
-      # engine container. For Ollama on the same host use
-      # http://host.docker.internal:11434/v1 (Linux: add
-      # "add_hosts: host.docker.internal:host-gateway") or run Ollama in this
-      # compose network. The default assumes an Ollama reachable at
-      # host.docker.internal — see README.
+      # engine container. The default is host Ollama via
+      # http://host.docker.internal:11434/v1 (extra_hosts above maps it
+      # to the host gateway on Linux). Override LLM_BASE_URL to point
+      # elsewhere — e.g. an Ollama container on this compose network,
+      # or a remote endpoint — instead of relying on localhost, which
+      # inside a container never means the host.
       DOCKER_DEFAULT_IMAGE: ${DOCKER_DEFAULT_IMAGE:-debian:latest}
       DEBUG: ${DEBUG:-false}
     networks:
