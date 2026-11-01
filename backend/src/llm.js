@@ -143,7 +143,7 @@ async function chatWithBedrock(messages, system, ctx) {
         outputTokens: usage.outputTokens || 0,
       });
     }
-  } catch { /* cost tracking must never break chat */ }
+  } catch (e) { try { console.warn('[cost] recordCost failed:', (e && e.message) || e); } catch {} /* cost tracking must never break chat */ }
   const blocks = (out.output && out.output.message && out.output.message.content) || [];
   return blocks.map((b) => b.text || '').join('').trim() || null;
 }
@@ -522,7 +522,7 @@ async function chatWithOllamaInner(messages, system, ctx, opts = {}) {
       amountUsd: 0,
       note: 'self-hosted',
     });
-  } catch { /* cost tracking must never break chat */ }
+  } catch (e) { try { console.warn('[cost] recordCost failed:', (e && e.message) || e); } catch {} /* cost tracking must never break chat */ }
   return text || null;
 }
 
@@ -780,7 +780,7 @@ async function chatWithSageMaker(messages, system, ctx) {
         amountUsd: 0.01, // Estimated per-request cost
         note: 'sagemaker-async',
       });
-    } catch { /* cost tracking must never break chat */ }
+    } catch (e) { try { console.warn('[cost] recordCost failed:', (e && e.message) || e); } catch {} /* cost tracking must never break chat */ }
 
     return text;
   } catch (err) {
