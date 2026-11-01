@@ -3932,10 +3932,19 @@ export async function humanIteration(huntId, target, opts = {}) {
   let sessionCurrentTask = null;
   let sessionLastCompletedTask = null;
   let sessionTaskSeen = false;
-  // STUCK-DETECTOR (1 Nov 2026): counts consecutive recall actions without
-  // a claim_finding. If the brain recalls 5+ times in a row without filing,
-  // it's stuck in a proof-bottling loop -- inject a FILE NOW directive.
-  let consecutiveRecallCount = 0;
+  // STUCK-DETECTOR (1 Nov 2026, v2): counts consecutive recall actions
+  // across sessions (persistent file). If the brain recalls 5+ times in a
+  // row without filing, it's stuck in a proof-bottling loop -- inject
+  // a FILE NOW directive. Session-local vars reset on restart, so we
+  // use a file in the hunt dir.
+  const stuckCounterPath = '/opt/Dark-Matter/backend/data/hunts/' + huntId + '/stuck_recall_count.txt';
+  function getStuckCount() {
+    try { return parseInt(require('fs').readFileSync(stuckCounterPath, 'utf8').trim(), 10) || 0; }
+    catch { return 0; }
+  }
+  function setStuckCount(n) {
+    try { require('fs').writeFileSync(stuckCounterPath, String(n)); } catch {}
+  }
 
   say(`Human mode session: ${turns} turns at my own machine. Target: ${target}.`);
 
@@ -4315,18 +4324,19 @@ export async function humanIteration(huntId, target, opts = {}) {
     const kind = String(action.action).toLowerCase();
     let observation = '';
 
-    // STUCK-DETECTOR: track consecutive recalls, inject FILE NOW directive
+    // STUCK-DETECTOR v2: persistent across sessions
     if (kind === 'recall') {
-      consecutiveRecallCount++;
-      if (consecutiveRecallCount >= 5) {
-        observation = 'STOP RECALLING. You have repeated the same recall ' + consecutiveRecallCount + ' times. You already have the evidence on screen (password hashes dumped via SQLi). FILE THE CLAIM NOW using {"action":"claim_finding","title":"...","class":"sqli","evidence":"<the hashes you saw>","command":"<your replay command>","counterevidence":"<what a normal query returns>","confidence":"high"}. Do NOT recall again. FILE NOW.';
-        try { deps.record(huntId, { type: 'stuck_detector_triggered', count: consecutiveRecallCount, via: 'human-mode' }); } catch {}
-        consecutiveRecallCount = 0;
+      const c = getStuckCount() + 1;
+      setStuckCount(c);
+      if (c >= 5) {
+        observation = 'STOP RECALLING. You have repeated recall ' + c + ' times across sessions. You already have the evidence on screen (password hashes dumped via SQLi). FILE THE CLAIM NOW using {"action":"claim_finding","title":"SQL Injection in DVWA","class":"sqli","evidence":"<the hashes you saw>","command":"<your replay command>","counterevidence":"<normal query returns no hashes>","confidence":"high"}. Do NOT recall again. FILE NOW.';
+        try { deps.record(huntId, { type: 'stuck_detector_triggered', count: c, via: 'human-mode' }); } catch {}
+        setStuckCount(0);
       }
     } else if (kind === 'claim_finding') {
-      consecutiveRecallCount = 0;
-    } else if (!['shell', 'browser_snapshot', 'screenshot'].includes(kind)) {
-      consecutiveRecallCount = 0;
+      setStuckCount(0);
+    } else if (!['shell', 'browser_snapshot', 'screenshot', 'browser_type', 'browser_click'].includes(kind)) {
+      setStuckCount(0);
     }
 
     // REAL-HUMAN: the brain's answers to the owner's queued
