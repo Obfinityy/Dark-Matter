@@ -147,6 +147,52 @@ test('OC-10: desktop_terminal with an empty command is refused', async () => {
   assert.match(res.observation, /Empty terminal command/);
 });
 
+test('OC-368a: desktop_terminal polls until the exit marker, then returns full output', async () => {
+  let tails = 0;
+  const execRaw = async (huntId, cmd) => {
+    const c = String(cmd);
+    if (c.includes('xdotool search')) {
+      if (c.includes('xfce4-terminal')) return { stdout: '333\n---TITLES---\nTerminal\n', stderr: '', code: 0 };
+      return { stdout: WINDOWS_OUT, stderr: '', code: 0 };
+    }
+    if (c.includes('windowactivate')) return { stdout: 'clicked', stderr: '', code: 0 };
+    if (c.includes('xdotool type')) return { stdout: 'typed', stderr: '', code: 0 };
+    if (c.includes('xdotool key')) return { stdout: 'key_sent', stderr: '', code: 0 };
+    if (c.startsWith('tail -c')) { tails++; return { stdout: tails >= 3 ? 'line3\n__DT_EXIT__:0\n' : 'line1\nline2\n', stderr: '', code: 0 }; }
+    if (c.startsWith('cat ')) return { stdout: 'line1\nline2\nline3\n__DT_EXIT__:0\n', stderr: '', code: 0 };
+    return { stdout: '', stderr: '', code: 0 };
+  };
+  const res = await executeOsAction('h_oc368a', 'desktop_terminal', { command: 'sleep 5; echo done' }, { target: TARGET, execRaw, sleep: async () => {}, desktopScreenshot: () => ({ ok: true, name: 'shot.png', contentType: 'image/png' }) });
+  assert.equal(res.ok, true);
+  assert.match(res.observation, /line3/);
+  assert.match(res.observation, /Exit code 0/);
+  assert.equal(tails, 3, 'polled twice, marker on the third tail read');
+});
+
+test('OC-368b: desktop_terminal past the poll cap keeps the honest still-running observation', async () => {
+  let tails = 0;
+  let cats = 0;
+  const execRaw = async (huntId, cmd) => {
+    const c = String(cmd);
+    if (c.includes('xdotool search')) {
+      if (c.includes('xfce4-terminal')) return { stdout: '333\n---TITLES---\nTerminal\n', stderr: '', code: 0 };
+      return { stdout: WINDOWS_OUT, stderr: '', code: 0 };
+    }
+    if (c.includes('windowactivate')) return { stdout: 'clicked', stderr: '', code: 0 };
+    if (c.includes('xdotool type')) return { stdout: 'typed', stderr: '', code: 0 };
+    if (c.includes('xdotool key')) return { stdout: 'key_sent', stderr: '', code: 0 };
+    if (c.startsWith('tail -c')) { tails++; return { stdout: 'partial output\n', stderr: '', code: 0 }; }
+    if (c.startsWith('cat ')) { cats++; return { stdout: 'partial output\n', stderr: '', code: 0 }; }
+    return { stdout: '', stderr: '', code: 0 };
+  };
+  const res = await executeOsAction('h_oc368b', 'desktop_terminal', { command: 'sleep 999' }, { target: TARGET, execRaw, sleep: async () => {}, desktopScreenshot: () => ({ ok: true, name: 'shot.png', contentType: 'image/png' }) });
+  assert.equal(res.ok, true);
+  assert.match(res.observation, /STILL RUNNING/);
+  assert.match(res.observation, /partial output/);
+  assert.equal(tails, 30, 'poll cap hit, then one full read');
+  assert.equal(cats, 1, 'the full log is read once, after the cap');
+});
+
 test('OC-11: browser_snapshot / screenshot flow through the GUI binding', async () => {
   const gui = {
     snapshot: async () => ({ ok: true, observation: 'Page: Login :: Username Password Login' }),
