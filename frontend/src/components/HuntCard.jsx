@@ -1040,7 +1040,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
                   steerHunt(hunt.huntId, steerMsg.trim()).then((r) => {
                     setSteerBusy(false);
                     if (r.ok) { setSteerSent(true); setSteerMsg(''); }
-                    else toast.error(r.error || 'Could not send instruction');
+                    else toast(r.error || 'Could not send instruction', 'error');
                   });
                 }
               }}
@@ -1053,7 +1053,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
                 steerHunt(hunt.huntId, steerMsg.trim()).then((r) => {
                   setSteerBusy(false);
                   if (r.ok) { setSteerSent(true); setSteerMsg(''); }
-                  else toast.error(r.error || 'Could not send instruction');
+                  else toast(r.error || 'Could not send instruction', 'error');
                 });
               }}
             >
