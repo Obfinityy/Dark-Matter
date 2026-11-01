@@ -107,3 +107,4 @@ cd frontend && npm install && npm run dev     # → http://localhost:5173
 ## License
 
 Dark Matter © Obfinity. Third-party components retain their own licenses — see `THIRD_PARTY_NOTICES.md`.
+
