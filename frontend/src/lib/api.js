@@ -306,7 +306,13 @@ export async function getTotalCosts() {
 }
 
 export async function startHunt(target, scope, mode, confirmedAuthorized, forceNew = false, fresh = false) {
-  const res = await post('/api/v1/hunts', { target, scope, mode, confirmedAuthorized: !!confirmedAuthorized, ...(forceNew ? { forceNew: true } : {}), ...(fresh ? { fresh: true } : {}) });
+  // FIX (#447): hunt creation provisions a container, so it needs a
+  // timeout of its own — the old call passed none, and request()
+  // only times out when the caller opts in, so a dead backend left
+  // the modal on "Starting…" forever. 120 s bounds the hang while
+  // still allowing slow container provisioning (brain actions use
+  // 300 s; a plain 30 s cap would abort legitimate launches).
+  const res = await post('/api/v1/hunts', { target, scope, mode, confirmedAuthorized: !!confirmedAuthorized, ...(forceNew ? { forceNew: true } : {}), ...(fresh ? { fresh: true } : {}) }, { timeout: 120000 });
   if (!res.ok) return res;
   const d = res.data || {};
   // Pass the dedupe/queue outcome through: when the target was already
@@ -393,8 +399,35 @@ export async function submitBrainActionJson(id, reply) {
   return post(`/api/v1/hunts/${encodeURIComponent(id)}/brain-action-json`, { reply }, { timeout: 300000 });
 }
 
-export function reportPdfUrl(id) {
-  return apiUrl(`/api/v1/hunts/${encodeURIComponent(id)}/report?format=pdf`);
+/**
+ * Download a hunt report as a file, authenticated. A plain <a href>
+ * cannot send the Authorization header, so the old reportPdfUrl link
+ * opened a 401 JSON page in a new tab for every logged-in user
+ * (FIX #442). This fetches with the Bearer token (same pattern as
+ * fetchHuntDesktopFrame) and triggers a client-side download.
+ * Returns { ok } or { ok: false, error }.
+ */
+export async function downloadReport(id, format) {
+  try {
+    const headers = {};
+    const token = getAuthToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(apiUrl(`/api/v1/hunts/${encodeURIComponent(id)}/report?format=${format}`), { method: 'GET', headers });
+    if (!res.ok) return { ok: false, error: `Report download failed (${res.status})` };
+    const blob = await res.blob();
+    const ext = format === 'pdf' ? 'pdf' : 'md';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report-${id}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Backend unreachable.' };
+  }
 }
 
 /**
@@ -543,7 +576,14 @@ export async function stt(audioBlob) {
   try {
     const form = new FormData();
     form.append('audio', audioBlob, 'recording.webm');
-    const res = await fetch(apiUrl('/api/v1/voice/stt'), { method: 'POST', body: form });
+    // FIX (#457): the backend voice routes require auth (PR #388),
+    // but this fetch sent no token — every STT call 401'd. Send the
+    // stored Bearer token. No Content-Type override: the browser
+    // must set the multipart boundary itself.
+    const headers = {};
+    const token = getAuthToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(apiUrl('/api/v1/voice/stt'), { method: 'POST', headers, body: form });
     const data = await parseJsonSafe(res);
     if (!res.ok) {
       return { ok: false, error: (data && (data.error || data.message)) || `Voice service failed (${res.status})` };
@@ -556,9 +596,13 @@ export async function stt(audioBlob) {
 
 export async function tts(text, voice) {
   try {
+    // FIX (#457): same missing-token 401 as stt above.
+    const headers = { 'Content-Type': 'application/json' };
+    const token = getAuthToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch(apiUrl('/api/v1/voice/tts'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ text, voice }),
     });
     if (!res.ok) {
