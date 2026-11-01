@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isInScope, isPrivateIP, parseScope, validateTargetSSRF } from '../src/scopeParser.js';
+import { isInScope, isPrivateIP, parseScope, validateTargetSSRF, validateTargetAsync } from '../src/scopeParser.js';
 
 test('scope gate honors explicitly enumerated assets', () => {
   const scope = parseScope('primary.example', 'In scope: primary.example, api.example.net, *.cdn.example.net\nOut of scope: staging.example.net');
@@ -30,4 +30,11 @@ test('private IP detection validates IPv4 octets and IPv6 private ranges', () =>
   assert.equal(isPrivateIP('999.1.1.1'), false);
   assert.equal(isPrivateIP('::1'), true);
   assert.equal(isPrivateIP('2001:db8::1'), false);
+});
+
+
+test('DNS-aware SSRF validation blocks private literals before lookup', async () => {
+  for (const target of ['http://127.0.0.1', 'http://[::1]', 'http://169.254.169.254', 'http://localhost']) {
+    assert.equal((await validateTargetAsync(target)).valid, false, target);
+  }
 });
