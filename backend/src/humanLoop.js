@@ -5163,6 +5163,16 @@ export async function humanIteration(huntId, target, opts = {}) {
       observation = res.observation || '(no observation)';
       notePageUrl(observation);
       noteSnapshot(res);
+      // OCR-TO-FILER (1 Nov 2026): the brain sees hashes on screen but will
+      // not transcribe them into text; the auto-filer only reads text. Run
+      // desktop OCR and append it so the filer sees the evidence directly.
+      // This bypasses the model's transcription failure (permanent fix).
+      try {
+        const ocrRes = await captureScreenMap(huntId, deps);
+        if (ocrRes && ocrRes.ok && ocrRes.map) {
+          observation += `\n\n[OCR screen text — auto-filer reads this]:\n${ocrRes.map}`;
+        }
+      } catch { /* OCR is best-effort; screenshot works without it */ }
     } else if (kind === 'desktop_snapshot') {
       // WHOLE-OS CONTROL: read the live desktop (windows + focused
       // app) via xdotool on :99. Perception, like browser_snapshot
