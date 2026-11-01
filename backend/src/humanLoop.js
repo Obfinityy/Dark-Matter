@@ -36,6 +36,7 @@
 // Everything external is an injectable dep (opts.deps) so the loop is
 // testable end-to-end with fakes — see scripts/test-human-loop.mjs.
 
+import fs from 'node:fs';
 import { execInHuntContainerWithRespawn } from './huntRunner.js';
 import { chatWithAI } from './llm.js';
 import { isOneLoopEnabled, isOneLoopDryRun } from './brain/oneLoopBrain.js';
@@ -52,7 +53,6 @@ import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
 import { findWrongTargetPaths, knownAppOf, knownAppSOMLines } from './knownApps.js';
 import { detectEvidence, isDuplicate } from './autoFiler.js';
-import { dvwaLogin, isStuckAtDvwaLogin } from './dvwaAuth.js';
 import { runLabLoginFirst } from './labLogin.js';
 import { getRelevantMemories, formatGlobalMemoryForPrompt, readAllGlobalMemories } from './globalMemory.js';
 import { listSkills, loadSkill } from './skillCards.js';
@@ -3998,11 +3998,11 @@ export async function humanIteration(huntId, target, opts = {}) {
   // use a file in the hunt dir.
   const stuckCounterPath = '/opt/Dark-Matter/backend/data/hunts/' + huntId + '/stuck_recall_count.txt';
   function getStuckCount() {
-    try { return parseInt(require('fs').readFileSync(stuckCounterPath, 'utf8').trim(), 10) || 0; }
+    try { return parseInt(fs.readFileSync(stuckCounterPath, 'utf8').trim(), 10) || 0; }
     catch { return 0; }
   }
   function setStuckCount(n) {
-    try { require('fs').writeFileSync(stuckCounterPath, String(n)); } catch {}
+    try { fs.writeFileSync(stuckCounterPath, String(n)); } catch {}
   }
 
   say(`Human mode session: ${turns} turns at my own machine. Target: ${target}.`);
@@ -4449,50 +4449,9 @@ export async function humanIteration(huntId, target, opts = {}) {
     // STUCK-DETECTOR v3: if the brain itself says it's stuck looping,
     // inject FILE NOW immediately (don't wait for 5 recalls)
     const thinkingLower = String(thinkingText || '').toLowerCase();
-    const isStuckTalk = thinkingLower.includes('stuck looping') ||
-      thinkingLower.includes('stuck in a loop') ||
-      thinkingLower.includes('stuck in that') ||
-      (thinkingLower.includes('stuck') && thinkingLower.includes('login loop')) ||
-      thinkingLower.includes('breaking out') ||
-      thinkingLower.includes('break this login loop');
-    if (isStuckTalk) {
+    if (thinkingLower.includes('stuck looping') || thinkingLower.includes('stuck in a loop')) {
       observation = 'YOU SAID YOU ARE STUCK LOOPING. STOP. You have SQLi evidence (password hashes dumped). FILE THE CLAIM NOW: {"action":"claim_finding","title":"SQL Injection in DVWA User ID","class":"sqli","evidence":"First name: admin, Surname: 5f4dcc3b5aa765d61d8327deb882c (MD5 of password)","command":"curl -s http://172.17.0.1:3100/vulnerabilities/sqli/?id=1%27+UNION+SELECT+user%2Cpassword+FROM+users%23&Submit=Submit","counterevidence":"Normal id=1 returns only first name Gordon, no hashes","confidence":"high"}. FILE NOW, DO NOT RECALL.';
       try { deps.record(huntId, { type: 'stuck_detector_v3_triggered', via: 'human-mode' }); } catch {}
-    }
-
-    // DVWA AUTO-LOGIN: if brain is stuck at DVWA login page (CSRF token issue),
-    // perform system-level login via shell. Permanent fix - brain never has to
-    // fight the login form again.
-    try {
-      // If brain says stuck and target is DVWA, auto-login immediately.
-      // (isStuckAtDvwaLogin gate removed - was too strict, blocked the fix)
-      {
-        const dvwaTarget = (typeof target === 'string' ? target : '');
-        if (/3100|dvwa/i.test(dvwaTarget)) {
-          const loginRes = await dvwaLogin({
-            huntId,
-            target: dvwaTarget,
-            execInContainer: async (hid, cmd) => {
-              // Use the container exec via deps
-              if (deps.execInContainer) return await deps.execInContainer(hid, cmd);
-              if (deps.execRaw) return await deps.execRaw(hid, cmd);
-              throw new Error('no_container_exec');
-            },
-          });
-          if (loginRes.ok) {
-            observation = 'SYSTEM AUTO-LOGIN: Successfully logged into DVWA as admin ' +
-              '(security set to low). Cookie jar: ' + loginRes.cookieJar + '. ' +
-              'You are now authenticated. Continue hunting - try the SQL Injection ' +
-              'module at /vulnerabilities/sqli/.';
-            try { deps.record(huntId, { type: 'dvwa_autologin', ok: true, via: 'human-mode' }); } catch {}
-          } else {
-            try { deps.record(huntId, { type: 'dvwa_autologin', ok: false, error: loginRes.error, via: 'human-mode' }); } catch {}
-          }
-        }
-      }
-    } catch (dvwaErr) {
-      // Auto-login must never break the hunt loop
-      try { deps.record(huntId, { type: 'dvwa_autologin_error', error: String(dvwaErr).slice(0, 200), via: 'human-mode' }); } catch {}
     }
 
     // REAL-HUMAN: the brain's answers to the owner's queued
