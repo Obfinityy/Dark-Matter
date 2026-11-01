@@ -164,10 +164,15 @@ export function isTargetAllowed(target) {
   if (!t) return false;
   const host = hostOf(t);
   return list.some((entry) => {
-    const e = entry.toLowerCase();
-    if (t.startsWith(e)) return true; // full-URL prefix match
+    const e = entry.toLowerCase().replace(/\/+$/, ''); // ignore trailing slashes
+    if (!e) return false;
+    // FIX (#338): the old full-string prefix match (`t.startsWith(e)`)
+    // let `example.com.evil.com` and `https://example.com@evil.com`
+    // pass an `example.com` entry. A prefix only counts on a URL
+    // boundary — exact entry, or entry followed by `/`.
+    if (t === e || t.startsWith(e + '/')) return true; // full-URL/path prefix match
     if (host === e) return true; // exact host match
-    if (e && host.endsWith('.' + e)) return true; // subdomain match
+    if (host.endsWith('.' + e)) return true; // subdomain match
     return false;
   });
 }
