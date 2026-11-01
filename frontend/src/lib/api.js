@@ -393,8 +393,35 @@ export async function submitBrainActionJson(id, reply) {
   return post(`/api/v1/hunts/${encodeURIComponent(id)}/brain-action-json`, { reply }, { timeout: 300000 });
 }
 
-export function reportPdfUrl(id) {
-  return apiUrl(`/api/v1/hunts/${encodeURIComponent(id)}/report?format=pdf`);
+/**
+ * Download a hunt report as a file, authenticated. A plain <a href>
+ * cannot send the Authorization header, so the old reportPdfUrl link
+ * opened a 401 JSON page in a new tab for every logged-in user
+ * (FIX #442). This fetches with the Bearer token (same pattern as
+ * fetchHuntDesktopFrame) and triggers a client-side download.
+ * Returns { ok } or { ok: false, error }.
+ */
+export async function downloadReport(id, format) {
+  try {
+    const headers = {};
+    const token = getAuthToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(apiUrl(`/api/v1/hunts/${encodeURIComponent(id)}/report?format=${format}`), { method: 'GET', headers });
+    if (!res.ok) return { ok: false, error: `Report download failed (${res.status})` };
+    const blob = await res.blob();
+    const ext = format === 'pdf' ? 'pdf' : 'md';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report-${id}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Backend unreachable.' };
+  }
 }
 
 /**
