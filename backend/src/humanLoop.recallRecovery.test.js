@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { recoverRecallLoopSqli } from './humanLoop.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hl-recall-recovery-'));
+process.env.DATA_DIR = tmpRoot;
+const { recoverRecallLoopSqli } = await import('./humanLoop.js');
 
 test('recall loop proof recovery requires consecutive recalls and recorded SQLi hashes', () => {
   const events = [
