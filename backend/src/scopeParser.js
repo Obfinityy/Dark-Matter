@@ -180,7 +180,7 @@ export function isPrivateIP(ip) {
   // IPv6 unspecified, loopback, unique-local (fc00::/7), and link-local (fe80::/10).
   if (lower === '::' || lower === '::1' || /^(fc|fd)/.test(lower) || /^fe[89ab]/.test(lower)) return true;
   // IPv4-mapped IPv6 addresses inherit the IPv4 classification.
-  const mapped = lower.match(/^(?:::ffff:)(\\d+\\.\\d+\\.\\d+\\.\\d+)$/);
+  const mapped = lower.match(/^(?:::ffff:)(\d+\.\d+\.\d+\.\d+)$/);
   if (mapped) return isPrivateIP(mapped[1]);
   if (isIP(lower) !== 4) return false;
   const parts = lower.split('.').map(Number);
@@ -221,8 +221,8 @@ export function validateTargetSSRF(target) {
       return { valid: false, reason: 'Target is localhost (SSRF blocked)' };
     }
 
-    // If hostname is already an IP, check directly
-    if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+    // If hostname is already an IP literal (IPv4 or IPv6), check directly.
+    if (isIP(hostname)) {
       if (isPrivateIP(hostname)) {
         return { valid: false, reason: `Target IP ${hostname} is private/internal (SSRF blocked)` };
       }
