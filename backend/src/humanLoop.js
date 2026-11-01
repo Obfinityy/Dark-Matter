@@ -4346,7 +4346,7 @@ export async function humanIteration(huntId, target, opts = {}) {
     try {
       const scanText = String(thinkingText || '') + '\n' + String(observation || '');
       const detected = detectEvidence(scanText);
-      if (detected && !isDuplicate(huntDir, detected.title)) {
+      if (detected) {
         // Construct the claim_finding action
         const autoClaim = {
           action: 'claim_finding',
