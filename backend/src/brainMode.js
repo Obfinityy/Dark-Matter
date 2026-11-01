@@ -694,7 +694,7 @@ export async function executeBrainAction(huntId, action, deps = {}) {
     if (!command.trim()) { failProcess('empty_command', 'shell needs a command.'); return { ok: false, error: 'empty_command', message: 'shell needs a command.' }; }
     const badUrl = (() => {
       try {
-        const urls = command.match(/https?:\/\/[^\s'"<>)|\]]+/gi) || [];
+        const urls = command.match(/(?:[a-z][a-z0-9+.-]*:)?\/\/[^\s'"<>)|\]]+/gi) || [];
         for (const u of urls) {
           const v = scopeViolation(u, target, parsedScope);
           if (v) return v;
