@@ -4362,6 +4362,8 @@ export async function humanIteration(huntId, target, opts = {}) {
         // Override the brain's action with our auto-filed claim
         // (The brain's original action is preserved in the log)
         action = autoClaim;
+        // FIX: recompute kind after override, else dispatch uses stale kind
+        kind = 'claim_finding';
         observation = 'AUTO-FILER: Strong ' + detected.class.toUpperCase() + ' evidence detected in your output. ' +
                       'Filing claim automatically: "' + detected.title + '". ' +
                       'This is what a human hunter does — files the report when proof is found.';
