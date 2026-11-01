@@ -72,16 +72,21 @@ export function prioritizeByBounty(targets, scope) {
 /** Check if a target is in scope before testing. */
 export function isInScope(target, scope) {
   if (!scope || !Array.isArray(scope.inScope) || scope.inScope.length === 0) return false;
-  let parsed;
-  try { parsed = new URL(String(target), 'https://scope.invalid'); } catch { return false; }
-  const host = parsed.hostname.toLowerCase();
+  const parse = (value) => {
+    const raw = String(value || '').trim().replace(/^\*\./, '');
+    if (!raw) return null;
+    try { return new URL(raw.includes('://') ? raw : `https://${raw}`); } catch { return null; }
+  };
+  const targetUrl = parse(target);
+  if (!targetUrl) return false;
   const matches = (candidate) => {
-    let allowed;
-    try {
-      const value = String(candidate || '');
-      allowed = new URL(value.includes('://') ? value : `https://${value}`).hostname.toLowerCase();
-    } catch { return false; }
-    return host === allowed || host.endsWith(`.${allowed}`);
+    const allowed = parse(candidate);
+    if (!allowed) return false;
+    const host = targetUrl.hostname.toLowerCase();
+    const allowedHost = allowed.hostname.toLowerCase();
+    if (host !== allowedHost && !host.endsWith(`.${allowedHost}`)) return false;
+    const basePath = allowed.pathname.replace(/\/+$/, '');
+    return !basePath || targetUrl.pathname === basePath || targetUrl.pathname.startsWith(`${basePath}/`);
   };
   if ((scope.outOfScope || []).some(matches)) return false;
   return scope.inScope.some(matches);
