@@ -137,19 +137,26 @@ export function parseScope(target, scopeText = '') {
 export function isInScope(url, parsedScope) {
   if (!parsedScope) return true;
   try {
+    if (typeof url !== 'string' || !url.trim()) return false;
     const u = new URL(url.includes('://') ? url : `https://${url}`);
-    const host = u.hostname.toLowerCase();
-    // Must match target domain or subdomain
-    const domain = parsedScope.domain.toLowerCase();
-    if (host !== domain && !host.endsWith('.' + domain)) return false;
-    // Check against out-of-scope list
+    if (!['http:', 'https:'].includes(u.protocol) || !u.hostname) return false;
+    const host = u.hostname.toLowerCase().replace(/^\\[|\\]$/g, '');
+    const candidates = Array.isArray(parsedScope.inScope) && parsedScope.inScope.length
+      ? parsedScope.inScope
+      : [parsedScope.domain];
+    const matchesHost = (candidate) => {
+      const allowed = String(candidate || '').toLowerCase().replace(/^\\*\\./, '').replace(/^\\[|\\]$/g, '');
+      return !!allowed && (host === allowed || host.endsWith('.' + allowed));
+    };
+    if (!candidates.some(matchesHost)) return false;
+    if ((parsedScope.outOfScopeHosts || []).some(matchesHost)) return false;
     const path = (u.pathname + u.search).toLowerCase();
-    for (const oos of parsedScope.outOfScope) {
-      if (path.includes(oos.toLowerCase())) return false;
+    for (const oos of parsedScope.outOfScope || []) {
+      if (path.includes(String(oos).toLowerCase())) return false;
     }
     return true;
   } catch {
-    return true; // If we can't parse, allow it (human would investigate)
+    return false; // Invalid/unparseable targets must fail closed.
   }
 }
 
@@ -166,13 +173,14 @@ export function getHuntUserAgent(parsedScope) {
  */
 export function isPrivateIP(ip) {
   if (!ip || typeof ip !== 'string') return false;
-  const parts = ip.split('.').map(Number);
-  if (parts.length !== 4 || parts.some(isNaN)) {
-    // IPv6 or invalid — check common private patterns
-    const lower = ip.toLowerCase();
-    if (lower === 'localhost' || lower.startsWith('::1') || lower.startsWith('fc') || lower.startsWith('fd')) return true;
-    return false;
-  }
+  const lower = ip.toLowerCase().replace(/^\\[|\\]$/g, '');
+  // IPv6 loopback, unspecified, unique-local, and link-local ranges.
+  if (lower === '::' || lower === '::1' || lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('fe8') || lower.startsWith('fe9') || lower.startsWith('fea') || lower.startsWith('feb')) return true;
+  // IPv4-mapped IPv6 addresses inherit the IPv4 classification.
+  const mapped = lower.match(/^(?:::ffff:)(\\d+\\.\\d+\\.\\d+\\.\\d+)$/);
+  if (mapped) return isPrivateIP(mapped[1]);
+  const parts = lower.split('.').map(Number);
+  if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return false;
   const [a, b] = parts;
   // 10.0.0.0/8
   if (a === 10) return true;
@@ -198,7 +206,10 @@ export function validateTargetSSRF(target) {
   try {
     const urlStr = target.includes('://') ? target : `https://${target}`;
     const u = new URL(urlStr);
-    const hostname = u.hostname.toLowerCase();
+    if (!['http:', 'https:'].includes(u.protocol) || !u.hostname || u.username || u.password) {
+      return { valid: false, reason: 'Only credential-free HTTP(S) targets are allowed' };
+    }
+    const hostname = u.hostname.toLowerCase().replace(/^\\[|\\]$/g, '');
 
     // Block localhost variants
     if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
@@ -212,8 +223,8 @@ export function validateTargetSSRF(target) {
       }
     }
 
-    // Block cloud metadata hostnames
-    if (hostname === '169.254.169.254' || hostname === 'metadata.google.internal') {
+    // Block cloud metadata hostnames and metadata aliases.
+    if (hostname === '169.254.169.254' || hostname === 'metadata.google.internal' || hostname.endsWith('.metadata.google.internal')) {
       return { valid: false, reason: 'Cloud metadata endpoint blocked (SSRF)' };
     }
 
