@@ -1,3 +1,6 @@
+// Application shell — owns top-level navigation, chat/history state, auth
+// transitions, and shared layout. Feature pages receive callbacks so persistent
+// state and navigation remain centralized here.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
