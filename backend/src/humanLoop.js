@@ -4401,6 +4401,12 @@ export async function humanIteration(huntId, target, opts = {}) {
     // AUTO-FILER v1: Scan brain output for vulnerability evidence.
     // If strong evidence found (SQLi hashes, XSS, CMDI), auto-file the claim.
     // The brain hunts; the filer files. Together they are the complete human.
+    // Rehydrate the loop-breaker proof from the append-only event log on
+    // every turn, so the next-turn auto-filer retains the original command
+    // and recovered evidence instead of falling back to a placeholder PoC.
+    if (!recallLoopProof) {
+      try { recallLoopProof = recoverRecallLoopSqli(deps.readEvents(huntId) || []); } catch { /* best-effort */ }
+    }
     try {
       // The previous action's result is also first-party text evidence.
       // This matters for recall: its handler runs after this turn's initial
