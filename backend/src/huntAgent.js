@@ -228,7 +228,18 @@ function chargeIteration(huntId, userId, mode, iteration) {
     appendHuntEvent(huntId, { type: 'status', state: 'out_of_credits', iteration });
     return false;
   }
-  deductCreditsUsd(userId, priceCents, { huntId, iteration, mode });
+  // FIX (#327): the deduction result used to be discarded, so a hunt
+  // whose balance was drained by a concurrent hunt between the
+  // pre-check and the deduction still proceeded (spending past zero).
+  // deductCreditsUsd re-checks the balance synchronously at deduct
+  // time, so honoring its result closes the race within one process;
+  // the caller already breaks the loop on false (see below).
+  if (!deductCreditsUsd(userId, priceCents, { huntId, iteration, mode })) {
+    writeHuntMetaCheckpoint(huntId, { state: 'out_of_credits', paused: true });
+    think(huntId, 'Out of credits — hunt paused. Top up your balance and press Resume to continue.');
+    appendHuntEvent(huntId, { type: 'status', state: 'out_of_credits', iteration });
+    return false;
+  }
   return true;
 }
 import {
