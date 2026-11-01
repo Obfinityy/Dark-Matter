@@ -8,7 +8,7 @@
 // environment variables (owner's account, invite-only access).
 
 import { Router } from 'express';
-import { encryptSecret } from '../crypto.js';
+import { encryptSecret, decryptSecret } from '../crypto.js';
 import { readPluginKeys, writePluginKeys } from '../store.js';
 
 export const PROVIDERS = [
