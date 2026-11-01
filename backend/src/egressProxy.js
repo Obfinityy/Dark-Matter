@@ -16,7 +16,52 @@
 
 import http from 'node:http';
 import net from 'node:net';
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
 import { validateDestinations } from './scopeGuard.js';
+import { isPrivateIP } from './scopeParser.js';
+
+/**
+ * Pick a dial address for a validated hostname/IP under the hunt scope.
+ * Pure (unit-testable): `addresses` are lookup() results [{address, family}].
+ * - Public IPs dial as-is (IPv4 preferred).
+ * - A private IP dials ONLY if it is an explicitly listed lab IP
+ *   (scope.labIps) — lab traffic is private by opt-in design.
+ * - Anything else (private-only resolution, unlisted private literal)
+ *   is blocked: this is the dial-time half of the DNS-rebinding guard
+ *   (#397; the ipset half landed in #339).
+ * @returns {{ip:string}|{blocked:string}}
+ */
+export function pickDialAddress(host, scope, addresses) {
+  const h = String(host || '').toLowerCase();
+  const labIps = (scope && scope.labIps) || [];
+  if (isIP(h)) {
+    if (!isPrivateIP(h)) return { ip: h };
+    if (labIps.includes(h)) return { ip: h };
+    return { blocked: 'private IP literal is not a listed lab IP' };
+  }
+  const addrs = addresses || [];
+  const pub = addrs.filter((a) => a && a.address && !isPrivateIP(a.address));
+  const v4 = pub.find((a) => a.family === 4);
+  if (v4) return { ip: v4.address };
+  if (pub.length) return { ip: pub[0].address };
+  const lab = addrs.find((a) => a && labIps.includes(a.address));
+  if (lab) return { ip: lab.address };
+  return { blocked: 'hostname resolves only to private IPs' };
+}
+
+/** Resolve a validated destination to a dialable IP (default dial only). */
+async function guardedDialTarget(host, scope) {
+  const h = String(host || '').toLowerCase();
+  if (isIP(h)) return pickDialAddress(h, scope, []);
+  let addrs;
+  try {
+    addrs = await lookup(h, { all: true });
+  } catch {
+    return { blocked: 'DNS resolution failed' };
+  }
+  return pickDialAddress(h, scope, addrs);
+}
 
 /**
  * Validate one proxied destination against the hunt scope.
@@ -52,7 +97,11 @@ function splitHostPort(authority, defaultPort) {
  */
 export async function startEgressProxy({ huntId, scope, port, bindIp = '127.0.0.1', onViolation, dial } = {}) {
   if (!scope || scope.version !== 1) throw new Error('startEgressProxy: invalid scope (fail-closed)');
-  const dialFn = typeof dial === 'function' ? dial : (host, p) => net.connect(p, host);
+  // Guarded resolution (#397) applies ONLY to the default dial path.
+  // An injected `dial` (tests, custom dialers) owns its own resolution
+  // and keeps the exact old behavior.
+  const guarded = typeof dial !== 'function';
+  const dialFn = guarded ? (host, p) => net.connect(p, host) : dial;
   let liveScope = scope;
   const violations = [];
   const deny = (entry) => {
@@ -69,7 +118,7 @@ export async function startEgressProxy({ huntId, scope, port, bindIp = '127.0.0.
   const server = http.createServer();
 
   // Plain HTTP through a forward proxy: absolute-URI request line.
-  server.on('request', (clientReq, clientRes) => {
+  server.on('request', async (clientReq, clientRes) => {
     let target;
     try {
       target = new URL(clientReq.url);
@@ -105,9 +154,23 @@ export async function startEgressProxy({ huntId, scope, port, bindIp = '127.0.0.
     const fwdHeaders = { ...clientReq.headers, host: target.host };
     delete fwdHeaders['proxy-connection'];
     delete fwdHeaders['proxy-authorization'];
+    // FIX (#397): resolve BEFORE dialing on the default path, so a
+    // rebound record cannot smuggle a private IP past the hostname
+    // check. The Host header still names the original hostname.
+    let dialHost = target.hostname;
+    if (guarded) {
+      const g = await guardedDialTarget(host, liveScope);
+      if (g.blocked) {
+        const v = deny({ host, port: reqPort, reason: `dial blocked: ${g.blocked}`, via: 'http' });
+        clientRes.writeHead(403);
+        clientRes.end(`forbidden by hunt scope: ${v.reason}`);
+        return;
+      }
+      dialHost = g.ip;
+    }
     const proxyReq = http.request(
       {
-        host: target.hostname,
+        host: dialHost,
         port: reqPort,
         method: clientReq.method,
         path: target.pathname + target.search,
@@ -129,7 +192,7 @@ export async function startEgressProxy({ huntId, scope, port, bindIp = '127.0.0.
   });
 
   // HTTPS: CONNECT host:port — the hostname here IS the SNI equivalent.
-  server.on('connect', (req, clientSocket, head) => {
+  server.on('connect', async (req, clientSocket, head) => {
     const { host, port } = splitHostPort(req.url, 443);
     const v = proxyAllows(liveScope, { host, port, sni: host });
     if (!v.ok) {
@@ -138,7 +201,19 @@ export async function startEgressProxy({ huntId, scope, port, bindIp = '127.0.0.
       clientSocket.destroy();
       return;
     }
-    const srv = dialFn(host, port);
+    // FIX (#397): same dial-time guard as the HTTP path.
+    let dialHost = host;
+    if (guarded) {
+      const g = await guardedDialTarget(host, liveScope);
+      if (g.blocked) {
+        deny({ host, port, reason: `dial blocked: ${g.blocked}`, via: 'connect' });
+        clientSocket.write('HTTP/1.1 502 Forbidden by hunt scope\r\n\r\n');
+        clientSocket.destroy();
+        return;
+      }
+      dialHost = g.ip;
+    }
+    const srv = dialFn(dialHost, port);
     srv.once('connect', () => {
       clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
       if (head && head.length) srv.write(head);
