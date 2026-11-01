@@ -15,18 +15,44 @@ function creditsFile() {
   return path.join(dataDir(), 'credits.json');
 }
 
+function creditsBackupFile() {
+  return path.join(dataDir(), 'credits.bak.json');
+}
+
+function parseCredits(raw) {
+  const data = JSON.parse(raw);
+  if (!data || typeof data !== 'object') throw new Error('bad credits shape');
+  return data;
+}
+
 function readAll() {
-  try {
-    const raw = fs.readFileSync(creditsFile(), 'utf8');
-    const data = JSON.parse(raw);
-    return data && typeof data === 'object' ? data : {};
-  } catch {
-    return {};
+  // Missing file = first run, not corruption.
+  let mainRaw = null;
+  try { mainRaw = fs.readFileSync(creditsFile(), 'utf8'); } catch { mainRaw = null; }
+  if (mainRaw !== null) {
+    try { return parseCredits(mainRaw); } catch { /* corrupt main: try backup */ }
   }
+  // Corrupt main: fall back to the previous-good backup, so the next
+  // write never wipes real balances (#344, same class as #328).
+  try {
+    const bakRaw = fs.readFileSync(creditsBackupFile(), 'utf8');
+    return parseCredits(bakRaw);
+  } catch { /* no usable backup */ }
+  if (mainRaw !== null) {
+    // Corrupt main AND no usable backup: true data loss. Never
+    // silently return {} — callers must fail loudly, not overwrite.
+    throw new Error('credits store unreadable: main corrupt, no usable backup');
+  }
+  return {};
 }
 
 function writeAll(data) {
   fs.mkdirSync(path.dirname(creditsFile()), { recursive: true });
+  // Rotate first: the previous good main becomes the backup BEFORE the
+  // new main lands, so a crash mid-write can never leave both corrupt.
+  try {
+    if (fs.existsSync(creditsFile())) fs.renameSync(creditsFile(), creditsBackupFile());
+  } catch { /* rotation is best-effort; the atomic write below still lands */ }
   const tmp = `${creditsFile()}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
   fs.renameSync(tmp, creditsFile());
@@ -78,7 +104,14 @@ export function addCreditsUsd(userId, amountCents, meta = {}) {
 export function deductCreditsUsd(userId, amountCents, meta = {}) {
   const cents = Math.round(amountCents);
   if (!userId || !Number.isFinite(cents) || cents <= 0) return false;
-  const all = readAll();
+  let all;
+  try {
+    all = readAll();
+  } catch {
+    // #344: a totally unreadable ledger must pause the hunt (false),
+    // not crash the loop with a throw — and never wipe the ledger.
+    return false;
+  }
   const e = entryFor(all, userId);
   if (e.balanceCents < cents) return false;
   e.balanceCents -= cents;
