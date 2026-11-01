@@ -109,7 +109,7 @@ function normalizeScopeLines(scope) {
 
 // §3 scope contract — the engine does NOT enforce scope; the orchestrator
 // does, and the scope rides inside the flow input.
-function buildFlowInput(target, scope, checkpoint) {
+export function buildFlowInput(target, scope, checkpoint) {
   const lines = normalizeScopeLines(scope);
   const scopeBlock = lines.length ? lines.map((l) => `  - ${l}`).join('\n') : '  - (not specified — target only)';
   let input =
