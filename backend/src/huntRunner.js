@@ -238,6 +238,19 @@ async function readEgressScope(huntId, impl) {
   return { scope: null, meta: {} };
 }
 
+/** Exact-host check for the explicitly configured lab egress bypass. */
+export function isLabLoopbackTarget(target) {
+  try {
+    const raw = String(target || '').trim();
+    if (!raw) return false;
+    const url = new URL(raw.includes('://') ? raw : `https://${raw}`);
+    const host = url.hostname.toLowerCase().replace(/^\\[|\\]$/g, '').replace(/\\.$/, '');
+    return host === 'localhost' || host === '127.0.0.1' || host === '172.17.0.1';
+  } catch {
+    return false;
+  }
+}
+
 export async function spawnHuntContainer(huntId, target, opts = {}) {
   // _impl seam (tests only): { docker, readMeta, writeMeta } — same
   // pattern as ensureHuntContainer/execInHuntContainerWithRespawn.
@@ -272,7 +285,7 @@ export async function spawnHuntContainer(huntId, target, opts = {}) {
   // EGRESS_SKIP_LAB=1. The application-layer scopeGuard still enforces scope.
   // Network egress is broken on this host (nftables backend lacks xt_set).
   // NEVER use for external targets.
-  const isLabTarget = /(172\.17\.0\.1|127\.0\.0\.1|localhost)/.test(target || '');
+  const isLabTarget = isLabLoopbackTarget(target);
   const skipLabEgress = process.env.EGRESS_SKIP_LAB === '1' && isLabTarget;
   if (skipLabEgress) {
     console.log(`[huntRunner] EGRESS_SKIP_LAB: skipping network egress for lab target ${target} (scopeGuard still active)`);
