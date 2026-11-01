@@ -202,7 +202,12 @@ router.post('/', requireAuth, async (req, res) => {
   try {
     const { validateTargetSSRF } = await import('../scopeParser.js');
     const labTargets = (process.env.LAB_TARGETS || '').split(',').map((s) => s.trim()).filter(Boolean);
-    const isLabTarget = labTargets.some((lab) => target.includes(lab));
+    const canonicalHost = (value) => {
+      try { return new URL(value.includes('://') ? value : `https://${value}`).hostname.toLowerCase().replace(/^\\[|\\]$/g, ''); }
+      catch { return ''; }
+    };
+    const targetHost = canonicalHost(target);
+    const isLabTarget = !!targetHost && labTargets.some((lab) => canonicalHost(lab) === targetHost);
     if (!isLabTarget) {
       const ssrfCheck = validateTargetSSRF(target);
       if (!ssrfCheck.valid) {
