@@ -1,3 +1,6 @@
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
+
 // Dark Matter — Scope understanding for bug bounty hunts.
 //
 // When a user enters a target + scope, the agent automatically understands:
@@ -174,11 +177,12 @@ export function getHuntUserAgent(parsedScope) {
 export function isPrivateIP(ip) {
   if (!ip || typeof ip !== 'string') return false;
   const lower = ip.toLowerCase().replace(/^\[|\]$/g, '');
-  // IPv6 loopback, unspecified, unique-local, and link-local ranges.
-  if (lower === '::' || lower === '::1' || lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('fe8') || lower.startsWith('fe9') || lower.startsWith('fea') || lower.startsWith('feb')) return true;
+  // IPv6 unspecified, loopback, unique-local (fc00::/7), and link-local (fe80::/10).
+  if (lower === '::' || lower === '::1' || /^(fc|fd)/.test(lower) || /^fe[89ab]/.test(lower)) return true;
   // IPv4-mapped IPv6 addresses inherit the IPv4 classification.
   const mapped = lower.match(/^(?:::ffff:)(\\d+\\.\\d+\\.\\d+\\.\\d+)$/);
   if (mapped) return isPrivateIP(mapped[1]);
+  if (isIP(lower) !== 4) return false;
   const parts = lower.split('.').map(Number);
   if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return false;
   const [a, b] = parts;
@@ -192,8 +196,9 @@ export function isPrivateIP(ip) {
   if (a === 127) return true;
   // 169.254.0.0/16 (link-local, cloud metadata)
   if (a === 169 && b === 254) return true;
-  // 0.0.0.0/8
-  if (a === 0) return true;
+  // Unspecified, carrier-grade NAT, benchmarking, multicast, and reserved ranges.
+  if (a === 0 || (a === 100 && b >= 64 && b <= 127) || (a === 192 && b === 0) ||
+      (a === 198 && (b === 18 || b === 19)) || a >= 224) return true;
   return false;
 }
 
@@ -231,5 +236,23 @@ export function validateTargetSSRF(target) {
     return { valid: true };
   } catch {
     return { valid: false, reason: 'Invalid target URL' };
+  }
+}
+
+/** Resolve a hostname and reject any private/non-routable answer. Call before starting network work. */
+export async function validateTargetAsync(target) {
+  const basic = validateTargetSSRF(target);
+  if (!basic.valid) return basic;
+  try {
+    const urlStr = target.includes('://') ? target : `https://${target}`;
+    const hostname = new URL(urlStr).hostname.replace(/^\[|\]$/g, '').toLowerCase();
+    if (isIP(hostname)) return basic;
+    const addresses = await lookup(hostname, { all: true, verbatim: true });
+    if (!addresses.length) return { valid: false, reason: 'Target hostname did not resolve' };
+    const blocked = addresses.find((entry) => isPrivateIP(entry.address));
+    if (blocked) return { valid: false, reason: `Target hostname resolves to private/internal IP ${blocked.address} (SSRF blocked)` };
+    return { valid: true, addresses: addresses.map((entry) => entry.address) };
+  } catch {
+    return { valid: false, reason: 'Target DNS validation failed' };
   }
 }
