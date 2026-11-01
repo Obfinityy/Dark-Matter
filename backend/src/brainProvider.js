@@ -312,8 +312,9 @@ export async function callMetaModel(messages, system, ctx, { model, maxTokens, r
       outputTokens: usage.completion_tokens || usage.outputTokens || 0,
       note: 'meta-model-api',
     });
-  } catch {
+  } catch (e) {
     /* cost tracking must never break the call */
+    try { console.warn('[cost] recordCost failed:', (e && e.message) || e); } catch {}
   }
   return { ok: true, text };
 }
