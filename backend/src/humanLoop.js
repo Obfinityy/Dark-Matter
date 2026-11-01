@@ -4356,6 +4356,7 @@ export async function humanIteration(huntId, target, opts = {}) {
           command: detected.command,
           counterevidence: detected.counterevidence,
           confidence: detected.confidence,
+          confidence_rationale: 'Auto-detected by pattern matcher from brain output; brain has not manually filed this claim',
         };
         // Log the auto-filing
         try { deps.record(huntId, { type: 'autofiler_triggered', title: detected.title, class: detected.class, via: 'human-mode' }); } catch {}
