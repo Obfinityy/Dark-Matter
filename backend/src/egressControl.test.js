@@ -302,7 +302,10 @@ test('refreshHuntEgress: simulated DNS change diffed within one tick', async () 
     return { ok: true, stdout: '' };
   };
   const getCurrentEntries = async () => ['10.9.9.9,tcp:8080', '10.9.9.9,udp:53'];
-  const resolveHost = async () => ['10.10.10.10'];
+  // FIX (#339): the old fake answer was 10.10.10.10 — a PRIVATE IP that
+  // the refresh must never install. A DNS change to a public IP is
+  // still applied; see the rebound test below for the private case.
+  const resolveHost = async () => ['93.184.216.34'];
   const scope2 = { ...SCOPE, hosts: ['example.com'], ips: [], labIps: [] };
   const r = await refreshHuntEgress('h_refresh1', {
     readMeta: () => metaFor(scope2),
@@ -312,7 +315,7 @@ test('refreshHuntEgress: simulated DNS change diffed within one tick', async () 
   });
   assert.equal(r.ok, true);
   assert.ok(
-    issued.some((c) => c === `ipset add dm-allow-h_refresh1 10.10.10.10,tcp:8080 -exist`),
+    issued.some((c) => c === `ipset add dm-allow-h_refresh1 93.184.216.34,tcp:8080 -exist`),
     'new A record added'
   );
   assert.ok(
@@ -321,6 +324,26 @@ test('refreshHuntEgress: simulated DNS change diffed within one tick', async () 
   );
   assert.equal(r.added, 2, 'added count (tcp:8080 + udp:53)');
   assert.equal(r.removed, 2, 'removed count');
+});
+
+test('refreshHuntEgress: DNS rebound to a private IP installs nothing (#339)', async () => {
+  const issued = [];
+  const fakeRun = async (argv) => {
+    issued.push(argv.join(' '));
+    return { ok: true, stdout: '' };
+  };
+  const scope2 = { ...SCOPE, hosts: ['example.com'], ips: [], labIps: [] };
+  const r = await refreshHuntEgress('h_refresh1', {
+    readMeta: () => metaFor(scope2),
+    run: fakeRun,
+    resolveHost: async () => ['169.254.169.254', '10.0.0.5'],
+    getCurrentEntries: async () => [],
+  });
+  assert.equal(r.ok, true);
+  assert.ok(
+    !issued.some((c) => c.includes('169.254.169.254') || c.includes('10.0.0.5')),
+    'no rebound private IP may become an ipset rule'
+  );
 });
 
 test('refreshHuntEgress: DNS failure keeps old entries (never bricks the hunt)', async () => {

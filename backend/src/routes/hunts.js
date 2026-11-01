@@ -391,14 +391,23 @@ router.post('/', requireAuth, async (req, res) => {
     console.log(`[hunts] Scope parsed for ${huntId}: UA=${parsedScope.rules.customUserAgent || 'default'}, noHeavyScan=${parsedScope.rules.noHeavyScan}`);
     // P1 SCOPE ENFORCEMENT (31 Oct 2026, AUD-H1): immutable per-hunt scope
     // for the app-layer guard (scopeGuard.js) and P2's network-layer egress
-    // control. Best-effort — a build failure must never break hunt creation;
-    // the gate falls back to building from the target at execution time.
-    let scopeGuard = null;
+    // control. FAIL-CLOSED (#339): a build failure used to store
+    // scopeGuard: null and the hunt proceeded — the network layer then
+    // took the legacy unisolated path (no scope = no egress rules) and
+    // the app layer's execution-time rebuild would fail the same way.
+    // A hunt that cannot build its scope is not created at all.
+    let scopeGuard;
     try {
       const { buildScope } = await import('../scopeGuard.js');
       scopeGuard = buildScope({ target, scope, labTargets: process.env.LAB_TARGETS || '' });
     } catch (err) {
-      console.warn(`[hunts] scopeGuard build failed for ${huntId}: ${err.message}`);
+      // Best-effort: don't orphan an engine-side hunt we just created.
+      try { await stopEngineHunt(huntId); } catch { /* engine unreachable: host-side id, nothing to clean */ }
+      return res.status(500).json({
+        ok: false,
+        error: 'scope_build_failed',
+        message: `Hunt not created: scope guard could not be built (${err.message}). Fix the scope configuration and retry.`,
+      });
     }
     writeHuntMeta(huntId, {
       huntId,
