@@ -50,7 +50,7 @@
 
 import { chatWithAI, sanitizeForModel } from './llm.js';
 import { readHuntMeta, writeHuntMetaCheckpoint, appendHuntEvent } from './store.js';
-import { recordCost } from './costTracker.js';
+import { recordCost, getHuntCost } from './costTracker.js';
 
 /** The default hunt brain — local dm-hunter 8B. Never changes. */
 export const DEFAULT_BRAIN_MODEL = 'darkmatter-v1';
@@ -90,6 +90,73 @@ export const API_BUDGET_DEFAULTS = {
   maxSpendUsdPerHunt: parseFloat(process.env.API_MAX_SPEND_USD_PER_HUNT || '5.00'),
 };
 
+/**
+ * API BUDGET ENFORCEMENT (#365, gap 2). API_BUDGET_DEFAULTS was
+ * defined but never read anywhere — API spend had no code-enforced
+ * ceiling. The ceilings are now enforced at the two live API
+ * dispatch points (callBrain's Meta attempt + OpenRouter dispatch,
+ * callChatMeta's Meta attempt):
+ *   maxTokensPerRequest / requestTimeoutMs — clamped per call in
+ *     callMetaModel (a non-positive ceiling means "no clamp").
+ *   maxSpendUsdPerHunt — checked against the recorded cost store
+ *     (getHuntCost) before each API attempt; 0 = no limit, per the
+ *     field's own comment. A cost-store read failure fails CLOSED
+ *     (same philosophy as #328): spending against an unknown
+ *     balance must not evaporate the cap.
+ *   maxRequestsPerHunt / maxRequestsPerHour — counted per hunt in
+ *     memory (this module's Map). The deployed backend is
+ *     single-process, so the counts hold there; a restart resets
+ *     them (documented limit — a durable counter would need a
+ *     meta write per API call). The hour window is fixed from the
+ *     first request in the window, not sliding.
+ *   maxRetries — no API path retries more than once today (Meta:
+ *     zero retries, single fetch; OpenRouter: one 429 retry in
+ *     llm.js), so the default ceiling of 2 is already satisfied
+ *     with no new retry machinery; if a retry loop is ever added
+ *     it must clamp to this value.
+ * Hunt-less callers (no huntId) skip the counted ceilings — there
+ * is no hunt to charge — but the token/timeout clamps still apply.
+ */
+const apiUsage = new Map(); // huntId -> { total, hourStart, hourCount }
+export function resetApiUsage() { apiUsage.clear(); }
+export function checkApiBudget(huntId, { getCost = getHuntCost, now = Date.now() } = {}) {
+  const b = API_BUDGET_DEFAULTS;
+  if (!huntId) return { ok: true };
+  if (b.maxSpendUsdPerHunt > 0) {
+    let spent = 0;
+    try {
+      spent = (getCost(huntId) || {}).totalUsd || 0;
+    } catch {
+      return { ok: false, reason: 'api_budget_cost_store' };
+    }
+    if (spent >= b.maxSpendUsdPerHunt) return { ok: false, reason: 'api_budget_spend' };
+  }
+  const u = apiUsage.get(String(huntId));
+  if (u) {
+    if (now - u.hourStart >= 3600000) {
+      u.hourStart = now;
+      u.hourCount = 0;
+    }
+    if (u.total >= b.maxRequestsPerHunt) return { ok: false, reason: 'api_budget_hunt' };
+    if (u.hourCount >= b.maxRequestsPerHour) return { ok: false, reason: 'api_budget_hour' };
+  }
+  return { ok: true };
+}
+export function noteApiRequest(huntId, { now = Date.now() } = {}) {
+  if (!huntId) return;
+  const key = String(huntId);
+  let u = apiUsage.get(key);
+  if (!u) {
+    u = { total: 0, hourStart: now, hourCount: 0 };
+    apiUsage.set(key, u);
+  }
+  if (now - u.hourStart >= 3600000) {
+    u.hourStart = now;
+    u.hourCount = 0;
+  }
+  u.total += 1;
+  u.hourCount += 1;
+}
 /**
  * Check if OpenRouter API is configured (key present).
  * Never logs or returns the key value.
@@ -142,9 +209,16 @@ export function isOpenRouterModel(id) {
   return Boolean(m && m.provider === 'openrouter');
 }
 
-/** The switcher list for the UI: each model with its availability. */
+/** The switcher list for the UI: each model with its availability.
+ *  Availability is per provider (#365, gap 3): Meta needs a key,
+ *  OpenRouter needs a key — the old code reported every non-Meta
+ *  model available unconditionally, offering an unusable OpenRouter
+ *  entry when no key is configured. */
 export function listBrainModels() {
-  return BRAIN_MODELS.map((m) => ({ ...m, available: m.provider !== 'meta' || metaAvailable() }));
+  return BRAIN_MODELS.map((m) => ({
+    ...m,
+    available: m.provider === 'meta' ? metaAvailable() : m.provider === 'openrouter' ? openRouterAvailable() : true,
+  }));
 }
 
 /**
@@ -231,6 +305,9 @@ export function setBrainModel(huntId, modelId, { manual = false, readMeta, write
   const model = findBrainModel(modelId);
   if (!model) return { ok: false, error: 'unknown_model' };
   if (model.provider === 'meta' && !metaAvailable()) return { ok: false, error: 'meta_unavailable' };
+  // FIX (#365, gap 3): OpenRouter models were accepted with no
+  // availability check, unlike Meta above. Same refusal shape.
+  if (model.provider === 'openrouter' && !openRouterAvailable()) return { ok: false, error: 'openrouter_unavailable' };
   const prev = getBrainState(huntId, { readMeta });
   const next = { selected: model.id, active: model.id, fallback: false, metaStreak: 0 };
   saveBrainState(huntId, next, { writeMeta });
@@ -253,6 +330,18 @@ export function setBrainModel(huntId, modelId, { manual = false, readMeta, write
 export async function callMetaModel(messages, system, ctx, { model, maxTokens, reasoningEffort, timeoutMs, fetchFn } = {}) {
   const key = (process.env.META_API_KEY || '').trim();
   if (!key) return { ok: false, reason: 'no_key' };
+  // FIX (#365, gap 2): clamp the per-call ceilings. A non-positive
+  // ceiling means "no clamp" (defensive: 0 max_tokens / 0 timeout
+  // would be nonsense, not a limit).
+  const b = API_BUDGET_DEFAULTS;
+  const cappedTokens = Math.min(
+    maxTokens || META_BRAIN_MAX_TOKENS,
+    b.maxTokensPerRequest > 0 ? b.maxTokensPerRequest : Infinity
+  );
+  const cappedTimeout = Math.min(
+    timeoutMs ?? META_TIMEOUT_MS_DEFAULT,
+    b.requestTimeoutMs > 0 ? b.requestTimeoutMs : Infinity
+  );
   const fetchImpl = fetchFn || fetch;
   const clean = (t) => sanitizeForModel(String(t || ''));
   const apiMessages = [];
@@ -270,7 +359,7 @@ export async function callMetaModel(messages, system, ctx, { model, maxTokens, r
     // first — without reasoning_effort and a generous max_tokens a
     // short reply comes back empty with finish_reason "length".
     reasoning_effort: reasoningEffort || META_BRAIN_REASONING_EFFORT,
-    max_tokens: maxTokens || META_BRAIN_MAX_TOKENS,
+    max_tokens: cappedTokens,
   };
   let res;
   try {
@@ -278,7 +367,7 @@ export async function callMetaModel(messages, system, ctx, { model, maxTokens, r
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(timeoutMs ?? META_TIMEOUT_MS_DEFAULT),
+      signal: AbortSignal.timeout(cappedTimeout),
       redirect: 'manual', // connector rule: redirects stay disabled on authenticated requests
     });
   } catch (err) {
@@ -367,6 +456,20 @@ export async function callBrain(messages, system, ctx, { huntId, readMeta, write
     if (state.active !== state.selected) {
       saveBrainState(huntId, { ...state, active: state.selected }, { writeMeta });
     }
+    // FIX (#365, gap 2): enforce the API budget before dispatching.
+    // A gated dispatch falls back to the local brain exactly like
+    // the no-key branch above (same event shape, gate reason).
+    {
+      const gate = checkApiBudget(huntId);
+      if (!gate.ok) {
+        if (!state.fallback) {
+          saveBrainState(huntId, { ...state, active: DEFAULT_BRAIN_MODEL, fallback: true }, { writeMeta });
+          recordSwitch(huntId, { from: state.selected, to: DEFAULT_BRAIN_MODEL, reason: gate.reason, manual: false }, { record });
+        }
+        return chat(messages, system, ctx, chatOpts);
+      }
+      noteApiRequest(huntId);
+    }
     return chat(messages, system, ctx, { ...chatOpts, providerOverride: 'openrouter' });
   }
   if (!isMetaModel(state.selected)) {
@@ -384,7 +487,19 @@ export async function callBrain(messages, system, ctx, { huntId, readMeta, write
     return chat(messages, system, ctx, chatOpts);
   }
   const probeTimeout = state.fallback ? META_PROBE_TIMEOUT_MS_DEFAULT : META_TIMEOUT_MS_DEFAULT;
-  const attempt = await meta(messages, system, ctx, { model: state.selected, timeoutMs: probeTimeout });
+  // FIX (#365, gap 2): enforce the API budget before the attempt. A
+  // gated attempt flows through the normal Meta-down fallback below
+  // (fallback set once, 8B answers) — no new path needed.
+  let attempt;
+  {
+    const gate = checkApiBudget(huntId);
+    if (!gate.ok) {
+      attempt = { ok: false, reason: gate.reason };
+    } else {
+      noteApiRequest(huntId);
+      attempt = await meta(messages, system, ctx, { model: state.selected, timeoutMs: probeTimeout });
+    }
+  }
   if (attempt && attempt.ok) {
     if (state.fallback) {
       const streak = state.metaStreak + 1;
@@ -421,6 +536,19 @@ export async function callBrain(messages, system, ctx, { huntId, readMeta, write
  * queue was built for.
  */
 export async function callChatMeta(messages, system, ctx, opts = {}) {
+  // FIX (#365, gap 2): the chat path is also API spend. Gate it when
+  // the call carries a hunt; a gated chat returns null and the caller
+  // answers from the deterministic live record (its existing
+  // fallback). opts.getCost is a test seam (same pattern as fetchFn).
+  const huntId = ctx && ctx.huntId;
+  if (huntId) {
+    const gate = checkApiBudget(huntId, opts.getCost ? { getCost: opts.getCost } : {});
+    if (!gate.ok) {
+      try { console.warn(`[brain] chat API budget exceeded (${gate.reason}) for hunt ${huntId}; answering from the live record`); } catch {}
+      return null;
+    }
+    noteApiRequest(huntId);
+  }
   const res = await callMetaModel(messages, system, ctx, {
     model: opts.model || 'muse-spark-1.3',
     maxTokens: opts.maxTokens || META_CHAT_MAX_TOKENS,
