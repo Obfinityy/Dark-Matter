@@ -20,7 +20,7 @@
 // users submit with their Bearer token (renewal path).
 
 import { Router } from 'express';
-import { requireAuth, requireAdmin, verifyToken, verifyPassword } from './auth.js';
+import { requireAuth, requireAdmin, verifyToken, verifyPassword, createIpRateLimiter } from './auth.js';
 import { readUsers } from '../store.js';
 import { getBalanceUsd, recentTxns } from '../billing/credits.js';
 import { upiPayDetails, UPI_AMOUNT_INR } from '../upiPay.js';
@@ -91,7 +91,12 @@ function isBlocked(user) {
   return user.blockedUntil === null || (user.blockedUntil && new Date(user.blockedUntil) > new Date());
 }
 
-router.post('/claims', optionalAuth, (req, res) => {
+// FIX (#325): POST /claims burns a synchronous scrypt per credential
+// guess (resolveClaimUser -> verifyPassword) and had no limiter, so it
+// was an unbounded password-guessing endpoint. Same budget as login.
+const limitClaimAttempts = createIpRateLimiter({ limit: 10, windowMs: 15 * 60 * 1000 });
+
+router.post('/claims', limitClaimAttempts, optionalAuth, (req, res) => {
   try {
     const user = resolveClaimUser(req);
     if (!user) {
