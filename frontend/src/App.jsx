@@ -13,7 +13,7 @@ import AuthPage from './pages/AuthPage';
 import LegalPage from './pages/LegalPage';
 import AuthModal from './components/AuthModal';
 import ToastHost from './components/ToastHost';
-import { AuthProvider, useAuth } from './lib/auth';
+import { AuthProvider, useAuth, hasPendingHuntSetup, clearPendingHuntSetup } from './lib/auth';
 
 const CHATS_KEY = 'dm.chats';
 const CHAT_WIPE_VERSION = '2026-10-16-wipe2';
@@ -69,13 +69,32 @@ function deriveTitle(text) {
   return t.length > 42 ? `${t.slice(0, 42)}…` : t || 'Untitled chat';
 }
 
+// FIX (#449): one shared page <-> path map, used in BOTH directions.
+// The old code had two separate partial maps: routeFromPath knew only
+// /login, /admin, /privacy, /terms, and navigate mapped everything
+// else to '/'. So visiting /plugins, /reports, /machines, /pay, or
+// /settings directly (or refreshing on one) landed on chat, and
+// sidebar navigation to those pages never produced a shareable URL.
+// Every page the app renders now has a path, in both directions.
+const ROUTES = {
+  chat: '/',
+  login: '/login',
+  admin: '/admin',
+  privacy: '/privacy',
+  terms: '/terms',
+  plugins: '/plugins',
+  reports: '/reports',
+  machines: '/machines',
+  pay: '/pay',
+  settings: '/settings',
+};
+
 function routeFromPath() {
   try {
     const p = window.location.pathname.replace(/\/+$/, '') || '/';
-    if (p === '/login') return 'login';
-    if (p === '/admin') return 'admin';
-    if (p === '/privacy') return 'privacy';
-    if (p === '/terms') return 'terms';
+    for (const [page, path] of Object.entries(ROUTES)) {
+      if (path === p) return page;
+    }
   } catch { /* ignore */ }
   return 'chat';
 }
@@ -663,9 +682,7 @@ function AppInner() {
   function navigate(p) {
     setPage(p);
     try {
-      const routes = { login: '/login', admin: '/admin', privacy: '/privacy', terms: '/terms' };
-      const path = routes[p] || '/';
-      window.history.replaceState(null, '', path);
+      window.history.replaceState(null, '', ROUTES[p] || '/');
     } catch { /* ignore */ }
     // Opening the auth pages from the app shell should not leave the modal up.
     if (p === 'login') setAuthModal(null);
@@ -799,8 +816,15 @@ function AppInner() {
       {authModal && (
         <AuthModal
           mode={authModal}
-          onClose={() => setAuthModal(null)}
-          onDone={() => setPage('chat')}
+          onClose={() => { clearPendingHuntSetup(); setAuthModal(null); }}
+          onDone={() => {
+            setPage('chat');
+            // FIX (#445): resume a pending hunt-setup intent — bump
+            // the (previously dead) hunt-modal trigger so ChatPage
+            // opens the setup after login. No pending intent means
+            // no modal: a plain login never pops the hunt setup.
+            if (hasPendingHuntSetup()) setHuntModalTrigger((t) => t + 1);
+          }}
           onNavigate={navigate}
         />
       )}
