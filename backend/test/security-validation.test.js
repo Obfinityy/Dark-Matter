@@ -10,7 +10,8 @@ test('scope gate honors explicitly enumerated assets', () => {
   assert.equal(isInScope('https://unlisted.example.org', scope), false);
 });
 
-test('scope gate fails closed for malformed input and exclusions win', () => {
+test('scope gate fails closed for missing scope, malformed input, and exclusions', () => {
+  assert.equal(isInScope('https://example.com', null), false);
   const scope = parseScope('example.com', 'In scope: *.example.com\nOut of scope: admin.example.com');
   assert.equal(isInScope('not a valid URL %%', scope), false);
   assert.equal(isInScope('https://admin.example.com', scope), false);
