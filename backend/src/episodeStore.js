@@ -203,7 +203,23 @@ function bodyFor(event, kind) {
 
 function outcomeFor(event, kind) {
   if (kind === 'finding') {
-    return event.verified === true ? 'verified' : event.verified === false ? 'rejected' : 'unverified';
+    if (event.verified === true) return 'verified';
+    if (event.verified === false) {
+      // verified:false is ambiguous in the event stream: it marks both
+      // validator rejections AND unassessed/pending claims (be-a-brain
+      // and human-mode no-assessor paths record "pending pipeline
+      // verification", curiosity leads carry no verdict, probe-name
+      // downgrades strip verified status without disproving anything).
+      // Only a validator verdict counts as a rejection; anything
+      // explicitly pending/downgraded — or with no verdict at all —
+      // is unverified. (Previously every false mapped to 'rejected',
+      // so backfillRuledOutFromEpisodes seeded pending leads into the
+      // ruled-out registry as if disproven.)
+      const v = String(event.verification || '');
+      if (!v || /pending|downgraded/i.test(v)) return 'unverified';
+      return 'rejected';
+    }
+    return 'unverified';
   }
   if (kind === 'status') return event.state || null;
   return event.outcome || null;
