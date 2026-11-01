@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Markdown from '../components/Markdown';
-import { fetchReportMarkdown, reportPdfUrl, listHunts } from '../lib/api';
+import { fetchReportMarkdown, downloadReport, listHunts } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { toast } from '../lib/toast';
 
@@ -18,6 +18,7 @@ export default function ReportsPage({ preselectedHuntId }) {
   const [selectedId, setSelectedId] = useState(preselectedHuntId || null);
   const [markdown, setMarkdown] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -92,6 +93,18 @@ export default function ReportsPage({ preselectedHuntId }) {
     }
   }
 
+  async function downloadPdf() {
+    if (!selectedId) return;
+    setDownloading(true);
+    setError('');
+    const res = await downloadReport(selectedId, 'pdf');
+    setDownloading(false);
+    if (!res.ok) {
+      setError(res.error || 'Could not download the report.');
+      toast(res.error || 'Could not download the report.', 'error');
+    }
+  }
+
   function loadManual() {
     const id = manualId.trim();
     if (!id) return;
@@ -152,14 +165,9 @@ export default function ReportsPage({ preselectedHuntId }) {
                 <button className="btn btn-primary btn-sm" onClick={generateReport} disabled={generating}>
                   {generating ? 'Generating…' : 'Generate report'}
                 </button>
-                <a
-                  className="btn btn-ghost btn-sm"
-                  href={reportPdfUrl(selectedId)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Download PDF
-                </a>
+                <button className="btn btn-ghost btn-sm" onClick={downloadPdf} disabled={downloading}>
+                  {downloading ? 'Downloading…' : 'Download PDF'}
+                </button>
                 <span className="report-hunt-id">Hunt ID: {selectedId}</span>
               </div>
               {error && <div className="alert alert-error">{error}</div>}
