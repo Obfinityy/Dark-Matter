@@ -152,15 +152,22 @@ export function isInScope(url, parsedScope) {
     const u = new URL(url.includes('://') ? url : `https://${url}`);
     if (!['http:', 'https:'].includes(u.protocol) || !u.hostname) return false;
     const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, '');
-    const candidates = Array.isArray(parsedScope.inScope) && parsedScope.inScope.length
-      ? parsedScope.inScope
-      : [parsedScope.domain];
-    const matchesHost = (candidate) => {
-      const allowed = String(candidate || '').toLowerCase().replace(/^\*\./, '').replace(/^\[|\]$/g, '');
+    const domain = String(parsedScope.domain || '').toLowerCase().replace(/^\\[|\\]$/g, '');
+    // The target host is exact by default. Subdomains require an explicit wildcard.
+    const defaultDomainMatch = !!domain && host === domain;
+    const exactHosts = parsedScope.inScopeExactHosts || [];
+    const wildcardHosts = parsedScope.inScopeWildcardHosts || [];
+    const exactMatch = exactHosts.some((h) => host === String(h).toLowerCase());
+    const wildcardMatch = wildcardHosts.some((h) => {
+      const allowed = String(h).toLowerCase();
+      return host !== allowed && host.endsWith('.' + allowed);
+    });
+    if (!defaultDomainMatch && !exactMatch && !wildcardMatch) return false;
+    const excludedHost = (candidate) => {
+      const allowed = String(candidate || '').toLowerCase().replace(/^\\*\\./, '').replace(/^\\[|\\]$/g, '');
       return !!allowed && (host === allowed || host.endsWith('.' + allowed));
     };
-    if (!candidates.some(matchesHost)) return false;
-    if ((parsedScope.outOfScopeHosts || []).some(matchesHost)) return false;
+    if ((parsedScope.outOfScopeHosts || []).some(excludedHost)) return false;
     const path = (u.pathname + u.search).toLowerCase();
     for (const oos of parsedScope.outOfScope || []) {
       if (path.includes(String(oos).toLowerCase())) return false;
