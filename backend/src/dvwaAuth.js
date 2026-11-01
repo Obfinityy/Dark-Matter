@@ -1,91 +1,88 @@
 /**
  * dvwaAuth.js — DVWA auto-login helper for the hunt engine.
  *
- * Problem: the brain gets stuck at DVWA login because DVWA requires a
- * per-request CSRF token (user_token) that the browser-based login flow
- * does not handle reliably. The brain loops on recall#267 trying to log in.
- *
- * Solution: system-level helper that performs the login via shell (curl),
- * handling the CSRF token extraction + POST + security-level setting.
- * The authenticated cookie jar is saved for the hunt container to reuse.
- *
- * This is a permanent system-level fix: any future hunt targeting a DVWA
- * instance gets working auth without the brain having to figure it out.
+ * Uses Node.js fetch directly (backend can reach 172.17.0.1:3100).
+ * No container exec needed.
  */
 
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import fs from 'node:fs';
-import path from 'node:path';
+const cookieJars = new Map(); // huntId -> cookie string
 
-const execFileAsync = promisify(execFile);
+function extractCookies(setCookieHeaders) {
+  if (!setCookieHeaders) return '';
+  const headers = Array.isArray(setCookieHeaders) ? setCookieHeaders : [setCookieHeaders];
+  return headers.map(h => String(h).split(';')[0]).join('; ');
+}
 
-/**
- * Perform DVWA login inside the hunt container.
- *
- * @param {object} opts
- * @param {string} opts.huntId - hunt id (for cookie jar path)
- * @param {string} opts.target - DVWA base URL, e.g. http://172.17.0.1:3100
- * @param {string} opts.username - default 'admin'
- * @param {string} opts.password - default 'password'
- * @param {function} opts.execInContainer - async (huntId, cmd) => { stdout, stderr }
- * @returns {Promise<{ok:boolean, cookieJar:string, error?:string}>}
- */
-export async function dvwaLogin({
-  huntId,
-  target,
-  username = 'admin',
-  password = 'password',
-  execInContainer,
-}) {
+function mergeCookies(oldJar, newCookies) {
+  const map = new Map();
+  for (const c of String(oldJar || '').split(';')) {
+    const [k, ...v] = c.trim().split('=');
+    if (k) map.set(k.trim(), v.join('=').trim());
+  }
+  for (const c of String(newCookies || '').split(';')) {
+    const [k, ...v] = c.trim().split('=');
+    if (k) map.set(k.trim(), v.join('=').trim());
+  }
+  return [...map.entries()].map(([k, v]) => `${k}=${v}`).join('; ');
+}
+
+export async function dvwaLogin({ huntId, target, username = 'admin', password = 'password' }) {
   const base = String(target || '').replace(/\/+$/, '');
   if (!base) return { ok: false, error: 'no_target' };
-  if (typeof execInContainer !== 'function') return { ok: false, error: 'no_exec' };
-
-  const jar = `/tmp/dvwa-cookies-${huntId}.txt`;
-
-  // The login script handles: GET login.php -> extract user_token ->
-  // POST credentials -> verify welcome -> set security=low
-  const script = `
-set -e
-BASE="${base}"
-JAR="${jar}"
-USER="${username}"
-PASS="${password}"
-curl -s -c "$JAR" "$BASE/login.php" -o /tmp/dvwa_login.html
-TOKEN=$(grep -oP "user_token' value='\\K[^']+" /tmp/dvwa_login.html | head -1)
-if [ -z "$TOKEN" ]; then echo "NOTOKEN"; exit 1; fi
-curl -s -b "$JAR" -c "$JAR" -L \\
-  -d "username=$USER&password=$PASS&user_token=$TOKEN&Login=Login" \\
-  "$BASE/login.php" -o /tmp/dvwa_logged.html
-if ! grep -q "Welcome" /tmp/dvwa_logged.html; then echo "LOGINFAIL"; exit 1; fi
-curl -s -b "$JAR" "$BASE/security.php" -o /tmp/dvwa_sec.html
-SECTOKEN=$(grep -oP "user_token' value='\\K[^']+" /tmp/dvwa_sec.html | head -1)
-curl -s -b "$JAR" -c "$JAR" \\
-  -d "security=low&user_token=$SECTOKEN&seclev_submit=Submit" \\
-  "$BASE/security.php" -o /dev/null
-echo "OK $JAR"
-`.trim();
 
   try {
-    const res = await execInContainer(huntId, `bash -c ${JSON.stringify(script)}`);
-    const out = String(res.stdout || '') + String(res.stderr || '');
-    if (out.includes('OK ')) {
-      return { ok: true, cookieJar: jar };
-    }
-    if (out.includes('NOTOKEN')) return { ok: false, error: 'csrf_token_not_found' };
-    if (out.includes('LOGINFAIL')) return { ok: false, error: 'login_failed' };
-    return { ok: false, error: 'unknown', detail: out.slice(0, 500) };
+    let jar = cookieJars.get(huntId) || '';
+
+    // 1. GET login.php, extract CSRF token
+    const loginRes = await fetch(`${base}/login.php`, {
+      headers: jar ? { Cookie: jar } : {},
+    });
+    jar = mergeCookies(jar, extractCookies(loginRes.headers.getSetCookie?.() || loginRes.headers.get('set-cookie')));
+    const loginHtml = await loginRes.text();
+    const tokenMatch = loginHtml.match(/user_token['"]\s+value=['"]([^'"]+)['"]/i) ||
+                       loginHtml.match(/name=['"]user_token['"][^>]*value=['"]([^'"]+)['"]/i);
+    const token = tokenMatch ? tokenMatch[1] : null;
+    if (!token) return { ok: false, error: 'csrf_token_not_found' };
+
+    // 2. POST login
+    const body = new URLSearchParams({ username, password, user_token: token, Login: 'Login' });
+    const postRes = await fetch(`${base}/login.php`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        ...(jar ? { Cookie: jar } : {}),
+      },
+      body: body.toString(),
+      redirect: 'follow',
+    });
+    jar = mergeCookies(jar, extractCookies(postRes.headers.getSetCookie?.() || postRes.headers.get('set-cookie')));
+    const loggedHtml = await postRes.text();
+    if (!/welcome/i.test(loggedHtml)) return { ok: false, error: 'login_failed' };
+
+    // 3. Set security=low (GET token first)
+    const secRes = await fetch(`${base}/security.php`, { headers: { Cookie: jar } });
+    jar = mergeCookies(jar, extractCookies(secRes.headers.getSetCookie?.() || secRes.headers.get('set-cookie')));
+    const secHtml = await secRes.text();
+    const secMatch = secHtml.match(/user_token['"]\s+value=['"]([^'"]+)['"]/i) ||
+                     secHtml.match(/name=['"]user_token['"][^>]*value=['"]([^'"]+)['"]/i);
+    const secToken = secMatch ? secMatch[1] : token;
+    const secBody = new URLSearchParams({ security: 'low', user_token: secToken, seclev_submit: 'Submit' });
+    await fetch(`${base}/security.php`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Cookie: jar,
+      },
+      body: secBody.toString(),
+    });
+
+    cookieJars.set(huntId, jar);
+    return { ok: true, cookieJar: jar.slice(0, 100) + '...' };
   } catch (e) {
-    return { ok: false, error: 'exec_failed', detail: String(e.message || e).slice(0, 500) };
+    return { ok: false, error: 'fetch_failed', detail: String(e.message || e).slice(0, 300) };
   }
 }
 
-/**
- * Check whether the brain appears stuck at a DVWA login page.
- * Looks at recent tool_call events for repeated login attempts
- * without a successful navigation away from login.php.
- */
 export function isStuckAtDvwaLogin(events, { window = 20 } = {}) {
   const rows = Array.isArray(events) ? events.slice(-window) : [];
   let loginAttempts = 0;
@@ -100,11 +97,14 @@ export function isStuckAtDvwaLogin(events, { window = 20 } = {}) {
         String(e.evidence || '').includes('url contains index')) {
       loginAttempts++;
     }
-    // successful navigation away from login = not stuck
     if (e.type === 'observation' && typeof e.text === 'string' &&
         e.text.includes('Welcome') && !e.text.includes('login.php')) {
       navigatedAway = true;
     }
   }
   return loginAttempts >= 3 && !navigatedAway;
+}
+
+export function getDvwaCookies(huntId) {
+  return cookieJars.get(huntId) || '';
 }

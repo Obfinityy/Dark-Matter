@@ -4469,16 +4469,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       {
         const dvwaTarget = (typeof target === 'string' ? target : '');
         if (/3100|dvwa/i.test(dvwaTarget)) {
-          const loginRes = await dvwaLogin({
-            huntId,
-            target: dvwaTarget,
-            execInContainer: async (hid, cmd) => {
-              // Use the container exec via deps
-              if (deps.execInContainer) return await deps.execInContainer(hid, cmd);
-              if (deps.execRaw) return await deps.execRaw(hid, cmd);
-              throw new Error('no_container_exec');
-            },
-          });
+          const loginRes = await dvwaLogin({ huntId, target: dvwaTarget });
           if (loginRes.ok) {
             observation = 'SYSTEM AUTO-LOGIN: Successfully logged into DVWA as admin ' +
               '(security set to low). Cookie jar: ' + loginRes.cookieJar + '. ' +
