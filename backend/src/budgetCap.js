@@ -46,8 +46,10 @@ export function parseBudgetUsd(value) {
  * credits gate in huntAgent.js). Returns true when the hunt may
  * proceed, false when it must pause at the budget.
  *
- * Fail-open by design: a store/cost read error never blocks a hunt
- * — the check simply passes and the next cycle tries again.
+ * A hunt-meta read error still fails open (no budget known, no hold
+ * to enforce). A COST read error fails CLOSED (#328): proceeding
+ * against an unknown balance would evaporate the cap, so the hunt
+ * pauses with a cost_store_error reason instead.
  */
 export function checkBudget(huntId, {
   readMeta = readHuntMeta,
@@ -81,8 +83,14 @@ export function checkBudget(huntId, {
   let spent = 0;
   try {
     spent = (getCost(huntId) || {}).totalUsd || 0;
-  } catch {
-    return true;
+  } catch (err) {
+    // Fail CLOSED (#328): the cost store is unreadable (main corrupt +
+    // no usable backup). Proceeding would spend against an unknown
+    // balance and evaporate the cap — pause with a distinct reason.
+    try { writeMeta(huntId, { state: 'paused', paused: true, pausedReason: 'cost_store_error' }); } catch { /* best-effort */ }
+    try { thinkFn(huntId, `Cost tracking is unreadable (${(err && err.message) || 'cost store error'}) — hunt paused so spending cannot run past the budget. Restore costs.json and press Resume.`); } catch { /* best-effort */ }
+    try { recordFn(huntId, { type: 'status', state: 'paused', reason: 'cost_store_error', at: new Date().toISOString() }); } catch { /* best-effort */ }
+    return false;
   }
   if (spent < budget) {
     // Under budget — lift a stale budget_reached hold left behind

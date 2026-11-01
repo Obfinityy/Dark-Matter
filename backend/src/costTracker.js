@@ -32,19 +32,48 @@ function costFile() {
   return path.join(dataDir(), 'costs.json');
 }
 
+function backupFile() {
+  return path.join(dataDir(), 'costs.bak.json');
+}
+
+function parseCosts(raw) {
+  const data = JSON.parse(raw);
+  if (!data || !Array.isArray(data.entries)) throw new Error('bad costs shape');
+  return data;
+}
+
 function readCosts() {
-  try {
-    const raw = fs.readFileSync(costFile(), 'utf8');
-    const data = JSON.parse(raw);
-    return Array.isArray(data.entries) ? data : { entries: [] };
-  } catch {
-    return { entries: [] };
+  // Missing main file = first run, not corruption.
+  let mainRaw = null;
+  try { mainRaw = fs.readFileSync(costFile(), 'utf8'); } catch { mainRaw = null; }
+  if (mainRaw !== null) {
+    try { return parseCosts(mainRaw); } catch { /* corrupt main: try backup */ }
   }
+  // Main missing (first run) or corrupt: fall back to the previous-good
+  // backup, so a torn/corrupt write never resets spend to $0 (#328).
+  try {
+    const bakRaw = fs.readFileSync(backupFile(), 'utf8');
+    return parseCosts(bakRaw);
+  } catch { /* no usable backup */ }
+  if (mainRaw !== null) {
+    // Main existed but is corrupt AND no usable backup: true data loss.
+    // Never silently return $0 — the caller (budget check) fails closed.
+    throw new Error('costs store unreadable: main corrupt, no usable backup');
+  }
+  return { entries: [] };
 }
 
 function writeCosts(data) {
-  fs.mkdirSync(path.dirname(costFile()), { recursive: true });
-  fs.writeFileSync(costFile(), JSON.stringify(data, null, 2));
+  const dir = path.dirname(costFile());
+  fs.mkdirSync(dir, { recursive: true });
+  // Rotate first: the previous good main becomes the backup BEFORE the
+  // new main lands, so a crash mid-write can never leave both corrupt.
+  try {
+    if (fs.existsSync(costFile())) fs.renameSync(costFile(), backupFile());
+  } catch { /* rotation is best-effort; the atomic write below still lands */ }
+  const tmp = `${costFile()}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+  fs.renameSync(tmp, costFile());
 }
 
 export function modelCostUsd(model, inputTokens, outputTokens) {
