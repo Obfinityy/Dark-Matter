@@ -180,8 +180,15 @@ function isDuplicate(huntDir, title) {
     const eventsPath = path.join(huntDir, 'events.jsonl');
     if (!fs.existsSync(eventsPath)) return false;
     const content = fs.readFileSync(eventsPath, 'utf8');
-    return content.includes('"action":"claim_finding"') &&
-           content.toLowerCase().includes(title.toLowerCase().slice(0, 30));
+    // A prior filing is recorded either as the brain's action JSON
+    // ("action":"claim_finding") or as the dispatch branch's tool_call
+    // record ("tool":"claim_finding") — the auto-filer's own filings
+    // only ever produce the latter, so matching just the action
+    // literal never deduped auto-filed claims (see #315).
+    const titleHit = content.toLowerCase().includes(title.toLowerCase().slice(0, 30));
+    if (!titleHit) return false;
+    return content.includes('"action":"claim_finding"') ||
+           content.includes('"tool":"claim_finding"');
   } catch {
     return false;
   }
