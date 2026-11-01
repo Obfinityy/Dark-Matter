@@ -41,3 +41,12 @@ test('DNS-aware SSRF validation blocks private literals before lookup', async ()
     assert.equal((await validateTargetAsync(target)).valid, false, target);
   }
 });
+
+test('explicit host assets do not implicitly authorize nested subdomains', () => {
+  const scope = parseScope('primary.example', 'In scope: api.example.net, *.cdn.example.net');
+  assert.equal(isInScope('https://api.example.net', scope), true);
+  assert.equal(isInScope('https://nested.api.example.net', scope), false);
+  assert.equal(isInScope('https://cdn.example.net', scope), false);
+  assert.equal(isInScope('https://img.cdn.example.net', scope), true);
+  assert.equal(isInScope('https://nested.img.cdn.example.net', scope), true);
+});
