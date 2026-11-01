@@ -4079,6 +4079,64 @@ export async function humanIteration(huntId, target, opts = {}) {
     }
   } catch { /* login-first is best-effort */ }
 
+  // POST-DISPATCH FILER SWEEP (#316): the pre-dispatch auto-filer scan
+  // only sees text from BEFORE dispatch, so evidence produced during
+  // dispatch (OCR screen text appended after screenshot/proof actions,
+  // tool outputs) waits a full turn — and is lost entirely if the
+  // session ends. This sweep runs at the end of every turn over the
+  // final observation and files through the same claimGateCheck +
+  // verifier as a claim_finding action. Dedup: a per-session set plus
+  // isDuplicate (the sweep's own filing record satisfies later turns'
+  // checks).
+  const sweepFiledTitles = new Set();
+  async function sweepPostDispatchEvidence(text) {
+    let detected = null;
+    try { detected = detectEvidence(String(text || '')); } catch { return; }
+    if (!detected) return;
+    if (sweepFiledTitles.has(detected.title)) return;
+    try {
+      if (isDuplicate(`/opt/Dark-Matter/backend/data/hunts/${huntId}`, detected.title)) return;
+    } catch { /* dup check is best-effort; fail-open to filing */ }
+    const rawTitle = String(detected.title || '');
+    const title = String(rawTitle.trim() ? rawTitle : 'Untitled claim').slice(0, 200);
+    const evidence = String(detected.evidence || '');
+    const command = String(detected.command || lastShellCommand || '');
+    const gate = claimGateCheck({
+      title: rawTitle,
+      cls: normaliseCoverageClass(detected.class) || claimClassFromTitle(rawTitle),
+      command,
+      poc: '',
+      pocExists: false,
+      evidence,
+      counterevidence: detected.counterevidence,
+      confidence: detected.confidence,
+      rationale: 'Auto-detected by pattern matcher from brain output; brain has not manually filed this claim',
+    });
+    if (!gate.ok) {
+      try { deps.record(huntId, { type: 'postdispatch_sweep_bounce', tool: 'claim_finding', detail: title, missing: gate.missing.map((m) => m.field), via: 'human-mode' }); } catch {}
+      return;
+    }
+    const assess = await getAssess();
+    if (!assess) return;
+    let rec = null;
+    try {
+      rec = await assess(huntId, target, {
+        test: title,
+        command,
+        why: 'Human-mode post-dispatch sweep — evidence produced during dispatch, filed same turn.',
+        hypothesis: title,
+      }, { stdout: evidence, stderr: '', code: 0 });
+    } catch { return; }
+    if (rec && rec.verified) {
+      newFindings.push(rec);
+      if (Array.isArray(opts.findings)) opts.findings.push(rec);
+      sweepFiledTitles.add(detected.title);
+      // Written with the action literal so later turns' isDuplicate
+      // checks (pre-dispatch scan) recognise this filing.
+      try { deps.record(huntId, { type: 'autofiler_postdispatch_filed', action: 'claim_finding', title, class: detected.class, via: 'human-mode' }); } catch {}
+    }
+  }
+
   for (let turn = 1; turn <= turns; turn++) {
     // Operator control: a pause/stop landed mid-session — hold position.
     try {
@@ -4477,7 +4535,16 @@ export async function humanIteration(huntId, target, opts = {}) {
       {
         const dvwaTarget = (typeof target === 'string' ? target : '');
         if (/3100|dvwa/i.test(dvwaTarget)) {
-          const loginRes = await dvwaLogin({ huntId, target: dvwaTarget });
+          const loginRes = await dvwaLogin({
+            huntId,
+            target: dvwaTarget,
+            execInContainer: async (hid, cmd) => {
+              // Use the container exec via deps
+              if (deps.execInContainer) return await deps.execInContainer(hid, cmd);
+              if (deps.execRaw) return await deps.execRaw(hid, cmd);
+              throw new Error('no_container_exec');
+            },
+          });
           if (loginRes.ok) {
             // Write cookies to container for brain's shell use
             try {
@@ -5966,6 +6033,10 @@ export async function humanIteration(huntId, target, opts = {}) {
     // in memory, but never lands in this log.
     log.push({ turn, action: kind, detail: scrub(detailForAction(kind, action)), observation: scrub(String(observation)).slice(0, 300) });
     lastObservation = observation;
+
+    // POST-DISPATCH FILER SWEEP (#316): file dispatch-produced evidence
+    // this turn, not next turn — and never lose it to session end.
+    try { await sweepPostDispatchEvidence(observation); } catch { /* sweep never breaks the loop */ }
 
     // VISIBLE-DESKTOP-FIRST: fold this turn's executed actions
     // into the previous-turn record the NEXT screen's nudge is
