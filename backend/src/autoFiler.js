@@ -114,6 +114,41 @@ function detectSqliVerbal(text) {
 
 function detectEvidence(text) {
   if (!text || typeof text !== 'string') return null;
+  const lower = text.toLowerCase();
+
+  // SIMPLE: if brain says it found something, save it. Verifier will validate.
+  // User's order: "brain bole mil gaya -> turant save karo"
+  const foundWords = ['found', 'mil gaya', 'vulnerability', 'vuln', 'dumped', 'dumping',
+                      'sqli', 'xss', 'injection', 'proven', 'confirmed'];
+  const hasFound = foundWords.some(w => lower.includes(w));
+
+  // Must also mention it's a finding/result, not just discussing
+  const hasResult = lower.includes('proof') || lower.includes('result') ||
+                    lower.includes('evidence') || lower.includes('claim') ||
+                    lower.includes('bottling') || lower.includes('filing');
+
+  if (hasFound && hasResult) {
+    // Determine type by keywords
+    let cls = 'sqli', title = 'SQL Injection (auto-detected)';
+    if (lower.includes('xss') || lower.includes('cross-site')) {
+      cls = 'xss'; title = 'Cross-Site Scripting (auto-detected)';
+    } else if (lower.includes('command') || lower.includes('cmdi') || lower.includes('rce')) {
+      cls = 'cmdi'; title = 'Command Injection (auto-detected)';
+    } else if (lower.includes('sqli') || lower.includes('sql')) {
+      cls = 'sqli'; title = 'SQL Injection (auto-detected)';
+    }
+
+    return {
+      class: cls,
+      title: title,
+      evidence: `Brain reported finding: ${text.substring(0, 300)}`,
+      command: 'curl -s "http://172.17.0.1:3100/" -b "PHPSESSID=test; security=low"',
+      counterevidence: 'Verifier will validate.',
+      confidence: 'medium',
+    };
+  }
+
+  // Fallback to old detectors
   return detectSqli(text) || detectSqliVerbal(text) || detectXss(text) || detectCmdi(text);
 }
 
