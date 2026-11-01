@@ -34,19 +34,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dnsutils net-tools iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
-# Python hacking libs
+# Python hacking libs — REQUIRED: a failed pip install must fail the
+# build (#352). The old `|| true` let the image ship without these libs
+# and fail silently at hunt time.
 RUN pip3 install --no-cache-dir --break-system-packages \
     requests beautifulsoup4 selenium webdriver-manager \
-    pyjwt python-whois dnspython \
-    || true
+    pyjwt python-whois dnspython
 
 # --- Live terminal streaming (PiP) ---
 # ttyd: single static binary, serves the agent's PTY over WebSocket (read-only).
 # tmux: persistent shell session so the streamed terminal shows actual agent activity.
+# ttyd + tmux are REQUIRED for Live Terminal streaming — a failed
+# download/install must fail the build (#352), not ship a container
+# whose terminal silently never starts.
 RUN curl -sL https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 \
-    -o /usr/local/bin/ttyd && chmod +x /usr/local/bin/ttyd || true
+    -o /usr/local/bin/ttyd && chmod +x /usr/local/bin/ttyd
 RUN apt-get update && apt-get install -y --no-install-recommends tmux \
-    && rm -rf /var/lib/apt/lists/* || true
+    && rm -rf /var/lib/apt/lists/*
 
 # --- Live GUI desktop ("Live Machine") — FULL XFCE desktop -------------------
 # A real desktop the agent can drive and the owner can watch AND use:
@@ -157,8 +161,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 # ysoserial is NOT in Kali apt — GitHub release jar (v0.0.6, ~57MB) + a
-# wrapper on PATH. Best-effort (|| true): if the download fails the build
-# still succeeds and ysoserial is reported MISS.
+# wrapper on PATH. Best-effort (|| true) BY DESIGN: it is a niche tool
+# and a transient GitHub failure must not break the whole image build.
+# Unlike before, a missing ysoserial is now REPORTED at container start
+# (run.sh tool inventory, #352) instead of silently absent.
 RUN mkdir -p /usr/local/share && curl -sL https://github.com/frohoff/ysoserial/releases/download/v0.0.6/ysoserial-all.jar \
     -o /usr/local/share/ysoserial-all.jar \
     && printf '#!/bin/sh\nexec java -jar /usr/local/share/ysoserial-all.jar "$@"\n' > /usr/local/bin/ysoserial \
@@ -246,13 +252,15 @@ RUN chmod +x /usr/local/bin/hunt-desktop.sh
 # so image and backend can never drift apart on it.
 RUN (apt-get update && apt-get install -y --no-install-recommends mitmproxy \
     && rm -rf /var/lib/apt/lists/*) \
-    || pip3 install --no-cache-dir --break-system-packages mitmproxy \
-    || true
+    || pip3 install --no-cache-dir --break-system-packages mitmproxy
 
 WORKDIR /opt/hunt
 COPY docker/hunt-runner/ ./
 
-RUN chmod +x run.sh && npm install --omit=dev || true
+# FIX (#352): hunt-runner ships only run.sh (pure bash, no package.json),
+# so the old `npm install --omit=dev || true` was a meaningless no-op
+# that also swallowed real failures. Just make the entrypoint executable.
+RUN chmod +x run.sh
 
 # --- AT-SPI (tools-autonomy lane, 27 Oct 2026 — owner order ~21:36 IST) ----
 # The brain addresses NAMED controls inside Burp/ZAP (desktop_click_control
