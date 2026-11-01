@@ -530,9 +530,20 @@ router.post(
   });
 
   // Ownership check for hunt-scoped chat: your hunts are yours alone.
+  // Mirrors the REST orphan rule (requireHuntOwner, FIX #128): a hunt
+  // id with no meta is 404, and a meta without a userId (legacy
+  // orphan) is admin-only — previously both cases skipped the check
+  // entirely and any logged-in user could chat about them (#334).
   if (huntId && req.user) {
     const meta0 = readHuntMeta(huntId);
-    if (meta0 && meta0.userId && meta0.userId !== req.user.id && req.user.role !== 'admin') {
+    if (!meta0) {
+      return res.status(404).json({ ok: false, error: 'hunt_not_found' });
+    }
+    if (!meta0.userId) {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ ok: false, error: 'forbidden' });
+      }
+    } else if (meta0.userId !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ ok: false, error: 'forbidden' });
     }
   }
