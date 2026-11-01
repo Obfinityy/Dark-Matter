@@ -216,6 +216,13 @@ export function requireAuth(req, res, next) {
   if (!m) return authRequired(res);
   const payload = verifyToken(m[1]);
   if (!payload) return authRequired(res);
+  // FIX (#324): terminal/control tickets are short-lived, hunt-bound
+  // channel tickets — not user sessions. They verify under the same
+  // HS256 secret, so without a type check requireAuth accepted them
+  // as ordinary sessions (with the ticket's sub/username). Reject
+  // them here; the WS upgrade paths verify them via their dedicated
+  // verifiers instead.
+  if (payload.type === 'terminal' || payload.type === 'control') return authRequired(res);
   req.user = {
     id: payload.sub,
     username: payload.username,
