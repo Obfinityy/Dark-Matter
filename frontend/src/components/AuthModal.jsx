@@ -2,6 +2,7 @@
 // Accounts are created by the admin via the Admin Portal.
 import React, { useState } from 'react';
 import { useAuth } from '../lib/auth';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 function friendlyError(res) {
   const code = res && res.error;
@@ -143,9 +144,14 @@ export function AuthCard({ onDone, onNavigate }) {
 }
 
 export default function AuthModal({ onClose, onDone, onNavigate }) {
+  // FIX (#452): Escape closes, Tab stays inside, focus returns to
+  // the opener on close. The modal mounts only while open, so it is
+  // always active here. (AuthCard already carries role="dialog"
+  // aria-modal="true"; the trap attaches to its wrapper.)
+  const dialogRef = useFocusTrap(true, onClose);
   return (
     <div className="auth-scrim" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: 400 }}>
+      <div ref={dialogRef} onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: 400 }}>
         <AuthCard
           onNavigate={(page) => {
             onClose && onClose();
