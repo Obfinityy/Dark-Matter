@@ -16,7 +16,7 @@ import {
 import { recordEngineEvent, getCachedEvents } from './routes/hunts.js';
 import huntsRouter from './routes/hunts.js';
 import authRouter from './routes/auth.js';
-import { ensureAdmin, verifyToken, verifyTerminalTicket, verifyControlTicket } from './routes/auth.js';
+import { ensureAdmin, verifyToken, canAccessHuntStream, verifyTerminalTicket, verifyControlTicket } from './routes/auth.js';
 import {
   getControl,
   releaseControl,
@@ -133,10 +133,7 @@ server.on('upgrade', (req, socket, head) => {
     let huntId;
     try { huntId = decodeURIComponent(streamMatch[1]); } catch { huntId = ''; }
     const meta = huntId ? readHuntMeta(huntId) : null;
-    const authorized = payload && meta && (
-      (meta.userId && String(meta.userId) === String(payload.sub)) ||
-      (payload.role === 'admin' && !meta.userId)
-    );
+    const authorized = canAccessHuntStream(payload, meta);
     if (!authorized) {
       socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
       socket.destroy();
