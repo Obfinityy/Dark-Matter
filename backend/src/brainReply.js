@@ -30,6 +30,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { MAX_CLICK_COORD } from './screenMap.js';
 
 const SCHEMA_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), 'brainReply.schema.json');
 
@@ -61,8 +62,8 @@ const isRecallId = (v) =>
  * optional top-level recall carries exactly one of hash/id; the
  * action is an object whose type is in the enum; the per-type
  * required fields are present. The claim package is checked
- * against what the claim completeness gate needs (title, severity,
- * command, evidence, counterevidence, confidence) — a reply that
+ * against what the claim completeness gate needs (title, class,
+ * severity, command, evidence, counterevidence, confidence) — a reply that
  * passed here but missed one of those would only ever bounce at
  * the gate, so the schema refuses it up front, naming the field.
  */
@@ -150,14 +151,30 @@ export function validateBrainReply(reply) {
       }
     }
     if (type === 'desktop_click_at') {
-      if (action.x === undefined || action.x === null || action.x === '') bad('action.x', '"action.x" is required for a desktop_click_at action — a point from the see_screen map.');
-      if (action.y === undefined || action.y === null || action.y === '') bad('action.y', '"action.y" is required for a desktop_click_at action — a point from the see_screen map.');
+      // FIX (#366): presence-only let strings ("left") and absurd
+      // coordinates pass validation and fail at dispatch. Mirror
+      // parseClickAt (screenMap.js) exactly: integer NUMBERS in
+      // [0, MAX_CLICK_COORD). The bound is imported, not copied, so
+      // #370's bound fix moves validator and dispatch together.
+      for (const axis of ['x', 'y']) {
+        const v = action[axis];
+        if (!Number.isInteger(v)) bad(`action.${axis}`, `"action.${axis}" must be an integer point from the see_screen map — got ${JSON.stringify(v)} (a string like "left" is not a point).`);
+        else if (v < 0 || v >= MAX_CLICK_COORD) bad(`action.${axis}`, `"action.${axis}" must be in range 0–${MAX_CLICK_COORD - 1} — got ${v}; take see_screen again and use a point from the map.`);
+      }
     }
     if (type === 'desktop_click_control') need('control', "the control's visible name (e.g. \"Repeater\")");
     if (type === 'desktop_terminal') need('command', 'the command to run in the visible terminal');
     if (type === 'launch_tool' || type === 'download_tool') need('tool', 'the tool name (e.g. "burp")');
     if (type === 'intercept_read' || type === 'intercept_replay') {
-      if (action.index === undefined || action.index === null || String(action.index).trim() === '') bad('action.index', '"action.index" is required — the # from intercept_list.');
+      // FIX (#366): presence-only let "abc" pass and fail at dispatch.
+      // Mirror readInterceptEntry (proxyIntercept.js): a non-negative
+      // integer — numbers, or integer strings like "3", as the dispatch
+      // coerces with Number(). The UPPER bound lives at dispatch only
+      // (only the capture holder knows how many entries exist), so the
+      // validator enforces type + non-negativity, dispatch enforces range.
+      const raw = action.index;
+      const n = typeof raw === 'number' ? raw : (typeof raw === 'string' && raw.trim() !== '' ? Number(raw.trim()) : NaN);
+      if (!Number.isInteger(n) || n < 0) bad('action.index', `"action.index" must be a non-negative integer — the # from intercept_list (got ${JSON.stringify(raw)}).`);
     }
     if (type === 'recall') {
       const hashPresent = action.hash !== undefined && action.hash !== null;
@@ -174,6 +191,13 @@ export function validateBrainReply(reply) {
     }
     if (type === 'claim_finding') {
       need('title', 'one line naming the vulnerability');
+      // FIX (#366): class was optional, so claims arrived classless
+      // and downstream classification had to guess from the title.
+      // The gate already bounces classless claims — the validator now
+      // refuses them up front, naming the field, instead of letting
+      // them travel to the gate. (The gate's title-fallback still
+      // serves the non-JSON claim paths: form composer, auto-filer.)
+      need('class', 'the vuln class (e.g. "sqli", "xss") — the claim gate bounces classless claims');
       if (!isNonEmptyString(action.severity)) {
         bad('action.severity', '"action.severity" is required for a claim — critical, high, medium or low.');
       } else if (!SEVERITIES.has(String(action.severity).trim().toLowerCase())) {
