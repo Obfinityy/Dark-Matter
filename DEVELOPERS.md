@@ -351,8 +351,9 @@ WHILE hunt is running:
 - `running` — Actively hunting
 - `paused` — Checkpoint saved, can resume
 - `failed` — Error (auto-resume from checkpoint on backend restart)
-- `completed` — Hunt finished
-- `budget_paused` — Budget exhausted, waits for top-up
+- `finished` — Hunt finished (not `completed` — the code never uses that string)
+- `stopped` — Hunt stopped by the owner
+- `out_of_credits` — Budget exhausted, waits for top-up (not `budget_paused` — the code never uses that string; the resume path handles `meta.state === 'out_of_credits'`)
 
 ### Creating a Hunt
 ```
