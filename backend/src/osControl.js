@@ -394,7 +394,7 @@ export async function executeOsAction(huntId, kind, action, ctx = {}) {
     if (!command) return { ok: false, observation: 'Empty terminal command — nothing ran. Give a real command.' };
     const badUrl = (() => {
       try {
-        const urls = command.match(/https?:\/\/[^\s'"<>)|\]]+/gi) || [];
+        const urls = command.match(/(?:[a-z][a-z0-9+.-]*:)?\/\/[^\s'"<>)|\]]+/gi) || [];
         for (const u of urls) {
           const v = scopeViolation(u, target, ctx.parsedScope || null);
           if (v) return v;
