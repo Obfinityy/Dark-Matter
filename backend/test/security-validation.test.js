@@ -1,0 +1,97 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { isInScope, isPrivateIP, parseScope, validateTargetSSRF, validateTargetAsync } from '../src/scopeParser.js';
+import { canAccessHuntStream, createIpRateLimiter } from '../src/routes/auth.js';
+
+test('scope gate honors explicitly enumerated assets', () => {
+  const scope = parseScope('primary.example', 'In scope: primary.example, api.example.net, *.cdn.example.net\nOut of scope: staging.example.net');
+  assert.equal(isInScope('https://api.example.net/v1', scope), true);
+  assert.equal(isInScope('https://img.cdn.example.net/a.png', scope), true);
+  assert.equal(isInScope('https://staging.example.net', scope), false);
+  assert.equal(isInScope('https://unlisted.example.org', scope), false);
+});
+
+test('scope gate fails closed for missing scope, malformed input, and exclusions', () => {
+  assert.equal(isInScope('https://example.com', null), false);
+  const scope = parseScope('example.com', 'In scope: *.example.com\nOut of scope: admin.example.com');
+  assert.equal(isInScope('not a valid URL %%', scope), false);
+  assert.equal(isInScope('https://admin.example.com', scope), false);
+  assert.equal(isInScope('https://sub.admin.example.com', scope), false);
+});
+
+test('SSRF validation rejects private IPv4, IPv6, credentials, and non-HTTP schemes', () => {
+  for (const target of ['http://127.0.0.1', 'http://10.0.0.2', 'http://169.254.169.254', 'http://[::1]', 'http://[fd00::1]', 'http://[::ffff:127.0.0.1]', 'http://user:pass@example.com', 'file:///etc/passwd']) {
+    assert.equal(validateTargetSSRF(target).valid, false, target);
+  }
+  assert.equal(validateTargetSSRF('https://example.com').valid, true);
+});
+
+test('private IP detection validates IPv4 octets and IPv6 private ranges', () => {
+  assert.equal(isPrivateIP('192.168.1.1'), true);
+  assert.equal(isPrivateIP('172.32.0.1'), false);
+  assert.equal(isPrivateIP('999.1.1.1'), false);
+  assert.equal(isPrivateIP('::1'), true);
+  assert.equal(isPrivateIP('::ffff:127.0.0.1'), true);
+  assert.equal(isPrivateIP('::ffff:7f00:1'), true);
+  assert.equal(isPrivateIP('2001:db8::1'), false);
+});
+
+
+test('DNS-aware SSRF validation blocks private literals before lookup', async () => {
+  for (const target of ['http://127.0.0.1', 'http://[::1]', 'http://169.254.169.254', 'http://localhost']) {
+    assert.equal((await validateTargetAsync(target)).valid, false, target);
+  }
+});
+
+test('explicit host assets do not implicitly authorize nested subdomains', () => {
+  const scope = parseScope('primary.example', 'In scope: api.example.net, *.cdn.example.net');
+  assert.equal(isInScope('https://api.example.net', scope), true);
+  assert.equal(isInScope('https://nested.api.example.net', scope), false);
+  assert.equal(isInScope('https://cdn.example.net', scope), false);
+  assert.equal(isInScope('https://img.cdn.example.net', scope), true);
+  assert.equal(isInScope('https://nested.img.cdn.example.net', scope), true);
+});
+
+test('target host does not implicitly authorize its subdomains', () => {
+  const scope = parseScope('primary.example', '');
+  assert.equal(isInScope('https://primary.example', scope), true);
+  assert.equal(isInScope('https://sub.primary.example', scope), false);
+  const wildcardScope = parseScope('primary.example', 'In scope: *.primary.example');
+  assert.equal(isInScope('https://sub.primary.example', wildcardScope), true);
+});
+
+test('hunt stream authorization is owner-only and legacy hunts are admin-only', () => {
+  const owner = { sub: 'user-1', role: 'user' };
+  const other = { sub: 'user-2', role: 'user' };
+  const admin = { sub: 'admin-1', role: 'admin' };
+  assert.equal(canAccessHuntStream(owner, { userId: 'user-1' }), true);
+  assert.equal(canAccessHuntStream(other, { userId: 'user-1' }), false);
+  assert.equal(canAccessHuntStream(admin, { userId: 'user-1' }), false);
+  assert.equal(canAccessHuntStream(admin, {}), true);
+  assert.equal(canAccessHuntStream(owner, {}), false);
+  assert.equal(canAccessHuntStream(owner, null), false);
+  assert.equal(canAccessHuntStream(null, { userId: 'user-1' }), false);
+});
+
+test('IP rate limiter blocks after configured attempts and resets after window', () => {
+  let now = 1000;
+  const limiter = createIpRateLimiter({ limit: 2, windowMs: 1000, now: () => now });
+  const req = { ip: '192.0.2.1', socket: {} };
+  let nextCalls = 0;
+  let statusCode = 0;
+  let headers = {};
+  const res = {
+    setHeader: (k, v) => { headers[k] = v; },
+    status: (code) => { statusCode = code; return res; },
+    json: (body) => body,
+  };
+  limiter(req, res, () => nextCalls++);
+  limiter(req, res, () => nextCalls++);
+  limiter(req, res, () => nextCalls++);
+  assert.equal(nextCalls, 2);
+  assert.equal(statusCode, 429);
+  assert.equal(headers['Retry-After'], '1');
+  now += 1000;
+  limiter(req, res, () => nextCalls++);
+  assert.equal(nextCalls, 3);
+});

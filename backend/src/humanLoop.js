@@ -236,6 +236,58 @@ import {
 
 export { applyRetractions, retractedFindingCount, extractDossierBriefing, deadEndLines };
 
+/**
+ * Recover a previously observed SQLi proof when the model is trapped
+ * repeatedly recalling it. Only historical tool output paired with a
+ * recorded UNION/SQLi probe is eligible; model narration alone is not proof.
+ */
+export function recoverRecallLoopSqli(events, { consecutiveRecalls = 3 } = {}) {
+  const rows = Array.isArray(events) ? events : [];
+  let recalls = 0;
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const e = rows[i];
+    if (!e || e.type !== 'tool_call') continue;
+    if (String(e.tool || '').toLowerCase() !== 'recall') break;
+    recalls++;
+  }
+  if (recalls < consecutiveRecalls) return null;
+
+  const textOf = (e) => [e.text, e.detail, e.output, e.result, e.observation, e.stdout, e.stderr, e.response]
+    .filter((v) => typeof v === 'string').join('\n');
+  const hashes = new Set();
+  let evidenceText = '';
+  let proofCommand = '';
+  let afterSqliProbe = false;
+  for (let i = Math.max(0, rows.length - 300); i < rows.length; i++) {
+    const e = rows[i];
+    if (!e) continue;
+    if (e.type === 'tool_call') {
+      const tool = String(e.tool || '').toLowerCase();
+      if (tool === 'shell') {
+        const detail = String(e.detail || '');
+        afterSqliProbe = /\bunion\s+(?:all\s+)?select\b|\bselect\s+.+\s+from\s+users\b/i.test(detail);
+        if (afterSqliProbe && !proofCommand) proofCommand = detail;
+      } else if (tool !== 'recall') {
+        afterSqliProbe = false;
+      }
+    }
+    const text = textOf(e);
+    const found = afterSqliProbe ? (text.match(/\b[a-f0-9]{32}\b/gi) || []) : [];
+    if (found.length) {
+      for (const h of found) hashes.add(h.toLowerCase());
+      evidenceText += (evidenceText ? '\n' : '') + text.slice(0, 1800);
+    }
+  }
+  if (hashes.size < 2 || !proofCommand) return null;
+  return {
+    recalls,
+    hashes: [...hashes].slice(0, 12),
+    command: proofCommand.slice(0, 4000),
+    evidence: ('Recorded output after the SQLi UNION SELECT probe:\n' + evidenceText).slice(0, 3000),
+  };
+}
+
+
 const OBS_BUDGET = 3500; // chars of an action result shown on the next screen
 const COMMAND_CAP = 4000; // same transport cap as the pipeline (solver #459)
 
@@ -4329,6 +4381,7 @@ export async function humanIteration(huntId, target, opts = {}) {
     sessionLastThinking = thinkingText;
     let kind = String(action.action).toLowerCase();
     let observation = '';
+    let recallLoopProof = null;
 
     // STUCK-DETECTOR v2: persistent across sessions
     if (kind === 'recall') {
@@ -4348,8 +4401,17 @@ export async function humanIteration(huntId, target, opts = {}) {
     // AUTO-FILER v1: Scan brain output for vulnerability evidence.
     // If strong evidence found (SQLi hashes, XSS, CMDI), auto-file the claim.
     // The brain hunts; the filer files. Together they are the complete human.
+    // Rehydrate the loop-breaker proof from the append-only event log on
+    // every turn, so the next-turn auto-filer retains the original command
+    // and recovered evidence instead of falling back to a placeholder PoC.
+    if (!recallLoopProof) {
+      try { recallLoopProof = recoverRecallLoopSqli(deps.readEvents(huntId) || []); } catch { /* best-effort */ }
+    }
     try {
-      const scanText = String(thinkingText || '') + '\n' + String(observation || '');
+      // The previous action's result is also first-party text evidence.
+      // This matters for recall: its handler runs after this turn's initial
+      // scan, so a recovered proof is filed on the next turn.
+      const scanText = String(thinkingText || '') + '\n' + String(observation || '') + '\n' + String(lastObservation || '');
       const detected = detectEvidence(scanText);
       if (detected) {
         // Construct the claim_finding action
@@ -4357,8 +4419,12 @@ export async function humanIteration(huntId, target, opts = {}) {
           action: 'claim_finding',
           title: detected.title,
           class: detected.class,
-          evidence: detected.evidence,
-          command: detected.command,
+          evidence: detected.class === 'sqli' && recallLoopProof
+            ? recallLoopProof.evidence
+            : detected.evidence,
+          command: detected.class === 'sqli' && recallLoopProof
+            ? recallLoopProof.command
+            : detected.command,
           counterevidence: detected.counterevidence,
           confidence: detected.confidence,
           confidence_rationale: 'Auto-detected by pattern matcher from brain output; brain has not manually filed this claim',
@@ -4740,6 +4806,23 @@ export async function humanIteration(huntId, target, opts = {}) {
         } catch {
           observation = 'Recall failed this time — your briefing still carries the distilled memory.';
         }
+        // RECALL LOOP BREAKER: activate independently of proof_file_nudge.
+        // Three consecutive recall actions plus at least two hashes from
+        // recorded UNION-SQLi output and its original probe produce a
+        // system-authored evidence block. The normal auto-filer sees it on
+        // the following turn and sends it through the independent verifier.
+        try {
+          recallLoopProof = recoverRecallLoopSqli(deps.readEvents(huntId) || []);
+          if (recallLoopProof) {
+            observation += '\n\n[SYSTEM RECOVERED HISTORICAL SQLi PROOF — DO NOT RE-RECALL]\n' +
+              'Consecutive recalls: ' + recallLoopProof.recalls + '\n' +
+              'Hashes recovered from recorded UNION SELECT output: ' + recallLoopProof.hashes.join(', ') + '\n' +
+              'Recorded reproduction command: ' + recallLoopProof.command + '\n' +
+              recallLoopProof.evidence + '\n' +
+              'The auto-filer will submit this historical proof to the independent verifier next turn. A claim is not confirmed unless the verifier reproduces it.';
+            try { deps.record(huntId, { type: 'recall_loop_proof_recovered', recallCount: recallLoopProof.recalls, hashCount: recallLoopProof.hashes.length, command: scrub(recallLoopProof.command).slice(0, 500), via: 'system' }); } catch { /* best-effort */ }
+          }
+        } catch { /* recovery is best-effort; recall still succeeds */ }
         note({ action: `recall: ${query}`, why: thinkingText, result: clipResult(observation), learned: '' });
       }
     } else if (kind === 'record_coverage') {

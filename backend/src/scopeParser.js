@@ -1,3 +1,6 @@
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
+
 // Dark Matter — Scope understanding for bug bounty hunts.
 //
 // When a user enters a target + scope, the agent automatically understands:
@@ -28,6 +31,8 @@ export function parseScope(target, scopeText = '') {
     target,
     domain,
     inScope: [domain],
+    inScopeExactHosts: [],
+    inScopeWildcardHosts: [],
     outOfScope: [],
     rules: {
       noDoS: true,           // Always: never DoS
@@ -76,10 +81,14 @@ export function parseScope(target, scopeText = '') {
       const oosRegion = oosAt >= 0 ? region.slice(oosAt) : '';
       if (oosAt >= 0) region = region.slice(0, oosAt);
       const domRe = /(?:\*\.)?((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,})/gi;
-      const hostsIn = new Set();
+      const hostsIn = new Map();
       const hostsOut = new Set();
       let dm;
-      while ((dm = domRe.exec(region)) !== null) hostsIn.add(dm[1].toLowerCase());
+      while ((dm = domRe.exec(region)) !== null) {
+        const host = dm[1].toLowerCase();
+        const wildcard = dm[0].startsWith('*.');
+        hostsIn.set(host, wildcard || hostsIn.get(host) === true);
+      }
       domRe.lastIndex = 0;
       while ((dm = domRe.exec(oosRegion)) !== null) hostsOut.add(dm[1].toLowerCase());
       for (const h of hostsOut) {
@@ -87,9 +96,11 @@ export function parseScope(target, scopeText = '') {
         // contradictory text must not brick the hunt's own target.
         if (h !== domain) result.outOfScopeHosts.push(h);
       }
-      for (const h of hostsIn) {
+      for (const [h, wildcard] of hostsIn) {
         if (hostsOut.has(h)) continue; // named in both lists -> fail closed (out wins)
-        if (!result.inScope.includes(h)) result.inScope.push(h);
+        if (h === String(domain).toLowerCase()) continue; // default target rule already covers it
+        if (wildcard) result.inScopeWildcardHosts.push(h);
+        else result.inScopeExactHosts.push(h);
       }
     }
   } catch { /* extraction is best-effort; the [domain] default stands */ }
@@ -135,21 +146,35 @@ export function parseScope(target, scopeText = '') {
  * @returns {boolean}
  */
 export function isInScope(url, parsedScope) {
-  if (!parsedScope) return true;
+  if (!parsedScope || typeof parsedScope !== 'object') return false;
   try {
+    if (typeof url !== 'string' || !url.trim()) return false;
     const u = new URL(url.includes('://') ? url : `https://${url}`);
-    const host = u.hostname.toLowerCase();
-    // Must match target domain or subdomain
-    const domain = parsedScope.domain.toLowerCase();
-    if (host !== domain && !host.endsWith('.' + domain)) return false;
-    // Check against out-of-scope list
+    if (!['http:', 'https:'].includes(u.protocol) || !u.hostname) return false;
+    const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    const domain = String(parsedScope.domain || '').toLowerCase().replace(/^\\[|\\]$/g, '');
+    // The target host is exact by default. Subdomains require an explicit wildcard.
+    const defaultDomainMatch = !!domain && host === domain;
+    const exactHosts = parsedScope.inScopeExactHosts || [];
+    const wildcardHosts = parsedScope.inScopeWildcardHosts || [];
+    const exactMatch = exactHosts.some((h) => host === String(h).toLowerCase());
+    const wildcardMatch = wildcardHosts.some((h) => {
+      const allowed = String(h).toLowerCase();
+      return host !== allowed && host.endsWith('.' + allowed);
+    });
+    if (!defaultDomainMatch && !exactMatch && !wildcardMatch) return false;
+    const excludedHost = (candidate) => {
+      const allowed = String(candidate || '').toLowerCase().replace(/^\\*\\./, '').replace(/^\\[|\\]$/g, '');
+      return !!allowed && (host === allowed || host.endsWith('.' + allowed));
+    };
+    if ((parsedScope.outOfScopeHosts || []).some(excludedHost)) return false;
     const path = (u.pathname + u.search).toLowerCase();
-    for (const oos of parsedScope.outOfScope) {
-      if (path.includes(oos.toLowerCase())) return false;
+    for (const oos of parsedScope.outOfScope || []) {
+      if (path.includes(String(oos).toLowerCase())) return false;
     }
     return true;
   } catch {
-    return true; // If we can't parse, allow it (human would investigate)
+    return false; // Invalid/unparseable targets must fail closed.
   }
 }
 
@@ -166,13 +191,23 @@ export function getHuntUserAgent(parsedScope) {
  */
 export function isPrivateIP(ip) {
   if (!ip || typeof ip !== 'string') return false;
-  const parts = ip.split('.').map(Number);
-  if (parts.length !== 4 || parts.some(isNaN)) {
-    // IPv6 or invalid — check common private patterns
-    const lower = ip.toLowerCase();
-    if (lower === 'localhost' || lower.startsWith('::1') || lower.startsWith('fc') || lower.startsWith('fd')) return true;
-    return false;
+  const lower = ip.toLowerCase().replace(/^\[|\]$/g, '');
+  // IPv6 unspecified, loopback, unique-local (fc00::/7), and link-local (fe80::/10).
+  if (lower === '::' || lower === '::1' || /^(fc|fd)/.test(lower) || /^fe[89ab]/.test(lower)) return true;
+  // IPv4-mapped and IPv4-compatible IPv6 addresses inherit the IPv4 classification.
+  if (lower.startsWith('::ffff:') || (lower.startsWith('::') && lower.length > 2)) {
+    const tail = lower.slice(lower.lastIndexOf(':') + 1);
+    if (tail.includes('.')) return isPrivateIP(tail);
+    const groups = lower.replace(/^::ffff:/, '').replace(/^::/, '').split(':');
+    if (groups.length === 2 && groups.every((g) => /^[0-9a-f]{1,4}$/.test(g))) {
+      const n = (parseInt(groups[0], 16) * 65536 + parseInt(groups[1], 16)) >>> 0;
+      return isPrivateIP([n >>> 24, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.'));
+    }
   }
+  if (lower.startsWith('ff') || lower.startsWith('fec') || lower.startsWith('fed')) return true;
+  if (isIP(lower) !== 4) return false;
+  const parts = lower.split('.').map(Number);
+  if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return false;
   const [a, b] = parts;
   // 10.0.0.0/8
   if (a === 10) return true;
@@ -184,8 +219,9 @@ export function isPrivateIP(ip) {
   if (a === 127) return true;
   // 169.254.0.0/16 (link-local, cloud metadata)
   if (a === 169 && b === 254) return true;
-  // 0.0.0.0/8
-  if (a === 0) return true;
+  // Unspecified, carrier-grade NAT, benchmarking, multicast, and reserved ranges.
+  if (a === 0 || (a === 100 && b >= 64 && b <= 127) || (a === 192 && b === 0) ||
+      (a === 198 && (b === 18 || b === 19)) || a >= 224) return true;
   return false;
 }
 
@@ -198,27 +234,48 @@ export function validateTargetSSRF(target) {
   try {
     const urlStr = target.includes('://') ? target : `https://${target}`;
     const u = new URL(urlStr);
-    const hostname = u.hostname.toLowerCase();
+    if (!['http:', 'https:'].includes(u.protocol) || !u.hostname || u.username || u.password) {
+      return { valid: false, reason: 'Only credential-free HTTP(S) targets are allowed' };
+    }
+    const hostname = u.hostname.toLowerCase().replace(/^\[|\]$/g, '');
 
     // Block localhost variants
     if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
       return { valid: false, reason: 'Target is localhost (SSRF blocked)' };
     }
 
-    // If hostname is already an IP, check directly
-    if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+    // If hostname is already an IP literal (IPv4 or IPv6), check directly.
+    if (isIP(hostname)) {
       if (isPrivateIP(hostname)) {
         return { valid: false, reason: `Target IP ${hostname} is private/internal (SSRF blocked)` };
       }
     }
 
-    // Block cloud metadata hostnames
-    if (hostname === '169.254.169.254' || hostname === 'metadata.google.internal') {
+    // Block cloud metadata hostnames and metadata aliases.
+    if (hostname === '169.254.169.254' || hostname === 'metadata.google.internal' || hostname.endsWith('.metadata.google.internal')) {
       return { valid: false, reason: 'Cloud metadata endpoint blocked (SSRF)' };
     }
 
     return { valid: true };
   } catch {
     return { valid: false, reason: 'Invalid target URL' };
+  }
+}
+
+/** Resolve a hostname and reject any private/non-routable answer. Call before starting network work. */
+export async function validateTargetAsync(target) {
+  const basic = validateTargetSSRF(target);
+  if (!basic.valid) return basic;
+  try {
+    const urlStr = target.includes('://') ? target : `https://${target}`;
+    const hostname = new URL(urlStr).hostname.replace(/^\[|\]$/g, '').toLowerCase();
+    if (isIP(hostname)) return basic;
+    const addresses = await lookup(hostname, { all: true, verbatim: true });
+    if (!addresses.length) return { valid: false, reason: 'Target hostname did not resolve' };
+    const blocked = addresses.find((entry) => isPrivateIP(entry.address));
+    if (blocked) return { valid: false, reason: `Target hostname resolves to private/internal IP ${blocked.address} (SSRF blocked)` };
+    return { valid: true, addresses: addresses.map((entry) => entry.address) };
+  } catch {
+    return { valid: false, reason: 'Target DNS validation failed' };
   }
 }

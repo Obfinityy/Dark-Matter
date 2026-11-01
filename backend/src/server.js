@@ -16,7 +16,7 @@ import {
 import { recordEngineEvent, getCachedEvents } from './routes/hunts.js';
 import huntsRouter from './routes/hunts.js';
 import authRouter from './routes/auth.js';
-import { ensureAdmin, verifyTerminalTicket, verifyControlTicket } from './routes/auth.js';
+import { ensureAdmin, verifyToken, canAccessHuntStream, verifyTerminalTicket, verifyControlTicket } from './routes/auth.js';
 import {
   getControl,
   releaseControl,
@@ -124,8 +124,23 @@ server.on('upgrade', (req, socket, head) => {
   guardStreamError(socket);
   const streamMatch = /^\/api\/v1\/hunts\/([^/]+)\/stream$/.exec(req.url.split('?')[0] || '');
   if (streamMatch) {
+    // The stream bypasses Express middleware during the HTTP upgrade.
+    // Authenticate here and enforce the same per-hunt ownership boundary
+    // as REST routes before replaying private events.
+    const url = new URL(req.url, 'http://localhost');
+    const token = url.searchParams.get('access_token');
+    const payload = verifyToken(token);
+    let huntId;
+    try { huntId = decodeURIComponent(streamMatch[1]); } catch { huntId = ''; }
+    const meta = huntId ? readHuntMeta(huntId) : null;
+    const authorized = canAccessHuntStream(payload, meta);
+    if (!authorized) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
+      socket.destroy();
+      return;
+    }
     wss.handleUpgrade(req, socket, head, (ws) => {
-      wss.emit('connection', ws, req, decodeURIComponent(streamMatch[1]));
+      wss.emit('connection', ws, req, huntId);
     });
     return;
   }
