@@ -8,12 +8,11 @@ import ChatInput from '../components/ChatInput';
 import DetailsRequestCard from '../components/DetailsRequestCard';
 import NewHuntModal from '../components/NewHuntModal';
 import VoiceMode from '../components/VoiceMode';
-import { sendChat, startHunt } from '../lib/api';
+import { sendChat, startHunt, downloadReport } from '../lib/api';
 import { resolveHuntMode } from '../lib/huntMode';
 import { streamReveal } from '../lib/streaming';
 import { useAuth, openAuthModal } from '../lib/auth';
 import { toast } from '../lib/toast';
-import { resolveApiBase } from '../config';
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -232,15 +231,13 @@ export default function ChatPage({
     setVoiceOpen(true);
   }
 
-  function handleGetReport(huntId) {
+  async function handleGetReport(huntId) {
     if (!ensureHuntAuth()) return;
-    // Open the professional bug bounty report in a new tab (markdown format)
-    // The backend generates it from hunt memory + findings via the Head agent
-    // Same VITE_API_URL trap as the terminal hook (24 Oct 2026): the
-    // var is unset in the Cloudflare build, so this opened a relative
-    // Pages URL instead of the backend. Use the shared resolver.
-    const apiBase = resolveApiBase();
-    window.open(`${apiBase}/api/v1/hunts/${huntId}/report?format=md`, '_blank', 'noopener');
+    // FIX (#442): the old window.open to the report URL sent no
+    // Authorization header, so the backend (requireAuth) answered
+    // 401 in a new tab. Download authenticated, client-side.
+    const res = await downloadReport(huntId, 'md');
+    if (!res.ok) toast(res.error || 'Could not download the report.', 'error');
   }
 
   function handleVoiceClose() {
