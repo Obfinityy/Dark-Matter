@@ -18,7 +18,8 @@
 //          empty/unknown never matches.
 //   ISO-5  retrieveEpisodes with crossHunt + target: only episodes
 //          from hunts on THAT target are returned; without a target
-//          the old cross-hunt behaviour stands (control).
+//          cross-hunt mode fails closed to the current hunt only (#321)
+//          — the old "sees both hunts" control is the bug, not the spec.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -135,11 +136,12 @@ test('ISO-5: cross-hunt episode retrieval stays within the same target', async (
   seedHunt('h_iso_y', 'https://y.com', 'SQLi login bypass on y.com');
   flushHuntEpisodes('h_iso_x');
   flushHuntEpisodes('h_iso_y');
-  // Control: without a target, cross-hunt retrieval sees both hunts.
+  // Fail-closed control (#321): without a target, cross-hunt retrieval
+  // is scoped to the current hunt only — no other target's episodes.
   const unscoped = await retrieveEpisodes('sqli login', { huntId: 'h_iso_y', crossHunt: true, limit: 5 });
   const unscopedHunts = new Set(unscoped.results.map((r) => r.hunt_id));
-  assert.ok(unscopedHunts.has('h_iso_x'), 'control: unscoped cross-hunt retrieval sees x.com episodes');
-  assert.ok(unscopedHunts.has('h_iso_y'), 'control: unscoped cross-hunt retrieval sees y.com episodes');
+  assert.ok(!unscopedHunts.has('h_iso_x'), 'fail-closed: unscoped cross-hunt retrieval must NOT see x.com episodes');
+  assert.ok(unscopedHunts.has('h_iso_y'), 'fail-closed: unscoped cross-hunt retrieval still sees the current hunt');
   // Scoped: only the y.com hunt's episodes may return.
   const scoped = await retrieveEpisodes('sqli login', { huntId: 'h_iso_y', crossHunt: true, limit: 5, target: 'https://y.com' });
   assert.ok(scoped.results.length > 0, 'scoped retrieval still returns the same-target episodes');

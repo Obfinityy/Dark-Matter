@@ -701,9 +701,13 @@ function ftsCandidates(query, huntId, crossHunt, limit) {
  * cross-hunt retrieval — with crossHunt + a target, only episodes
  * from hunts on THAT target enter the result set (the per-target
  * shared memory the owner ordered); episodes from another target are
- * dropped before scoring. Without a target the old behaviour stands
- * (callers that know the target must pass it — defaultRecallMemory
- * does). The hunt-id set comes from the hunt metas on disk via a
+ * dropped before scoring. crossHunt WITHOUT a target no longer falls
+ * back to the global set (#321): the target is what makes "same
+ * target" definable, so without it retrieval is scoped to the
+ * current hunt only. A filter failure likewise fails CLOSED (current
+ * hunt only, or empty) — never the unfiltered cross-target set.
+ * Callers that know the target must pass it — defaultRecallMemory
+ * does. The hunt-id set comes from the hunt metas on disk via a
  * dynamic import: store.js imports this module, so a static import
  * would cycle.
  */
@@ -713,7 +717,11 @@ export async function retrieveEpisodes(query, { huntId = null, crossHunt = false
   const W = RETRIEVAL_WEIGHTS;
   const candidates = new Map(); // id -> { row, ftsPos, cos }
 
-  const fts = ftsCandidates(query, huntId, crossHunt, 60);
+  // #321: cross-hunt mode is only meaningful WITH a target. Without
+  // one, behave as single-hunt retrieval (huntId-scoped queries below).
+  const effectiveCrossHunt = Boolean(crossHunt) && Boolean(String(target || '').trim());
+
+  const fts = ftsCandidates(query, huntId, effectiveCrossHunt, 60);
   fts.forEach((row, pos) => candidates.set(row.id, { row, ftsPos: pos, cos: null }));
 
   // Vector signal (best-effort — a busy Ollama must never break retrieval).
@@ -721,12 +729,12 @@ export async function retrieveEpisodes(query, { huntId = null, crossHunt = false
   try {
     const [qv] = await embedTexts([String(query || '').slice(0, 1000)]);
     if (Array.isArray(qv) && qv.length) {
-      const scopeSql = huntId && !crossHunt
+      const scopeSql = huntId && !effectiveCrossHunt
         ? `SELECT e.*, em.vec FROM episode_embeddings em JOIN episodes e ON e.id = em.episode_id
              WHERE em.model = ? AND e.hunt_id = ?`
         : `SELECT e.*, em.vec FROM episode_embeddings em JOIN episodes e ON e.id = em.episode_id
              WHERE em.model = ?`;
-      const rows = huntId && !crossHunt ? d.prepare(scopeSql).all(EMBED_MODEL, String(huntId)) : d.prepare(scopeSql).all(EMBED_MODEL);
+      const rows = huntId && !effectiveCrossHunt ? d.prepare(scopeSql).all(EMBED_MODEL, String(huntId)) : d.prepare(scopeSql).all(EMBED_MODEL);
       const scored = [];
       for (const r of rows) {
         const vec = new Float32Array(r.vec.buffer, r.vec.byteOffset, r.vec.byteLength / 4);
@@ -744,17 +752,17 @@ export async function retrieveEpisodes(query, { huntId = null, crossHunt = false
 
   // Recency/importance pool guarantees a non-empty, sane result set even
   // when both relevance signals miss.
-  const poolSql = huntId && !crossHunt
+  const poolSql = huntId && !effectiveCrossHunt
     ? 'SELECT * FROM episodes WHERE hunt_id = ? ORDER BY importance DESC, id DESC LIMIT 20'
     : 'SELECT * FROM episodes ORDER BY importance DESC, id DESC LIMIT 20';
-  const pool = huntId && !crossHunt ? d.prepare(poolSql).all(String(huntId)) : d.prepare(poolSql).all();
+  const pool = huntId && !effectiveCrossHunt ? d.prepare(poolSql).all(String(huntId)) : d.prepare(poolSql).all();
   for (const row of pool) {
     if (!candidates.has(row.id)) candidates.set(row.id, { row, ftsPos: null, cos: null });
   }
 
   // Per-hunt isolation: drop every candidate from a hunt on another
   // target before scoring (see the header note above).
-  if (crossHunt && target) {
+  if (effectiveCrossHunt) {
     try {
       const store = await import('./store.js');
       const folder = store.targetFolderName(target);
@@ -767,7 +775,14 @@ export async function retrieveEpisodes(query, { huntId = null, crossHunt = false
       for (const [id, c] of candidates) {
         if (!sameTarget.has(String(c.row.hunt_id))) candidates.delete(id);
       }
-    } catch { /* scoping is best-effort — a failure falls back to the unfiltered set */ }
+    } catch {
+      // #321: scoping failure fails CLOSED — keep only the current
+      // hunt's own episodes (provably in-scope); without a hunt id,
+      // keep nothing. Never fall back to the unfiltered set.
+      for (const [id, c] of candidates) {
+        if (!huntId || String(c.row.hunt_id) !== String(huntId)) candidates.delete(id);
+      }
+    }
   }
 
   const entities = extractEntities(query);
