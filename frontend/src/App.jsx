@@ -13,7 +13,7 @@ import AuthPage from './pages/AuthPage';
 import LegalPage from './pages/LegalPage';
 import AuthModal from './components/AuthModal';
 import ToastHost from './components/ToastHost';
-import { AuthProvider, useAuth } from './lib/auth';
+import { AuthProvider, useAuth, hasPendingHuntSetup, clearPendingHuntSetup } from './lib/auth';
 
 const CHATS_KEY = 'dm.chats';
 const CHAT_WIPE_VERSION = '2026-10-16-wipe2';
@@ -799,8 +799,15 @@ function AppInner() {
       {authModal && (
         <AuthModal
           mode={authModal}
-          onClose={() => setAuthModal(null)}
-          onDone={() => setPage('chat')}
+          onClose={() => { clearPendingHuntSetup(); setAuthModal(null); }}
+          onDone={() => {
+            setPage('chat');
+            // FIX (#445): resume a pending hunt-setup intent — bump
+            // the (previously dead) hunt-modal trigger so ChatPage
+            // opens the setup after login. No pending intent means
+            // no modal: a plain login never pops the hunt setup.
+            if (hasPendingHuntSetup()) setHuntModalTrigger((t) => t + 1);
+          }}
           onNavigate={navigate}
         />
       )}
