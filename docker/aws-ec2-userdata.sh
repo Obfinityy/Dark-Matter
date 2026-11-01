@@ -6,6 +6,11 @@
 # starts pulling the uncensored model in the background — so backend +
 # engine + model all run on this one box (~$65/mo all-in).
 #
+# REQUIRED at launch time: GH_DEPLOY_TOKEN — a fine-grained PAT with
+# contents:read on the private Obfinityy/Dark-Matter repo (set it in the
+# EC2 console alongside user-data). Without it setup aborts up front
+# with a clear error instead of dying on the clone halfway through.
+#
 # After boot:
 #   1. SSH in and create /opt/Dark-Matter/backend/.env from backend/.env.example:
 #      - LLM_PROVIDER=ollama  (uncensored self-hosted; or keep bedrock)
@@ -22,6 +27,17 @@
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
+# FAIL FAST (#333): Dark-Matter is a PRIVATE repo — a bare HTTPS clone
+# 404s and, under `set -e`, used to abort setup halfway through (after
+# Docker was already installed). Without a token there is no point
+# starting: the operator must relaunch with GH_DEPLOY_TOKEN set (a
+# fine-grained PAT with contents:read on Obfinityy/Dark-Matter).
+if [ ! -d /opt/Dark-Matter ] && [ -z "${GH_DEPLOY_TOKEN:-}" ]; then
+  echo "ERROR: Dark-Matter is a private repo — the clone needs a token." >&2
+  echo "Create a fine-grained PAT (contents:read on Obfinityy/Dark-Matter) and relaunch with GH_DEPLOY_TOKEN set in user-data." >&2
+  exit 1
+fi
+
 apt-get update
 apt-get install -y ca-certificates curl gnupg git
 
@@ -35,9 +51,13 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 usermod -aG docker ubuntu || true
 systemctl enable --now docker
 
-# Repo (public clone; private needs a deploy key)
+# Repo (private). The token is used for the clone only and never
+# stored: origin is reset to the clean URL immediately after, and the
+# variable is unset so no later step (or log) can leak it.
 if [ ! -d /opt/Dark-Matter ]; then
-  git clone https://github.com/Obfinityy/Dark-Matter.git /opt/Dark-Matter
+  git clone "https://x-access-token:${GH_DEPLOY_TOKEN}@github.com/Obfinityy/Dark-Matter.git" /opt/Dark-Matter
+  unset GH_DEPLOY_TOKEN
+  git -C /opt/Dark-Matter remote set-url origin https://github.com/Obfinityy/Dark-Matter.git
 fi
 chown -R ubuntu:ubuntu /opt/Dark-Matter
 
