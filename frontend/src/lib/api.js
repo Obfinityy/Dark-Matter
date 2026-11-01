@@ -577,5 +577,7 @@ export async function tts(text, voice) {
 // Events: { type: 'thinking'|'tool_call'|'finding'|'status'|'done', ...payload }
 // Client usage lives in lib/huntStream.js (HuntStreamClient).
 export function huntStreamWsUrl(huntId) {
-  return `${resolveApiBase().replace(/^http/, 'ws')}/api/v1/hunts/${encodeURIComponent(huntId)}/stream`;
+  const token = getAuthToken();
+  const query = token ? `?access_token=${encodeURIComponent(token)}` : '';
+  return `${resolveApiBase().replace(/^http/, 'ws')}/api/v1/hunts/${encodeURIComponent(huntId)}/stream${query}`;
 }
