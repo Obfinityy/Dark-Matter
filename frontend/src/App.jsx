@@ -676,7 +676,18 @@ function AppInner() {
   // view. The hunt setup opens only when the user explicitly starts one
   // (composer hunt button) — never automatically.
   function requestHuntModal() {
-    createChat();
+    // Create a COMMITTED empty chat (not a draft) so it stays in the list
+    // and nothing can discard it. This is the fresh landing page.
+    const chat = {
+      id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      title: 'New chat',
+      messages: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setDraftChat(null);
+    setChats((prev) => [chat, ...prev]);
+    setActiveChatId(chat.id);
     setPage('chat');
     // Show the fresh landing page (empty chat) — do NOT auto-open the hunt modal.
     // The user starts a hunt explicitly via the "Start a hunt" button or composer.
