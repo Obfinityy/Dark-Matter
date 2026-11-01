@@ -200,7 +200,7 @@ router.post('/', requireAuth, async (req, res) => {
   // explicitly-authorized local lab targets (e.g. Juice Shop benchmark) and
   // skip the SSRF block. This is opt-in per deployment, not a bypass.
   try {
-    const { validateTargetSSRF } = await import('../scopeParser.js');
+    const { validateTargetAsync } = await import('../scopeParser.js');
     const labTargets = (process.env.LAB_TARGETS || '').split(',').map((s) => s.trim()).filter(Boolean);
     const canonicalHost = (value) => {
       try { return new URL(value.includes('://') ? value : `https://${value}`).hostname.toLowerCase().replace(/^\\[|\\]$/g, ''); }
@@ -209,7 +209,7 @@ router.post('/', requireAuth, async (req, res) => {
     const targetHost = canonicalHost(target);
     const isLabTarget = !!targetHost && labTargets.some((lab) => canonicalHost(lab) === targetHost);
     if (!isLabTarget) {
-      const ssrfCheck = validateTargetSSRF(target);
+      const ssrfCheck = await validateTargetAsync(target);
       if (!ssrfCheck.valid) {
         console.warn(`[hunts] REJECTED create: SSRF blocked for target "${target}": ${ssrfCheck.reason}`);
         return res.status(403).json({
