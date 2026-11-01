@@ -54,7 +54,7 @@ import { parseBudgetUsd } from '../budgetCap.js';
 import { loadHuntMemory, panelFindings, findingDetail, applyRetractions, isErrorPageFinding, normTitle } from '../huntMemory.js';
 import { understandTarget } from '../targetIntel.js';
 import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
-import { getBalanceUsd } from '../billing/credits.js';
+import { getBalanceCents } from '../billing/credits.js';
 import { hasActiveAccessById } from '../access.js';
 import { teardownHuntContainer, huntDesktopScreenshot } from '../huntRunner.js';
 import { listBrainModels, getBrainState, setBrainModel, metaAvailable } from '../brainProvider.js';
@@ -255,9 +255,9 @@ router.post('/', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin' && !hasActiveAccessById(req.user.id)) {
     console.log(`[hunts] Checking credits for ${req.user.username}...`);
     const priceCents = iterationPriceCents(huntMode.id);
-    const balance = getBalanceUsd(req.user.id);
-    console.log(`[hunts] Balance: $${balance}, required: $${priceCents/100}`);
-    if (balance * 100 < priceCents) {
+    const balanceCents = getBalanceCents(req.user.id);
+    console.log(`[hunts] Balance: $${balanceCents / 100}, required: $${priceCents/100}`);
+    if (balanceCents < priceCents) {
       return res.status(402).json({
         ok: false,
         error: 'out_of_credits',
@@ -629,7 +629,7 @@ for (const [route, fn, verb] of [
     // directly (the loop already tore down its container when it paused).
     if (route === 'resume' && meta.state === 'out_of_credits') {
       const priceCents = iterationPriceCents(meta.mode || 'normal');
-      const canPay = req.user.role === 'admin' || hasActiveAccessById(req.user.id) || getBalanceUsd(req.user.id) * 100 >= priceCents;
+      const canPay = req.user.role === 'admin' || hasActiveAccessById(req.user.id) || getBalanceCents(req.user.id) >= priceCents;
       if (!canPay) {
         return res.status(402).json({
           ok: false,

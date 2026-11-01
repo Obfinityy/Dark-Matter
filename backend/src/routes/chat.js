@@ -21,7 +21,7 @@ import {
 import { readHuntEvents, readHuntMeta, writeHuntMeta, appendHuntEvent } from '../store.js';
 import { recordEngineEvent } from './hunts.js';
 import { requireAuth } from './auth.js';
-import { getBalanceUsd } from '../billing/credits.js';
+import { getBalanceCents } from '../billing/credits.js';
 import { hasActiveAccessById } from '../access.js';
 import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
 import { isInferenceActive } from '../llm.js';
@@ -401,7 +401,7 @@ async function resumeHuntResilient(huntId, user) {
   // (same as POST /api/v1/hunts/:id/resume in routes/hunts.js).
   if (m0.state === 'out_of_credits') {
     const priceCents = iterationPriceCents(m0.mode || 'normal');
-    const canPay = (user && user.role === 'admin') || hasActiveAccessById(user.id) || getBalanceUsd(user.id) * 100 >= priceCents;
+    const canPay = (user && user.role === 'admin') || hasActiveAccessById(user.id) || getBalanceCents(user.id) >= priceCents;
     if (!canPay) throw new Error('Top up your balance to resume this hunt.');
     writeHuntMeta(huntId, { ...m0, huntId, state: 'running', paused: false, stopped: false });
     appendHuntEvent(huntId, { type: 'status', state: 'resumed', reason: 'topped_up', at: new Date().toISOString() });
