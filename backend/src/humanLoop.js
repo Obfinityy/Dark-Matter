@@ -257,20 +257,22 @@ export function recoverRecallLoopSqli(events, { consecutiveRecalls = 3 } = {}) {
   const hashes = new Set();
   let evidenceText = '';
   let proofCommand = '';
-  // Pair the recovered hashes with a real recorded SQLi probe. Scan recent
-  // history only; older unrelated hashes must not satisfy the trigger.
+  let afterSqliProbe = false;
   for (let i = Math.max(0, rows.length - 300); i < rows.length; i++) {
     const e = rows[i];
     if (!e) continue;
-    const text = textOf(e);
-    const detail = String(e.detail || '');
-    const isSqliProbe = /\bunion\s+(?:all\s+)?select\b|\bselect\s+.+\s+from\s+users\b/i.test(detail) ||
-      /\bunion\s+(?:all\s+)?select\b/i.test(text);
-    if (e.type === 'tool_call' && String(e.tool || '').toLowerCase() === 'shell' && isSqliProbe && !proofCommand) {
-      proofCommand = detail;
+    if (e.type === 'tool_call') {
+      const tool = String(e.tool || '').toLowerCase();
+      if (tool === 'shell') {
+        const detail = String(e.detail || '');
+        afterSqliProbe = /\bunion\s+(?:all\s+)?select\b|\bselect\s+.+\s+from\s+users\b/i.test(detail);
+        if (afterSqliProbe && !proofCommand) proofCommand = detail;
+      } else if (tool !== 'recall') {
+        afterSqliProbe = false;
+      }
     }
-    if (!isSqliProbe && !/\bunion\s+(?:all\s+)?select\b/i.test(text)) continue;
-    const found = text.match(/\b[a-f0-9]{32}\b/gi) || [];
+    const text = textOf(e);
+    const found = afterSqliProbe ? (text.match(/\b[a-f0-9]{32}\b/gi) || []) : [];
     if (found.length) {
       for (const h of found) hashes.add(h.toLowerCase());
       evidenceText += (evidenceText ? '\n' : '') + text.slice(0, 1800);
@@ -281,9 +283,10 @@ export function recoverRecallLoopSqli(events, { consecutiveRecalls = 3 } = {}) {
     recalls,
     hashes: [...hashes].slice(0, 12),
     command: proofCommand.slice(0, 4000),
-    evidence: ('Historical SQLi output after UNION SELECT probe:\n' + evidenceText).slice(0, 3000),
+    evidence: ('Recorded output after the SQLi UNION SELECT probe:\n' + evidenceText).slice(0, 3000),
   };
 }
+
 
 const OBS_BUDGET = 3500; // chars of an action result shown on the next screen
 const COMMAND_CAP = 4000; // same transport cap as the pipeline (solver #459)
