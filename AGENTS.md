@@ -18,11 +18,15 @@ Product UI branding: **Dark Matter / Infinity AI**. Never expose "PentAGI" in th
 │                      Deploys: Vercel (dark-matter-frontend) + Cloudflare Pages
 │                      (hack.thebhavesh.online) — both auto-deploy from main.
 ├─ backend/           Node.js (ESM) + Express — orchestrator. NEVER runs hunts.
-│                      Routes: /api/v1/health, /chat, /hunts, /plugins,
-│                      /models, /reports, /voice (+ WS /api/v1/hunts/:id/stream).
+│                      Routes: /api/v1/health, /hunts (incl. /queue, /modes,
+│                      /costs, /playbook, /:id/terminal, /:id/control, /:id/brain,
+│                      /:id/budget, /:id/cost), /auth, /admin, /chat, /chats,
+│                      /plugins, /models, /voice, /payments, /notifications
+│                      (+ WS /api/v1/hunts/:id/stream, /terminal, /control).
 │                      Plugin keys encrypted (AES-256-GCM, PLUGIN_MASTER_KEY).
-│                      Deploys: Render (dark-matter-90nw) — manual deploy from
-│                      the Render dashboard (auto-deploy is OFF).
+│                      Deploys: Render service per backend/render.yaml, plus
+│                      EC2 auto-deploy via .github/workflows/deploy-backend.yml
+│                      (push to main touching backend/ SSH-deploys to EC2).
 ├─ engine/pentagi/    PentAGI (vxcontrol, MIT) integrated BY REFERENCE, cleaned
 │                      154M→16M. The hunt brain: multi-agent (Orchestrator →
 │                      Researcher → Developer → Executor), Docker tool sandbox.
@@ -39,7 +43,7 @@ Product UI branding: **Dark Matter / Infinity AI**. Never expose "PentAGI" in th
 - Hunts execute on the user's machine via the engine. Render is orchestration-only (chat/plugin APIs); computer-control commands NEVER route via Render.
 - Hunt memory/state lives on the user's device only — never as the cloud backend's store.
 - The engine has NO operator pause: `pause` = snapshot checkpoint to hunt meta, then terminal-stop the flow; `resume` = continue a `waiting` flow via `{action:"input"}` or recreate a new flow carrying the checkpoint (returns a new huntId). See `backend/src/engine.js`.
-- Hunt launch requires an explicitly named target + `confirmedAuthorized: true` (+ `ALLOWED_TARGETS` allowlist in prod).
+- Hunt launch requires an explicitly named target + `confirmedAuthorized: true` (no target allowlist gate — see #322 for the open reinstate-vs-accept decision).
 
 ## Quick Start
 
