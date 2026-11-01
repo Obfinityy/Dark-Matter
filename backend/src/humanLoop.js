@@ -431,38 +431,48 @@ export function lastActionResultOfLeftOff(leftOff) {
  * tool-download hosts.
  */
 export function scopeViolation(url, target, parsedScope) {
-  if (!parsedScope) return null;
   let host = '';
   try {
-    host = new URL(String(url)).hostname.toLowerCase();
+    // Protocol-relative URLs (//host/path) carry a host but need a
+    // scheme to parse — resolve them as https before judging.
+    const raw = String(url);
+    host = new URL(raw.startsWith('//') ? 'https:' + raw : raw).hostname.toLowerCase();
   } catch {
-    return null; // unparseable — not a host we can judge
+    // Unparseable absolute URL: fail closed. A malformed URL must not
+    // slip past the guard. (Bare non-URL strings have no "://" and
+    // are not judged here.)
+    return String(url).includes('://') ? url : null;
   }
   if (!host) return null;
-  if (DOWNLOAD_HOSTS.has(host)) return null;
   const tHost = targetHostOf(target);
   // Named out-of-scope hosts beat everything else — including a
-  // wildcard in-scope base (the programme may put *.ys7.com in scope
-  // while naming test.ys7.com out; the named exclusion wins). The
-  // hunt's own target host is exempt: contradictory scope text must
-  // not brick the hunt itself. (Lane D, 21 Oct 2026.)
+  // wildcard in-scope base AND the tool-download exemption (the
+  // programme may name a download host out of scope; the named
+  // exclusion wins). The hunt's own target host is exempt:
+  // contradictory scope text must not brick the hunt itself.
+  // (Lane D, 21 Oct 2026.)
+  const outOfScopeHosts = parsedScope ? (parsedScope.outOfScopeHosts || []) : [];
   if (host !== tHost) {
-    for (const oos of parsedScope.outOfScopeHosts || []) {
+    for (const oos of outOfScopeHosts) {
       const d = String(oos).toLowerCase();
       if (host === d || host.endsWith('.' + d)) return url;
     }
   }
+  if (DOWNLOAD_HOSTS.has(host)) return null;
   if (tHost && (host === tHost || host.endsWith('.' + tHost))) return null;
-  for (const entry of parsedScope.inScope || []) {
+  const inScope = parsedScope ? (parsedScope.inScope || []) : [];
+  for (const entry of inScope) {
     const d = String(entry).toLowerCase();
     if (host === d || host.endsWith('.' + d)) return null;
   }
+  // No parsed scope: only the target host (+ download hosts, above)
+  // pass. A missing scope must not mean "everything is allowed".
+  if (!parsedScope) return url;
   return isInScope(url, parsedScope) ? null : url;
 }
 
 function commandScopeViolation(command, target, parsedScope) {
-  if (!parsedScope) return null;
-  const urls = String(command).match(/https?:\/\/[^\s'"<>)\]|]+/gi) || [];
+  const urls = String(command).match(/(?:[a-z][a-z0-9+.-]*:)?\/\/[^\s'"<>)|\]]+/gi) || [];
   for (const u of urls) {
     const v = scopeViolation(u, target, parsedScope);
     if (v) return v;
