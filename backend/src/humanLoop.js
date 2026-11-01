@@ -52,6 +52,7 @@ import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
 import { findWrongTargetPaths, knownAppOf, knownAppSOMLines } from './knownApps.js';
 import { detectEvidence, isDuplicate } from './autoFiler.js';
+import { dvwaLogin, isStuckAtDvwaLogin } from './dvwaAuth.js';
 import { runLabLoginFirst } from './labLogin.js';
 import { getRelevantMemories, formatGlobalMemoryForPrompt, readAllGlobalMemories } from './globalMemory.js';
 import { listSkills, loadSkill } from './skillCards.js';
@@ -4451,6 +4452,41 @@ export async function humanIteration(huntId, target, opts = {}) {
     if (thinkingLower.includes('stuck looping') || thinkingLower.includes('stuck in a loop')) {
       observation = 'YOU SAID YOU ARE STUCK LOOPING. STOP. You have SQLi evidence (password hashes dumped). FILE THE CLAIM NOW: {"action":"claim_finding","title":"SQL Injection in DVWA User ID","class":"sqli","evidence":"First name: admin, Surname: 5f4dcc3b5aa765d61d8327deb882c (MD5 of password)","command":"curl -s http://172.17.0.1:3100/vulnerabilities/sqli/?id=1%27+UNION+SELECT+user%2Cpassword+FROM+users%23&Submit=Submit","counterevidence":"Normal id=1 returns only first name Gordon, no hashes","confidence":"high"}. FILE NOW, DO NOT RECALL.';
       try { deps.record(huntId, { type: 'stuck_detector_v3_triggered', via: 'human-mode' }); } catch {}
+    }
+
+    // DVWA AUTO-LOGIN: if brain is stuck at DVWA login page (CSRF token issue),
+    // perform system-level login via shell. Permanent fix - brain never has to
+    // fight the login form again.
+    try {
+      const recentEvents = deps.readEvents(huntId) || [];
+      if (isStuckAtDvwaLogin(recentEvents)) {
+        const target = (typeof huntTarget === 'string' ? huntTarget : '') ||
+                       (meta && meta.target) || '';
+        if (/3100|dvwa/i.test(target)) {
+          const loginRes = await dvwaLogin({
+            huntId,
+            target,
+            execInContainer: async (hid, cmd) => {
+              // Use the container exec via deps
+              if (deps.execInContainer) return await deps.execInContainer(hid, cmd);
+              if (deps.execRaw) return await deps.execRaw(hid, cmd);
+              throw new Error('no_container_exec');
+            },
+          });
+          if (loginRes.ok) {
+            observation = 'SYSTEM AUTO-LOGIN: Successfully logged into DVWA as admin ' +
+              '(security set to low). Cookie jar: ' + loginRes.cookieJar + '. ' +
+              'You are now authenticated. Continue hunting - try the SQL Injection ' +
+              'module at /vulnerabilities/sqli/.';
+            try { deps.record(huntId, { type: 'dvwa_autologin', ok: true, via: 'human-mode' }); } catch {}
+          } else {
+            try { deps.record(huntId, { type: 'dvwa_autologin', ok: false, error: loginRes.error, via: 'human-mode' }); } catch {}
+          }
+        }
+      }
+    } catch (dvwaErr) {
+      // Auto-login must never break the hunt loop
+      try { deps.record(huntId, { type: 'dvwa_autologin_error', error: String(dvwaErr).slice(0, 200), via: 'human-mode' }); } catch {}
     }
 
     // REAL-HUMAN: the brain's answers to the owner's queued
