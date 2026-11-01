@@ -108,6 +108,7 @@ function publicClaim(c) {
  * a DIFFERENT UTR updates the pending claim in place (the user correcting
  * a mistyped UTR) and returns it (updated:true). Returns { claim, duplicate, updated }.
  * Throws ClaimValidationError on bad input. Never activates the account.
+ * A UTR is one payment: it may never back claims from two users (#326).
  */
 export function submitClaim({ userId, username, amountInr, utr, phone, whatsapp, accountDetails }) {
   if (!userId || !username) {
@@ -115,6 +116,15 @@ export function submitClaim({ userId, username, amountInr, utr, phone, whatsapp,
   }
   const clean = validateClaimInput({ amountInr, utr, phone, whatsapp, accountDetails });
   const store = readStore();
+  // FIX (#326): the duplicate check used to be per-user only, so a second
+  // user could claim the same pending UTR and both claims could verify
+  // — one payment activating two accounts. Block any UTR already on
+  // another user's pending OR verified claim. Rejected claims do not
+  // block: a rejected UTR was not a valid payment.
+  const clash = store.claims.find((c) => c.utr === clean.utr && c.userId !== String(userId) && (c.status === 'pending' || c.status === 'verified'));
+  if (clash) {
+    throw new ClaimValidationError('utr_already_claimed', 'This UTR is already attached to another account\'s claim.');
+  }
   const pending = store.claims.find((c) => c.userId === String(userId) && c.status === 'pending');
   if (pending) {
     if (pending.utr === clean.utr) return { claim: publicClaim(pending), duplicate: true, updated: false };
