@@ -503,13 +503,11 @@ export function detectSteering(message) {
 
 router.post(
   '/',
-  // Hunt-scoped chat is owner-only (same rule as the hunt routes): the
-  // caller must be logged in, and steering a hunt requires owning it
-  // (admins may steer any hunt). Public chat (no huntId) stays open.
-  (req, res, next) => {
-    if (req.body && req.body.huntId) return requireAuth(req, res, next);
-    next();
-  },
+  // FIX (#330): chat was open without login when no huntId was given,
+  // making it an unauthenticated paid-LLM endpoint (Meta API calls
+  // with no account attached). All chat now requires login, same as
+  // the hunt routes; hunt-scoped ownership is still checked below.
+  requireAuth,
   async (req, res) => {
   const { message, huntId } = req.body || {};
   if (typeof message !== 'string' || !message.trim()) {
