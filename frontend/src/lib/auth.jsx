@@ -15,6 +15,29 @@ import {
 
 const AuthContext = createContext(null);
 
+// FIX (#445): pending-hunt intent. When a logged-out user tries to
+// open the hunt setup, the auth modal used to swallow that intent:
+// after login, App's onDone only went back to the chat page and the
+// user had to start over. The intent is now stashed in sessionStorage
+// (tab-scoped: it dies with the tab) and resumed after login —
+// ChatPage opens the hunt setup when it sees the flag, and the flag
+// is cleared if the auth modal is dismissed without logging in.
+const PENDING_HUNT_KEY = 'dm.pendingHuntSetup';
+export function recordPendingHuntSetup() {
+  try { sessionStorage.setItem(PENDING_HUNT_KEY, '1'); } catch { /* ignore */ }
+}
+export function hasPendingHuntSetup() {
+  try { return sessionStorage.getItem(PENDING_HUNT_KEY) === '1'; } catch { return false; }
+}
+export function consumePendingHuntSetup() {
+  const had = hasPendingHuntSetup();
+  try { sessionStorage.removeItem(PENDING_HUNT_KEY); } catch { /* ignore */ }
+  return had;
+}
+export function clearPendingHuntSetup() {
+  try { sessionStorage.removeItem(PENDING_HUNT_KEY); } catch { /* ignore */ }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
