@@ -38,6 +38,7 @@
 
 import fs from 'node:fs';
 import { execInHuntContainerWithRespawn } from './huntRunner.js';
+import { guardClaimTitle } from './claimTitleGuard.js';
 import { chatWithAI } from './llm.js';
 import { isOneLoopEnabled, isOneLoopDryRun } from './brain/oneLoopBrain.js';
 import { runOneLoopSession } from './brain/oneLoopSession.js';
@@ -5858,7 +5859,23 @@ export async function humanIteration(huntId, target, opts = {}) {
         confidence: action.confidence,
         rationale: action.confidence_rationale,
       });
-      if (!gate.ok) {
+      // CLAIM-TITLE GUARD (#318): probe/test names, plan-echo titles and
+      // already-verified duplicates must never reach the verifier.
+      // Previously only read paths (panel/chat/admin) filtered probe
+      // titles; the filing path never ran the guard, so probe titles
+      // could be filed AND verified. Bounce BEFORE acting on the gate,
+      // with the guard's own message (it names the fix: re-title).
+      let titleGuard = null;
+      try {
+        const titleEvents = (() => { try { return deps.readEvents(huntId) || []; } catch { return []; } })();
+        titleGuard = guardClaimTitle(rawTitle, titleEvents);
+      } catch { titleGuard = null; }
+      if (titleGuard && !titleGuard.ok) {
+        try { deps.record(huntId, { type: 'claim_bounce', tool: 'claim_finding', detail: title, error: titleGuard.error, via: 'human-mode' }); } catch { /* best-effort */ }
+        say(`Claim bounced — ${titleGuard.error}.`);
+        observation = titleGuard.message;
+        note({ action: `claim_finding: ${title}`, why: thinkingText, result: clipResult(observation), learned: '' });
+      } else if (!gate.ok) {
         try { deps.record(huntId, { type: 'claim_bounce', tool: 'claim_finding', detail: title, missing: gate.missing.map((m) => m.field), via: 'human-mode' }); } catch { /* best-effort */ }
         say(`Claim bounced — incomplete proof package (missing: ${gate.missing.map((m) => m.field).join(', ')}).`);
         observation =
