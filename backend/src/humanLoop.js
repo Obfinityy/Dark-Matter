@@ -4322,7 +4322,7 @@ export async function humanIteration(huntId, target, opts = {}) {
     let action = parsed.action;
     const thinkingText = replyText.slice(0, parsed.jsonStart).trim().slice(0, 400);
     sessionLastThinking = thinkingText;
-    const kind = String(action.action).toLowerCase();
+    let kind = String(action.action).toLowerCase();
     let observation = '';
 
     // STUCK-DETECTOR v2: persistent across sessions
