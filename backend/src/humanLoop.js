@@ -36,6 +36,7 @@
 // Everything external is an injectable dep (opts.deps) so the loop is
 // testable end-to-end with fakes — see scripts/test-human-loop.mjs.
 
+import fs from 'node:fs';
 import { execInHuntContainerWithRespawn } from './huntRunner.js';
 import { chatWithAI } from './llm.js';
 import { isOneLoopEnabled, isOneLoopDryRun } from './brain/oneLoopBrain.js';
@@ -3998,11 +3999,11 @@ export async function humanIteration(huntId, target, opts = {}) {
   // use a file in the hunt dir.
   const stuckCounterPath = '/opt/Dark-Matter/backend/data/hunts/' + huntId + '/stuck_recall_count.txt';
   function getStuckCount() {
-    try { return parseInt(require('fs').readFileSync(stuckCounterPath, 'utf8').trim(), 10) || 0; }
+    try { return parseInt(fs.readFileSync(stuckCounterPath, 'utf8').trim(), 10) || 0; }
     catch { return 0; }
   }
   function setStuckCount(n) {
-    try { require('fs').writeFileSync(stuckCounterPath, String(n)); } catch {}
+    try { fs.writeFileSync(stuckCounterPath, String(n)); } catch {}
   }
 
   say(`Human mode session: ${turns} turns at my own machine. Target: ${target}.`);
