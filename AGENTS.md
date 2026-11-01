@@ -51,7 +51,7 @@ cd backend && npm start          # → http://localhost:4000
 cd frontend && npm run dev       # → http://localhost:5173
 
 # Engine (user's Linux machine)
-cd docker && ./setup.sh          # Docker + PentAGI stack (see INTEGRATION.md)
+cd docker && ./setup-linux.sh   # Docker + PentAGI stack, one-shot setup for the user's Linux machine (see INTEGRATION.md). For the EC2 Kali hunt image instead: ./setup-kali-hunt.sh
 
 # Voice (user's machine)
 cd voice/stt && uvicorn app:app --port 8001
