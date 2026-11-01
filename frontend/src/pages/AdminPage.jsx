@@ -212,7 +212,7 @@ export default function AdminPage() {
     <div className="page">
       <div className="page-inner admin-page">
         <header className="page-header">
-          <h1>🛡️ Admin Portal</h1>
+          <h1>Admin portal</h1>
           <p className="page-sub">Manage users, hunts, and system access.</p>
         </header>
 
@@ -221,31 +221,31 @@ export default function AdminPage() {
             className={`admin-tab ${activeTab === 'users' ? 'active' : ''}`}
             onClick={() => setActiveTab('users')}
           >
-            👥 Users ({users.length})
+            Users ({users.length})
           </button>
           <button
             className={`admin-tab ${activeTab === 'hunts' ? 'active' : ''}`}
             onClick={() => setActiveTab('hunts')}
           >
-            🎯 Hunts ({hunts.length})
+            Hunts ({hunts.length})
           </button>
           <button
             className={`admin-tab ${activeTab === 'accounts' ? 'active' : ''}`}
             onClick={() => setActiveTab('accounts')}
           >
-            🤖 Agent accounts ({accounts.length})
+            Agent accounts ({accounts.length})
           </button>
           <button
             className={`admin-tab ${activeTab === 'claims' ? 'active' : ''}`}
             onClick={() => setActiveTab('claims')}
           >
-            💳 Payment claims ({claims.filter((c) => c.status === 'pending').length})
+            Payment claims ({claims.filter((c) => c.status === 'pending').length})
           </button>
           <button
             className={`admin-tab ${activeTab === 'invite' ? 'active' : ''}`}
             onClick={() => setActiveTab('invite')}
           >
-            ➕ Invite User
+            Invite user
           </button>
         </div>
 
@@ -405,7 +405,7 @@ export default function AdminPage() {
 
         {activeTab === 'accounts' && (
           <section className="admin-section">
-            <h2>🤖 Agent Accounts</h2>
+            <h2>Agent accounts</h2>
             <p className="page-sub">Accounts the agent created itself under the Obfinity persona. These never appear on the user-facing frontend — only here. Passwords are masked until you reveal one.</p>
             {loading ? <p className="page-sub">Loading…</p> : accounts.length === 0 ? (
               <p className="page-sub">No agent-created accounts yet.</p>
@@ -449,7 +449,7 @@ export default function AdminPage() {
 
         {activeTab === 'claims' && (
           <section className="admin-section">
-            <h2>💳 Payment Claims</h2>
+            <h2>Payment claims</h2>
             <p className="page-sub">
               Users who paid ₹10,000 via UPI to Obfinity (6376411796@ibl). Verify ONLY if the
               money arrived in the bank — verification activates the account for 1 day from now.
@@ -494,7 +494,7 @@ export default function AdminPage() {
 
         {activeTab === 'hunts' && (
           <section className="admin-section">
-            <h2>🎯 All Hunts</h2>
+            <h2>All hunts</h2>
             <p className="page-sub">Monitor and control hunts across all users. Running hunts appear first.</p>
             {loading ? <p className="page-sub">Loading…</p> : (
               <>

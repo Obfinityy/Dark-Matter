@@ -140,11 +140,12 @@ export default function UpiPayPage() {
 
   return (
     <div className="page">
-      <h2>Premium</h2>
-      <p className="page-sub">
-        1 day of Dark Matter access. Pay via UPI (no OTP, no gateway):
-        pay from any UPI app, then tell us your payment details below.
-      </p>
+      <header className="page-header">
+        <h1>Premium</h1>
+        <p className="page-sub">
+          One day of Dark Matter access. Pay through your UPI app, then submit the payment details for verification.
+        </p>
+      </header>
 
       {ready && user && (
         <div className="balance-card">

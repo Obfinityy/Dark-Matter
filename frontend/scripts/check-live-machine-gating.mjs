@@ -2,11 +2,9 @@
 // in the frontend, so this is a dependency-free node guard over
 // HuntCard.jsx + LiveMachinesPage.jsx.
 //
-// The bug it guards: HuntCard gated <LiveMachine> on `isActive`
-// (running OR paused), and LiveMachinesPage listed paused hunts too.
-// A paused hunt's container stays up, so its frozen desktop rendered
-// a second "live" panel — the owner saw two DVWA live panels, one
-// per DVWA hunt card. Live panels render ONLY for the running hunt.
+// LiveMachine renders for running hunts and for a parent-brain hunt
+// whose process is actively driving the machine. A paused hunt without
+// an active parent process must not show a stale "live" panel.
 //
 // Run: node scripts/check-live-machine-gating.mjs   (exit 0 = all pass)
 import { readFileSync } from 'node:fs';
@@ -29,16 +27,17 @@ check(
   'HuntCard defines isRunning (running/starting) beside isActive',
   /const isRunning = status === 'running' \|\| status === 'starting';/.test(huntCard),
 );
-// 2. The LiveMachine render is gated on isRunning, never isActive.
-const liveGate = huntCard.match(/\{(\w+) && \(\s*<LiveMachine /);
-check('LiveMachine is gated on isRunning', liveGate && liveGate[1] === 'isRunning', liveGate ? `gated on ${liveGate[1]}` : 'no gate found');
+// 2. The LiveMachine render allows a running hunt or an active parent-brain process.
 check(
-  'no isActive-gated LiveMachine remains',
+  'LiveMachine is gated on a running hunt or active parent process',
+  huntCard.includes('(isRunning || (brainMode === \'parent\' && liveProc && liveProc.in_process)) && !brainConsoleOpen'),
+);
+check(
+  'LiveMachine is not gated on isActive alone',
   !/\{isActive && \(\s*<LiveMachine /.test(huntCard),
 );
 // 3. The steer section / PiP keep their isActive behaviour (paused
-// hunts can still be steered / viewed in the terminal) — the gate
-// change is scoped to the live panel only.
+// hunts can still be steered / viewed in the terminal).
 check('steer section still uses isActive', /\{isActive && \(\s*<div className="hunt-steer">/.test(huntCard));
 // 4. LiveMachinesPage lists running hunts only.
 check(

@@ -136,18 +136,24 @@ export default function ChatPage({
     await runSend(next.text, next.speak, next.chatId, next.userMsgId);
   }
 
-  async function handleSend(text, speak) {
+  async function handleSend(text, speak, editMessageId = null) {
     const chatId = chat ? chat.id : onNewChat();
-    const userMsg = { id: uid(), role: 'user', text };
-    onAppendMessage(chatId, userMsg);
+    let userMsgId = editMessageId;
+    if (editMessageId) {
+      onUpdateMessage(chatId, editMessageId, text);
+    } else {
+      userMsgId = uid();
+      const userMsg = { id: userMsgId, role: 'user', text };
+      onAppendMessage(chatId, userMsg);
+    }
     // A reply is in flight: queue the follow-up behind it instead of
-    // refusing it (the old composer lock). Its user bubble is already
-    // in the thread; the reply arrives when its turn comes.
+    // refusing it. Its user bubble is already in the thread; the reply
+    // arrives when its turn comes.
     if (sendingRef.current) {
-      sendQueueRef.current.push({ text, speak, chatId, userMsgId: userMsg.id });
+      sendQueueRef.current.push({ text, speak, chatId, userMsgId });
       return;
     }
-    await runSend(text, speak, chatId, userMsg.id);
+    await runSend(text, speak, chatId, userMsgId);
   }
 
   async function runSend(text, speak, chatId, userMsgId) {
@@ -349,6 +355,16 @@ export default function ChatPage({
     await handleStartHunt(hunt.target, hunt.scope || '', await resolveHuntMode(hunt), true, false, true);
   }
 
+  function handleRegenerateMessage(message) {
+    const index = messages.findIndex((m) => m.id === message.id);
+    const lastUser = [...messages].slice(0, index).reverse().find((m) => m.role === 'user');
+    if (!lastUser) {
+      toast('There is no previous prompt to regenerate from.', 'error');
+      return;
+    }
+    handleSend(lastUser.text, false);
+  }
+
   const [editText, setEditText] = useState(null);
 
   const composer = (
@@ -358,6 +374,7 @@ export default function ChatPage({
       generating={generating}
       onStop={handleStop}
       editText={editText}
+      onCancelEdit={() => setEditText(null)}
       onStartHunt={() => {
         if (ensureHuntAuth()) setHuntModalOpen(true);
       }}
@@ -383,20 +400,20 @@ export default function ChatPage({
                 <img src="/dark-matter-symbol.png" alt="Dark Matter" width="72" height="72" className="hero-symbol" />
               </div>
               <div className="dm-wordmark">DARK MATTER</div>
-              <p className="dm-tagline">Elite autonomous bug-bounty hunter</p>
+              <p className="dm-tagline">An authorized security research workspace</p>
               <div className="dm-quick-actions">
                 <button className="dm-action-card" onClick={() => { if (ensureHuntAuth()) setHuntModalOpen(true); }}>
-                  <span className="dm-action-icon">🎯</span>
+                  <span className="dm-action-icon" aria-hidden="true">01</span>
                   <span className="dm-action-title">Start a hunt</span>
                   <span className="dm-action-sub">Point the hunter at a target</span>
                 </button>
                 <button className="dm-action-card" onClick={() => onOpenReports && onOpenReports()}>
-                  <span className="dm-action-icon">📋</span>
+                  <span className="dm-action-icon" aria-hidden="true">02</span>
                   <span className="dm-action-title">Reports</span>
                   <span className="dm-action-sub">Findings & hunt history</span>
                 </button>
                 <button className="dm-action-card" onClick={() => document.querySelector('.chat-page .composer input, .chat-page .composer textarea')?.focus()}>
-                  <span className="dm-action-icon">💬</span>
+                  <span className="dm-action-icon" aria-hidden="true">03</span>
                   <span className="dm-action-title">Ask the AI</span>
                   <span className="dm-action-sub">Strategy, recon, technique</span>
                 </button>
@@ -415,7 +432,8 @@ export default function ChatPage({
               thinking={sending && streamingId === null}
               onHuntStatusChange={handleHuntStatusChange}
               onOpenReports={onOpenReports}
-              onEditMessage={(msg) => setEditText(msg.text)}
+              onEditMessage={(msg) => setEditText({ id: msg.id, text: msg.text })}
+              onRegenerateMessage={handleRegenerateMessage}
               onRerunHunt={handleRerunHunt}
               onStartFreshHunt={handleStartFreshHunt}
               onTalkWithAI={handleTalkWithAI}

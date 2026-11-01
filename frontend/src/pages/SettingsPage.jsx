@@ -32,7 +32,7 @@ export default function SettingsPage() {
       <div className="page-inner">
       <header className="page-header">
         <h1>Settings</h1>
-        <p className="page-sub">How the app talks back.</p>
+        <p className="page-sub">Manage spoken-reply preferences.</p>
       </header>
 
       <h2 className="section-title">Voice</h2>

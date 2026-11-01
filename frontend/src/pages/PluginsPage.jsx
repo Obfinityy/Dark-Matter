@@ -127,7 +127,7 @@ export default function PluginsPage() {
         <header className="page-header">
           <h1>Plugins</h1>
           <p className="page-sub">
-            Hacking integrations. Connect accounts the agent uses for recon and intel during hunts.
+            Manage the provider accounts available to the agent during a hunt.
           </p>
         </header>
         {loading ? (

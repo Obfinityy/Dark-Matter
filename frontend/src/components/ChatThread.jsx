@@ -40,10 +40,16 @@ function IconEdit() {
 }
 
 function UserActions({ text, onEdit }) {
+  const [copied, setCopied] = useState(false);
+
   function copy() {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(
-        () => toast('Copied to clipboard.', 'success'),
+        () => {
+          toast('Copied.', 'success');
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        },
         () => toast('Could not copy.', 'error'),
       );
     } else {
@@ -54,9 +60,9 @@ function UserActions({ text, onEdit }) {
   return (
     <div className="msg-actions msg-actions-user" aria-label="Message actions">
       <button className="msg-action-btn" onClick={copy} title="Copy message" aria-label="Copy message">
-        <IconCopy />
+        {copied ? <span className="copy-confirm">Copied</span> : <IconCopy />}
       </button>
-      <button className="msg-action-btn" onClick={onEdit} title="Edit and resend" aria-label="Edit message">
+      <button className="msg-action-btn" onClick={onEdit} title="Edit message" aria-label="Edit message">
         <IconEdit />
       </button>
     </div>
@@ -71,14 +77,28 @@ function IconHeart() {
   );
 }
 
-function AssistantActions({ text }) {
+function IconRefresh() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M20 11a8 8 0 1 0 2.3 5.6" strokeLinecap="round" />
+      <path d="M20 4v7h-7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function AssistantActions({ text, onRegenerate }) {
   const [vote, setVote] = useState(null); // 'up' | 'down' | null
   const [loved, setLoved] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   function copy() {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(
-        () => toast('Copied to clipboard.', 'success'),
+        () => {
+          toast('Copied.', 'success');
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        },
         () => toast('Could not copy.', 'error'),
       );
     } else {
@@ -93,9 +113,14 @@ function AssistantActions({ text }) {
 
   return (
     <div className="msg-actions" aria-label="Message actions">
-      <button className="msg-action-btn" title="Copy" aria-label="Copy message" onClick={copy}>
-        <IconCopy />
+      <button className="msg-action-btn" title="Copy message" aria-label="Copy message" onClick={copy}>
+        {copied ? <span className="copy-confirm">Copied</span> : <IconCopy />}
       </button>
+      {onRegenerate && (
+        <button className="msg-action-btn" title="Regenerate response" aria-label="Regenerate response" onClick={onRegenerate}>
+          <IconRefresh />
+        </button>
+      )}
       <button
         className={`msg-action-btn${vote === 'up' ? ' voted' : ''}`}
         title="Good response"
@@ -116,7 +141,7 @@ function AssistantActions({ text }) {
       </button>
       <button
         className={`msg-action-btn${loved ? ' voted' : ''}`}
-        title="Love this"
+        title="Love this response"
         aria-label="Love this response"
         aria-pressed={loved}
         onClick={() => {
@@ -145,7 +170,7 @@ function formatMsgTime(ts) {
   }
 }
 
-export default function ChatThread({ messages, streaming, thinking, onHuntStatusChange, onOpenReports, onEditMessage, onRerunHunt, onStartFreshHunt, onTalkWithAI, onGetReport }) {
+export default function ChatThread({ messages, streaming, thinking, onHuntStatusChange, onOpenReports, onEditMessage, onRegenerateMessage, onRerunHunt, onStartFreshHunt, onTalkWithAI, onGetReport }) {
   // FIX (24 Oct 2026): while a chat reply is being fetched from the
   // backend (sendChat can take 10s+ while it consults the hunt brain),
   // the thread used to show NOTHING — no assistant message exists yet,
@@ -206,7 +231,7 @@ export default function ChatThread({ messages, streaming, thinking, onHuntStatus
                 {formatMsgTime(msg.createdAt) && (
                   <span className="msg-time">{formatMsgTime(msg.createdAt)}</span>
                 )}
-                {msg.text && <AssistantActions text={msg.text} />}
+                {msg.text && <AssistantActions text={msg.text} onRegenerate={() => onRegenerateMessage && onRegenerateMessage(msg)} />}
               </div>
             </div>
           </div>
