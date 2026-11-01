@@ -150,6 +150,18 @@ export function verifyPassword(password, saltHex, hashHex) {
   }
 }
 
+// FIX (#341): login must burn one scrypt even for unknown users, or
+// response timing reveals whether the username exists (unknown users
+// skipped scrypt entirely via `||` short-circuit). This dummy pair is
+// verified (and the login still rejected) when no user is found — its
+// password is meaningless; only its scrypt cost matters.
+const DUMMY_SALT = '2d390ed2436907fb8b8e15f267831523';
+const DUMMY_HASH = '9313a2a7df8a7288c9fcf923773e2afce2ec804dca6f45fec3a90511109ac87929abfd0a4e96575c0ece63158e59582509a6ec523a7d15cd07101c116ac6d18a';
+
+// Password policy shared by the public auth routes: 8..128 chars.
+// The cap stops megabyte passwords from reaching scrypt/storage.
+const MAX_PASSWORD_LENGTH = 128;
+
 // ---- Admin bootstrap ----------------------------------------------------------
 
 export function ensureAdmin() {
@@ -313,9 +325,17 @@ router.post('/signup', limitSignupAttempts, (req, res) => {
   if (typeof password !== 'string' || password.length < 8) {
     return res.status(400).json({ ok: false, error: 'weak_password', message: 'Password must be at least 8 characters.' });
   }
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    return res.status(400).json({ ok: false, error: 'password_too_long', message: `Password must be at most ${MAX_PASSWORD_LENGTH} characters.` });
+  }
   const users = readUsers();
   if (users[cleanUsername]) {
-    return res.status(409).json({ ok: false, error: 'username_taken', message: 'This username is already taken.' });
+    // FIX (#341): no enumeration — a taken username gets the SAME 201
+    // as a fresh signup, and nothing is written (no overwrite, no
+    // second pending account). A legitimate user who picks a taken
+    // name will notice at approval time; that is the standard
+    // anti-enumeration tradeoff.
+    return res.status(201).json({ ok: true, message: 'Account created. Waiting for admin approval.' });
   }
   const { salt, hash } = hashPassword(password);
   const id = crypto.randomUUID();
@@ -343,7 +363,13 @@ router.post('/login', limitLoginAttempts, (req, res) => {
   }
   const users = readUsers();
   const user = users[cleanUsername];
-  if (!user || !verifyPassword(password, user.salt, user.passHash)) {
+  // FIX (#341): always burn one scrypt — unknown users verify against
+  // the dummy pair instead of short-circuiting, so login timing no
+  // longer reveals whether the username exists.
+  const passwordOk = user
+    ? verifyPassword(password, user.salt, user.passHash)
+    : verifyPassword(password, DUMMY_SALT, DUMMY_HASH);
+  if (!user || !passwordOk) {
     return res.status(401).json({ ok: false, error: 'invalid_login', message: 'Invalid username or password.' });
   }
   // Approval gate: pending users cannot log in until admin approves.
