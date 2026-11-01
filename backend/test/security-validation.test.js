@@ -30,6 +30,7 @@ test('private IP detection validates IPv4 octets and IPv6 private ranges', () =>
   assert.equal(isPrivateIP('999.1.1.1'), false);
   assert.equal(isPrivateIP('::1'), true);
   assert.equal(isPrivateIP('::ffff:127.0.0.1'), true);
+  assert.equal(isPrivateIP('::ffff:7f00:1'), true);
   assert.equal(isPrivateIP('2001:db8::1'), false);
 });
 
