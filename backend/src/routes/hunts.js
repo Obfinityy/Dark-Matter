@@ -347,6 +347,10 @@ router.post('/', requireAuth, async (req, res) => {
         scope: scope || null,
         mode: huntMode.id,
       });
+      // FIX (#335): the running hunt's id/target used to leak to any
+      // user whose hunt queued behind it. Only the owner (or an admin)
+      // sees them; other queuers just learn their place in line.
+      const activeIsMine = active && (active.userId === req.user.id || req.user.role === 'admin');
       return res.status(202).json({
         ok: true,
         queued: true,
@@ -354,8 +358,7 @@ router.post('/', requireAuth, async (req, res) => {
         position,
         totalInQueue: total,
         message: `Hunt queued. You are #${position} in line. The hunt will start automatically when a running hunt finishes.`,
-        activeHuntId: active.huntId,
-        activeTarget: active.target,
+        ...(activeIsMine ? { activeHuntId: active.huntId, activeTarget: active.target } : {}),
       });
     }
   } catch (err) {
@@ -484,15 +487,21 @@ router.get('/queue', requireAuth, async (req, res) => {
   const mine = getQueuePosition(req.user.id);
   res.json({
     ok: true,
-    queue: queue.map((e, i) => ({
-      queueId: e.queueId,
-      position: i + 1,
-      target: e.target,
-      username: e.username,
-      priority: e.priority,
-      createdAt: e.createdAt,
-      isMine: e.userId === req.user.id,
-    })),
+    queue: queue.map((e, i) => {
+      const isMine = e.userId === req.user.id;
+      // FIX (#335): queued targets belong to their owners. Other
+      // users (non-admins) see position/owner/priority only — never
+      // another user's target.
+      return {
+        queueId: e.queueId,
+        position: i + 1,
+        ...(isMine || req.user.role === 'admin' ? { target: e.target } : {}),
+        username: e.username,
+        priority: e.priority,
+        createdAt: e.createdAt,
+        isMine,
+      };
+    }),
     myPosition: mine ? mine.position : null,
   });
 });
