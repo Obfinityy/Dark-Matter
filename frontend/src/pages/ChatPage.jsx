@@ -8,12 +8,11 @@ import ChatInput from '../components/ChatInput';
 import DetailsRequestCard from '../components/DetailsRequestCard';
 import NewHuntModal from '../components/NewHuntModal';
 import VoiceMode from '../components/VoiceMode';
-import { sendChat, startHunt } from '../lib/api';
+import { sendChat, startHunt, downloadReport, getMessageFeedback, submitMessageFeedback } from '../lib/api';
 import { resolveHuntMode } from '../lib/huntMode';
 import { streamReveal } from '../lib/streaming';
-import { useAuth, openAuthModal } from '../lib/auth';
+import { useAuth, openAuthModal, recordPendingHuntSetup, consumePendingHuntSetup, clearPendingHuntSetup } from '../lib/auth';
 import { toast } from '../lib/toast';
-import { resolveApiBase } from '../config';
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -24,7 +23,6 @@ export default function ChatPage({
   onAppendMessage,
   onUpdateMessage,
   onNewChat,
-  onRecordHunt,
   onUpdateHunt,
   onOpenReports,
   onOpenHuntChat,
@@ -35,6 +33,10 @@ export default function ChatPage({
   const [streamingId, setStreamingId] = useState(null);
   const [huntModalOpen, setHuntModalOpen] = useState(false);
   const [launching, setLaunching] = useState(false);
+  // FIX (#453): message feedback map for the open chat, keyed by
+  // message id — backend state, loaded per chat, passed down to
+  // ChatThread so votes/loves survive refresh and devices.
+  const [feedback, setFeedback] = useState({});
   const [voiceOpen, setVoiceOpen] = useState(false);
 
   // Open hunt modal when triggered from Sidebar "New hunt".
@@ -50,9 +52,23 @@ export default function ChatPage({
     if (huntModalTrigger === prevHuntModalTriggerRef.current) return;
     prevHuntModalTriggerRef.current = huntModalTrigger;
     if (huntModalTrigger > 0) {
-      if (ensureHuntAuth()) setHuntModalOpen(true);
+      if (ensureHuntAuth(true)) {
+        setHuntModalOpen(true);
+        clearPendingHuntSetup();
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [huntModalTrigger]);
+  // FIX (#445): resume a pending hunt-setup intent on mount — this
+  // covers login from another page, where the trigger bump above is
+  // swallowed by the mount-time rule (the trigger value at mount is
+  // remembered, not acted on). The flag exists only when a logged-out
+  // hunt-setup attempt preceded the login, so this never opens the
+  // modal unprompted.
+  useEffect(() => {
+    if (user && consumePendingHuntSetup()) setHuntModalOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // When "Talk with AI" is pressed on a specific hunt card, the voice
   // conversation is scoped to that hunt (works even when paused/idle).
   const [voiceHuntIdOverride, setVoiceHuntIdOverride] = useState(null);
@@ -88,6 +104,39 @@ export default function ChatPage({
     }
   }, [messages, streamingId]);
 
+  // FIX (#453): load the open chat's feedback so rendered votes
+  // reflect the backend, not just this session's clicks.
+  useEffect(() => {
+    if (!chat || !chat.id) { setFeedback({}); return undefined; }
+    let cancelled = false;
+    getMessageFeedback(chat.id).then((r) => {
+      if (!cancelled && r.ok) setFeedback((r.data && r.data.feedback) || {});
+    }).catch(() => { /* offline: votes stay optimistic-only this session */ });
+    return () => { cancelled = true; };
+  }, [chat && chat.id]);
+
+  // FIX (#453): optimistic update + backend persist + revert on
+  // failure, so the button never claims a save that did not happen.
+  async function handleFeedback(messageId, patch) {
+    if (!chat || !chat.id || !messageId) return;
+    const prev = feedback[messageId] || {};
+    const next = {
+      vote: patch.vote !== undefined ? patch.vote : (prev.vote || null),
+      loved: patch.loved !== undefined ? patch.loved : !!prev.loved,
+    };
+    setFeedback((f) => ({ ...f, [messageId]: next }));
+    const res = await submitMessageFeedback(chat.id, messageId, patch).catch(() => null);
+    if (!res || !res.ok) {
+      setFeedback((f) => {
+        const copy = { ...f };
+        if (prev.vote || prev.loved) copy[messageId] = prev;
+        else delete copy[messageId];
+        return copy;
+      });
+      toast('Could not save feedback.', 'error');
+    }
+  }
+
   // Chat "generating" is ONLY about the chat reply stream — a running hunt must
   // never block sending chat messages. The hunt has its own Stop on its card.
   const generating = sending || streamingId !== null;
@@ -101,9 +150,13 @@ export default function ChatPage({
     toast(next ? 'Spoken replies enabled.' : 'Spoken replies muted.', 'info');
   }
 
-  /** Hunts require login — otherwise open the auth modal. */
-  function ensureHuntAuth() {
+  /** Hunts require login — otherwise open the auth modal. When
+      recordIntent is true (hunt-setup openers), the attempt is
+      stashed so login resumes it (FIX #445); other callers
+      (voice, report, rerun) do not set a resume intent. */
+  function ensureHuntAuth(recordIntent = false) {
     if (!user) {
+      if (recordIntent) recordPendingHuntSetup();
       openAuthModal('login');
       toast('Log in to start a hunt.', 'info');
       return false;
@@ -232,15 +285,13 @@ export default function ChatPage({
     setVoiceOpen(true);
   }
 
-  function handleGetReport(huntId) {
+  async function handleGetReport(huntId) {
     if (!ensureHuntAuth()) return;
-    // Open the professional bug bounty report in a new tab (markdown format)
-    // The backend generates it from hunt memory + findings via the Head agent
-    // Same VITE_API_URL trap as the terminal hook (24 Oct 2026): the
-    // var is unset in the Cloudflare build, so this opened a relative
-    // Pages URL instead of the backend. Use the shared resolver.
-    const apiBase = resolveApiBase();
-    window.open(`${apiBase}/api/v1/hunts/${huntId}/report?format=md`, '_blank', 'noopener');
+    // FIX (#442): the old window.open to the report URL sent no
+    // Authorization header, so the backend (requireAuth) answered
+    // 401 in a new tab. Download authenticated, client-side.
+    const res = await downloadReport(huntId, 'md');
+    if (!res.ok) toast(res.error || 'Could not download the report.', 'error');
   }
 
   function handleVoiceClose() {
@@ -323,7 +374,6 @@ export default function ChatPage({
       createdAt: new Date().toISOString(),
     };
     onAppendMessage(chatId, { id: uid(), role: 'hunt', hunt });
-    onRecordHunt(hunt);
     setHuntModalOpen(false);
     toast('Hunt started — it runs in the background. Keep chatting while it works.', 'success');
   }
@@ -376,7 +426,7 @@ export default function ChatPage({
       editText={editText}
       onCancelEdit={() => setEditText(null)}
       onStartHunt={() => {
-        if (ensureHuntAuth()) setHuntModalOpen(true);
+        if (ensureHuntAuth(true)) setHuntModalOpen(true);
       }}
       speakerOn={speakerOn}
       onToggleSpeaker={toggleSpeaker}
@@ -402,7 +452,7 @@ export default function ChatPage({
               <div className="dm-wordmark">DARK MATTER</div>
               <p className="dm-tagline">An authorized security research workspace</p>
               <div className="dm-quick-actions">
-                <button className="dm-action-card" onClick={() => { if (ensureHuntAuth()) setHuntModalOpen(true); }}>
+                <button className="dm-action-card" onClick={() => { if (ensureHuntAuth(true)) setHuntModalOpen(true); }}>
                   <span className="dm-action-icon" aria-hidden="true">01</span>
                   <span className="dm-action-title">Start a hunt</span>
                   <span className="dm-action-sub">Point the hunter at a target</span>
@@ -430,6 +480,8 @@ export default function ChatPage({
               messages={messages}
               streaming={streamingId}
               thinking={sending && streamingId === null}
+              feedback={feedback}
+              onFeedback={handleFeedback}
               onHuntStatusChange={handleHuntStatusChange}
               onOpenReports={onOpenReports}
               onEditMessage={(msg) => setEditText({ id: msg.id, text: msg.text })}

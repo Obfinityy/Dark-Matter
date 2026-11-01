@@ -11,6 +11,14 @@
 //   GET  /api/v1/chats/:id/messages -> {messages, updatedAt}
 //   POST /api/v1/chats/:id/messages {messages:[...], updatedAt} -> {ok:true}
 //
+// Message feedback — thumbs up/down + love on assistant replies.
+// These used to live only in ChatThread's local state (lost on
+// refresh, invisible to the backend). Stored per user per chat,
+// keyed by message id, in the same dataDir style as history:
+//
+//   GET  /api/v1/chats/:id/feedback -> {feedback: {messageId: {vote, loved, at}}}
+//   POST /api/v1/chats/:id/feedback {messageId, vote?, loved?} -> {feedback: {...}|null}
+//
 // Merge rule: last write wins by updatedAt (per chat id).
 
 import { Router } from 'express';
@@ -220,5 +228,59 @@ export function appendChatMessage(userId, chatId, message) {
   writeMessages(userId, id, messages, new Date().toISOString());
   return true;
 }
+
+// ---- Message feedback (FIX #453) ----
+
+function feedbackFile(userId, chatId) {
+  return path.join(dataDir(), 'chat-feedback', String(userId), `${safeChatId(chatId)}.json`);
+}
+
+function readFeedback(userId, chatId) {
+  try {
+    const obj = JSON.parse(fs.readFileSync(feedbackFile(userId, chatId), 'utf8'));
+    return obj && typeof obj === 'object' ? obj : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeFeedback(userId, chatId, map) {
+  const dir = path.join(dataDir(), 'chat-feedback', String(userId));
+  fs.mkdirSync(dir, { recursive: true });
+  const tmp = path.join(dir, `${safeChatId(chatId)}.json.tmp`);
+  fs.writeFileSync(tmp, JSON.stringify(map, null, 1));
+  fs.renameSync(tmp, feedbackFile(userId, chatId));
+}
+
+router.get('/:id/feedback', requireAuth, (req, res) => {
+  const chatId = safeChatId(req.params.id);
+  if (!chatId) return res.status(400).json({ ok: false, error: 'bad_chat_id' });
+  res.json({ ok: true, feedback: readFeedback(req.user.id, chatId) });
+});
+
+router.post('/:id/feedback', requireAuth, (req, res) => {
+  const chatId = safeChatId(req.params.id);
+  if (!chatId) return res.status(400).json({ ok: false, error: 'bad_chat_id' });
+  const b = req.body || {};
+  const messageId = String(b.messageId || '').slice(0, 64);
+  if (!messageId) return res.status(400).json({ ok: false, error: 'bad_message_id' });
+  const vote = b.vote === null || b.vote === undefined ? null : String(b.vote);
+  if (vote !== null && vote !== 'up' && vote !== 'down') {
+    return res.status(400).json({ ok: false, error: 'bad_vote' });
+  }
+  const loved = b.loved === undefined ? undefined : b.loved === true;
+  const map = readFeedback(req.user.id, chatId);
+  const prev = map[messageId] && typeof map[messageId] === 'object' ? map[messageId] : {};
+  const next = {
+    vote: b.vote === undefined ? (prev.vote || null) : vote,
+    loved: loved === undefined ? !!prev.loved : loved,
+    at: new Date().toISOString(),
+  };
+  // Clearing both removes the entry entirely (no tombstones).
+  if (next.vote === null && !next.loved) delete map[messageId];
+  else map[messageId] = next;
+  writeFeedback(req.user.id, chatId, map);
+  res.json({ ok: true, feedback: map[messageId] || null });
+});
 
 export default router;

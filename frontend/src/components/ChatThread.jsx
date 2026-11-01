@@ -86,9 +86,7 @@ function IconRefresh() {
   );
 }
 
-function AssistantActions({ text, onRegenerate }) {
-  const [vote, setVote] = useState(null); // 'up' | 'down' | null
-  const [loved, setLoved] = useState(false);
+function AssistantActions({ text, onRegenerate, vote, loved, onVote, onLove }) {
   const [copied, setCopied] = useState(false);
 
   function copy() {
@@ -106,8 +104,13 @@ function AssistantActions({ text, onRegenerate }) {
     }
   }
 
+  // FIX (#453): vote/loved are CONTROLLED props backed by the
+  // backend (ChatPage's feedback map), not local state — the old
+  // local-only toggles vanished on refresh and never reached the
+  // server. Toggling calls up; the parent owns persistence (with
+  // revert on API failure) and the thank-you toast stays here.
   function rate(next) {
-    setVote((v) => (v === next ? null : next));
+    if (onVote) onVote(vote === next ? null : next);
     toast('Thanks for your feedback.', 'info');
   }
 
@@ -145,8 +148,8 @@ function AssistantActions({ text, onRegenerate }) {
         aria-label="Love this response"
         aria-pressed={loved}
         onClick={() => {
-          setLoved((v) => !v);
-          toast(loved ? 'Removed love.' : 'Loved! ❤️', 'info');
+          if (onLove) onLove(!loved);
+          toast(!loved ? 'Loved! ❤️' : 'Removed love.', 'info');
         }}
       >
         <IconHeart />
@@ -170,7 +173,7 @@ function formatMsgTime(ts) {
   }
 }
 
-export default function ChatThread({ messages, streaming, thinking, onHuntStatusChange, onOpenReports, onEditMessage, onRegenerateMessage, onRerunHunt, onStartFreshHunt, onTalkWithAI, onGetReport }) {
+export default function ChatThread({ messages, streaming, thinking, onHuntStatusChange, onOpenReports, onEditMessage, onRegenerateMessage, onRerunHunt, onStartFreshHunt, onTalkWithAI, onGetReport, feedback, onFeedback }) {
   // FIX (24 Oct 2026): while a chat reply is being fetched from the
   // backend (sendChat can take 10s+ while it consults the hunt brain),
   // the thread used to show NOTHING — no assistant message exists yet,
@@ -231,7 +234,7 @@ export default function ChatThread({ messages, streaming, thinking, onHuntStatus
                 {formatMsgTime(msg.createdAt) && (
                   <span className="msg-time">{formatMsgTime(msg.createdAt)}</span>
                 )}
-                {msg.text && <AssistantActions text={msg.text} onRegenerate={() => onRegenerateMessage && onRegenerateMessage(msg)} />}
+                {msg.text && <AssistantActions text={msg.text} onRegenerate={() => onRegenerateMessage && onRegenerateMessage(msg)} vote={(feedback && feedback[msg.id] && feedback[msg.id].vote) || null} loved={!!(feedback && feedback[msg.id] && feedback[msg.id].loved)} onVote={(v) => onFeedback && onFeedback(msg.id, { vote: v })} onLove={(l) => onFeedback && onFeedback(msg.id, { loved: l })} />}
               </div>
             </div>
           </div>
