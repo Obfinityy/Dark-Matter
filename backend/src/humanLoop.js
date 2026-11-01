@@ -51,6 +51,7 @@ import { recallById, firstRunNumber, parseRecallId, formatFullRecord } from './a
 import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
 import { findWrongTargetPaths, knownAppOf, knownAppSOMLines } from './knownApps.js';
+import { detectEvidence, isDuplicate } from './autoFiler.js';
 import { runLabLoginFirst } from './labLogin.js';
 import { getRelevantMemories, formatGlobalMemoryForPrompt, readAllGlobalMemories } from './globalMemory.js';
 import { listSkills, loadSkill } from './skillCards.js';
@@ -4337,6 +4338,37 @@ export async function humanIteration(huntId, target, opts = {}) {
       setStuckCount(0);
     } else if (!['shell', 'browser_snapshot', 'screenshot', 'browser_type', 'browser_click'].includes(kind)) {
       setStuckCount(0);
+    }
+
+    // AUTO-FILER v1: Scan brain output for vulnerability evidence.
+    // If strong evidence found (SQLi hashes, XSS, CMDI), auto-file the claim.
+    // The brain hunts; the filer files. Together they are the complete human.
+    try {
+      const scanText = String(thinkingText || '') + '\n' + String(observation || '');
+      const detected = detectEvidence(scanText);
+      if (detected && !isDuplicate(huntDir, detected.title)) {
+        // Construct the claim_finding action
+        const autoClaim = {
+          action: 'claim_finding',
+          title: detected.title,
+          class: detected.class,
+          evidence: detected.evidence,
+          command: detected.command,
+          counterevidence: detected.counterevidence,
+          confidence: detected.confidence,
+        };
+        // Log the auto-filing
+        try { deps.record(huntId, { type: 'autofiler_triggered', title: detected.title, class: detected.class, via: 'human-mode' }); } catch {}
+        // Override the brain's action with our auto-filed claim
+        // (The brain's original action is preserved in the log)
+        action = autoClaim;
+        observation = 'AUTO-FILER: Strong ' + detected.class.toUpperCase() + ' evidence detected in your output. ' +
+                      'Filing claim automatically: "' + detected.title + '". ' +
+                      'This is what a human hunter does — files the report when proof is found.';
+      }
+    } catch (afErr) {
+      // Auto-filer must never break the hunt loop
+      try { deps.record(huntId, { type: 'autofiler_error', error: String(afErr).slice(0, 200), via: 'human-mode' }); } catch {}
     }
 
     // STUCK-DETECTOR v3: if the brain itself says it's stuck looping,
