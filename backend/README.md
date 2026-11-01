@@ -15,8 +15,10 @@ curl http://localhost:4000/api/v1/health   # {"ok":true}
 ```
 
 No external LLM API key is required for the core flows (health, plugins,
-models catalog, chat summaries, reports). Hunt creation needs `ALLOWED_TARGETS`
-and a reachable engine.
+models catalog, chat summaries, reports). Hunt creation needs
+`confirmedAuthorized: true` (plus SSRF, control-level, and
+credit checks) — there is no target allowlist since its
+15 Oct 2026 removal by owner order.
 
 ## Environment variables
 
@@ -28,7 +30,7 @@ and a reachable engine.
 | `ENGINE_TIMEOUT_MS` | `8000` | Engine request timeout — failures surface as HTTP 502, never a hang |
 | `VOICE_URL` | `http://localhost:8001` | Voice service base URL (STT/TTS proxy) |
 | `VOICE_TIMEOUT_MS` | `30000` | Voice proxy timeout |
-| `ALLOWED_TARGETS` | _(empty)_ | Comma-separated authorized-target allowlist. Entries match a target's hostname exactly, as parent domain (subdomains included), or as a full-URL prefix. **Empty = hunt creation disabled (all creates → 403).** |
+| `ALLOWED_TARGETS` | _(empty)_ | Parsed but INERT since the 15 Oct 2026 owner-order removal: it no longer gates hunt creation. Retained in config only; do not rely on it. |
 | `PLUGIN_MASTER_KEY` | _(empty)_ | 64-hex (32-byte) master key for AES-256-GCM plugin-key encryption. Generate: `openssl rand -hex 32`. If unset, an ephemeral key is generated at boot (warning logged) and stored keys do **not** survive restarts. |
 | `DATA_DIR` | `./data` | Local storage: encrypted plugin keys, model download jobs, hunt event cache |
 | `STREAM_POLL_MS` | `1000` | WS stream bridge poll interval against the engine's REST events endpoint |
@@ -42,7 +44,7 @@ See `.env.example` for a ready-to-copy template.
 | GET | `/health` | → `{ok:true}` |
 | POST | `/chat` | `{message, huntId?}` → `{reply}`. With `huntId`: reply includes live hunt status context (engine) + cached findings. Steering: "pause the hunt", "resume", "stop the hunt", "what did you find" / "status" map to hunt actions / summaries. |
 | WS | `/hunts/:id/stream` | Live event stream. See "Streaming bridge" below. |
-| POST | `/hunts` | `{target, scope, confirmedAuthorized:true}` → `{huntId}`. **Authorized-targets-only**: 403 unless `confirmedAuthorized === true` AND target matches `ALLOWED_TARGETS`; rejections are logged. |
+| POST | `/hunts` | `{target, scope, confirmedAuthorized:true}` → `{huntId}`. **Authorized-targets-only**: 403 unless `confirmedAuthorized === true` (plus SSRF, control-level, and credit checks); rejections are logged. No allowlist. |
 | POST | `/hunts/:id/pause` `/resume` `/stop` | Proxied to the engine. |
 | GET | `/hunts/:id` | Engine status snapshot. |
 | GET | `/hunts/:id/report?format=md\|pdf` | Report from the **local event cache** — works at any time, even mid-hunt. PDF rendered with pdfkit (bundled); if rendering ever fails, markdown is returned with an `X-Report-Note` header. Unknown hunt → 404. |
@@ -92,8 +94,9 @@ the outbound contract to the frontend stays identical.
 
 ## Security notes
 
-- Hunt creation is **allowlist-gated** (`ALLOWED_TARGETS`) **plus**
-  per-request `confirmedAuthorized: true`. Both required; rejections logged.
+- Hunt creation requires per-request `confirmedAuthorized: true`
+  (plus SSRF, control-level, and credit checks). There is no
+  allowlist gate since the 15 Oct 2026 owner-order removal.
 - Plugin keys: AES-256-GCM at rest; master key from env only; never logged;
   never returned over the API. GET catalog exposes only `configured` booleans.
 - No auth layer is built into this rebuild yet — treat deployment as
