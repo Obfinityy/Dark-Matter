@@ -179,9 +179,17 @@ export function isPrivateIP(ip) {
   const lower = ip.toLowerCase().replace(/^\[|\]$/g, '');
   // IPv6 unspecified, loopback, unique-local (fc00::/7), and link-local (fe80::/10).
   if (lower === '::' || lower === '::1' || /^(fc|fd)/.test(lower) || /^fe[89ab]/.test(lower)) return true;
-  // IPv4-mapped IPv6 addresses inherit the IPv4 classification.
-  const mapped = lower.match(/^(?:::ffff:)(\d+\.\d+\.\d+\.\d+)$/);
-  if (mapped) return isPrivateIP(mapped[1]);
+  // IPv4-mapped and IPv4-compatible IPv6 addresses inherit the IPv4 classification.
+  if (lower.startsWith('::ffff:') || (lower.startsWith('::') && lower.length > 2)) {
+    const tail = lower.slice(lower.lastIndexOf(':') + 1);
+    if (tail.includes('.')) return isPrivateIP(tail);
+    const groups = lower.replace(/^::ffff:/, '').replace(/^::/, '').split(':');
+    if (groups.length === 2 && groups.every((g) => /^[0-9a-f]{1,4}$/.test(g))) {
+      const n = (parseInt(groups[0], 16) * 65536 + parseInt(groups[1], 16)) >>> 0;
+      return isPrivateIP([n >>> 24, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.'));
+    }
+  }
+  if (lower.startsWith('ff') || lower.startsWith('fec') || lower.startsWith('fed')) return true;
   if (isIP(lower) !== 4) return false;
   const parts = lower.split('.').map(Number);
   if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return false;
