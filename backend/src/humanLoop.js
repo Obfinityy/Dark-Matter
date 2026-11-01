@@ -6214,9 +6214,12 @@ export async function humanIteration(huntId, target, opts = {}) {
       openThreads,
       lastThinking: clipLine(sessionLastThinking || '', 240),
     };
-    // INFINITY LEVEL: the session-end checkpoint rebuilds humanLoop
-    // WITHOUT spreading prev (above), so the per-turn counters
-    // would be lost here unless carried forward explicitly.
+    // FIX (#361): the session-end checkpoint used to rebuild humanLoop
+    // WITHOUT spreading prev, so any loop field not carried forward
+    // explicitly was dropped at hunt end (e.g. loopCounters when the
+    // end recompute failed, or any field accumulated by another
+    // session/version). Spread prev first — the per-turn pattern —
+    // and let the explicit fields below override it.
     let endCounters = null;
     try {
       endCounters = loopCounters({ events: endEvents, reasoningRows: endRows, pageState: sessionPageState });
@@ -6225,6 +6228,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       ...m,
       huntId,
       humanLoop: {
+        ...prev,
         sessions: (prev.sessions || 0) + 1,
         // Lane P: per-turn progress checkpoints already advanced
         // turnsTotal to sessionBaseTurns + turnsRun during this
