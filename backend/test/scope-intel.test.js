@@ -11,3 +11,11 @@ test('hunt-intel scope gate handles bare hosts, wildcard assets, and path bounda
   assert.equal(isInScope('https://admin.example.com/api', scope), false);
   assert.equal(isInScope('api.example.com/api', null), false);
 });
+
+test('scope-intel requires exact hosts unless wildcard is explicit', () => {
+  const scope = { inScope: ['api.example.com', '*.cdn.example.com'] };
+  assert.equal(isInScope('api.example.com', scope), true);
+  assert.equal(isInScope('nested.api.example.com', scope), false);
+  assert.equal(isInScope('cdn.example.com', scope), false);
+  assert.equal(isInScope('img.cdn.example.com', scope), true);
+});
