@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isInScope, isPrivateIP, parseScope, validateTargetSSRF, validateTargetAsync } from '../src/scopeParser.js';
-import { canAccessHuntStream } from '../src/routes/auth.js';
+import { canAccessHuntStream, createIpRateLimiter } from '../src/routes/auth.js';
 
 test('scope gate honors explicitly enumerated assets', () => {
   const scope = parseScope('primary.example', 'In scope: primary.example, api.example.net, *.cdn.example.net\nOut of scope: staging.example.net');
@@ -71,4 +71,27 @@ test('hunt stream authorization is owner-only and legacy hunts are admin-only', 
   assert.equal(canAccessHuntStream(owner, {}), false);
   assert.equal(canAccessHuntStream(owner, null), false);
   assert.equal(canAccessHuntStream(null, { userId: 'user-1' }), false);
+});
+
+test('IP rate limiter blocks after configured attempts and resets after window', () => {
+  let now = 1000;
+  const limiter = createIpRateLimiter({ limit: 2, windowMs: 1000, now: () => now });
+  const req = { ip: '192.0.2.1', socket: {} };
+  let nextCalls = 0;
+  let statusCode = 0;
+  let headers = {};
+  const res = {
+    setHeader: (k, v) => { headers[k] = v; },
+    status: (code) => { statusCode = code; return res; },
+    json: (body) => body,
+  };
+  limiter(req, res, () => nextCalls++);
+  limiter(req, res, () => nextCalls++);
+  limiter(req, res, () => nextCalls++);
+  assert.equal(nextCalls, 2);
+  assert.equal(statusCode, 429);
+  assert.equal(headers['Retry-After'], '1');
+  now += 1000;
+  limiter(req, res, () => nextCalls++);
+  assert.equal(nextCalls, 3);
 });
