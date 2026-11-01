@@ -4569,6 +4569,16 @@ export async function humanIteration(huntId, target, opts = {}) {
       try { deps.record(huntId, { type: 'proof_file_nudge', tool: proofHit.tool, detail: scrub(`${proofHit.payloadClass} on ${proofHit.endpoint}`), count: proofHit.count, via: 'human-mode' }); } catch { /* best-effort */ }
       say(`Proof complete — ${proofHit.payloadClass} on ${proofHit.endpoint} already proven ×${proofHit.count}; filing required.`);
       observation = proofFileObservation(proofHit);
+      // OCR LOOP-BREAKER (1 Nov 2026, permanent system-level fix): The brain
+      // has proven this claim 3x but will not transcribe/file it. The SYSTEM
+      // captures the screen itself via OCR so the auto-filer sees what the
+      // brain sees. Bypasses the model's refusal to take screenshots.
+      try {
+        const loopOcr = await captureScreenMap(huntId, deps);
+        if (loopOcr && loopOcr.ok && loopOcr.map) {
+          observation += "\n\n[OCR screen text — system-captured during proof loop]:\n" + loopOcr.map;
+        }
+      } catch { /* OCR is best-effort; proof nudge works without it */ }
       note({ action: `proof_file_nudge: ${proofHit.payloadClass} on ${proofHit.endpoint}`, why: thinkingText, result: `proof complete ×${proofHit.count} — file it`, learned: 'A claim proven three times is filed, not re-proved; the verifier decides whether it is true.' });
     } else if (kind === 'shell') {
       const command = String(action.command || '').slice(0, COMMAND_CAP);
