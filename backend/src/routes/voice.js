@@ -9,10 +9,30 @@
 
 import { Router } from 'express';
 import multer from 'multer';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import crypto from 'node:crypto';
 import { config } from '../config.js';
+import { requireAuth } from './auth.js';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+// FIX (#331): uploads used to buffer up to 50MB per request IN MEMORY,
+// so concurrent voice uploads could exhaust RAM. Files now spool to
+// disk (OS tmp, random names) and are unlinked after forwarding; the
+// cap is 25MB (generous for multi-minute clips).
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, os.tmpdir()),
+    filename: (_req, file, cb) => cb(null, `dm-voice-${crypto.randomUUID()}-${path.basename(file.originalname || 'audio.wav')}`),
+  }),
+  limits: { fileSize: 25 * 1024 * 1024 },
+});
+
+// TTS text cap: synthesis of unbounded text is an unbounded upstream
+// cost (the JSON body parser already caps at ~100kb; 5000 chars is
+// several minutes of speech and far above any legitimate voice line).
+const TTS_MAX_CHARS = 5000;
 
 const VOICE_TIMEOUT_MS = parseInt(process.env.VOICE_TIMEOUT_MS || '30000', 10);
 
@@ -40,7 +60,18 @@ async function proxyToVoice(path, { method = 'POST', body, contentType } = {}) {
   }
 }
 
-router.post('/stt', upload.single('audio'), async (req, res) => {
+router.post('/stt', requireAuth, (req, res, next) => {
+  // Multer errors (e.g. over the 25MB cap) must be a clean 413, not
+  // the server's generic 500, and any partial spool file is removed.
+  upload.single('audio')(req, res, (err) => {
+    if (err) {
+      try { if (req.file && req.file.path) fs.unlinkSync(req.file.path); } catch { /* best-effort */ }
+      const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+      return res.status(status).json({ ok: false, error: err.code || 'upload_error', message: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   if (!req.file) {
     return res.status(400).json({
       ok: false,
@@ -49,10 +80,11 @@ router.post('/stt', upload.single('audio'), async (req, res) => {
     });
   }
   try {
+    const buf = fs.readFileSync(req.file.path);
     const form = new FormData();
     form.append(
       'audio',
-      new Blob([req.file.buffer], { type: req.file.mimetype || 'audio/wav' }),
+      new Blob([buf], { type: req.file.mimetype || 'audio/wav' }),
       req.file.originalname || 'audio.wav'
     );
     if (req.body && req.body.language) form.append('language', req.body.language);
@@ -64,13 +96,19 @@ router.post('/stt', upload.single('audio'), async (req, res) => {
     res.send(text);
   } catch (err) {
     res.status(err.status || 500).json({ ok: false, error: err.code || 'internal_error', message: err.message });
+  } finally {
+    // Uploaded audio never lingers on disk past the forward.
+    try { if (req.file && req.file.path) fs.unlinkSync(req.file.path); } catch { /* best-effort */ }
   }
 });
 
-router.post('/tts', async (req, res) => {
+router.post('/tts', requireAuth, async (req, res) => {
   const { text, voice } = req.body || {};
   if (typeof text !== 'string' || !text.trim()) {
     return res.status(400).json({ ok: false, error: 'missing_text' });
+  }
+  if (text.length > TTS_MAX_CHARS) {
+    return res.status(400).json({ ok: false, error: 'text_too_long', message: `Text must be at most ${TTS_MAX_CHARS} characters.` });
   }
   try {
     const upstream = await proxyToVoice('/tts', {
