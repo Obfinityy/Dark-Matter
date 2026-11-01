@@ -4471,10 +4471,30 @@ export async function humanIteration(huntId, target, opts = {}) {
         if (/3100|dvwa/i.test(dvwaTarget)) {
           const loginRes = await dvwaLogin({ huntId, target: dvwaTarget });
           if (loginRes.ok) {
-            observation = 'SYSTEM AUTO-LOGIN: Successfully logged into DVWA as admin ' +
-              '(security set to low). Cookie jar: ' + loginRes.cookieJar + '. ' +
-              'You are now authenticated. Continue hunting - try the SQL Injection ' +
-              'module at /vulnerabilities/sqli/.';
+            // Write cookies to container for brain's shell use
+            try {
+              const { getDvwaCookies } = await import('./dvwaAuth.js');
+              const cookies = getDvwaCookies(huntId);
+              if (cookies && deps.execRaw) {
+                const cookieFile = `/tmp/dvwa-cookies-${huntId}.txt`;
+                const lines = ['# Netscape HTTP Cookie File'];
+                for (const c of cookies.split(';')) {
+                  const idx = c.indexOf('=');
+                  if (idx > 0) {
+                    const k = c.slice(0, idx).trim();
+                    const v = c.slice(idx + 1).trim();
+                    if (k) lines.push(`172.17.0.1\tFALSE\t/\tFALSE\t0\t${k}\t${v}`);
+                  }
+                }
+                await deps.execRaw(huntId, `cat > ${cookieFile} << 'COOKIEEOF'\n${lines.join('\n')}\nCOOKIEEOF`);
+              }
+            } catch {}
+            observation = 'SYSTEM AUTO-LOGIN: Successfully logged into DVWA as admin (security set to low). ' +
+              'STOP trying to log in via the browser - you are ALREADY authenticated via the backend. ' +
+              'Your browser does NOT have the session cookies. To hunt, use SHELL with the cookie jar at ' +
+              `/tmp/dvwa-cookies-${huntId}.txt. Example: curl -s -b /tmp/dvwa-cookies-${huntId}.txt ` +
+              '"http://172.17.0.1:3100/vulnerabilities/sqli/?id=1&Submit=Submit". ' +
+              'The SQL Injection module is at /vulnerabilities/sqli/. Hunt it NOW via shell - do NOT use the browser login form.';
             try { deps.record(huntId, { type: 'dvwa_autologin', ok: true, via: 'human-mode' }); } catch {}
           } else {
             try { deps.record(huntId, { type: 'dvwa_autologin', ok: false, error: loginRes.error, via: 'human-mode' }); } catch {}
