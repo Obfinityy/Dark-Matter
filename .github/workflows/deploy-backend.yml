@@ -70,7 +70,7 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           trap 'rm -f ~/.ssh/deploy_key' EXIT
           if printf '%s' "$META_API_KEY" | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o BatchMode=yes "$EC2_USER@$EC2_HOST" \
-            'key=$(cat); envfile=/opt/Dark-Matter/backend/.env; touch "$envfile"; tmpfile=$(mktemp); grep -v "^META_API_KEY[[:space:]]*=" "$envfile" > "$tmpfile"; printf "META_API_KEY=%s\n" "$key" >> "$tmpfile"; cat "$tmpfile" > "$envfile"; rm -f "$tmpfile"; echo "META_API_KEY lines: $(grep -c "^META_API_KEY[[:space:]]*=" "$envfile")"'; then
+            'key=$(cat); envfile=/opt/Dark-Matter/backend/.env; touch "$envfile"; chmod 600 "$envfile"; tmpfile=$(mktemp); grep -v "^META_API_KEY[[:space:]]*=" "$envfile" > "$tmpfile"; printf "META_API_KEY=%s\n" "$key" >> "$tmpfile"; cat "$tmpfile" > "$envfile"; rm -f "$tmpfile"; echo "META_API_KEY lines: $(grep -c "^META_API_KEY[[:space:]]*=" "$envfile")"'; then
             echo "META_API_KEY written to EC2 .env"
           else
             echo "::warning::META_API_KEY could not be written to EC2 .env — the deploy continues without it; set the secret and re-run, or write the key by hand"
@@ -91,7 +91,9 @@ jobs:
             cd backend
             npm ci --omit=dev
             echo "--- brain python deps (Pillow: synthetic-screenshot fallback) ---"
-            sudo apt-get install -y -q python3-pil
+            # FIX (#350): apt-get update first — without it a stale package
+            # cache fails (or mis-resolves) the install on a cold box.
+            sudo apt-get update && sudo apt-get install -y -q python3-pil
             echo "--- checking for active hunts ---"
             # FAIL-CLOSED (#332): the old guard printed 0 on ANY node
             # error (inner catch + `|| echo 0`), so a broken store check
