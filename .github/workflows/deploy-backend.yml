@@ -93,15 +93,29 @@ jobs:
             echo "--- brain python deps (Pillow: synthetic-screenshot fallback) ---"
             sudo apt-get install -y -q python3-pil
             echo "--- checking for active hunts ---"
-            ACTIVE=$(node -e "
+            # FAIL-CLOSED (#332): the old guard printed 0 on ANY node
+            # error (inner catch + `|| echo 0`), so a broken store check
+            # silently authorised a restart that kills active hunts.
+            # Now a failed or non-numeric check ABORTS the deploy.
+            if ! ACTIVE=$(node -e "
               import('./src/store.js').then((s) => {
                 const ms = s.listHuntMetas();
                 const active = ms.filter((m) => ['running','created','starting','paused'].includes(m.state) && !['stopped','finished','failed'].includes(m.state));
                 console.log(active.length);
-              }).catch(() => console.log(0));
-            " 2>/dev/null || echo 0)
+              });
+            "); then
+              echo "ERROR: active-hunt check failed — refusing to restart blindly. Aborting deploy."
+              exit 1
+            fi
+            case "$ACTIVE" in ''|*[!0-9]*) echo "ERROR: active-hunt check returned non-numeric output '$ACTIVE' — aborting deploy."; exit 1;; esac
             if [ "${ACTIVE}" != "0" ]; then
               echo "SKIP restart: ${ACTIVE} hunt(s) still active — new code is pulled and will apply on the next manual restart."
+              # A green SKIP used to mean nothing at all. Verify the
+              # still-running backend is actually healthy; a failed
+              # health check fails the deploy instead of hiding it.
+              echo "--- health check (running backend, still on old code) ---"
+              curl -sf http://localhost:4000/api/v1/health || { echo "ERROR: running backend failed its health check — investigate before the deferred restart."; exit 1; }
+              echo
               git rev-parse --short HEAD
               exit 0
             fi
