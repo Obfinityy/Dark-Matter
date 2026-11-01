@@ -4319,7 +4319,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       log.push({ turn, action: 'unparseable', detail: '', observation: lastObservation });
       continue;
     }
-    const action = parsed.action;
+    let action = parsed.action;
     const thinkingText = replyText.slice(0, parsed.jsonStart).trim().slice(0, 400);
     sessionLastThinking = thinkingText;
     const kind = String(action.action).toLowerCase();
