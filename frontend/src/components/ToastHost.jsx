@@ -16,7 +16,12 @@ export default function ToastHost() {
   return (
     <div className="toast-host" aria-live="polite">
       {items.map((t) => (
-        <div key={t.id} className={`toast toast-${t.kind}`}>
+        // FIX (#452): error toasts are alerts — screen readers must
+        // announce them assertively, not politely with the rest.
+        // role="alert" carries implicit aria-live="assertive", so it
+        // is set ONLY on error toasts; info/success toasts keep the
+        // container's polite announcements.
+        <div key={t.id} className={`toast toast-${t.kind}`} role={t.kind === 'error' ? 'alert' : undefined}>
           {t.message}
         </div>
       ))}
