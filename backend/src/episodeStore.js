@@ -114,6 +114,10 @@ function getDb() {
         CREATE TRIGGER IF NOT EXISTS episodes_ai AFTER INSERT ON episodes BEGIN
           INSERT INTO episodes_fts(rowid, title, body) VALUES (new.id, new.title, new.body);
         END;
+        CREATE TRIGGER IF NOT EXISTS episodes_au AFTER UPDATE ON episodes BEGIN
+          INSERT INTO episodes_fts(episodes_fts, rowid, title, body) VALUES('delete', old.id, old.title, old.body);
+          INSERT INTO episodes_fts(rowid, title, body) VALUES(new.id, new.title, new.body);
+        END;
       `);
       ftsAvailable = true;
     } catch {
@@ -262,26 +266,53 @@ function tombstone(huntId, sourceIdx, rawLine) {
 function insertEpisodes(rows) {
   const d = getDb();
   if (!d || rows.length === 0) return 0;
+  // FIX (#363): the old INSERT OR IGNORE silently dropped a row on a
+  // (hunt_id, source_idx) conflict, and flushHuntEpisodes then advanced
+  // the watermark past it anyway — the gap was blessed and the dropped
+  // row never retried. Now the mirror UPSERTS: JSONL is the source of
+  // truth, so a conflicting row is refreshed to the current source
+  // line instead of dropped. The WHERE guard means an identical row
+  // (benign double-flush) costs no write and no FTS churn; only
+  // genuinely changed rows fire the UPDATE trigger (episodes_au
+  // keeps the FTS index in step). access_count/last_accessed_at are
+  // read-tracking columns and are deliberately never overwritten here.
   const stmt = d.prepare(`
-    INSERT OR IGNORE INTO episodes
+    INSERT INTO episodes
       (ts, hunt_id, source_idx, iteration, kind, actor, title, body, outcome, importance)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(hunt_id, source_idx) DO UPDATE SET
+      ts = excluded.ts,
+      iteration = excluded.iteration,
+      kind = excluded.kind,
+      actor = excluded.actor,
+      title = excluded.title,
+      body = excluded.body,
+      outcome = excluded.outcome,
+      importance = excluded.importance
+    WHERE episodes.ts IS NOT excluded.ts
+       OR episodes.iteration IS NOT excluded.iteration
+       OR episodes.kind IS NOT excluded.kind
+       OR episodes.actor IS NOT excluded.actor
+       OR episodes.title IS NOT excluded.title
+       OR episodes.body IS NOT excluded.body
+       OR episodes.outcome IS NOT excluded.outcome
+       OR episodes.importance IS NOT excluded.importance
   `);
-  let inserted = 0;
+  let written = 0;
   d.exec('BEGIN');
   try {
     for (const r of rows) {
       const res = stmt.run(
         r.ts, r.hunt_id, r.source_idx, r.iteration, r.kind, r.actor, r.title, r.body, r.outcome, r.importance
       );
-      inserted += Number(res.changes || 0);
+      written += Number(res.changes || 0);
     }
     d.exec('COMMIT');
   } catch (err) {
     try { d.exec('ROLLBACK'); } catch { /* ignore */ }
     throw err;
   }
-  return inserted;
+  return written;
 }
 
 function getWatermark(huntId) {
@@ -336,6 +367,11 @@ export function flushHuntEpisodes(huntId) {
     }
   }
   const inserted = insertEpisodes(rows);
+  // Watermark advance is safe now (#363): the upsert above converged
+  // every row in [0, lines.length) to the current source line, so
+  // there is no dropped row left behind for the watermark to bless.
+  // (On insert error the exception above skips this line, so the
+  // watermark never advances past unmirrored rows.)
   setWatermark(huntId, lines.length);
   return { inserted, total: lines.length };
 }
