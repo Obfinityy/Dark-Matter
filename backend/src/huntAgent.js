@@ -184,7 +184,7 @@ import { summarizeToolOutput } from './toolOutput.js';
 import { handleArtifactCommand, spillOutput } from './artifacts.js';
 import { notifyFinding } from './notifications.js';
 import { humanIteration, defaultDeliverChatAnswer } from './humanLoop.js';
-import { getBalanceUsd, deductCreditsUsd } from './billing/credits.js';
+import { getBalanceCents, deductCreditsUsd } from './billing/credits.js';
 import { hasActiveAccessById } from './access.js';
 
 // Credit price per hunt iteration (USD), by hunt mode. The hunt auto-pauses
@@ -222,7 +222,7 @@ function chargeIteration(huntId, userId, mode, iteration) {
   if (isAdminUser(userId)) return true; // owner testing is free
   if (hasActiveAccessById(userId)) return true; // paid access day: no per-iteration charge
   const priceCents = Math.round((ITERATION_PRICE_USD[mode] || ITERATION_PRICE_USD.normal) * 100);
-  if (getBalanceUsd(userId) * 100 < priceCents) {
+  if (getBalanceCents(userId) < priceCents) {
     writeHuntMetaCheckpoint(huntId, { state: 'out_of_credits', paused: true });
     think(huntId, 'Out of credits — hunt paused. Top up your balance and press Resume to continue.');
     appendHuntEvent(huntId, { type: 'status', state: 'out_of_credits', iteration });
