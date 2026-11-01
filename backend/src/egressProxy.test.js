@@ -7,7 +7,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import net from 'node:net';
-import { startEgressProxy, proxyAllows } from './egressProxy.js';
+import { startEgressProxy, proxyAllows, pickDialAddress } from './egressProxy.js';
 
 let backend; // virtual-host HTTP server on 127.0.0.1
 let BACKEND_PORT;
@@ -266,4 +266,58 @@ test('startEgressProxy fails closed on invalid scope', async () => {
     startEgressProxy({ huntId: 'x', scope: { version: 2 }, port: 0 }),
     /invalid scope/
   );
+});
+
+// ---- #397: dial-time DNS-rebinding guard (default dial path only) ----
+
+test('pickDialAddress: public, private, and lab resolution', () => {
+  const base = { version: 1, hosts: ['example.com'], labIps: [], ports: [] };
+  assert.deepEqual(pickDialAddress('93.184.216.34', base, []), { ip: '93.184.216.34' });
+  assert.ok(pickDialAddress('10.0.0.5', base, []).blocked, 'private literal, not lab');
+  assert.deepEqual(pickDialAddress('172.17.0.1', { ...base, labIps: ['172.17.0.1'] }, []), { ip: '172.17.0.1' });
+  assert.deepEqual(
+    pickDialAddress('example.com', base, [{ address: '169.254.169.254', family: 4 }, { address: '93.184.216.34', family: 4 }]),
+    { ip: '93.184.216.34' },
+    'public wins over rebound private'
+  );
+  assert.ok(pickDialAddress('example.com', base, [{ address: '169.254.169.254', family: 4 }]).blocked, 'private-only resolution');
+  assert.deepEqual(
+    pickDialAddress('example.com', { ...base, labIps: ['172.17.0.1'] }, [{ address: '172.17.0.1', family: 4 }]),
+    { ip: '172.17.0.1' },
+    'lab IP resolution allowed'
+  );
+});
+
+test('#397: default-dial proxy denies localhost (private) but dials it as lab', async () => {
+  // Own backend answering anything (the shared vhost backend 404s unknown hosts).
+  const labBackend = http.createServer((req, res) => { res.writeHead(200); res.end('LAB-OK'); });
+  await new Promise((r) => labBackend.listen(0, '127.0.0.1', r));
+  const labPort = labBackend.address().port;
+  const scopeForLocal = (labIps) => ({
+    version: 1, target: 'http://localhost/', hosts: ['localhost'], outHosts: [],
+    ips: [], labIps, ports: [{ port: labPort, proto: 'tcp' }], labTargets: [],
+    createdAt: '2026-10-31T00:00:00.000Z',
+  });
+  const getVia = (proxyPort, hostHeader) => new Promise((resolve, reject) => {
+    const req = http.request(
+      { host: '127.0.0.1', port: proxyPort, method: 'GET', path: `http://localhost:${labPort}/`, headers: { Host: hostHeader } },
+      (res) => { let body = ''; res.on('data', (c) => (body += c)); res.on('end', () => resolve({ status: res.statusCode, body })); }
+    );
+    req.on('error', reject);
+    req.setTimeout(5000, () => req.destroy(new Error('timeout')));
+    req.end();
+  });
+  // Non-lab scope: localhost resolves to 127.0.0.1 (private) -> 403, never dialed.
+  const p1 = await startEgressProxy({ huntId: 'h_rebind1', scope: scopeForLocal([]), port: 0 });
+  const denied = await getVia(p1.port, `localhost:${labPort}`);
+  assert.equal(denied.status, 403, 'private resolution denied on default dial path');
+  assert.ok(p1.violations.some((v) => String(v.reason || '').includes('dial blocked')), 'denial logged as dial-blocked');
+  await p1.stop();
+  // Lab scope: 127.0.0.1 is a listed lab IP -> dialed, 200.
+  const p2 = await startEgressProxy({ huntId: 'h_rebind2', scope: scopeForLocal(['127.0.0.1']), port: 0 });
+  const allowed = await getVia(p2.port, `localhost:${labPort}`);
+  assert.equal(allowed.status, 200, 'lab IP dialed');
+  assert.equal(allowed.body, 'LAB-OK');
+  await p2.stop();
+  await new Promise((r) => labBackend.close(r));
 });
