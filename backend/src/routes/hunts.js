@@ -39,7 +39,7 @@ import {
   readHuntMeta,
   listHuntMetas,
 } from '../store.js';
-import { requireAuth, issueTerminalTicket, issueControlTicket } from './auth.js';
+import { requireAuth, issueTerminalTicket, issueControlTicket, issueStreamTicket } from './auth.js';
 import {
   takeControl,
   releaseControl,
@@ -525,6 +525,31 @@ router.delete('/queue/:queueId', requireAuth, async (req, res) => {
   const ok = removeFromQueue(req.params.queueId, req.user.id, req.user.role === 'admin');
   if (!ok) return res.status(404).json({ ok: false, error: 'not_found_or_not_yours' });
   res.json({ ok: true, message: 'Removed from queue.' });
+});
+
+// ---- Live stream: ticket for WebSocket access (FIX #450) ----
+// GET /api/v1/hunts/:id/stream/ticket -> { ok, ticket }
+// Same 60s typed-ticket pattern as the terminal ticket, but WITHOUT
+// the active-hunt requirement: the stream replays cached events for
+// finished hunts too (cards re-attach to them), so a state check here
+// would break replay. Ownership is still enforced.
+router.get('/:id/stream/ticket', requireAuth, async (req, res) => {
+  const huntId = req.params.id;
+  try {
+    const { readHuntMeta } = await import('../store.js');
+    const meta = readHuntMeta(huntId);
+    if (!meta) return res.status(404).json({ ok: false, error: 'hunt_not_found' });
+    const isOwner = meta.userId === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ ok: false, error: 'not_your_hunt' });
+    }
+    const ticket = issueStreamTicket(req.user.id || req.user.sub, req.user.username, huntId);
+    res.json({ ok: true, ticket });
+  } catch (err) {
+    console.error('[stream] ticket error:', err.message);
+    res.status(500).json({ ok: false, error: 'ticket_failed' });
+  }
 });
 
 // ---- Live terminal (PiP): ticket for WebSocket access ----
