@@ -6,7 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const SQLI_HASH_PATTERN = /\b[a-f0-9]{32}\b/i;
+const SQLI_HASH_PATTERN = /\b[a-f0-9]{28,64}\b/i;
 const SQLI_INDICATORS = [
   'first name:',
   'surname:',
