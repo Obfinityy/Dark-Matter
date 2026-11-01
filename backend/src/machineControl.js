@@ -60,13 +60,24 @@ function purgeExpired(now) {
 
 /**
  * Take the control lock for a hunt.
- * @returns {{ok: true, lock} | {ok: false, error: 'already_controlled', holder: string}}
+ * FIX (#346): taking interactive control of the hunt machine is the
+ * most powerful action in the product (live GUI/keyboard inside the
+ * container) — it now requires the 'maximum' control level, same
+ * family as the high-mode hunt gate. Admins bypass (they own the box).
+ * The existing-lock check stays first so a held lock still reports
+ * its holder instead of leaking the caller's level decision.
+ * @returns {{ok: true, lock} | {ok: false, error: 'already_controlled', holder: string} | {ok: false, error: 'control_restricted'}}
  */
 export function takeControl(huntId, user, now) {
   purgeExpired(now);
   const existing = controlLocks.get(huntId);
   if (existing) {
     return { ok: false, error: 'already_controlled', holder: existing.username };
+  }
+  const isAdmin = user && user.role === 'admin';
+  const control = (user && user.control) || 'minimal';
+  if (!isAdmin && control !== 'maximum') {
+    return { ok: false, error: 'control_restricted' };
   }
   const lock = {
     userId: String(user.id || user.sub || ''),
