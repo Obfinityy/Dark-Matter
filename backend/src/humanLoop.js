@@ -4414,7 +4414,14 @@ export async function humanIteration(huntId, target, opts = {}) {
       // scan, so a recovered proof is filed on the next turn.
       const scanText = String(thinkingText || '') + '\n' + String(observation || '') + '\n' + String(lastObservation || '');
       const detected = detectEvidence(scanText);
-      if (detected) {
+      if (detected && isDuplicate(`/opt/Dark-Matter/backend/data/hunts/${huntId}`, detected.title)) {
+        // FIX (#315): the scan text includes lastObservation (previous
+        // turn), so without this check the same evidence re-triggers an
+        // override every turn. Skip the override; the brain's own action
+        // stands. (Path follows this file's existing convention; the
+        // hardcoded /opt/Dark-Matter prefix itself is tracked in #360.)
+        try { deps.record(huntId, { type: 'autofiler_duplicate_skipped', title: detected.title, class: detected.class, via: 'human-mode' }); } catch {}
+      } else if (detected) {
         // Construct the claim_finding action
         const autoClaim = {
           action: 'claim_finding',
