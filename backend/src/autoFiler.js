@@ -92,8 +92,10 @@ function detectSqliVerbal(text) {
   // Verbal proof: brain explicitly states SQLi proven + dumped users
   // Catches cases where hashes are seen on screen but not transcribed
   const hasProven = lower.includes('sqli proven') || lower.includes('sql injection proven') ||
-                    lower.includes('proof complete');
-  const hasDumped = lower.includes('dumped') && (lower.includes('user') || lower.includes('table'));
+                    lower.includes('proof complete') || lower.includes('or 1=1') ||
+                    (lower.includes('bottling') && lower.includes('proof'));
+  const hasDumped = (lower.includes('dumped') || lower.includes('dumping')) &&
+                    (lower.includes('user') || lower.includes('table'));
 
   if (hasProven && hasDumped) {
     return {
