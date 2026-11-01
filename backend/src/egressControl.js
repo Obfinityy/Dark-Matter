@@ -33,6 +33,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { promises as dns } from 'node:dns';
+import { isPrivateIP } from './scopeParser.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -157,7 +158,20 @@ export function buildEgressPlan(huntId, scope, opts = {}) {
     for (const t of tuples) entrySet.add(tupleEntry(ip, t.proto, t.port));
   };
   for (const h of scope.hosts || []) {
-    for (const ip of resolved[h] || []) addIp(ip);
+    for (const ip of resolved[h] || []) {
+      // FIX (#339): DNS re-resolution must never install a private IP
+      // for an in-scope hostname — a rebound record (e.g. cloud
+      // metadata 169.254.169.254) would otherwise open an SSRF window
+      // at execution time. Dropped with a warning; the host simply
+      // contributes no tuples until DNS returns a public address.
+      // Explicit scope.ips / scope.labIps below are NOT filtered:
+      // lab IPs are private by opt-in design.
+      if (isPrivateIP(ip)) {
+        console.warn(`[egress] dropping rebound private IP ${ip} for in-scope host ${h}`);
+        continue;
+      }
+      addIp(ip);
+    }
   }
   for (const ip of scope.ips || []) addIp(ip);
   for (const ip of scope.labIps || []) {
@@ -393,6 +407,14 @@ export async function refreshHuntEgress(
   for (const h of scope.hosts || []) {
     for (const ip of resolved[h] || []) {
       if (!IPV4_RE.test(ip)) continue;
+      // FIX (#339): same rebinding guard as buildEgressPlan — a
+      // freshly resolved private IP for an in-scope hostname must
+      // never become an ipset rule. Explicit scope.ips / labIps below
+      // are untouched (lab IPs are private by opt-in design).
+      if (isPrivateIP(ip)) {
+        console.warn(`[egress] dropping rebound private IP ${ip} for in-scope host ${h}`);
+        continue;
+      }
       for (const t of tuples) want.add(tupleEntry(ip, t.proto, t.port));
     }
   }
