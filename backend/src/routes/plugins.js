@@ -9,6 +9,7 @@
 
 import { Router } from 'express';
 import { encryptSecret } from '../crypto.js';
+import { requireAuth } from './auth.js';
 import { readPluginKeys, writePluginKeys } from '../store.js';
 
 export const PROVIDERS = [
@@ -52,11 +53,11 @@ function catalog() {
   }));
 }
 
-router.get('/providers', (req, res) => {
+router.get('/providers', requireAuth, (req, res) => {
   res.json({ ok: true, providers: catalog() });
 });
 
-router.put('/providers/:id', (req, res) => {
+router.put('/providers/:id', requireAuth, (req, res) => {
   const { id } = req.params;
   const provider = PROVIDERS.find((p) => p.id === id);
   if (!provider) {
