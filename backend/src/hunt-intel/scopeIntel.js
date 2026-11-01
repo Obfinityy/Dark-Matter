@@ -79,15 +79,22 @@ export function isInScope(target, scope) {
   };
   const targetUrl = parse(target);
   if (!targetUrl) return false;
-  const matches = (candidate) => {
-    const allowed = parse(candidate);
+  const matches = (candidate, exclusion = false) => {
+    const raw = String(candidate || '').trim();
+    const wildcard = raw.startsWith('*.');
+    const allowed = parse(raw);
     if (!allowed) return false;
     const host = targetUrl.hostname.toLowerCase();
     const allowedHost = allowed.hostname.toLowerCase();
-    if (host !== allowedHost && !host.endsWith(`.${allowedHost}`)) return false;
+    const hostMatch = exclusion
+      ? (host === allowedHost || host.endsWith(`.${allowedHost}`))
+      : (wildcard
+        ? host !== allowedHost && host.endsWith(`.${allowedHost}`)
+        : host === allowedHost);
+    if (!hostMatch) return false;
     const basePath = allowed.pathname.replace(/\/+$/, '');
     return !basePath || targetUrl.pathname === basePath || targetUrl.pathname.startsWith(`${basePath}/`);
   };
-  if ((scope.outOfScope || []).some(matches)) return false;
+  if ((scope.outOfScope || []).some((candidate) => matches(candidate, true))) return false;
   return scope.inScope.some(matches);
 }
