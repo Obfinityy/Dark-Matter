@@ -41,6 +41,22 @@ import { evaluatePromotions } from './playbook.js';
 const app = express();
 app.disable('x-powered-by');
 
+// ---- Trust proxy -----------------------------------------------------------
+// The backend runs behind Render's proxy in production: without this,
+// req.ip is the proxy's address, so the IP rate limiters bucket ALL users
+// together — one attacker's flood locks everyone out, and no single
+// attacker is ever limited (#340). Enable ONLY when a trusted proxy is
+// actually in front: TRUST_PROXY=1 for a single proxy (Render), a hop
+// count, or a CIDR/subnet Express accepts. NEVER enable on a directly
+// exposed box: with no proxy in front, a client can spoof
+// X-Forwarded-For and dodge every limiter. Default: off.
+const TRUST_PROXY = (process.env.TRUST_PROXY || '').trim();
+if (TRUST_PROXY) {
+  if (TRUST_PROXY === 'true') app.set('trust proxy', true);
+  else if (/^\d+$/.test(TRUST_PROXY)) app.set('trust proxy', Number(TRUST_PROXY));
+  else app.set('trust proxy', TRUST_PROXY);
+}
+
 // ---- CORS ------------------------------------------------------------------
 // The frontend is hosted on different origins (Vercel, Cloudflare Pages,
 // local dev). Without these headers browsers block every API call.

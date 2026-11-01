@@ -263,7 +263,12 @@ export function canAccessHuntStream(payload, meta) {
 }
 
 // Bound expensive password hashing against unauthenticated request floods.
-// req.ip is Express's socket-derived address (trust proxy is not enabled here).
+// The bucket key is req.ip: the real client IP when TRUST_PROXY is set
+// (server.js; required behind Render's proxy, where the socket address
+// alone would bucket ALL users together), else the socket address.
+// NOTE (#340): buckets are in-memory per process. The deployed backend
+// is single-process, so this holds; a multi-process deployment would
+// need a shared store before these limits mean anything across workers.
 export function createIpRateLimiter({ limit, windowMs, now = Date.now, maxKeys = 10000 }) {
   const buckets = new Map();
   return function rateLimit(req, res, next) {
