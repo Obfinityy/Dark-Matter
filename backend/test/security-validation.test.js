@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isInScope, isPrivateIP, parseScope, validateTargetSSRF, validateTargetAsync } from '../src/scopeParser.js';
+import { canAccessHuntStream } from '../src/routes/auth.js';
 
 test('scope gate honors explicitly enumerated assets', () => {
   const scope = parseScope('primary.example', 'In scope: primary.example, api.example.net, *.cdn.example.net\nOut of scope: staging.example.net');
@@ -57,4 +58,17 @@ test('target host does not implicitly authorize its subdomains', () => {
   assert.equal(isInScope('https://sub.primary.example', scope), false);
   const wildcardScope = parseScope('primary.example', 'In scope: *.primary.example');
   assert.equal(isInScope('https://sub.primary.example', wildcardScope), true);
+});
+
+test('hunt stream authorization is owner-only and legacy hunts are admin-only', () => {
+  const owner = { sub: 'user-1', role: 'user' };
+  const other = { sub: 'user-2', role: 'user' };
+  const admin = { sub: 'admin-1', role: 'admin' };
+  assert.equal(canAccessHuntStream(owner, { userId: 'user-1' }), true);
+  assert.equal(canAccessHuntStream(other, { userId: 'user-1' }), false);
+  assert.equal(canAccessHuntStream(admin, { userId: 'user-1' }), false);
+  assert.equal(canAccessHuntStream(admin, {}), true);
+  assert.equal(canAccessHuntStream(owner, {}), false);
+  assert.equal(canAccessHuntStream(owner, null), false);
+  assert.equal(canAccessHuntStream(null, { userId: 'user-1' }), false);
 });
