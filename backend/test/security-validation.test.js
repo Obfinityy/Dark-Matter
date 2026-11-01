@@ -18,7 +18,7 @@ test('scope gate fails closed for malformed input and exclusions win', () => {
 });
 
 test('SSRF validation rejects private IPv4, IPv6, credentials, and non-HTTP schemes', () => {
-  for (const target of ['http://127.0.0.1', 'http://10.0.0.2', 'http://169.254.169.254', 'http://[::1]', 'http://[fd00::1]', 'http://user:pass@example.com', 'file:///etc/passwd']) {
+  for (const target of ['http://127.0.0.1', 'http://10.0.0.2', 'http://169.254.169.254', 'http://[::1]', 'http://[fd00::1]', 'http://[::ffff:127.0.0.1]', 'http://user:pass@example.com', 'file:///etc/passwd']) {
     assert.equal(validateTargetSSRF(target).valid, false, target);
   }
   assert.equal(validateTargetSSRF('https://example.com').valid, true);
@@ -29,6 +29,7 @@ test('private IP detection validates IPv4 octets and IPv6 private ranges', () =>
   assert.equal(isPrivateIP('172.32.0.1'), false);
   assert.equal(isPrivateIP('999.1.1.1'), false);
   assert.equal(isPrivateIP('::1'), true);
+  assert.equal(isPrivateIP('::ffff:127.0.0.1'), true);
   assert.equal(isPrivateIP('2001:db8::1'), false);
 });
 
