@@ -140,12 +140,12 @@ export function isInScope(url, parsedScope) {
     if (typeof url !== 'string' || !url.trim()) return false;
     const u = new URL(url.includes('://') ? url : `https://${url}`);
     if (!['http:', 'https:'].includes(u.protocol) || !u.hostname) return false;
-    const host = u.hostname.toLowerCase().replace(/^\\[|\\]$/g, '');
+    const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, '');
     const candidates = Array.isArray(parsedScope.inScope) && parsedScope.inScope.length
       ? parsedScope.inScope
       : [parsedScope.domain];
     const matchesHost = (candidate) => {
-      const allowed = String(candidate || '').toLowerCase().replace(/^\\*\\./, '').replace(/^\\[|\\]$/g, '');
+      const allowed = String(candidate || '').toLowerCase().replace(/^\*\./, '').replace(/^\[|\]$/g, '');
       return !!allowed && (host === allowed || host.endsWith('.' + allowed));
     };
     if (!candidates.some(matchesHost)) return false;
@@ -173,7 +173,7 @@ export function getHuntUserAgent(parsedScope) {
  */
 export function isPrivateIP(ip) {
   if (!ip || typeof ip !== 'string') return false;
-  const lower = ip.toLowerCase().replace(/^\\[|\\]$/g, '');
+  const lower = ip.toLowerCase().replace(/^\[|\]$/g, '');
   // IPv6 loopback, unspecified, unique-local, and link-local ranges.
   if (lower === '::' || lower === '::1' || lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('fe8') || lower.startsWith('fe9') || lower.startsWith('fea') || lower.startsWith('feb')) return true;
   // IPv4-mapped IPv6 addresses inherit the IPv4 classification.
@@ -209,7 +209,7 @@ export function validateTargetSSRF(target) {
     if (!['http:', 'https:'].includes(u.protocol) || !u.hostname || u.username || u.password) {
       return { valid: false, reason: 'Only credential-free HTTP(S) targets are allowed' };
     }
-    const hostname = u.hostname.toLowerCase().replace(/^\\[|\\]$/g, '');
+    const hostname = u.hostname.toLowerCase().replace(/^\[|\]$/g, '');
 
     // Block localhost variants
     if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
