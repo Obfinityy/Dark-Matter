@@ -520,7 +520,7 @@ export default function LiveMachine({ huntId, target, embedded = false }) {
       </div>
 
       {expanded && (
-        <div className="live-machine-overlay" role="dialog" aria-label="Live machine view — expanded">
+        <div className="live-machine-overlay" role="dialog" aria-modal="true" aria-label="Live machine view — expanded">
           <div className="live-machine-overlay-bar">
             <span className={`live-machine-dot${available ? ' on' : ''}`} aria-hidden="true" />
             <span className="live-machine-live">LIVE</span>
