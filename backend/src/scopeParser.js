@@ -31,6 +31,8 @@ export function parseScope(target, scopeText = '') {
     target,
     domain,
     inScope: [domain],
+    inScopeExactHosts: [],
+    inScopeWildcardHosts: [],
     outOfScope: [],
     rules: {
       noDoS: true,           // Always: never DoS
@@ -79,10 +81,14 @@ export function parseScope(target, scopeText = '') {
       const oosRegion = oosAt >= 0 ? region.slice(oosAt) : '';
       if (oosAt >= 0) region = region.slice(0, oosAt);
       const domRe = /(?:\*\.)?((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,})/gi;
-      const hostsIn = new Set();
+      const hostsIn = new Map();
       const hostsOut = new Set();
       let dm;
-      while ((dm = domRe.exec(region)) !== null) hostsIn.add(dm[1].toLowerCase());
+      while ((dm = domRe.exec(region)) !== null) {
+        const host = dm[1].toLowerCase();
+        const wildcard = dm[0].startsWith('*.');
+        hostsIn.set(host, wildcard || hostsIn.get(host) === true);
+      }
       domRe.lastIndex = 0;
       while ((dm = domRe.exec(oosRegion)) !== null) hostsOut.add(dm[1].toLowerCase());
       for (const h of hostsOut) {
@@ -90,9 +96,11 @@ export function parseScope(target, scopeText = '') {
         // contradictory text must not brick the hunt's own target.
         if (h !== domain) result.outOfScopeHosts.push(h);
       }
-      for (const h of hostsIn) {
+      for (const [h, wildcard] of hostsIn) {
         if (hostsOut.has(h)) continue; // named in both lists -> fail closed (out wins)
-        if (!result.inScope.includes(h)) result.inScope.push(h);
+        if (h === String(domain).toLowerCase()) continue; // default target rule already covers it
+        if (wildcard) result.inScopeWildcardHosts.push(h);
+        else result.inScopeExactHosts.push(h);
       }
     }
   } catch { /* extraction is best-effort; the [domain] default stands */ }
