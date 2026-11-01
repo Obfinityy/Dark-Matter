@@ -216,11 +216,28 @@ export function requireAuth(req, res, next) {
   if (!m) return authRequired(res);
   const payload = verifyToken(m[1]);
   if (!payload) return authRequired(res);
+  // FIX (#323): never trust the token's snapshot alone — re-read the
+  // user store on every request, so blocks, approval revocations, and
+  // role/control changes take effect immediately instead of living on
+  // inside a valid 30-day token.
+  let user = null;
+  try {
+    const users = readUsers();
+    user = Object.values(users).find((u) => u && u.id === payload.sub) || null;
+  } catch { user = null; }
+  if (!user) return authRequired(res);
+  if (user.approved === false) {
+    return res.status(403).json({ ok: false, error: 'pending_approval', message: 'Your account is waiting for admin approval.' });
+  }
+  const isBlocked = user.blockedUntil === null || (user.blockedUntil && new Date(user.blockedUntil) > new Date());
+  if (isBlocked) {
+    return res.status(403).json({ ok: false, error: 'account_blocked', message: 'Your account is blocked. Contact the administrator.' });
+  }
   req.user = {
-    id: payload.sub,
-    username: payload.username,
-    role: payload.role || 'user',
-    control: payload.control || 'minimal',
+    id: user.id,
+    username: user.username || payload.username,
+    role: user.role || 'user',
+    control: user.control || 'minimal',
   };
   next();
 }
