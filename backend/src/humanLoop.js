@@ -4467,11 +4467,11 @@ export async function humanIteration(huntId, target, opts = {}) {
       // If brain says stuck and target is DVWA, auto-login immediately.
       // (isStuckAtDvwaLogin gate removed - was too strict, blocked the fix)
       {
-        const target = (typeof huntTarget === 'string' ? huntTarget : '') || '';
-        if (/3100|dvwa/i.test(target)) {
+        const dvwaTarget = (typeof target === 'string' ? target : '');
+        if (/3100|dvwa/i.test(dvwaTarget)) {
           const loginRes = await dvwaLogin({
             huntId,
-            target,
+            target: dvwaTarget,
             execInContainer: async (hid, cmd) => {
               // Use the container exec via deps
               if (deps.execInContainer) return await deps.execInContainer(hid, cmd);
