@@ -3932,6 +3932,10 @@ export async function humanIteration(huntId, target, opts = {}) {
   let sessionCurrentTask = null;
   let sessionLastCompletedTask = null;
   let sessionTaskSeen = false;
+  // STUCK-DETECTOR (1 Nov 2026): counts consecutive recall actions without
+  // a claim_finding. If the brain recalls 5+ times in a row without filing,
+  // it's stuck in a proof-bottling loop -- inject a FILE NOW directive.
+  let consecutiveRecallCount = 0;
 
   say(`Human mode session: ${turns} turns at my own machine. Target: ${target}.`);
 
@@ -4310,6 +4314,20 @@ export async function humanIteration(huntId, target, opts = {}) {
     sessionLastThinking = thinkingText;
     const kind = String(action.action).toLowerCase();
     let observation = '';
+
+    // STUCK-DETECTOR: track consecutive recalls, inject FILE NOW directive
+    if (kind === 'recall') {
+      consecutiveRecallCount++;
+      if (consecutiveRecallCount >= 5) {
+        observation = 'STOP RECALLING. You have repeated the same recall ' + consecutiveRecallCount + ' times. You already have the evidence on screen (password hashes dumped via SQLi). FILE THE CLAIM NOW using {"action":"claim_finding","title":"...","class":"sqli","evidence":"<the hashes you saw>","command":"<your replay command>","counterevidence":"<what a normal query returns>","confidence":"high"}. Do NOT recall again. FILE NOW.';
+        try { deps.record(huntId, { type: 'stuck_detector_triggered', count: consecutiveRecallCount, via: 'human-mode' }); } catch {}
+        consecutiveRecallCount = 0;
+      }
+    } else if (kind === 'claim_finding') {
+      consecutiveRecallCount = 0;
+    } else if (!['shell', 'browser_snapshot', 'screenshot'].includes(kind)) {
+      consecutiveRecallCount = 0;
+    }
 
     // REAL-HUMAN: the brain's answers to the owner's queued
     // questions ride in the SAME reply as its action (the

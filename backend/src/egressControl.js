@@ -418,6 +418,13 @@ export async function refreshHuntEgress(
 
 async function defaultResolveHost(host) {
   const out = [];
+  // If host is already an IPv4 address, use it directly (no DNS needed)
+  // Fix 1 Nov 2026: IP literals like 172.17.0.1 failed dns.resolve4,
+  // leaving the egress allowlist empty and failing closed.
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(host)) {
+    out.push(host);
+    return out;
+  }
   try {
     out.push(...(await dns.resolve4(host)));
   } catch { /* ignore */ }

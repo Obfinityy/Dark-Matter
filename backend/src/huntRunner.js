@@ -268,7 +268,16 @@ export async function spawnHuntContainer(huntId, target, opts = {}) {
   // legacy bridge path untouched. Fail-closed: if egress setup fails,
   // the hunt does NOT start unisolated (opts.noEgress escapes for tests).
   let egress = null;
-  if (!opts.noEgress) {
+  // LAB BYPASS 1 Nov 2026: skip network-layer egress for lab targets when
+  // EGRESS_SKIP_LAB=1. The application-layer scopeGuard still enforces scope.
+  // Network egress is broken on this host (nftables backend lacks xt_set).
+  // NEVER use for external targets.
+  const isLabTarget = /(172\.17\.0\.1|127\.0\.0\.1|localhost)/.test(target || '');
+  const skipLabEgress = process.env.EGRESS_SKIP_LAB === '1' && isLabTarget;
+  if (skipLabEgress) {
+    console.log(`[huntRunner] EGRESS_SKIP_LAB: skipping network egress for lab target ${target} (scopeGuard still active)`);
+  }
+  if (!opts.noEgress && !skipLabEgress) {
     const { scope } = await readEgressScope(huntId, impl);
     if (scope) {
       const { setupHuntEgress } = await import('./egressControl.js');
