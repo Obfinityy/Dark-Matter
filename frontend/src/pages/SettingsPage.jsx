@@ -1,3 +1,5 @@
+// Settings page — manages user-facing preferences and application options.
+// Keep preference updates isolated from hunt lifecycle and backend orchestration.
 import React, { useState } from 'react';
 import { toast } from '../lib/toast';
 
