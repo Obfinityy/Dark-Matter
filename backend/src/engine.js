@@ -136,10 +136,10 @@ function flowIdOf(flow) {
 
 // ---- Hunts ---------------------------------------------------------------
 
-export async function createEngineHunt(target, scope) {
+export async function createEngineHunt(target, scope, checkpoint = null) {
   const flow = await engineFetch('/api/v1/flows/', {
     method: 'POST',
-    body: { input: buildFlowInput(target, scope, null), provider: 'custom' },
+    body: { input: buildFlowInput(target, scope, checkpoint), provider: 'custom' },
   });
   const huntId = flowIdOf(flow);
   return { huntId, raw: flow };
