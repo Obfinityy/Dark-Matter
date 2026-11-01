@@ -1249,8 +1249,13 @@ router.get('/:id/cost', requireAuth, (req, res) => {
 // POST /:id/budget {budgetUsd} — set the spend cap for this hunt;
 // null/0 clears it. At the cap the hunt auto-PAUSES (checkpoint,
 // resume from here) — it never stops and never restarts from scratch.
-// A budget raised above current spend (or cleared) lifts a stale
-// budget_reached hold so the UI stops showing it at once.
+// FIX (#337): raising/clearing the budget used to erase pausedReason
+// while the hunt stayed paused — the UI lost WHY it paused, and the
+// pause record vanished before any resume. The reason now survives
+// until a real resume clears it (resumeHuntResilient: "a resume is
+// an explicit un-pause"). Raising the budget does NOT resume the
+// hunt: resume stays an explicit POST /:id/resume, which runs the
+// engine/wallet checks an auto-resume here would bypass.
 router.post('/:id/budget', requireAuth, (req, res) => {
   const meta = requireHuntOwner(req, res);
   if (!meta) return;
@@ -1266,9 +1271,6 @@ router.post('/:id/budget', requireAuth, (req, res) => {
   const budgetUsd = parsed.budgetUsd;
   const spentUsd = getHuntCost(huntId).totalUsd || 0;
   const next = { ...meta, huntId, budgetUsd };
-  if ((budgetUsd === null || spentUsd < budgetUsd) && meta.pausedReason === 'budget_reached') {
-    next.pausedReason = null;
-  }
   writeHuntMeta(huntId, next);
   appendHuntEvent(huntId, { type: 'status', state: 'budget_set', budgetUsd, spentUsd, at: new Date().toISOString() });
   res.json({ ok: true, huntId, budgetUsd, spentUsd });
