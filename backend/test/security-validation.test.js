@@ -50,3 +50,11 @@ test('explicit host assets do not implicitly authorize nested subdomains', () =>
   assert.equal(isInScope('https://img.cdn.example.net', scope), true);
   assert.equal(isInScope('https://nested.img.cdn.example.net', scope), true);
 });
+
+test('target host does not implicitly authorize its subdomains', () => {
+  const scope = parseScope('primary.example', '');
+  assert.equal(isInScope('https://primary.example', scope), true);
+  assert.equal(isInScope('https://sub.primary.example', scope), false);
+  const wildcardScope = parseScope('primary.example', 'In scope: *.primary.example');
+  assert.equal(isInScope('https://sub.primary.example', wildcardScope), true);
+});
