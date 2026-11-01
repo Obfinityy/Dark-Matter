@@ -1,3 +1,5 @@
+// Reports page — combines API and local hunt history, then renders the
+// selected report with Markdown and provides report export actions.
 import React, { useEffect, useState } from 'react';
 import Markdown from '../components/Markdown';
 import { fetchReportMarkdown, reportPdfUrl, listHunts } from '../lib/api';
