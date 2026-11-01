@@ -91,13 +91,13 @@ cd frontend && npm install && npm run dev     # → http://localhost:5173
 
 **Deploy:** frontend auto-deploys on push to `main`. Backend runs on AWS EC2 via systemd (`darkmatter-backend.service`).
 
-**Env (backend):** `JWT_SECRET`, `ALLOWED_TARGETS` (comma-separated, required for hunts), `CORS_ORIGINS`, `DATA_DIR`, `OLLAMA_MODEL`, `OLLAMA_NUM_CTX`, `OLLAMA_TIMEOUT_MS`.
+**Env (backend):** `JWT_SECRET`, `CORS_ORIGINS`, `DATA_DIR`, `OLLAMA_MODEL`, `OLLAMA_NUM_CTX`, `OLLAMA_TIMEOUT_MS`. (`ALLOWED_TARGETS` is still parsed but no longer gates anything — the allowlist was removed 15 Oct 2026 by owner order; see `backend/src/routes/hunts.js`.)
 
 ---
 
 ## Safety
 
-- **Authorized targets only.** Every hunt requires an explicitly named target plus `confirmedAuthorized: true`, enforced against an `ALLOWED_TARGETS` allowlist.
+- **Authorized targets only.** Every hunt requires an explicitly named target plus `confirmedAuthorized: true`, plus SSRF validation, control-level, and credit checks. (There is no target allowlist: `ALLOWED_TARGETS` was removed 15 Oct 2026 by owner order.)
 - **Non-destructive testing.** The agent never runs denial-of-service, brute-force, or destructive payloads.
 - **Isolated execution.** Every hunt runs in its own Docker container with no access to host infrastructure. Containers are destroyed on hunt end.
 - **Human review before submission.** Reports are for your review. The agent never submits to a bounty program on its own.
