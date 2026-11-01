@@ -138,7 +138,7 @@ export function parseScope(target, scopeText = '') {
  * @returns {boolean}
  */
 export function isInScope(url, parsedScope) {
-  if (!parsedScope) return true;
+  if (!parsedScope || typeof parsedScope !== 'object') return false;
   try {
     if (typeof url !== 'string' || !url.trim()) return false;
     const u = new URL(url.includes('://') ? url : `https://${url}`);
