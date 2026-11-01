@@ -678,8 +678,8 @@ function AppInner() {
   function requestHuntModal() {
     createChat();
     setPage('chat');
-    // Trigger the hunt creation dialog to open automatically
-    setHuntModalTrigger((t) => t + 1);
+    // Show the fresh landing page (empty chat) — do NOT auto-open the hunt modal.
+    // The user starts a hunt explicitly via the "Start a hunt" button or composer.
     try {
       window.history.replaceState(null, '', '/');
     } catch { /* ignore */ }
