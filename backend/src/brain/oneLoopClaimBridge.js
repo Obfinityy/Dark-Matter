@@ -129,6 +129,11 @@ export function buildClaimAction(rec) {
     evidence,
     counterevidence,
     confidence,
+    // FIX (#319): the bridge used to drop the rationale entirely, so
+    // every non-high claim bounced at the gate (which requires
+    // confidence_rationale whenever confidence is not high). Carry
+    // the record's own rationale through — never invented here.
+    confidence_rationale: str(rec.confidence_rationale) || str(rec.rationale) || '',
     evidence_hash: rec.evidence_hash ? String(rec.evidence_hash) : null,
   };
 }
@@ -311,7 +316,7 @@ export async function bridgeClaims({ huntId, target, memdir, claims = [], deps =
         evidence: action.evidence,
         counterevidence: action.counterevidence,
         confidence: action.confidence,
-        rationale: '',
+        rationale: action.confidence_rationale || '',
       });
     } catch (e) {
       return { skip: 'claim gate threw: ' + ((e && e.message) || e) };
