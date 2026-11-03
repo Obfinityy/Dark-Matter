@@ -89,7 +89,7 @@ export async function runScannerHunt(huntId, target, opts = {}) {
           timeoutMs: 8000,
           maxUrls: 8,
           phases: [
-            'fingerprint', 'crawl', 'headers', 'sqli-error', 'xss', 'cmdi',
+            'fingerprint', 'crawl', 'page-analyze', 'headers', 'sqli-error', 'xss', 'cmdi',
             'traversal', 'redirect', 'csrf', 'post-forms', 'cors', 'cookies',
           ],
         }

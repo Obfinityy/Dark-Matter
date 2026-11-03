@@ -1,11 +1,13 @@
 // Dark Matter rule-based scanner — deterministic orchestrator.
-// paste link → scope check → recon/fingerprint → probe battery →
-// Nuclei → differential verification → confirmed findings.
+// paste link → scope check → recon/fingerprint → ONE-PAGE-DEEP element
+// analysis → probe battery → Nuclei → differential verification →
+// confirmed findings.
 // No LLM, no API keys, no prompts. Same target + same code = same result.
 import { authorizeTarget } from './target.js';
 import { randomBytes } from 'node:crypto';
 import { fingerprint, fetchPage } from './fingerprint.js';
 import { crawl, extractParams, extractForms } from './crawl.js';
+import { analyzePage, planForPage } from './pageAnalyze.js';
 import { probeHeaders } from './probes/headers.js';
 import { probeSqliError } from './probes/sqliError.js';
 import { probeBlindSqli } from './probes/sqliBlind.js';
@@ -25,9 +27,10 @@ import { probeCookieFlags } from './probes/cookies.js';
 import { runNuclei } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
-const DEFAULT_PHASES = [
+export const DEFAULT_PHASES = [
   'fingerprint',
   'crawl',
+  'page-analyze',
   'headers',
   'sqli-error',
   'sqli-blind',
@@ -83,6 +86,28 @@ export async function runScan(
 
   fp = await step('fingerprint', () => fingerprint(url, opts));
   crawled = await step('crawl', () => crawl(url, opts));
+
+  // ONE-PAGE-DEEP (3 Nov 2026, owner order): the pasted page is the primary
+  // target. Inventory every element on it and map each to its predefined
+  // vulnerability classes (ELEMENT_VULN_MATRIX) — input box, button, form,
+  // textarea, select, URL param, page itself. Standalone inputs (outside any
+  // <form>) are invisible to the form battery, so they get synthesized GET
+  // targets with UNIQUE filler values (same safety rule as form targets:
+  // never empty, never equal — keeps every probe read-only).
+  let pageAnalysis = null;
+  await step('page-analyze', async () => {
+    let body = crawled && crawled.body ? crawled.body : null;
+    if (!body) {
+      try {
+        body = (await fetchPage(url, opts)).body;
+      } catch {
+        body = null;
+      }
+    }
+    if (!body) return null;
+    pageAnalysis = analyzePage(body, url);
+    return pageAnalysis;
+  });
 
   // Scan targets: the target URL plus every discovered same-origin link
   // (capped). Param probes run per URL — this is what makes the battery
@@ -157,6 +182,23 @@ export async function runScan(
       if (fu) pushFormTarget(fu);
     }
   }
+  // Standalone inputs (outside any <form>) never reach the form battery —
+  // synthesize a GET target per input with a UNIQUE filler value (same
+  // safety rule: never empty, never equal — keeps every probe read-only).
+  // This is what makes the one-page-deep model exhaustive: every input box
+  // on the pasted page gets the full param battery, in a form or not.
+  if (pageAnalysis) {
+    for (const inp of pageAnalysis.inputs) {
+      if (inp.form || !inp.name) continue;
+      try {
+        const u = new URL(url);
+        u.searchParams.set(inp.name, `dmprobe_${randomBytes(2).toString('hex')}`);
+        pushFormTarget(u.toString());
+      } catch {
+        // ignore malformed URLs
+      }
+    }
+  }
   const postForms = forms.filter(
     (f) => String(f.method || 'get').toLowerCase() === 'post'
   );
@@ -195,6 +237,14 @@ export async function runScan(
       ? { status: fp.status, server: fp.server, tech: fp.tech, dbHint: fp.dbHint }
       : null,
     pagesCrawled: crawled ? crawled.links.length : 0,
+    pageAnalysis: pageAnalysis
+      ? {
+          inputs: pageAnalysis.inputs.length,
+          forms: pageAnalysis.forms.length,
+          standaloneInputs: pageAnalysis.inputs.filter((i) => !i.form).length,
+          planEntries: planForPage(pageAnalysis).length,
+        }
+      : null,
     findings: confirmed,
     unconfirmed,
     errors,
