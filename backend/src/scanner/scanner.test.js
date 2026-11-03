@@ -761,3 +761,76 @@ describe('iter5 probe: cachePoison', () => {
     }
   });
 });
+
+describe('iter5 probe: smuggling (raw socket, local TCP server)', () => {
+  // Starts a tiny HTTP server with the given per-connection behavior.
+  async function startServer(onData) {
+    const { default: net } = await import('node:net');
+    const server = net.createServer((sock) => {
+      let buf = '';
+      sock.on('data', (c) => {
+        buf += c.toString('latin1');
+        onData(sock, buf);
+      });
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    return { server, port: server.address().port };
+  }
+  async function stop(s) {
+    await new Promise((r) => s.server.close(r));
+  }
+
+  it('stays quiet on a well-behaved server (rejects ambiguity with 400)', async () => {
+    const { probeRequestSmuggling } = await import('./probes/smuggling.js');
+    const { server, port } = await startServer((sock, buf) => {
+      // Needs both requests before answering.
+      if (!buf.includes('\r\n\r\nXGET') && !buf.includes('\r\n\r\nGET')) return;
+      const hasBoth = /content-length/i.test(buf) && /transfer-encoding/i.test(buf);
+      if (hasBoth) {
+        // Well-behaved: 400 the ambiguous POST, then answer the GET.
+        sock.write('HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n');
+        sock.write('HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok');
+        sock.end();
+      } else {
+        sock.write('HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: keep-alive\r\n\r\nok');
+        sock.write('HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok');
+        sock.end();
+      }
+    });
+    try {
+      const findings = await probeRequestSmuggling(`http://127.0.0.1:${port}/`, { timeoutMs: 5000 });
+      assert.equal(findings.length, 0);
+    } finally {
+      await stop({ server });
+    }
+  });
+
+  it('flags accepted ambiguity on a lenient server', async () => {
+    const { probeRequestSmuggling } = await import('./probes/smuggling.js');
+    const { server, port } = await startServer((sock, buf) => {
+      if (!buf.includes('GET / HTTP/1.1\r\nHost')) return;
+      // Lenient: 200 everything, keep-alive — accepts the ambiguity.
+      const n = (buf.match(/GET /g) || []).length + (buf.match(/POST /g) || []).length;
+      for (let i = 0; i < Math.max(n, 2); i++) {
+        sock.write('HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: keep-alive\r\n\r\nok');
+      }
+      sock.end();
+    });
+    try {
+      const findings = await probeRequestSmuggling(`http://127.0.0.1:${port}/`, { timeoutMs: 5000 });
+      const sm = findings.filter((f) => f.class === 'request_smuggling');
+      assert.ok(sm.length >= 1);
+      assert.ok(['medium', 'high'].includes(sm[0].severity));
+      const { confirmed } = verifyFindings(findings);
+      assert.ok(confirmed.some((f) => f.class === 'request_smuggling'));
+    } finally {
+      await stop({ server });
+    }
+  });
+
+  it('skips https targets (documented v1 limit)', async () => {
+    const { probeRequestSmuggling } = await import('./probes/smuggling.js');
+    const findings = await probeRequestSmuggling('https://example.com/', { timeoutMs: 2000 });
+    assert.equal(findings.length, 0);
+  });
+});

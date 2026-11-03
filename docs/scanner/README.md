@@ -11,7 +11,7 @@ paste link
                                       every request is scope-checked)
   → recon: crawl + tech fingerprint  (crawl.js, fingerprint.js — same-origin
                                       links/forms/params; server, libs, DB family)
-  → probe battery (26 probe modules)  (probes/ — one deterministic check per
+  → probe battery (27 probe modules)  (probes/ — one deterministic check per
                                       class, each with its own proof oracle)
   → Nuclei template battery          (nuclei.js — ~13k verified-check templates
                                       via docker/tools/nuclei/run-nuclei.sh)
@@ -50,6 +50,7 @@ proves the signal comes from the malicious input.
 | [ssi.md](ssi.md) | SSI injection | probes/ssi.js |
 | [file-upload.md](file-upload.md) | Unrestricted file upload (lab-gated) | probes/fileUpload.js |
 | [cache-poisoning.md](cache-poisoning.md) | Web cache poisoning | probes/cachePoison.js |
+| [request-smuggling.md](request-smuggling.md) | HTTP request smuggling (raw socket) | probes/smuggling.js |
 | [nuclei.md](nuclei.md) | Nuclei template battery (CVEs etc.) | nuclei.js |
 
 ## Honest limits

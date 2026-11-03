@@ -33,6 +33,7 @@ import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
 import { probeCachePoisoning } from './probes/cachePoison.js';
+import { probeRequestSmuggling } from './probes/smuggling.js';
 import { runNuclei } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -65,6 +66,7 @@ export const DEFAULT_PHASES = [
   'ssi',
   'file-upload',
   'cache-poisoning',
+  'request-smuggling',
   'nuclei',
 ];
 
@@ -258,6 +260,7 @@ export async function runScan(
   await step('host-header', () => probeHostHeader(url, opts));
   await step('file-upload', () => probeFileUpload(url, { ...opts, allowWrite }));
   await step('cache-poisoning', () => probeCachePoisoning(url, opts));
+  await step('request-smuggling', () => probeRequestSmuggling(url, opts));
   await step('nuclei', async () => (await runNuclei(url, opts)).findings);
 
   const { confirmed, unconfirmed } = verifyFindings(all);
