@@ -3,6 +3,7 @@
 // Nuclei → differential verification → confirmed findings.
 // No LLM, no API keys, no prompts. Same target + same code = same result.
 import { authorizeTarget } from './target.js';
+import { randomBytes } from 'node:crypto';
 import { fingerprint, fetchPage } from './fingerprint.js';
 import { crawl, extractParams, extractForms } from './crawl.js';
 import { probeHeaders } from './probes/headers.js';
@@ -122,13 +123,22 @@ export async function runScan(
     }
   }
 
-  // GET forms become URL targets so the param battery covers them;
-  // POST forms go through the dedicated postForms battery.
+  // GET forms become URL targets so the param battery covers them.
+  // SAFETY: fill each input with a UNIQUE value (never empty, never equal).
+  // A state-changing GET form (e.g. DVWA's csrf password-change) triggers
+  // when its submit param is set AND its inputs "match" — empty==empty or
+  // identical fillers would fire it. Unique values keep every probe
+  // read-only while still satisfying isset(submit) gates.
   const toFormUrl = (form) => {
     try {
       const u = new URL(form.action);
+      let n = 0;
       for (const inp of form.inputs || []) {
-        if (!u.searchParams.has(inp)) u.searchParams.set(inp, '');
+        if (/^submit$/i.test(inp)) {
+          if (!u.searchParams.has(inp)) u.searchParams.set(inp, '1');
+        } else if (!u.searchParams.has(inp)) {
+          u.searchParams.set(inp, `dmprobe${++n}_${randomBytes(2).toString('hex')}`);
+        }
       }
       return u.toString();
     } catch {

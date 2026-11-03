@@ -9,8 +9,18 @@ const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 async function postForm(form, inputName, payload, opts = {}) {
   const params = new URLSearchParams();
+  let n = 0;
   for (const inp of form.inputs || []) {
-    params.set(inp, inp === inputName ? payload : '1');
+    // SAFETY: non-target inputs get UNIQUE filler values (never equal).
+    // A state-changing POST form (e.g. password-change) triggers when its
+    // inputs "match" — identical fillers would fire it.
+    if (inp === inputName) {
+      params.set(inp, payload);
+    } else if (/^submit$/i.test(inp)) {
+      params.set(inp, '1');
+    } else {
+      params.set(inp, `dmprobe${++n}_${randomBytes(2).toString('hex')}`);
+    }
   }
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), opts.timeoutMs || 15000);
