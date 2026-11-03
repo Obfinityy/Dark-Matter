@@ -656,3 +656,63 @@ describe('iter4 probe: ssi', () => {
     }
   });
 });
+
+describe('iter4 probe: fileUpload (lab-gated)', () => {
+  const realFetch = globalThis.fetch;
+  const teardown = () => {
+    globalThis.fetch = realFetch;
+  };
+  const uploadPage = `<html><form action="/upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="upfile"><input type="submit" value="Upload"></form></html>`;
+
+  it('does nothing without allowWrite (safe default)', async () => {
+    const { probeFileUpload } = await import('./probes/fileUpload.js');
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls++;
+      return { text: async () => uploadPage };
+    };
+    try {
+      const findings = await probeFileUpload('http://example.com/', {});
+      assert.equal(findings.length, 0);
+      assert.equal(calls, 0);
+      const findings2 = await probeFileUpload('http://example.com/', { allowWrite: false });
+      assert.equal(findings2.length, 0);
+      assert.equal(calls, 0);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('confirms executable-extension upload on a lab target', async () => {
+    const { probeFileUpload } = await import('./probes/fileUpload.js');
+    globalThis.fetch = async (url, { method = 'GET' } = {}) => {
+      if (String(method).toUpperCase() === 'GET') return { text: async () => uploadPage };
+      return { text: async () => '<html>successfully uploaded! File: dmprobe_abc.phtml</html>' };
+    };
+    try {
+      const findings = await probeFileUpload('http://example.com/', { allowWrite: true, timeoutMs: 5000 });
+      const fu = findings.filter((f) => f.class === 'file_upload');
+      assert.equal(fu.length, 1);
+      assert.equal(fu[0].severity, 'high');
+      const { confirmed } = verifyFindings(findings);
+      assert.equal(confirmed.filter((f) => f.class === 'file_upload').length, 1);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('stays quiet when the form rejects the upload', async () => {
+    const { probeFileUpload } = await import('./probes/fileUpload.js');
+    globalThis.fetch = async (url, { method = 'GET' } = {}) => {
+      if (String(method).toUpperCase() === 'GET') return { text: async () => uploadPage };
+      return { text: async () => '<html>upload failed</html>' };
+    };
+    try {
+      const findings = await probeFileUpload('http://example.com/', { allowWrite: true, timeoutMs: 5000 });
+      assert.equal(findings.length, 0);
+    } finally {
+      teardown();
+    }
+  });
+});

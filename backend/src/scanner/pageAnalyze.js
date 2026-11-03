@@ -41,8 +41,8 @@ export const ELEMENT_VULN_MATRIX = {
   'input:password': ['sqli-error', 'sqli-blind', 'xss', 'weak-creds', 'nosqli'],
   // Hidden fields: server-trusted values the client can rewrite.
   'input:hidden': ['sqli-error', 'xss', 'traversal'],
-  // File picker: inventoried; upload battery is a documented future slot.
-  'input:file': [],
+  // File picker: upload battery (lab-gated).
+  'input:file': ['file-upload'],
   // Multi-line + choice inputs.
   textarea: ['sqli-error', 'sqli-blind', 'xss', 'ssti', 'stored-xss', 'nosqli', 'ldapi', 'xpathi', 'ssi'],
   select: ['sqli-error', 'xss'],

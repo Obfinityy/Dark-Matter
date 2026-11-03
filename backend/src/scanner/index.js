@@ -31,6 +31,7 @@ import { probeNoSqli } from './probes/nosqli.js';
 import { probeLdapInjection } from './probes/ldapi.js';
 import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
+import { probeFileUpload } from './probes/fileUpload.js';
 import { runNuclei } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -61,6 +62,7 @@ export const DEFAULT_PHASES = [
   'ldapi',
   'xpathi',
   'ssi',
+  'file-upload',
   'nuclei',
 ];
 
@@ -81,6 +83,12 @@ export async function runScan(
     labTargets,
     confirmedAuthorized,
   });
+  // LAB GATE (file-upload probe): uploads write real files — allowed only
+  // when the authorized host is listed in labTargets. Everywhere else the
+  // probe returns [] without a single request.
+  const allowWrite = String(labTargets || '')
+    .split(/[,\s]+/)
+    .some((t) => t && (host.includes(t) || t.includes(host)));
   const all = [];
   const errors = [];
   let fp = null;
@@ -246,6 +254,7 @@ export async function runScan(
   await step('stored-xss', () => probeStoredXss(forms, url, opts));
   await step('weak-creds', () => probeWeakCreds(forms, opts));
   await step('host-header', () => probeHostHeader(url, opts));
+  await step('file-upload', () => probeFileUpload(url, { ...opts, allowWrite }));
   await step('nuclei', async () => (await runNuclei(url, opts)).findings);
 
   const { confirmed, unconfirmed } = verifyFindings(all);
