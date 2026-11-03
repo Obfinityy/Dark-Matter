@@ -97,6 +97,19 @@ export async function runScan(
   pushTarget(url);
   for (const l of crawled ? crawled.links : []) pushTarget(l);
   const forms = crawled ? [...crawled.forms] : [];
+  // Form-derived GET URLs get a separate allowance beyond maxUrls — they
+  // carry known inputs and are the highest-value probe targets.
+  const pushFormTarget = (u) => {
+    try {
+      const norm = new URL(u).toString().split('#')[0];
+      if (!seen.has(norm) && scanTargets.length < maxUrls + 20) {
+        seen.add(norm);
+        scanTargets.push(norm);
+      }
+    } catch {
+      // ignore malformed URLs
+    }
+  };
 
   // Forms also live on discovered pages, not just the landing page —
   // fetch every scan target (already capped by maxUrls) and merge forms.
@@ -125,7 +138,7 @@ export async function runScan(
   for (const f of forms) {
     if (String(f.method || 'get').toLowerCase() === 'get') {
       const fu = toFormUrl(f);
-      if (fu) pushTarget(fu);
+      if (fu) pushFormTarget(fu);
     }
   }
   const postForms = forms.filter(
