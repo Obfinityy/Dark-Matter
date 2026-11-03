@@ -31,20 +31,20 @@
  */
 export const ELEMENT_VULN_MATRIX = {
   // Text-like inputs: the classic injection surface.
-  'input:text': ['sqli-error', 'sqli-blind', 'xss', 'cmdi', 'ssti', 'stored-xss'],
-  'input:search': ['sqli-error', 'sqli-blind', 'xss', 'ssti', 'stored-xss'],
-  'input:email': ['sqli-error', 'xss', 'stored-xss'],
+  'input:text': ['sqli-error', 'sqli-blind', 'xss', 'cmdi', 'ssti', 'stored-xss', 'nosqli', 'ldapi', 'xpathi'],
+  'input:search': ['sqli-error', 'sqli-blind', 'xss', 'ssti', 'stored-xss', 'nosqli', 'ldapi', 'xpathi'],
+  'input:email': ['sqli-error', 'xss', 'stored-xss', 'nosqli'],
   'input:url': ['sqli-error', 'xss', 'ssrf', 'redirect', 'stored-xss'],
   'input:number': ['sqli-error', 'xss'],
   'input:tel': ['sqli-error', 'xss'],
   // Password fields: login inputs are prime injection points.
-  'input:password': ['sqli-error', 'sqli-blind', 'xss', 'weak-creds'],
+  'input:password': ['sqli-error', 'sqli-blind', 'xss', 'weak-creds', 'nosqli'],
   // Hidden fields: server-trusted values the client can rewrite.
   'input:hidden': ['sqli-error', 'xss', 'traversal'],
   // File picker: inventoried; upload battery is a documented future slot.
   'input:file': [],
   // Multi-line + choice inputs.
-  textarea: ['sqli-error', 'sqli-blind', 'xss', 'ssti', 'stored-xss'],
+  textarea: ['sqli-error', 'sqli-blind', 'xss', 'ssti', 'stored-xss', 'nosqli', 'ldapi', 'xpathi'],
   select: ['sqli-error', 'xss'],
   // Query-string parameters on the page URL itself.
   'url-param': [
@@ -56,6 +56,9 @@ export const ELEMENT_VULN_MATRIX = {
     'ssti',
     'redirect',
     'ssrf',
+    'nosqli',
+    'ldapi',
+    'xpathi',
   ],
   // Whole-form properties.
   form: ['csrf', 'post-forms'],

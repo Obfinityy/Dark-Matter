@@ -499,3 +499,116 @@ describe('iter2 probes: storedXss, weakCreds, hostHeader, csp', () => {
     assert.ok(!findings.some((f) => f.class === 'csp_weak'));
   });
 });
+
+describe('iter3 probes: nosqli, ldapi, xpathi', () => {
+  const realFetch = globalThis.fetch;
+  const teardown = () => {
+    globalThis.fetch = realFetch;
+  };
+
+  it('nosqli confirms on $ne boolean divergence', async () => {
+    const { probeNoSqli } = await import('./probes/nosqli.js');
+    globalThis.fetch = async (url) => {
+      const u = new URL(String(url));
+      const hasNe = [...u.searchParams.keys()].some((k) => k.includes('$ne')) ||
+        [...u.searchParams.values()].some((v) => v.includes('$ne'));
+      const body = hasNe
+        ? `<html>${'<div class="user">admin</div>'.repeat(50)}</html>`
+        : '<html>no results</html>';
+      return { text: async () => body, status: 200 };
+    };
+    try {
+      const findings = await probeNoSqli('http://example.com/search', ['q'], { timeoutMs: 5000 });
+      const n = findings.filter((f) => f.class === 'nosql_injection');
+      assert.equal(n.length, 1);
+      assert.ok(n[0].evidence.diverged);
+      const { confirmed } = verifyFindings(findings);
+      assert.equal(confirmed.filter((f) => f.class === 'nosql_injection').length, 1);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('nosqli stays quiet when the operator changes nothing', async () => {
+    const { probeNoSqli } = await import('./probes/nosqli.js');
+    globalThis.fetch = async () => ({ text: async () => '<html>no results</html>', status: 200 });
+    try {
+      const findings = await probeNoSqli('http://example.com/search', ['q'], { timeoutMs: 5000 });
+      assert.equal(findings.length, 0);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('ldapi confirms on filter-breakout divergence', async () => {
+    const { probeLdapInjection } = await import('./probes/ldapi.js');
+    globalThis.fetch = async (url) => {
+      const u = new URL(String(url));
+      const v = u.searchParams.get('user') || '';
+      const body = v.includes('*') || v.includes(')(')
+        ? `<html>${'<li>uid=admin</li>'.repeat(40)}</html>`
+        : '<html>1 result</html>';
+      return { text: async () => body, status: 200 };
+    };
+    try {
+      const findings = await probeLdapInjection('http://example.com/users', ['user'], { timeoutMs: 5000 });
+      const l = findings.filter((f) => f.class === 'ldap_injection');
+      assert.equal(l.length, 1);
+      assert.ok(l[0].evidence.signalCorrelated);
+      const { confirmed } = verifyFindings(findings);
+      assert.equal(confirmed.filter((f) => f.class === 'ldap_injection').length, 1);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('ldapi flags LDAP error text differentially', async () => {
+    const { probeLdapInjection } = await import('./probes/ldapi.js');
+    globalThis.fetch = async (url) => {
+      const u = new URL(String(url));
+      const v = u.searchParams.get('user') || '';
+      const body = v.includes(')(')
+        ? '<html>LDAP: error code 21 - Invalid DN syntax</html>'
+        : '<html>ok</html>';
+      return { text: async () => body, status: 200 };
+    };
+    try {
+      const findings = await probeLdapInjection('http://example.com/users', ['user'], { timeoutMs: 5000 });
+      assert.ok(findings.some((f) => f.class === 'ldap_injection' && f.id.startsWith('ldapi-error')));
+    } finally {
+      teardown();
+    }
+  });
+
+  it('xpathi confirms on TRUE-payload divergence', async () => {
+    const { probeXpathInjection } = await import('./probes/xpathi.js');
+    globalThis.fetch = async (url) => {
+      const u = new URL(String(url));
+      const v = u.searchParams.get('q') || '';
+      const body = v.includes(`' or '1'='1`)
+        ? `<html>${'<book>secret</book>'.repeat(40)}</html>`
+        : '<html>no books</html>';
+      return { text: async () => body, status: 200 };
+    };
+    try {
+      const findings = await probeXpathInjection('http://example.com/books', ['q'], { timeoutMs: 5000 });
+      const x = findings.filter((f) => f.class === 'xpath_injection');
+      assert.equal(x.length, 1);
+      const { confirmed } = verifyFindings(findings);
+      assert.equal(confirmed.filter((f) => f.class === 'xpath_injection').length, 1);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('xpathi stays quiet on inert responses', async () => {
+    const { probeXpathInjection } = await import('./probes/xpathi.js');
+    globalThis.fetch = async () => ({ text: async () => '<html>no books</html>', status: 200 });
+    try {
+      const findings = await probeXpathInjection('http://example.com/books', ['q'], { timeoutMs: 5000 });
+      assert.equal(findings.length, 0);
+    } finally {
+      teardown();
+    }
+  });
+});
