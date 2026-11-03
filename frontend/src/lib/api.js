@@ -162,6 +162,13 @@ export async function steerHunt(huntId, message) {
   return post(`/api/v1/hunts/${encodeURIComponent(huntId)}/steer`, { message });
 }
 
+// AGENT CHAT (3 Nov 2026, owner order): talk to the scan agent about an
+// Autonomous hunt — Meta API answers from the hunt's own findings, scoped
+// to bug-bounty + the current target.
+export async function agentChat(huntId, message) {
+  return post(`/api/v1/hunts/${encodeURIComponent(huntId)}/agent-chat`, { message });
+}
+
 export async function sendChat(message, huntId, history, opts) {
   const body = { message, ...(huntId ? { huntId } : {}) };
   // REAL-HUMAN (26 Oct 2026): the chatId tells the backend WHICH

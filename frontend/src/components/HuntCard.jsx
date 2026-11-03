@@ -2,7 +2,7 @@
 // Status line ("Hunting <target>…"), expandable event feed, findings stream,
 // and Pause/Resume/Stop pill buttons. All stream/control logic unchanged.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { pauseHunt, resumeHunt, stopHunt, getHuntCost, setHuntBudget, getHuntEvents, steerHunt, listHunts, getHuntBrain, setHuntBrain, getHuntProcess, setBrainMode } from '../lib/api';
+import { pauseHunt, resumeHunt, stopHunt, getHuntCost, setHuntBudget, getHuntEvents, steerHunt, listHunts, getHuntBrain, setHuntBrain, getHuntProcess, setBrainMode, agentChat } from '../lib/api';
 import { HuntStreamClient, createSimulatedStream, isDemoMode } from '../lib/huntStream';
 import { toast } from '../lib/toast';
 import { processSummary } from '../lib/brainActions';
@@ -402,6 +402,12 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   const [steerMsg, setSteerMsg] = useState('');
   const [steerSent, setSteerSent] = useState(false);
   const [steerBusy, setSteerBusy] = useState(false);
+  // AGENT CHAT (3 Nov 2026, owner order): talk to the scan agent about an
+  // Autonomous hunt — scoped to the hunt's findings, answered by Meta API.
+  const [agentChatOpen, setAgentChatOpen] = useState(false);
+  const [agentChatMsgs, setAgentChatMsgs] = useState([]);
+  const [agentChatInput, setAgentChatInput] = useState('');
+  const [agentChatBusy, setAgentChatBusy] = useState(false);
   const logEndRef = useRef(null);
 
   // Elapsed-time ticker: shows how long the hunt has been running
@@ -670,6 +676,30 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   // terminal controls stay visible.
   const isScanner = brainMode === 'scanner' || (!brainMode && hunt.brainMode === 'scanner');
 
+  // AGENT CHAT: send one message to the scan agent, append the scoped reply.
+  async function sendAgentChatMsg() {
+    const text = agentChatInput.trim();
+    if (!text || agentChatBusy) return;
+    setAgentChatBusy(true);
+    setAgentChatMsgs((prev) => [...prev, { role: 'user', text }]);
+    setAgentChatInput('');
+    try {
+      const r = await agentChat(hunt.huntId, text);
+      const reply = r && r.ok && r.data && r.data.reply;
+      setAgentChatMsgs((prev) => [...prev, {
+        role: 'agent',
+        text: reply || 'Agent se jawab nahi mila — thodi der me phir try karo.',
+      }]);
+    } catch {
+      setAgentChatMsgs((prev) => [...prev, {
+        role: 'agent',
+        text: 'Agent se connect nahi ho paya — thodi der me phir try karo.',
+      }]);
+    } finally {
+      setAgentChatBusy(false);
+    }
+  }
+
   return (
     <div className="hunt-card">
       <div className="hunt-statusline">
@@ -937,6 +967,16 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
             Talk with AI
           </button>
         )}
+        {isScanner && (
+          <button
+            className="hunt-pill-btn talk"
+            onClick={() => setAgentChatOpen((v) => !v)}
+            aria-expanded={agentChatOpen}
+            title="Chat with the scan agent about this hunt's findings — answers from the scan data, stays on topic"
+          >
+            💬 {agentChatOpen ? 'Hide Agent Chat' : 'Chat with Agent'}
+          </button>
+        )}
         {onGetReport && (
           <button
             className="hunt-pill-btn"
@@ -1003,6 +1043,46 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         )}
         <span className="hunt-id">ID: {hunt.huntId}</span>
       </div>
+
+      {/* AGENT CHAT (3 Nov 2026, owner order): text chat with the scan agent
+          for Autonomous hunts — scoped to this hunt's findings. */}
+      {isScanner && agentChatOpen && (
+        <div className="hunt-agent-chat">
+          <div className="hunt-agent-chat-title">💬 Agent chat — is scan ke findings pe sawal poocho</div>
+          <div className="hunt-agent-chat-feed">
+            {agentChatMsgs.length === 0 && (
+              <div className="hunt-agent-chat-empty">
+                e.g. "kitni findings mili?", "sabse serious kaunsi hai?", "ise kaise fix karun?"
+              </div>
+            )}
+            {agentChatMsgs.map((m, idx) => (
+              <div key={idx} className={`hunt-agent-chat-line ${m.role}`}>
+                <span className="hunt-agent-chat-who">{m.role === 'user' ? 'You' : 'Agent'}</span>
+                <span>{m.text}</span>
+              </div>
+            ))}
+            {agentChatBusy && <div className="hunt-agent-chat-line agent"><span className="hunt-agent-chat-who">Agent</span><span>soch raha hai…</span></div>}
+          </div>
+          <div className="hunt-agent-chat-row">
+            <input
+              className="hunt-agent-chat-input"
+              value={agentChatInput}
+              onChange={(e) => setAgentChatInput(e.target.value)}
+              placeholder="Is scan ke baare me poocho…"
+              maxLength={500}
+              disabled={agentChatBusy}
+              onKeyDown={(e) => { if (e.key === 'Enter') sendAgentChatMsg(); }}
+            />
+            <button
+              className="hunt-pill-btn"
+              disabled={!agentChatInput.trim() || agentChatBusy}
+              onClick={sendAgentChatMsg}
+            >
+              {agentChatBusy ? '…' : 'Send'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* BE A BRAIN (28 Oct 2026): the console replaces the floating
           LiveMachine while it is open — the console embeds its own
