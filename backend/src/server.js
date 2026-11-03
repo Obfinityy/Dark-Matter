@@ -62,7 +62,7 @@ if (TRUST_PROXY) {
 // local dev). Without these headers browsers block every API call.
 // Allowed origins come from CORS_ORIGINS (comma-separated) or the defaults.
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS ||
-  'https://hack.thebhavesh.online,https://dark-matter-frontend.vercel.app,https://dark-matter-frontend.pages.dev,http://localhost:5173,http://localhost:3000'
+  'https://hackwithai.xyz,https://www.hackwithai.xyz,https://hack.thebhavesh.online,https://dark-matter-frontend.vercel.app,https://dark-matter-frontend.pages.dev,http://localhost:5173,http://localhost:3000'
 )
   .split(',')
   .map((s) => s.trim())
