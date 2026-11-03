@@ -899,7 +899,9 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
       )}
 
       <div className="hunt-controls">
-        {cost && cost.totalUsd > 0 && (
+        {/* MONEY DISPLAY (owner order 3 Nov): scanner hunts show $0 and no
+            spend UI — hide the burnt-money pill like the money strip. */}
+        {!isScanner && cost && cost.totalUsd > 0 && (
           <span className="hunt-cost" title="Money burnt on this hunt (AWS)">
             🔥 ${cost.totalUsd.toFixed(2)}
           </span>

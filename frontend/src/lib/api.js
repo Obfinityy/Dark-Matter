@@ -464,11 +464,17 @@ export function controlWsUrl(huntId, ticket) {
   return `${proto}//${host}/api/v1/hunts/${encodeURIComponent(huntId)}/control?ticket=${encodeURIComponent(ticket)}`;
 }
 
-export async function fetchReportMarkdown(id) {
+export async function fetchReportMarkdown(id, brainMode) {
   // The report endpoint returns raw text/markdown — fetch it as text.
   // (The old code ran it through the JSON-only request(), which
   // parsed the markdown body to null and returned an empty report.)
-  const res = await requestText('GET', `/api/v1/hunts/${encodeURIComponent(id)}/report?format=md`);
+  // AGENT REPORT (3 Nov 2026, owner order): scanner hunts get the
+  // AI-written report route; requestText carries the Bearer token, which
+  // window.open(url) alone cannot (auth_required fix).
+  const path = brainMode === 'scanner'
+    ? `/api/v1/hunts/${encodeURIComponent(id)}/agent-report`
+    : `/api/v1/hunts/${encodeURIComponent(id)}/report?format=md`;
+  const res = await requestText('GET', path);
   if (!res.ok) return res;
   return { ok: true, data: { markdown: typeof res.data === 'string' ? res.data : '' } };
 }

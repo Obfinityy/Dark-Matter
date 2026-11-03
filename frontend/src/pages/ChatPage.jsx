@@ -8,7 +8,7 @@ import ChatInput from '../components/ChatInput';
 import DetailsRequestCard from '../components/DetailsRequestCard';
 import NewHuntModal from '../components/NewHuntModal';
 import VoiceMode from '../components/VoiceMode';
-import { sendChat, startHunt } from '../lib/api';
+import { sendChat, startHunt, fetchReportMarkdown } from '../lib/api';
 import { resolveHuntMode } from '../lib/huntMode';
 import { streamReveal } from '../lib/streaming';
 import { useAuth, openAuthModal } from '../lib/auth';
@@ -232,19 +232,28 @@ export default function ChatPage({
     setVoiceOpen(true);
   }
 
-  function handleGetReport(huntId, brainMode) {
+  async function handleGetReport(huntId, brainMode) {
     if (!ensureHuntAuth()) return;
-    // Open the professional bug bounty report in a new tab (markdown format)
-    // The backend generates it from hunt memory + findings via the Head agent
-    // Same VITE_API_URL trap as the terminal hook (24 Oct 2026): the
-    // var is unset in the Cloudflare build, so this opened a relative
-    // Pages URL instead of the backend. Use the shared resolver.
-    const apiBase = resolveApiBase();
+    // REPORT AUTH FIX (3 Nov 2026): the report routes need the Bearer token,
+    // so window.open(url) alone gets auth_required. Fetch with auth, then
+    // open the markdown as a blob URL in a new tab.
     // AGENT REPORT (3 Nov 2026, owner order): Autonomous hunts get the
     // AI-written report from the scanner's data (Meta API); AI hunts keep
     // the deterministic memory report.
-    const path = brainMode === 'scanner' ? 'agent-report' : 'report?format=md';
-    window.open(`${apiBase}/api/v1/hunts/${huntId}/${path}`, '_blank', 'noopener');
+    try {
+      const r = await fetchReportMarkdown(huntId, brainMode);
+      const md = r && r.ok && r.data && r.data.markdown;
+      if (!md) {
+        toast((r && r.error) || 'Report nahi mil payi — phir try karo.');
+        return;
+      }
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch {
+      toast('Report nahi mil payi — phir try karo.');
+    }
   }
 
   function handleVoiceClose() {
