@@ -4,6 +4,7 @@
 // events, instead of launching the AI agent loop.
 import { runScan } from './scanner/index.js';
 import { appendHuntEvent, readHuntMeta, writeHuntMeta } from './store.js';
+import { notifyFinding } from './notifications.js';
 
 function record(huntId, event) {
   try {
@@ -26,6 +27,56 @@ function record(huntId, event) {
  * Every depth runs the full predefined battery — depth only changes how
  * far the crawler goes and how long each probe may take.
  */
+/**
+ * Build the two hunt events recorded per scanner finding (3 Nov 2026).
+ * Pure — exported for unit tests. The raw `scanner_finding` record carries
+ * the machine-readable payload; the standard `finding` event carries the
+ * product surface fields (verified only when the differential verifier
+ * confirmed it, so the 100% truth rule holds for the panel/report/chat).
+ */
+export function buildScannerFindingRecords(f) {
+  const ev = (f && f.evidence) || {};
+  const verified = f && f.confirmation === 'confirmed';
+  const verificationBits = [
+    ev.request ? String(ev.request) : null,
+    ev.response ? String(ev.response) : null,
+  ].filter(Boolean);
+  const verification = verified
+    ? `Confirmed by the rule-based differential verifier (no AI): ${verificationBits.join(' → ').slice(0, 300) || (f && f.title)}`
+    : `Not confirmed — lead under investigation: ${f && f.title}`;
+  const detailBits = [
+    f && f.url ? `Observed at ${f.url}` : null,
+    f && f.param ? `parameter "${f.param}"` : null,
+    ev.impact_demo ? String(ev.impact_demo).slice(0, 300) : null,
+  ].filter(Boolean);
+  return [
+    {
+      type: 'scanner_finding',
+      finding: {
+        class: (f && f.class) || null,
+        title: (f && f.title) || 'Finding',
+        severity: (f && f.severity) || 'low',
+        url: (f && f.url) || null,
+        param: (f && f.param) || null,
+        evidence: (f && f.evidence) || null,
+        confirmation: (f && f.confirmation) || 'confirmed',
+      },
+    },
+    {
+      type: 'finding',
+      title: (f && f.title) || 'Finding',
+      severity: (f && f.severity) || 'low',
+      verified,
+      verification,
+      detail: detailBits.join('. ') || (f && f.title) || 'Finding',
+      evidence: (f && f.evidence) || null,
+      url: (f && f.url) || null,
+      class: (f && f.class) || null,
+      source: 'scanner',
+    },
+  ];
+}
+
 export async function runScannerHunt(huntId, target, opts = {}) {
   const startedAt = new Date().toISOString();
   const scanDepth = opts.scanDepth === 'quick' || opts.scanDepth === 'deep' ? opts.scanDepth : 'standard';
@@ -81,19 +132,36 @@ export async function runScannerHunt(huntId, target, opts = {}) {
     );
 
     // Record each confirmed finding as a hunt event.
+    //
+    // SURFACING FIX (3 Nov 2026): the scanner used to record findings ONLY
+    // as `scanner_finding` events, which the entire product findings surface
+    // (panel rows, live report, finding detail, chat confirmed counts, live
+    // WS stream) ignores — it only reads `type: 'finding'` events. The
+    // first product acceptance test (3 Nov) found 2 genuine findings on the
+    // backend while the frontend showed "0 confirmed". Every confirmed
+    // scanner finding now ALSO emits the standard `finding` event shape the
+    // AI pipeline uses, so it flows through applyRetractions →
+    // panelFindings → report → panel → chat unchanged. The 100% truth rule
+    // holds: `verified` is true ONLY when the scanner's own differential
+    // verifier confirmed the finding (`confirmation === 'confirmed'`) —
+    // nothing unconfirmed can ever render as Confirmed.
     for (const f of result.findings || []) {
-      record(huntId, {
-        type: 'scanner_finding',
-        finding: {
-          class: f.class,
-          title: f.title,
-          severity: f.severity,
-          url: f.url,
-          param: f.param || null,
-          evidence: f.evidence || null,
-          confirmation: f.confirmation || 'confirmed',
-        },
-      });
+      const verified = f && f.confirmation === 'confirmed';
+      for (const evt of buildScannerFindingRecords(f)) record(huntId, evt);
+      // INSTANT NOTIFICATION (full-human vision order, 24 Oct): a verified
+      // finding notifies the hunt owner + admins instantly, same as the AI
+      // pipeline's emitFinding does. Best-effort — never breaks the scan.
+      try {
+        if (verified) {
+          notifyFinding({
+            huntId,
+            ownerId: opts.userId || null,
+            title: f.title,
+            severity: f.severity,
+            target: f.url || null,
+          });
+        }
+      } catch { /* notifications are best-effort */ }
     }
 
     // Record the summary.
