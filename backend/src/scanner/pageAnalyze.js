@@ -31,20 +31,20 @@
  */
 export const ELEMENT_VULN_MATRIX = {
   // Text-like inputs: the classic injection surface.
-  'input:text': ['sqli-error', 'sqli-blind', 'xss', 'cmdi', 'ssti'],
-  'input:search': ['sqli-error', 'sqli-blind', 'xss', 'ssti'],
-  'input:email': ['sqli-error', 'xss'],
-  'input:url': ['sqli-error', 'xss', 'ssrf', 'redirect'],
+  'input:text': ['sqli-error', 'sqli-blind', 'xss', 'cmdi', 'ssti', 'stored-xss'],
+  'input:search': ['sqli-error', 'sqli-blind', 'xss', 'ssti', 'stored-xss'],
+  'input:email': ['sqli-error', 'xss', 'stored-xss'],
+  'input:url': ['sqli-error', 'xss', 'ssrf', 'redirect', 'stored-xss'],
   'input:number': ['sqli-error', 'xss'],
   'input:tel': ['sqli-error', 'xss'],
   // Password fields: login inputs are prime injection points.
-  'input:password': ['sqli-error', 'sqli-blind', 'xss'],
+  'input:password': ['sqli-error', 'sqli-blind', 'xss', 'weak-creds'],
   // Hidden fields: server-trusted values the client can rewrite.
   'input:hidden': ['sqli-error', 'xss', 'traversal'],
   // File picker: inventoried; upload battery is a documented future slot.
   'input:file': [],
   // Multi-line + choice inputs.
-  textarea: ['sqli-error', 'sqli-blind', 'xss', 'ssti'],
+  textarea: ['sqli-error', 'sqli-blind', 'xss', 'ssti', 'stored-xss'],
   select: ['sqli-error', 'xss'],
   // Query-string parameters on the page URL itself.
   'url-param': [
@@ -60,7 +60,7 @@ export const ELEMENT_VULN_MATRIX = {
   // Whole-form properties.
   form: ['csrf', 'post-forms'],
   // Whole-page properties.
-  page: ['headers', 'cors', 'cookies', 'files', 'xxe', 'idor'],
+  page: ['headers', 'cors', 'cookies', 'files', 'xxe', 'idor', 'host-header'],
 };
 
 /** Vulnerability classes applicable to an element kind (never null). */

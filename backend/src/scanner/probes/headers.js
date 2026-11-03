@@ -50,5 +50,84 @@ export function probeHeaders({ url, headers = {} }) {
       },
     });
   }
+
+  // CSP directive analysis (iter2): a present-but-weak CSP is a CSP-bypass
+  // class finding. Static parse — no browser needed.
+  const cspRaw = h['content-security-policy'];
+  if (cspRaw) {
+    const dirs = {};
+    for (const part of String(cspRaw).split(';')) {
+      const [name, ...rest] = part.trim().split(/\s+/);
+      if (name) dirs[name.toLowerCase()] = rest.join(' ');
+    }
+    const scriptSrc = dirs['script-src'] || dirs['default-src'] || '';
+    const cspFinding = (id, title, severity, detail) => ({
+      class: 'csp_weak',
+      id,
+      title,
+      severity,
+      url,
+      evidence: {
+        request: `GET ${url}`,
+        response: `Content-Security-Policy: ${cspRaw}`,
+        impact_demo: detail,
+        signalCorrelated: true,
+      },
+    });
+    if (/unsafe-inline/.test(scriptSrc)) {
+      findings.push(
+        cspFinding(
+          'csp-unsafe-inline',
+          'CSP allows unsafe-inline in script-src',
+          'medium',
+          'inline scripts allowed — reflected XSS is not neutralized by the CSP'
+        )
+      );
+    }
+    if (/unsafe-eval/.test(scriptSrc)) {
+      findings.push(
+        cspFinding(
+          'csp-unsafe-eval',
+          'CSP allows unsafe-eval in script-src',
+          'medium',
+          'eval() allowed — widens every script-injection sink'
+        )
+      );
+    }
+    if (/(^|\s)\*(\s|;|$)/.test(` ${scriptSrc} `)) {
+      findings.push(
+        cspFinding(
+          'csp-wildcard-script',
+          'CSP script-src allows wildcard sources',
+          'medium',
+          'scripts may load from any host — CSP bypassable via an attacker domain'
+        )
+      );
+    }
+    // object-src falls back to default-src per the CSP spec — only flag when
+    // neither restricts plugins/objects.
+    if (!dirs['object-src'] && !dirs['default-src']) {
+      findings.push(
+        cspFinding(
+          'csp-missing-object-src',
+          'CSP missing object-src directive',
+          'low',
+          'plugins/objects unrestricted — Flash/Java-era vector class stays open'
+        )
+      );
+    }
+    // frame-ancestors has no default-src fallback, but X-Frame-Options
+    // covers the same clickjacking ground — only flag when both are absent.
+    if (!dirs['frame-ancestors'] && !h['x-frame-options']) {
+      findings.push(
+        cspFinding(
+          'csp-missing-frame-ancestors',
+          'CSP missing frame-ancestors directive',
+          'low',
+          'no CSP-level clickjacking defense (X-Frame-Options may still cover it)'
+        )
+      );
+    }
+  }
   return findings;
 }

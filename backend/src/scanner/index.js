@@ -24,6 +24,9 @@ import { probeSsrf } from './probes/ssrf.js';
 import { probeIdorSurface } from './probes/idor.js';
 import { probeCors } from './probes/cors.js';
 import { probeCookieFlags } from './probes/cookies.js';
+import { probeStoredXss } from './probes/storedXss.js';
+import { probeWeakCreds } from './probes/weakCreds.js';
+import { probeHostHeader } from './probes/hostHeader.js';
 import { runNuclei } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -47,6 +50,9 @@ export const DEFAULT_PHASES = [
   'idor',
   'cors',
   'cookies',
+  'stored-xss',
+  'weak-creds',
+  'host-header',
   'nuclei',
 ];
 
@@ -225,6 +231,9 @@ export async function runScan(
   await step('idor', () => probeIdorSurface(url));
   await step('cors', () => probeCors(url, opts));
   await step('cookies', () => probeCookieFlags(url, opts));
+  await step('stored-xss', () => probeStoredXss(forms, url, opts));
+  await step('weak-creds', () => probeWeakCreds(forms, opts));
+  await step('host-header', () => probeHostHeader(url, opts));
   await step('nuclei', async () => (await runNuclei(url, opts)).findings);
 
   const { confirmed, unconfirmed } = verifyFindings(all);

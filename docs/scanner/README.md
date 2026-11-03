@@ -11,7 +11,7 @@ paste link
                                       every request is scope-checked)
   → recon: crawl + tech fingerprint  (crawl.js, fingerprint.js — same-origin
                                       links/forms/params; server, libs, DB family)
-  → probe battery (12 classes)       (probes/ — one deterministic check per
+  → probe battery (20 probe modules)  (probes/ — one deterministic check per
                                       class, each with its own proof oracle)
   → Nuclei template battery          (nuclei.js — ~13k verified-check templates
                                       via docker/tools/nuclei/run-nuclei.sh)
@@ -39,8 +39,11 @@ proves the signal comes from the malicious input.
 | [redirect.md](redirect.md) | Open redirect | probes/redirect.js |
 | [csrf.md](csrf.md) | Cross-site request forgery | probes/csrf.js |
 | [idor.md](idor.md) | Insecure direct object reference | probes/idor.js |
-| [headers.md](headers.md) | Security headers + CORS | probes/headers.js |
+| [headers.md](headers.md) | Security headers + CORS + CSP directives | probes/headers.js |
 | [files.md](files.md) | Sensitive file exposure | probes/files.js |
+| [stored-xss.md](stored-xss.md) | Stored XSS (two-step oracle) | probes/storedXss.js |
+| [weak-creds.md](weak-creds.md) | Weak / default credentials | probes/weakCreds.js |
+| [host-header.md](host-header.md) | Host header injection | probes/hostHeader.js |
 | [nuclei.md](nuclei.md) | Nuclei template battery (CVEs etc.) | nuclei.js |
 
 ## Honest limits

@@ -376,3 +376,126 @@ describe('probeCookieFlags', () => {
     }
   });
 });
+
+describe('iter2 probes: storedXss, weakCreds, hostHeader, csp', () => {
+  const realFetch = globalThis.fetch;
+  const teardown = () => {
+    globalThis.fetch = realFetch;
+  };
+
+  it('storedXss confirms when the canary persists and re-renders', async () => {
+    const { probeStoredXss } = await import('./probes/storedXss.js');
+    const stored = [];
+    globalThis.fetch = async (url, { method = 'GET', body } = {}) => {
+      if (String(method).toUpperCase() === 'POST') {
+        const params = new URLSearchParams(String(body || ''));
+        for (const v of params.values()) stored.push(v);
+        return { text: async () => '<html>saved</html>' };
+      }
+      return { text: async () => `<html>guestbook: ${stored.join(' | ')}</html>` };
+    };
+    try {
+      const forms = [{ action: 'http://example.com/guestbook', method: 'post', inputs: ['name', 'message'] }];
+      const findings = await probeStoredXss(forms, 'http://example.com/', { timeoutMs: 5000 });
+      const sx = findings.filter((f) => f.class === 'xss_stored');
+      // both text inputs are injection points → one finding each
+      assert.equal(sx.length, 2);
+      assert.equal(sx[0].severity, 'high');
+      assert.ok(sx[0].evidence.canaryReflected);
+      const { confirmed } = verifyFindings(findings);
+      assert.equal(confirmed.filter((f) => f.class === 'xss_stored').length, 2);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('storedXss stays quiet when nothing persists', async () => {
+    const { probeStoredXss } = await import('./probes/storedXss.js');
+    globalThis.fetch = async () => ({ text: async () => '<html>static page</html>' });
+    try {
+      const forms = [{ action: 'http://example.com/guestbook', method: 'post', inputs: ['name'] }];
+      const findings = await probeStoredXss(forms, 'http://example.com/', { timeoutMs: 5000 });
+      assert.equal(findings.length, 0);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('weakCreds confirms a login with default credentials', async () => {
+    const { probeWeakCreds } = await import('./probes/weakCreds.js');
+    globalThis.fetch = async (url, { method = 'GET', body } = {}) => {
+      if (String(method).toUpperCase() !== 'POST') return { text: async () => '<html><form></form></html>', headers: { get: () => null } };
+      const params = new URLSearchParams(String(body || ''));
+      const ok = params.get('username') === 'admin' && params.get('password') === 'admin';
+      return {
+        text: async () => (ok ? '<html>Welcome admin <a href="/logout">Logout</a></html>' : '<html>Login failed</html>'),
+        headers: { get: () => null },
+      };
+    };
+    try {
+      const forms = [{ action: 'http://example.com/login', method: 'post', inputs: ['username', 'password', 'Login'] }];
+      const findings = await probeWeakCreds(forms, { timeoutMs: 5000 });
+      const wc = findings.filter((f) => f.class === 'weak_credentials');
+      assert.equal(wc.length, 1);
+      assert.equal(wc[0].severity, 'high');
+      assert.ok(wc[0].evidence.signalCorrelated);
+      const { confirmed } = verifyFindings(findings);
+      assert.equal(confirmed.filter((f) => f.class === 'weak_credentials').length, 1);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('weakCreds skips non-login forms', async () => {
+    const { probeWeakCreds } = await import('./probes/weakCreds.js');
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls++;
+      return { text: async () => '', headers: { get: () => null } };
+    };
+    try {
+      const forms = [{ action: 'http://example.com/search', method: 'post', inputs: ['q'] }];
+      const findings = await probeWeakCreds(forms, { timeoutMs: 5000 });
+      assert.equal(findings.length, 0);
+      assert.equal(calls, 0);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('hostHeader flags a reflected X-Forwarded-Host', async () => {
+    const { probeHostHeader } = await import('./probes/hostHeader.js');
+    globalThis.fetch = async (_url, { headers } = {}) => {
+      const xfh = headers && (headers['X-Forwarded-Host'] || headers['X-Host']);
+      return { text: async () => (xfh ? `<html>host: ${xfh}</html>` : '<html>home</html>'), headers: { get: () => null } };
+    };
+    try {
+      const findings = await probeHostHeader('http://example.com/', { timeoutMs: 5000 });
+      const hh = findings.filter((f) => f.class === 'host_header_injection');
+      assert.ok(hh.length >= 1);
+      assert.equal(hh[0].severity, 'medium');
+      const { confirmed } = verifyFindings(findings);
+      assert.ok(confirmed.some((f) => f.class === 'host_header_injection'));
+    } finally {
+      teardown();
+    }
+  });
+
+  it('headers probe analyzes weak CSP directives', async () => {
+    const csp = "script-src 'self' 'unsafe-inline'; object-src 'none'";
+    const findings = probeHeaders({ url: 'http://example.com/', headers: { 'content-security-policy': csp } });
+    const ids = findings.map((f) => f.id);
+    assert.ok(ids.includes('csp-unsafe-inline'));
+    assert.ok(ids.includes('csp-missing-frame-ancestors'));
+    assert.ok(!ids.includes('csp-missing-object-src'));
+    assert.ok(!ids.includes('missing-csp'));
+    const { confirmed } = verifyFindings(findings);
+    assert.ok(confirmed.some((f) => f.id === 'csp-unsafe-inline'));
+  });
+
+  it('headers probe stays quiet on a strict CSP', async () => {
+    const csp = "default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'";
+    const findings = probeHeaders({ url: 'http://example.com/', headers: { 'content-security-policy': csp } });
+    assert.ok(!findings.some((f) => f.class === 'csp_weak'));
+  });
+});
