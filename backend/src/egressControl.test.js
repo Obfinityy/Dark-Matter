@@ -150,41 +150,71 @@ test('buildEgressPlan: exact ipset command strings', () => {
 test('buildEgressPlan: exact iptables chain strings and order', () => {
   const p = plan();
   const body = p.iptables;
-  assert.equal(body[0], `iptables -N ${CHAIN} 2>/dev/null || true`);
-  assert.equal(body[1], `iptables -F ${CHAIN}`);
-  assert.equal(body[2], `iptables -A ${CHAIN} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT`);
+  // Chain creation is a separate idempotent check-then-add step (never
+  // shell syntax — the runner has no shell; 3 Nov 2026 egress fix).
+  assert.deepEqual(p.chainStep, {
+    check: `iptables -n -L ${CHAIN}`,
+    add: `iptables -N ${CHAIN}`,
+  });
+  assert.equal(body[0], `iptables -F ${CHAIN}`);
+  assert.equal(body[1], `iptables -A ${CHAIN} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT`);
   assert.equal(
-    body[3],
+    body[2],
     `iptables -A ${CHAIN} -m set --match-set ${SET} dst,dst -j ACCEPT`,
     'tuple match on DESTINATION (exact)'
   );
   assert.equal(
-    body[4],
+    body[3],
     `iptables -A ${CHAIN} -d ${GW} -p tcp --dport ${PROXY_PORT} -j ACCEPT`,
     'proxy gateway accept (exact)'
   );
   assert.equal(
-    body[5],
+    body[4],
     `iptables -A ${CHAIN} -p udp --dport 53 -d ${RESOLVER} -j ACCEPT`,
     'dns udp accept (exact)'
   );
   assert.equal(
-    body[6],
+    body[5],
     `iptables -A ${CHAIN} -p tcp --dport 53 -d ${RESOLVER} -j ACCEPT`,
     'dns tcp accept (exact)'
   );
   assert.equal(
-    body[7],
+    body[6],
     `iptables -A ${CHAIN} -p icmp --icmp-type echo-request -m set --match-set ${IPSET} dst -j ACCEPT`,
     'scoped icmp accept (exact)'
   );
   assert.equal(
-    body[8],
-    `iptables -A ${CHAIN} -m limit --limit 5/min -j LOG --log-prefix "${egressLogPrefix(HUNT)}" --log-level 4`,
-    'rate-limited LOG with exact prefix'
+    body[7],
+    `iptables -A ${CHAIN} -m limit --limit 5/min -j LOG --log-prefix ${egressLogPrefix(HUNT)} --log-level 4`,
+    'rate-limited LOG with exact prefix (unquoted — no shell)'
   );
-  assert.equal(body[9], `iptables -A ${CHAIN} -d 169.254.169.254/32 -j DROP`, 'metadata drop');
+  assert.equal(body[8], `iptables -A ${CHAIN} -d 169.254.169.254/32 -j DROP`, 'metadata drop');
   assert.equal(body[body.length - 1], `iptables -A ${CHAIN} -j DROP`, 'default DROP last');
+});
+
+test('buildEgressPlan: NO shell syntax in any generated command (3 Nov 2026 regression)', () => {
+  // The runner executes commands with NO shell (shSplit + execFile), so
+  // shell metacharacters arrive as literal arguments and iptables fails.
+  // This test fails the build if anyone reintroduces them.
+  const p = plan();
+  const r = buildRemoveEgress(HUNT, { containerIps: [CIP], resolverIp: RESOLVER });
+  const cmds = [
+    ...p.ipset,
+    p.chainStep.check,
+    p.chainStep.add,
+    ...p.iptables,
+    ...p.jumps.flatMap((j) => [j.check, j.add, j.del]),
+    ...p.nat.flatMap((n) => [n.check, n.add, n.del]),
+    ...r.ipset,
+    ...r.iptables,
+    ...r.nat,
+    ...r.docker,
+  ];
+  assert.ok(cmds.length > 20, 'enough commands to be a real check');
+  for (const c of cmds) {
+    assert.ok(!/[|><;&`$'"]/.test(c), `shell metacharacter in generated command: ${c}`);
+    assert.ok(!/\s{2,}/.test(c), `double-space (split hazard) in: ${c}`);
+  }
 });
 
 test('kernel limits: names and log-prefix stay within caps for real hunt ids', () => {
@@ -197,9 +227,10 @@ test('kernel limits: names and log-prefix stay within caps for real hunt ids', (
     const prefix = egressLogPrefix(hid);
     assert.ok(prefix.length <= 29, `log-prefix <=29 for ${hid} (got ${prefix.length})`);
     assert.ok(prefix.startsWith('dm-egress-drop:'), 'prefix keeps brand');
+    assert.ok(!/\s/.test(prefix), 'no whitespace — the runner has no shell (3 Nov 2026)');
     const p = buildEgressPlan(hid, SCOPE, { containerIps: [CIP], gatewayIp: GW, resolverIp: RESOLVER });
     const logRule = p.iptables.find((c) => c.includes('-j LOG'));
-    const m = logRule.match(/--log-prefix "([^"]+)"/);
+    const m = logRule.match(/--log-prefix (\S+)/);
     assert.ok(m && m[1].length <= 29, `emitted LOG rule prefix <=29 for ${hid}`);
   }
 });
@@ -245,20 +276,20 @@ test('buildRemoveEgress: covers every artifact the plan creates (symmetry)', () 
   const r = buildRemoveEgress(HUNT, { containerIps: [CIP], resolverIp: RESOLVER });
   // Every jump add has a matching delete.
   for (const j of p.jumps) {
-    assert.ok(r.iptables.includes(j.del + ' 2>/dev/null || true'), `missing del for jump: ${j.add}`);
+    assert.ok(r.iptables.includes(j.del), `missing del for jump: ${j.add}`);
   }
   // Every NAT add has a matching delete.
   for (const n of p.nat) {
-    assert.ok(r.nat.includes(n.del + ' 2>/dev/null || true'), `missing del for nat: ${n.add}`);
+    assert.ok(r.nat.includes(n.del), `missing del for nat: ${n.add}`);
   }
   // Chain create/flush matched by flush+delete-chain.
-  assert.ok(r.iptables.includes(`iptables -F ${CHAIN} 2>/dev/null || true`));
-  assert.ok(r.iptables.includes(`iptables -X ${CHAIN} 2>/dev/null || true`));
+  assert.ok(r.iptables.includes(`iptables -F ${CHAIN}`));
+  assert.ok(r.iptables.includes(`iptables -X ${CHAIN}`));
   // Both ipsets destroyed.
-  assert.ok(r.ipset.includes(`ipset destroy ${SET} 2>/dev/null || true`));
-  assert.ok(r.ipset.includes(`ipset destroy ${IPSET} 2>/dev/null || true`));
+  assert.ok(r.ipset.includes(`ipset destroy ${SET}`));
+  assert.ok(r.ipset.includes(`ipset destroy ${IPSET}`));
   // Per-hunt network removed.
-  assert.ok(r.docker.includes(`docker network rm ${NET} 2>/dev/null || true`));
+  assert.ok(r.docker.includes(`docker network rm ${NET}`));
 });
 
 test('applyEgressPlan: check-then-add idempotency via injected runner', async () => {
@@ -271,7 +302,8 @@ test('applyEgressPlan: check-then-add idempotency via injected runner', async ()
   };
   const r = await applyEgressPlan(plan(), { run: fakeRun });
   assert.equal(r.ok, true);
-  assert.ok(issued.includes(`iptables -N ${CHAIN} 2>/dev/null || true`), 'chain create issued');
+  assert.ok(issued.includes(`iptables -n -L ${CHAIN}`), 'chain check issued');
+  assert.ok(!issued.includes(`iptables -N ${CHAIN}`), 'chain add skipped when present');
   assert.ok(
     issued.some((c) => c === `ipset add ${SET} 93.184.216.34,tcp:8080 -exist`),
     'tuple add issued'
@@ -279,7 +311,20 @@ test('applyEgressPlan: check-then-add idempotency via injected runner', async ()
   const adds = issued.filter((c) => c.includes(' -I DOCKER-USER 1 '));
   assert.equal(adds.length, 0, 'present jumps not re-added (check-then-add)');
   const skipped = r.results.filter((x) => x.skipped === 'already-present');
-  assert.ok(skipped.length >= 2, 'skipped entries recorded');
+  assert.ok(skipped.length >= 3, 'skipped entries recorded (chain + jumps)');
+});
+
+test('applyEgressPlan: missing chain is created (check fails → add issued)', async () => {
+  const issued = [];
+  const fakeRun = async (argv) => {
+    issued.push(argv.join(' '));
+    // Chain does not exist yet; everything else succeeds.
+    if (argv.join(' ').startsWith(`iptables -n -L ${CHAIN}`)) return { ok: false, error: 'no such chain' };
+    return { ok: true, stdout: '' };
+  };
+  const r = await applyEgressPlan(plan(), { run: fakeRun });
+  assert.equal(r.ok, true);
+  assert.ok(issued.includes(`iptables -N ${CHAIN}`), 'chain add issued when check fails');
 });
 
 test('applyEgressPlan: reports failure without throwing', async () => {

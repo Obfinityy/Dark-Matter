@@ -179,13 +179,17 @@ export async function runScannerHunt(huntId, target, opts = {}) {
       },
     });
 
-    // Mark hunt as finished.
+    // Mark hunt as finished — but NEVER overwrite a terminal 'failed'
+    // state (e.g. egress fail-closed recorded by the reconciler) with
+    // 'finished'. The UI must show the failure, not "finished, 0 findings".
+    // Fixed 3 Nov 2026 (an external-target scan hid its egress failure
+    // behind a finished meta).
     try {
       const meta = readHuntMeta(huntId) || {};
       writeHuntMeta(huntId, {
         ...meta,
         huntId,
-        state: 'finished',
+        state: meta.state === 'failed' ? 'failed' : 'finished',
         scannerFinishedAt: new Date().toISOString(),
         scannerSummary: {
           confirmed: result.findings?.length || 0,

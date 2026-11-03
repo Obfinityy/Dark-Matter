@@ -66,10 +66,17 @@ export function egressChainName(huntId) {
 }
 
 /** LOG prefix for dropped packets. Kernel caps --log-prefix at 29 chars:
- *  "dm-egress-drop:" (15) + hunt id truncated to 13 + " " (1) = 29 max.
- *  Longer hunt ids are truncated; the id head stays identifiable. */
+ *  "dm-egress-drop:" (15) + hunt id truncated to 14 = 29 max.
+ *
+ *  NOTE (3 Nov 2026): the trailing space was REMOVED. The prefix is
+ *  embedded in generated iptables commands WITHOUT quotes, and the
+ *  runner executes those commands with NO shell (shSplit + execFile) —
+ *  any whitespace would split the argument and iptables would fail.
+ *  An external-target scan died at egress finalize
+ *  ("iptables/ipset apply failed (fail-closed)") because of exactly
+ *  this class of bug (shell syntax baked into generated commands). */
 export function egressLogPrefix(huntId) {
-  return `dm-egress-drop:${sanitizeHuntId(huntId).slice(0, 13)} `;
+  return `dm-egress-drop:${sanitizeHuntId(huntId).slice(0, 14)}`;
 }
 
 /** Per-hunt proxy port, hash-derived like the ttyd ports (different range). */
@@ -125,7 +132,7 @@ export function resolveUpstreamDns(resolvConfText) {
  * @param {string} opts.resolverIp - pinned DNS resolver
  * @param {Object<string,string[]>} opts.resolved - hostname -> IP[] (A/AAAA)
  * @param {Object<string,string[]>} [opts.labTranslated] - labIp -> translated IP[] (post-DNAT)
- * @returns {Object} {huntId, chain, setName, ipSetName, netName, proxyPort, entries, ipEntries, ipset, iptables, nat}
+ * @returns {Object} {huntId, chain, chainStep, setName, ipSetName, netName, proxyPort, entries, ipEntries, ipset, iptables, nat}
  */
 export function buildEgressPlan(huntId, scope, opts = {}) {
   if (!scope || scope.version !== 1) {
@@ -192,9 +199,20 @@ export function buildEgressPlan(huntId, scope, opts = {}) {
     ...ipEntries.map((ip) => `ipset add ${ipSetName} ${ip} -exist`),
   ];
 
+  // The filter chain is created idempotently via check-then-add.
+  // NOTE (3 Nov 2026): NEVER embed shell syntax (`2>/dev/null`, `||`,
+  // quotes, redirects) in generated commands. The runner executes them
+  // with NO shell (shSplit + execFile), so shell syntax arrives as
+  // literal arguments and iptables fails. An external-target scan died
+  // at egress finalize ("iptables/ipset apply failed (fail-closed)")
+  // because this used to be `iptables -N <chain> 2>/dev/null || true`.
+  const chainStep = {
+    check: `iptables -n -L ${chain}`,
+    add: `iptables -N ${chain}`,
+  };
+
   // --- iptables filter commands (chain rebuilt idempotently) ---
   const iptables = [
-    `iptables -N ${chain} 2>/dev/null || true`,
     `iptables -F ${chain}`,
     `iptables -A ${chain} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT`,
     `iptables -A ${chain} -m set --match-set ${setName} dst,dst -j ACCEPT`,
@@ -202,7 +220,7 @@ export function buildEgressPlan(huntId, scope, opts = {}) {
     `iptables -A ${chain} -p udp --dport 53 -d ${resolverIp} -j ACCEPT`,
     `iptables -A ${chain} -p tcp --dport 53 -d ${resolverIp} -j ACCEPT`,
     `iptables -A ${chain} -p icmp --icmp-type echo-request -m set --match-set ${ipSetName} dst -j ACCEPT`,
-    `iptables -A ${chain} -m limit --limit 5/min -j LOG --log-prefix "${egressLogPrefix(huntId)}" --log-level 4`,
+    `iptables -A ${chain} -m limit --limit 5/min -j LOG --log-prefix ${egressLogPrefix(huntId)} --log-level 4`,
     `iptables -A ${chain} -d 169.254.169.254/32 -j DROP`,
     `iptables -A ${chain} -j DROP`,
   ];
@@ -236,6 +254,7 @@ export function buildEgressPlan(huntId, scope, opts = {}) {
   return {
     huntId: san,
     chain,
+    chainStep,
     setName,
     ipSetName,
     netName,
@@ -281,27 +300,33 @@ export function buildRemoveEgress(huntId, opts = {}) {
   const resolverIp = opts.resolverIp;
   const iptables = [];
   const nat = [];
+  // NOTE (3 Nov 2026): NO shell syntax (`2>/dev/null || true`) in these
+  // commands — the runner has no shell, so it arrived as literal args and
+  // every teardown command failed. removeHuntEgress already swallows
+  // per-command errors (best-effort), which is the ignore-missing
+  // behaviour the shell suffix was trying to buy. Before this fix,
+  // teardown silently removed NOTHING (stale chains/sets accumulated).
   for (const cip of containerIps) {
-    iptables.push(`iptables -D DOCKER-USER -s ${cip} -j ${chain} 2>/dev/null || true`);
-    iptables.push(`iptables -D INPUT -s ${cip} -j ${chain} 2>/dev/null || true`);
+    iptables.push(`iptables -D DOCKER-USER -s ${cip} -j ${chain}`);
+    iptables.push(`iptables -D INPUT -s ${cip} -j ${chain}`);
     if (resolverIp) {
       for (const proto of ['udp', 'tcp']) {
         nat.push(
-          `iptables -t nat -D PREROUTING -s ${cip} -p ${proto} --dport 53 -j DNAT --to-destination ${resolverIp}:53 2>/dev/null || true`
+          `iptables -t nat -D PREROUTING -s ${cip} -p ${proto} --dport 53 -j DNAT --to-destination ${resolverIp}:53`
         );
       }
     }
   }
-  iptables.push(`iptables -F ${chain} 2>/dev/null || true`);
-  iptables.push(`iptables -X ${chain} 2>/dev/null || true`);
+  iptables.push(`iptables -F ${chain}`);
+  iptables.push(`iptables -X ${chain}`);
   return {
     ipset: [
-      `ipset destroy ${setName} 2>/dev/null || true`,
-      `ipset destroy ${ipSetName} 2>/dev/null || true`,
+      `ipset destroy ${setName}`,
+      `ipset destroy ${ipSetName}`,
     ],
     iptables,
     nat,
-    docker: [`docker network rm ${netName} 2>/dev/null || true`],
+    docker: [`docker network rm ${netName}`],
   };
 }
 
@@ -335,6 +360,13 @@ export async function applyEgressPlan(plan, { run = defaultRunner } = {}) {
     return r;
   };
   for (const cmd of plan.ipset) await exec(cmd);
+  // Idempotent chain creation — must precede the -A rules below, which
+  // reference the chain. Check-then-add (no shell syntax; see above).
+  if (plan.chainStep && plan.chainStep.check && plan.chainStep.add) {
+    const chk = await run(shSplit(plan.chainStep.check));
+    if (!chk.ok) await exec(plan.chainStep.add);
+    else results.push({ cmd: plan.chainStep.check, ok: true, skipped: 'already-present' });
+  }
   for (const cmd of plan.iptables) await exec(cmd);
   for (const j of plan.jumps) {
     const chk = await run(shSplit(j.check));

@@ -263,11 +263,11 @@ test('T8 (local): alternate IPs — DNS change diffed within one reconciler tick
       issued.push(argv.join(' '));
       return { ok: true };
     },
-    resolveHost: async () => ['10.20.30.40'], // simulated DNS change
+    resolveHost: async () => ['93.184.216.35'], // simulated DNS change (public IP; #339 drops private rebounds)
     getCurrentEntries: async () => ['10.9.9.9,tcp:8080'],
   });
   assert.equal(r.ok, true);
-  assert.ok(issued.some((c) => c.includes('10.20.30.40,tcp:8080 -exist')), 'new A record added');
+  assert.ok(issued.some((c) => c.includes('93.184.216.35,tcp:8080 -exist')), 'new A record added');
   assert.ok(issued.some((c) => c === `ipset del ${egressSetName('h_bat8')} 10.9.9.9,tcp:8080`), 'stale removed');
 });
 
@@ -290,12 +290,13 @@ test('T9 (local): per-hunt isolation by construction — no shared names', () =>
 test('T10 (local): teardown symmetry — every artifact has a removal', () => {
   const p = localPlan();
   const r = buildRemoveEgress(HUNT, { containerIps: [CIP], resolverIp: RESOLVER });
-  for (const j of p.jumps) assert.ok(r.iptables.includes(j.del + ' 2>/dev/null || true'));
-  for (const n of p.nat) assert.ok(r.nat.includes(n.del + ' 2>/dev/null || true'));
-  assert.ok(r.iptables.includes(`iptables -F ${CHAIN} 2>/dev/null || true`));
-  assert.ok(r.iptables.includes(`iptables -X ${CHAIN} 2>/dev/null || true`));
-  assert.ok(r.ipset.some((c) => c.startsWith(`ipset destroy ${SET} `)));
-  assert.ok(r.docker.some((c) => c === `docker network rm ${egressNetName(HUNT)} 2>/dev/null || true`));
+  for (const j of p.jumps) assert.ok(r.iptables.includes(j.del));
+  for (const n of p.nat) assert.ok(r.nat.includes(n.del));
+  assert.ok(r.iptables.includes(`iptables -F ${CHAIN}`));
+  assert.ok(r.iptables.includes(`iptables -X ${CHAIN}`));
+  assert.ok(r.ipset.some((c) => c === `ipset destroy ${SET}`));
+  assert.ok(r.ipset.some((c) => c === `ipset destroy dm-allow-ip-${HUNT}`));
+  assert.ok(r.docker.some((c) => c === `docker network rm ${egressNetName(HUNT)}`));
 });
 
 test('T11 (local): authorized IP + authorized port (443) allowed at app layer; proxy-only at net layer', () => {

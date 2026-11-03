@@ -3184,6 +3184,12 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
 export async function resumeInterruptedHunt(huntId) {
   const meta = readHuntMeta(huntId);
   if (!meta || meta.state !== 'running') return false;
+  // FIX (3 Nov 2026): scanner hunts are driven by runScannerHunt
+  // (host-side, no AI loop, no hunt container). The 60s reconciler must
+  // NEVER launch the AI loop for them — it spawned stray containers on
+  // scanner hunts and killed an external-target scan at egress finalize
+  // (fail-closed), whose failure then hid behind "finished, 0 findings".
+  if (meta.brainMode === 'scanner') return false;
   // FIX (solver #458): a hunt whose driver is already active is NOT
   // interrupted. The periodic reconciler in server.js calls this for every
   // 'running' meta every 60 s; without this guard each call appended a
