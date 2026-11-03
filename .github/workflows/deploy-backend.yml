@@ -86,24 +86,24 @@ jobs:
             set -euo pipefail
             cd /opt/Dark-Matter
             echo "--- pulling latest main ---"
-            git pull --ff-only
+            # NOTE: `git pull --ff-only` fails in this checkout with
+            # "Cannot fast-forward to multiple branches" — fetch + explicit
+            # merge is the form that works here.
+            git fetch origin -q
+            git merge --ff-only origin/main -q
             echo "--- backend deps ---"
             cd backend
             npm ci --omit=dev
             echo "--- brain python deps (Pillow: synthetic-screenshot fallback) ---"
             sudo apt-get install -y -q python3-pil
             echo "--- checking for active hunts ---"
-            # FAIL-CLOSED (#332): the old guard printed 0 on ANY node
-            # error (inner catch + `|| echo 0`), so a broken store check
-            # silently authorised a restart that kills active hunts.
-            # Now a failed or non-numeric check ABORTS the deploy.
-            if ! ACTIVE=$(node -e "
-              import('./src/store.js').then((s) => {
-                const ms = s.listHuntMetas();
-                const active = ms.filter((m) => ['running','created','starting','paused'].includes(m.state) && !['stopped','finished','failed'].includes(m.state));
-                console.log(active.length);
-              });
-            "); then
+            # NOTE: the active-hunt check lives in a committed file
+            # (backend/scripts/check-active-hunts.mjs) on purpose:
+            # appleboy/ssh-action (drone-ssh) mangles multi-line
+            # `node -e "..."` strings (SyntaxError: Unexpected token '['),
+            # which broke this guard on 5 consecutive runs (15:22–15:38 UTC,
+            # 3 Nov 2026). A file has no quoting to mangle.
+            if ! ACTIVE=$(node scripts/check-active-hunts.mjs); then
               echo "ERROR: active-hunt check failed — refusing to restart blindly. Aborting deploy."
               exit 1
             fi
