@@ -52,7 +52,11 @@ export async function probePostForms(forms, opts = {}) {
     (f) => String(f.method || 'get').toLowerCase() === 'post'
   );
   for (const form of postForms.slice(0, 10)) {
-    for (const input of (form.inputs || []).slice(0, 8)) {
+    // Skip submit buttons — injecting them is pointless and doubles runtime.
+    const fields = (form.inputs || [])
+      .filter((i) => !/^submit$/i.test(i))
+      .slice(0, 8);
+    for (const input of fields) {
       // --- error-based SQLi: benign vs quote ---
       try {
         const benign = await postForm(form, input, '1', opts);
@@ -103,15 +107,17 @@ export async function probePostForms(forms, opts = {}) {
         // ignore
       }
       // --- command injection: time differential ---
+      // Pure differential oracle: the injected sleep must ADD ~5s on top of
+      // whatever the page normally takes. Two baselines absorb jitter; a
+      // slow-but-stable baseline (e.g. DVWA's `ping -c 4`) must not suppress
+      // a real finding.
       try {
-        const base = await postFormTimed(form, input, '1', opts);
-        if (base.ok && base.ms < 3000) {
+        const base1 = await postFormTimed(form, input, '1', opts);
+        const base2 = await postFormTimed(form, input, '2', opts);
+        if (base1.ok && base2.ok && Math.abs(base1.ms - base2.ms) <= 2000) {
+          const baseMs = Math.max(base1.ms, base2.ms);
           const injected = await postFormTimed(form, input, '1;sleep 5', opts);
-          if (
-            injected.ok &&
-            injected.ms >= 3500 &&
-            injected.ms - base.ms >= 4000
-          ) {
+          if (injected.ok && injected.ms - baseMs >= 4000) {
             findings.push({
               class: 'cmd_injection',
               id: `cmdi-time-post-${input}`,
@@ -120,7 +126,7 @@ export async function probePostForms(forms, opts = {}) {
               url: form.action,
               param: input,
               evidence: withEvidence(form, input, {
-                response: `response took ${injected.ms}ms vs ${base.ms}ms baseline`,
+                response: `response took ${injected.ms}ms vs ${baseMs}ms baseline`,
                 impact_demo: 'injected sleep(5) tracks the response delay',
                 delayTracks: true,
                 signalCorrelated: true,

@@ -28,14 +28,23 @@ export async function probeCmdiTime(url, params, opts = {}) {
   const findings = [];
   const SLEEP_S = 5;
   for (const param of params.slice(0, 6)) {
-    const base = await getTimed(withParam(url, param, '1'), opts).catch(
+    // Two baselines: the max absorbs normal jitter; a wide spread means the
+    // page is too unstable for a timing oracle (skip instead of guessing).
+    const base1 = await getTimed(withParam(url, param, '1'), opts).catch(
       () => null
     );
-    if (!base || !base.ok || base.ms > 3000) continue;
+    const base2 = await getTimed(withParam(url, param, '2'), opts).catch(
+      () => null
+    );
+    if (!base1 || !base1.ok || !base2 || !base2.ok) continue;
+    if (Math.abs(base1.ms - base2.ms) > 2000) continue; // jittery page
+    const baseMs = Math.max(base1.ms, base2.ms);
     const injected = await getTimed(withParam(url, param, `1;sleep ${SLEEP_S}`), { ...opts, timeoutMs: 25000 }).catch(() => null);
     if (!injected || !injected.ok) continue;
-    const delayTracks =
-      injected.ms >= SLEEP_S * 1000 - 1500 && injected.ms - base.ms >= (SLEEP_S - 1) * 1000;
+    // Pure differential: the injected sleep must ADD ~5s on top of whatever
+    // the page normally takes (a slow-but-stable baseline like `ping -c 4`
+    // must not suppress a real finding).
+    const delayTracks = injected.ms - baseMs >= (SLEEP_S - 1) * 1000;
     if (delayTracks) {
       findings.push({
         class: 'cmd_injection',
@@ -46,7 +55,7 @@ export async function probeCmdiTime(url, params, opts = {}) {
         param,
         evidence: {
           request: `GET ${withParam(url, param, `1;sleep ${SLEEP_S}`)}`,
-          response: `response took ${injected.ms}ms vs ${base.ms}ms baseline`,
+          response: `response took ${injected.ms}ms vs ${baseMs}ms baseline`,
           impact_demo: `injected sleep(${SLEEP_S}) tracks the response delay`,
           delayTracks: true,
           signalCorrelated: true,
