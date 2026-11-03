@@ -9,6 +9,7 @@ import { probeHeaders } from './probes/headers.js';
 import { probeCsrf } from './probes/csrf.js';
 import { probeIdorSurface } from './probes/idor.js';
 import { verifyFindings } from './verifier.js';
+import { probePostForms } from './probes/postForms.js';
 
 describe('target', () => {
   it('normalizes bare hosts to https', () => {
@@ -207,5 +208,60 @@ describe('verifier', () => {
     ]);
     assert.equal(confirmed.length, 1);
     assert.equal(unconfirmed.length, 0);
+  });
+});
+
+describe('probePostForms', () => {
+  const realFetch = globalThis.fetch;
+  const form = {
+    action: 'http://example.com/submit',
+    method: 'post',
+    inputs: ['q'],
+  };
+  const teardown = () => {
+    globalThis.fetch = realFetch;
+  };
+  it('flags error-based SQLi in a POST field via the benign/malicious differential', async () => {
+    globalThis.fetch = async (_url, { body }) => {
+      const v = String(body || '');
+      const text = v.includes("q=1%27") || v.includes("q=1'")
+        ? 'You have an error in your SQL syntax near ... MySQL'
+        : '<html>ok</html>';
+      return { text: async () => text };
+    };
+    try {
+      const findings = await probePostForms([form], { timeoutMs: 5000 });
+      const sqli = findings.filter((f) => f.class === 'sqli_error');
+      assert.equal(sqli.length, 1);
+      assert.equal(sqli[0].severity, 'critical');
+      assert.ok(sqli[0].evidence.errorCorrelated);
+    } finally {
+      teardown();
+    }
+  });
+  it('flags reflected XSS in a POST field when the canary echoes verbatim', async () => {
+    globalThis.fetch = async (_url, { body }) => {
+      const params = new URLSearchParams(String(body || ''));
+      const v = params.get('q') || '';
+      return { text: async () => `<html>${v}</html>` };
+    };
+    try {
+      const findings = await probePostForms([form], { timeoutMs: 5000 });
+      const xss = findings.filter((f) => f.class === 'xss_reflected');
+      assert.equal(xss.length, 1);
+      assert.equal(xss[0].severity, 'high');
+      assert.ok(xss[0].evidence.canaryReflected);
+    } finally {
+      teardown();
+    }
+  });
+  it('stays quiet when POST responses are inert', async () => {
+    globalThis.fetch = async () => ({ text: async () => '<html>ok</html>' });
+    try {
+      const findings = await probePostForms([form], { timeoutMs: 5000 });
+      assert.equal(findings.length, 0);
+    } finally {
+      teardown();
+    }
   });
 });

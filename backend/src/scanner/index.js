@@ -13,6 +13,7 @@ import { probeTraversal } from './probes/traversal.js';
 import { probeSsti } from './probes/ssti.js';
 import { probeOpenRedirect } from './probes/redirect.js';
 import { probeCsrf } from './probes/csrf.js';
+import { probePostForms } from './probes/postForms.js';
 import { probeSensitiveFiles } from './probes/files.js';
 import { probeXxe } from './probes/xxe.js';
 import { probeSsrf } from './probes/ssrf.js';
@@ -31,6 +32,7 @@ const DEFAULT_PHASES = [
   'ssti',
   'redirect',
   'csrf',
+  'post-forms',
   'files',
   'xxe',
   'ssrf',
@@ -107,6 +109,29 @@ export async function runScan(
     }
   }
 
+  // GET forms become URL targets so the param battery covers them;
+  // POST forms go through the dedicated postForms battery.
+  const toFormUrl = (form) => {
+    try {
+      const u = new URL(form.action);
+      for (const inp of form.inputs || []) {
+        if (!u.searchParams.has(inp)) u.searchParams.set(inp, '');
+      }
+      return u.toString();
+    } catch {
+      return null;
+    }
+  };
+  for (const f of forms) {
+    if (String(f.method || 'get').toLowerCase() === 'get') {
+      const fu = toFormUrl(f);
+      if (fu) pushTarget(fu);
+    }
+  }
+  const postForms = forms.filter(
+    (f) => String(f.method || 'get').toLowerCase() === 'post'
+  );
+
   await step('headers', () => (fp ? probeHeaders({ url, headers: fp.headers }) : []));
   for (const u of scanTargets) {
     const uparams = [...new Set(extractParams(u))];
@@ -120,6 +145,7 @@ export async function runScan(
     await step('ssrf', () => probeSsrf(u, uparams, opts));
   }
   await step('csrf', () => probeCsrf(forms, url));
+  await step('post-forms', () => probePostForms(postForms, opts));
   await step('files', () => probeSensitiveFiles(url, opts));
   await step('xxe', () => probeXxe(url, opts));
   await step('idor', () => probeIdorSurface(url));
