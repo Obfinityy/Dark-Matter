@@ -248,7 +248,10 @@ export default function ChatPage({
     setVoiceHuntIdOverride(null);
   }
 
-  async function handleStartHunt(target, scope, mode, confirmed, brainMode = 'ai', forceNew = false, fresh = false) {
+  // HUNTER (3 Nov 2026, owner order): the 6th arg is scanDepth ('quick' |
+  // 'standard' | 'deep') for the autonomous hunter — the New Hunt dialog
+  // passes it positionally. forceNew / fresh stay 7th / 8th.
+  async function handleStartHunt(target, scope, mode, confirmed, brainMode = 'ai', scanDepth = 'standard', forceNew = false, fresh = false) {
     if (!ensureHuntAuth()) return;
     // Dedup: if a hunt already exists for this target AND brain mode, go to
     // its chat instead of creating a duplicate. (The backend enforces the
@@ -288,7 +291,7 @@ export default function ChatPage({
       } catch { /* best-effort, proceed to create */ }
     }
     setLaunching(true);
-    const res = await startHunt(target, scope, mode, confirmed, brainMode, forceNew, fresh);
+    const res = await startHunt(target, scope, mode, confirmed, brainMode, scanDepth, forceNew, fresh);
     setLaunching(false);
     if (!res.ok || !res.data.huntId) {
       if (res.status === 401 || res.error === 'auth_required') {
@@ -323,8 +326,10 @@ export default function ChatPage({
       // next list sync would fall back to 'normal' and lose the mode.
       mode,
       // BRAIN MODE (3 Nov 2026): carry brainMode too — re-run / fresh
-      // must inherit "With AI" vs "With Automation".
+      // must inherit "Infinity AI" vs "Infinity Autonomous".
       brainMode: res.data.brainMode || brainMode,
+      // SCAN DEPTH (3 Nov 2026): re-run / fresh inherit the depth.
+      scanDepth: res.data.scanDepth || scanDepth || 'standard',
       status: 'idle',
       logs: [],
       findings: [],
@@ -349,7 +354,7 @@ export default function ChatPage({
     // forceNew is the explicit fresh-run bypass of the dedupe redirect.
     // MODE FIX (27 Oct 2026): inherit the old hunt's real mode — the
     // list used to omit mode, so this always fell back to 'normal'.
-    await handleStartHunt(hunt.target, hunt.scope || '', await resolveHuntMode(hunt), true, hunt.brainMode || 'ai', true);
+    await handleStartHunt(hunt.target, hunt.scope || '', await resolveHuntMode(hunt), true, hunt.brainMode || 'ai', hunt.scanDepth || 'standard', true);
   }
 
   /** Start from scratch (27 Oct 2026, budget cap): a brand-new hunt
@@ -361,7 +366,7 @@ export default function ChatPage({
     // MODE FIX (27 Oct 2026): inherit the old hunt's real mode (see
     // resolveHuntMode) — a human-mode hunt re-created in 'normal'
     // loses the whole human loop.
-    await handleStartHunt(hunt.target, hunt.scope || '', await resolveHuntMode(hunt), true, hunt.brainMode || 'ai', false, true);
+    await handleStartHunt(hunt.target, hunt.scope || '', await resolveHuntMode(hunt), true, hunt.brainMode || 'ai', hunt.scanDepth || 'standard', false, true);
   }
 
   function handleRegenerateMessage(message) {

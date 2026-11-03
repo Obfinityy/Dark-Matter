@@ -305,8 +305,8 @@ export async function getTotalCosts() {
   return get('/api/v1/hunts/costs');
 }
 
-export async function startHunt(target, scope, mode, confirmedAuthorized, brainMode = 'ai', forceNew = false, fresh = false) {
-  const res = await post('/api/v1/hunts', { target, scope, mode, brainMode, confirmedAuthorized: !!confirmedAuthorized, ...(forceNew ? { forceNew: true } : {}), ...(fresh ? { fresh: true } : {}) });
+export async function startHunt(target, scope, mode, confirmedAuthorized, brainMode = 'ai', scanDepth = 'standard', forceNew = false, fresh = false) {
+  const res = await post('/api/v1/hunts', { target, scope, mode, brainMode, scanDepth, confirmedAuthorized: !!confirmedAuthorized, ...(forceNew ? { forceNew: true } : {}), ...(fresh ? { fresh: true } : {}) });
   if (!res.ok) return res;
   const d = res.data || {};
   // Pass the dedupe/queue outcome through: when the target was already
@@ -324,6 +324,7 @@ export async function startHunt(target, scope, mode, confirmedAuthorized, brainM
       state: d.state,
       message: d.message,
       brainMode: d.brainMode || null,
+      scanDepth: d.scanDepth || 'standard',
     },
   };
 }

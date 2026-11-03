@@ -20,14 +20,36 @@ function record(huntId, event) {
  * Run the rule-based scanner for a hunt.
  * @param {string} huntId
  * @param {string} target
- * @param {object} opts - { scope, userId }
+ * @param {object} opts - { scope, userId, scanDepth }
+ *
+ * scanDepth (3 Nov 2026, owner order): 'quick' | 'standard' | 'deep'.
+ * Every depth runs the full predefined battery — depth only changes how
+ * far the crawler goes and how long each probe may take.
  */
 export async function runScannerHunt(huntId, target, opts = {}) {
   const startedAt = new Date().toISOString();
+  const scanDepth = opts.scanDepth === 'quick' || opts.scanDepth === 'deep' ? opts.scanDepth : 'standard';
+  // Depth → real runScan knobs. Quick trims the slowest phases (blind
+  // SQLi / nuclei) and the crawl budget; deep widens both. Standard is
+  // the full battery at the default budget.
+  const depthOpts =
+    scanDepth === 'quick'
+      ? {
+          timeoutMs: 8000,
+          maxUrls: 8,
+          phases: [
+            'fingerprint', 'crawl', 'headers', 'sqli-error', 'xss', 'cmdi',
+            'traversal', 'redirect', 'csrf', 'post-forms', 'cors', 'cookies',
+          ],
+        }
+      : scanDepth === 'deep'
+        ? { timeoutMs: 30000, maxUrls: 40 }
+        : { timeoutMs: 15000, maxUrls: 15 };
   record(huntId, {
     type: 'status',
     state: 'scanner_started',
-    message: 'Rule-based automation scan started (no AI).',
+    message: `Rule-based automation scan started (no AI) — depth: ${scanDepth}.`,
+    scanDepth,
   });
 
   // Mark the hunt as running in scanner mode.
@@ -50,10 +72,11 @@ export async function runScannerHunt(huntId, target, opts = {}) {
         target,
         scope: opts.scope || null,
         confirmedAuthorized: true,
+        ...(depthOpts.phases ? { phases: depthOpts.phases } : {}),
       },
       {
-        timeoutMs: 15000,
-        maxUrls: 15,
+        timeoutMs: depthOpts.timeoutMs,
+        maxUrls: depthOpts.maxUrls,
       }
     );
 
@@ -99,6 +122,7 @@ export async function runScannerHunt(huntId, target, opts = {}) {
         scannerSummary: {
           confirmed: result.findings?.length || 0,
           unconfirmed: result.unconfirmed?.length || 0,
+          scanDepth,
         },
       });
     } catch {

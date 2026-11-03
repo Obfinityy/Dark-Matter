@@ -35,6 +35,26 @@ function IconActivity() {
 export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onActivity, onOpenHunt }) {
   const { user } = useAuth();
   const [modelOpen, setModelOpen] = useState(false);
+  // Hunter picker (3 Nov 2026, owner order): "Dark Matter" opens two
+  // hunters — Infinity AI and Infinity Autonomous. The choice is the
+  // default hunter for new hunts (the New Hunt dialog reads the same key
+  // and still lets each hunt override it). Persisted per device.
+  const [hunter, setHunter] = useState(() => {
+    try {
+      return window.localStorage.getItem('dm.hunter') === 'ai' ? 'ai' : 'scanner';
+    } catch {
+      return 'scanner';
+    }
+  });
+  function pickHunter(h) {
+    setHunter(h);
+    try {
+      window.localStorage.setItem('dm.hunter', h);
+    } catch {
+      /* storage unavailable — session default still applies */
+    }
+    setModelOpen(false);
+  }
   const [profileOpen, setProfileOpen] = useState(false);
   const [burn, setBurn] = useState(null);
   const modelRef = useRef(null);
@@ -125,20 +145,58 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onA
         >
           <img src="/dark-matter-symbol.png" alt="" className="brand-picker-symbol" aria-hidden="true" />
           Dark Matter
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              opacity: 0.55,
+              border: '1px solid currentColor',
+              borderRadius: 999,
+              padding: '1px 7px',
+              marginLeft: 2,
+              whiteSpace: 'nowrap',
+            }}
+            title={hunter === 'scanner' ? 'Infinity Autonomous — rule-based scan, no AI, $0' : 'Infinity AI — AI agent hunts autonomously'}
+          >
+            {hunter === 'scanner' ? 'Autonomous' : 'AI'}
+          </span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
             <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
         {modelOpen && (
           <div className="model-menu" role="menu">
-            <button className="model-option" role="menuitemradio" aria-checked="true" onClick={() => setModelOpen(false)}>
+            <button
+              className="model-option"
+              role="menuitemradio"
+              aria-checked={hunter === 'ai'}
+              onClick={() => pickHunter('ai')}
+            >
               <div>
-                <div className="model-option-name">Dark Matter</div>
-                <div className="model-option-sub">Infinity AI</div>
+                <div className="model-option-name">Infinity AI</div>
+                <div className="model-option-sub">AI agent hunts like a human expert</div>
               </div>
-              <svg className="model-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
-                <path d="M4 12.5 9.5 18 20 6.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              {hunter === 'ai' && (
+                <svg className="model-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+                  <path d="M4 12.5 9.5 18 20 6.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </button>
+            <button
+              className="model-option"
+              role="menuitemradio"
+              aria-checked={hunter === 'scanner'}
+              onClick={() => pickHunter('scanner')}
+            >
+              <div>
+                <div className="model-option-name">Infinity Autonomous</div>
+                <div className="model-option-sub">Rule-based scan, no AI, $0 — results in minutes</div>
+              </div>
+              {hunter === 'scanner' && (
+                <svg className="model-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+                  <path d="M4 12.5 9.5 18 20 6.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
             </button>
           </div>
         )}

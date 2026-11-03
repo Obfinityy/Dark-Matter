@@ -109,6 +109,16 @@ function HistoryItem({ chat, active, running, onSelect, onRename, onDelete }) {
     else setDraft(chat.title || 'Untitled chat');
   }
 
+  // Hunter badge (3 Nov 2026, owner order): hunt chats are labelled by
+  // hunter — "AI" vs "Autonomous" — so the two kinds stay visually
+  // separate. Hunts created before brainMode was recorded count as AI.
+  const huntMsg = (chat.messages || []).find((m) => m && m.role === 'hunt' && m.hunt);
+  const hunterBadge = !huntMsg
+    ? null
+    : huntMsg.hunt.brainMode === 'scanner'
+      ? { label: 'Autonomous', title: 'Infinity Autonomous hunt — rule-based scan, no AI' }
+      : { label: 'AI', title: 'Infinity AI hunt — AI agent' };
+
   return (
     <div
       className={`history-item${active ? ' active' : ''}`}
@@ -139,6 +149,25 @@ function HistoryItem({ chat, active, running, onSelect, onRename, onDelete }) {
       ) : (
         <>
           {running && <span className="running-dot" aria-label="Running" title="Running" />}
+          {hunterBadge && (
+            <span
+              title={hunterBadge.title}
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                border: '1px solid currentColor',
+                borderRadius: 999,
+                padding: '1px 6px',
+                marginRight: 6,
+                opacity: 0.6,
+                flexShrink: 0,
+              }}
+            >
+              {hunterBadge.label}
+            </span>
+          )}
           <span className="history-title">{chat.title || 'Untitled chat'}</span>
         </>
       )}

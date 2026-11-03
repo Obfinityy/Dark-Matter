@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 const MODES = [
   { id: 'normal', name: 'Normal', tagline: 'Quick recon + top checks', tier: 'free' },
@@ -9,23 +9,54 @@ const MODES = [
   { id: 'infinity', name: 'Infinity', tagline: 'No limits — hunts until stopped', tier: 'elite' },
 ];
 
+// Scan depth for the autonomous hunter (3 Nov 2026, owner order): every
+// depth runs the full predefined battery — depth only changes how far the
+// crawler goes and how long each probe may take. Wired end-to-end:
+// modal → POST /api/v1/hunts {scanDepth} → scannerHunt → runScan opts.
+const SCAN_DEPTHS = [
+  { id: 'quick', name: 'Quick', tagline: 'Top pages only · fastest', tier: 'free' },
+  { id: 'standard', name: 'Standard', tagline: 'Full battery · balanced', tier: 'free' },
+  { id: 'deep', name: 'Deep', tagline: 'More pages, longer probes · slowest', tier: 'pro' },
+];
+
+// Default hunter shared with the TopBar hunter picker (localStorage
+// 'dm.hunter': 'ai' | 'scanner'). The dialog re-reads it every time it
+// opens so a top-bar change applies to the next hunt.
+function defaultHunter() {
+  try {
+    return window.localStorage.getItem('dm.hunter') === 'ai' ? 'ai' : 'scanner';
+  } catch {
+    return 'scanner';
+  }
+}
+
 export default function NewHuntModal({ open, onClose, onSubmit, launching }) {
   const [target, setTarget] = useState('');
   const [scope, setScope] = useState('');
   // Infinity is the running default (owner order, 24 Oct 2026): hunts run
   // until stopped. All six modes stay selectable in the picker.
   const [mode, setMode] = useState('infinity');
-  // Brain mode (3 Nov 2026): the hunt asks "With AI or With Automation?".
-  // 'ai' = the AI agent hunts; 'scanner' = rule-based automation (no AI, $0).
-  const [brainMode, setBrainMode] = useState('scanner');
+  // Hunter (3 Nov 2026, owner order): "Infinity AI" or
+  // "Infinity Autonomous". 'ai' = the AI agent hunts; 'scanner' =
+  // rule-based automation (no AI, $0).
+  const [brainMode, setBrainMode] = useState(defaultHunter);
+  const [scanDepth, setScanDepth] = useState('standard');
   const [confirmed, setConfirmed] = useState(false);
+
+  // Fresh dialog state on every open — picks up the top-bar hunter choice.
+  useEffect(() => {
+    if (open) {
+      setBrainMode(defaultHunter());
+      setScanDepth('standard');
+    }
+  }, [open ]);
 
   if (!open) return null;
 
   function submit() {
     const t = target.trim();
     if (!t || !confirmed) return;
-    onSubmit(t, scope.trim(), mode, confirmed, brainMode);
+    onSubmit(t, scope.trim(), mode, confirmed, brainMode, scanDepth);
   }
 
   return (
@@ -64,7 +95,7 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching }) {
               onClick={() => setBrainMode('ai')}
               title="The AI agent hunts like a human expert"
             >
-              <div className="mode-name">With AI</div>
+              <div className="mode-name">Infinity AI</div>
               <div className="mode-tag">AI agent hunts autonomously</div>
             </button>
             <button
@@ -73,12 +104,32 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching }) {
               onClick={() => setBrainMode('scanner')}
               title="Predefined rule-based automation — no AI, $0, results in minutes"
             >
-              <div className="mode-name">With Automation</div>
+              <div className="mode-name">Infinity Autonomous</div>
               <div className="mode-tag">Rule-based scan, no AI, $0</div>
               <div className="mode-tier">fast</div>
             </button>
           </div>
         </div>
+        {brainMode === 'scanner' && (
+          <div className="field-label">
+            Scan depth
+            <div className="mode-grid">
+              {SCAN_DEPTHS.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  className={`mode-card${scanDepth === d.id ? ' selected' : ''}`}
+                  onClick={() => setScanDepth(d.id)}
+                  title={d.tagline}
+                >
+                  <div className="mode-name">{d.name}</div>
+                  <div className="mode-tag">{d.tagline}</div>
+                  {d.tier !== 'free' && <div className="mode-tier">{d.tier}</div>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="field-label">
           Hunt intensity
           <div className="mode-grid">

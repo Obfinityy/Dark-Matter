@@ -674,6 +674,16 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
             🧠 You are the brain
           </span>
         )}
+        {(brainMode === 'scanner' || (!brainMode && hunt.brainMode === 'scanner')) && (
+          <span className="brain-mode-badge" role="status" title="Infinity Autonomous — rule-based scan, no AI, $0">
+            ⚡ Autonomous
+          </span>
+        )}
+        {(brainMode === 'ai' || (!brainMode && hunt.brainMode !== 'scanner')) && (
+          <span className="brain-mode-badge" role="status" title="Infinity AI — AI agent hunts autonomously">
+            🤖 AI
+          </span>
+        )}
         {brainMode === 'parent' && liveProc && liveProc.activity && (
           <span className="hunt-live-activity" role="status" title={liveProc.in_process ? 'A process is running right now' : 'No process running right now'}>
             <span className={liveProc.in_process ? 'hunt-live-dot live' : 'hunt-live-dot'} aria-hidden="true" />

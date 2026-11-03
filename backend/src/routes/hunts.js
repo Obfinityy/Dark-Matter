@@ -193,11 +193,14 @@ export function isTargetAllowed(target) {
 // target checks below. Everything else (chat, plugins, reports, health,
 // browsing) stays public.
 router.post('/', requireAuth, async (req, res) => {
-  const { target, scope, confirmedAuthorized, mode, forceNew, fresh, brainMode } = req.body || {};
+  const { target, scope, confirmedAuthorized, mode, forceNew, fresh, brainMode, scanDepth } = req.body || {};
   // brainMode: 'ai' (default) or 'scanner' (rule-based automation, no AI).
-  // The AI option stays — the frontend asks "With AI or With Automation?".
+  // scanDepth: 'quick' | 'standard' (default) | 'deep' — autonomous hunter
+  // only; validated, anything else falls back to 'standard'.
   const reqBrainMode = brainMode === 'scanner' ? 'scanner' : 'ai';
-  console.log(`[hunts] CREATE attempt by ${req.user.username} (${req.user.id}): target=${target}, mode=${mode}, brainMode=${reqBrainMode}, confirmed=${confirmedAuthorized}`);
+  const reqScanDepth = scanDepth === 'quick' || scanDepth === 'deep' ? scanDepth : 'standard';
+  // The AI option stays — the frontend asks "Infinity AI or Infinity Autonomous?".
+  console.log(`[hunts] CREATE attempt by ${req.user.username} (${req.user.id}): target=${target}, mode=${mode}, brainMode=${reqBrainMode}, scanDepth=${reqScanDepth}, confirmed=${confirmedAuthorized}`);
   if (typeof target !== 'string' || !target.trim()) {
     return res.status(400).json({
       ok: false,
@@ -435,8 +438,11 @@ router.post('/', requireAuth, async (req, res) => {
       scopeGuard,
       mode: huntMode.id,
       // Brain mode: 'ai' (default) or 'scanner' (rule-based automation).
-      // The frontend asks "With AI or With Automation?" at hunt creation.
+      // The frontend asks "Infinity AI or Infinity Autonomous?" at hunt
+      // creation. scanDepth ('quick' | 'standard' | 'deep') applies to the
+      // autonomous hunter only.
       brainMode: reqBrainMode,
+      scanDepth: reqScanDepth,
       // HUMAN MODE: flag both keys the human path checks
       // (huntAgent.js: meta.humanMode === true || mode/meta.mode ===
       // 'human'), matching drive-human.mjs + the lab scripts.
@@ -467,7 +473,7 @@ router.post('/', requireAuth, async (req, res) => {
       // scanner battery (fingerprint → probes → verifier) and record
       // findings as hunt events. $0 AI spend, results in seconds/minutes.
       const { runScannerHunt } = await import('../scannerHunt.js');
-      runScannerHunt(huntId, target, { scope, userId: req.user.id }).catch((err) => {
+      runScannerHunt(huntId, target, { scope, userId: req.user.id, scanDepth: reqScanDepth }).catch((err) => {
         appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
       });
     } else {
@@ -478,7 +484,7 @@ router.post('/', requireAuth, async (req, res) => {
         appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
       });
     }
-    res.status(201).json({ ok: true, huntId, brainMode: reqBrainMode, ...(fresh === true ? { fresh: true } : {}) });
+    res.status(201).json({ ok: true, huntId, brainMode: reqBrainMode, scanDepth: reqScanDepth, ...(fresh === true ? { fresh: true } : {}) });
   } catch (err) {
     engineErrorResponse(res, err);
   }
