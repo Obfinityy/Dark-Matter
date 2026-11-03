@@ -7,10 +7,36 @@ import { fingerprint } from './fingerprint.js';
 import { crawl } from './crawl.js';
 import { probeHeaders } from './probes/headers.js';
 import { probeSqliError } from './probes/sqliError.js';
+import { probeXssReflected } from './probes/xss.js';
+import { probeCmdiTime } from './probes/cmdi.js';
+import { probeTraversal } from './probes/traversal.js';
+import { probeSsti } from './probes/ssti.js';
+import { probeOpenRedirect } from './probes/redirect.js';
+import { probeCsrf } from './probes/csrf.js';
+import { probeSensitiveFiles } from './probes/files.js';
+import { probeXxe } from './probes/xxe.js';
+import { probeSsrf } from './probes/ssrf.js';
+import { probeIdorSurface } from './probes/idor.js';
 import { runNuclei } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
-const DEFAULT_PHASES = ['fingerprint', 'crawl', 'headers', 'sqli-error', 'nuclei'];
+const DEFAULT_PHASES = [
+  'fingerprint',
+  'crawl',
+  'headers',
+  'sqli-error',
+  'xss',
+  'cmdi',
+  'traversal',
+  'ssti',
+  'redirect',
+  'csrf',
+  'files',
+  'xxe',
+  'ssrf',
+  'idor',
+  'nuclei',
+];
 
 export async function runScan(
   {
@@ -48,16 +74,25 @@ export async function runScan(
 
   fp = await step('fingerprint', () => fingerprint(url, opts));
   crawled = await step('crawl', () => crawl(url, opts));
-  await step('headers', () =>
-    fp ? probeHeaders({ url, headers: fp.headers }) : []
-  );
-  await step('sqli-error', () => {
-    const params = new Set([
-      ...(crawled ? crawled.params : []),
-      ...new URL(url).searchParams.keys(),
-    ]);
-    return probeSqliError(url, [...params], opts);
-  });
+
+  // Candidate inputs: crawled params + the target URL's own query params.
+  const params = [
+    ...new Set([...(crawled ? crawled.params : []), ...new URL(url).searchParams.keys()]),
+  ];
+  const forms = crawled ? crawled.forms : [];
+
+  await step('headers', () => (fp ? probeHeaders({ url, headers: fp.headers }) : []));
+  await step('sqli-error', () => probeSqliError(url, params, opts));
+  await step('xss', () => probeXssReflected(url, params, opts));
+  await step('cmdi', () => probeCmdiTime(url, params, opts));
+  await step('traversal', () => probeTraversal(url, params, opts));
+  await step('ssti', () => probeSsti(url, params, opts));
+  await step('redirect', () => probeOpenRedirect(url, params, opts));
+  await step('csrf', () => probeCsrf(forms, url));
+  await step('files', () => probeSensitiveFiles(url, opts));
+  await step('xxe', () => probeXxe(url, opts));
+  await step('ssrf', () => probeSsrf(url, params, opts));
+  await step('idor', () => probeIdorSurface(url));
   await step('nuclei', async () => (await runNuclei(url, opts)).findings);
 
   const { confirmed, unconfirmed } = verifyFindings(all);

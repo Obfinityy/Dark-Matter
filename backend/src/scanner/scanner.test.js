@@ -6,6 +6,8 @@ import { parseJsonl } from './runner.js';
 import { detectTech, detectDbFamily } from './fingerprint.js';
 import { extractLinks, extractForms, extractParams } from './crawl.js';
 import { probeHeaders } from './probes/headers.js';
+import { probeCsrf } from './probes/csrf.js';
+import { probeIdorSurface } from './probes/idor.js';
 import { verifyFindings } from './verifier.js';
 
 describe('target', () => {
@@ -124,6 +126,49 @@ describe('probeHeaders', () => {
       },
     });
     assert.equal(findings.length, 0);
+  });
+});
+
+describe('probeCsrf', () => {
+  it('flags POST forms without a token field', () => {
+    const findings = probeCsrf(
+      [{ action: 'https://example.com/change', method: 'post', inputs: ['email'] }],
+      'https://example.com/'
+    );
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].class, 'csrf');
+    assert.ok(findings[0].evidence.signalCorrelated);
+  });
+  it('passes forms that carry a token', () => {
+    const findings = probeCsrf(
+      [{ action: 'https://example.com/change', method: 'post', inputs: ['email', 'csrf_token'] }],
+      'https://example.com/'
+    );
+    assert.equal(findings.length, 0);
+  });
+  it('ignores GET forms', () => {
+    const findings = probeCsrf(
+      [{ action: 'https://example.com/search', method: 'get', inputs: ['q'] }],
+      'https://example.com/'
+    );
+    assert.equal(findings.length, 0);
+  });
+});
+
+describe('probeIdorSurface', () => {
+  it('flags sequential numeric IDs', () => {
+    const findings = probeIdorSurface('https://example.com/user/12345/profile');
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].class, 'idor');
+  });
+  it('stays quiet without numeric IDs', () => {
+    assert.equal(probeIdorSurface('https://example.com/about').length, 0);
+  });
+  it('never auto-confirms (stays unconfirmed by design)', () => {
+    const { confirmed } = verifyFindings(
+      probeIdorSurface('https://example.com/user/12345/profile')
+    );
+    assert.equal(confirmed.length, 0);
   });
 });
 
