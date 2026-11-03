@@ -890,6 +890,28 @@ router.get('/:id/report', requireAuth, async (req, res) => {
   res.type('text/markdown').send(md);
 });
 
+// ---- AI-generated report for Autonomous hunts (owner order 3 Nov 2026) ---
+// GET /api/v1/hunts/:id/agent-report — "jo report aayegi wo AI banayega".
+// Meta AI writes the professional report from the scanner's collected data
+// (findings only, not the event firehose). One call per request, cost
+// recorded. Honest 502 when the API is unavailable — never a fabricated
+// report. Auth: JWT + hunt ownership.
+router.get('/:id/agent-report', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const lang = String(req.query.lang || 'hinglish-roman').slice(0, 40);
+  try {
+    const { generateAgentReport } = await import('../scanner/agentReport.js');
+    const r = await generateAgentReport(req.params.id, { lang });
+    if (!r.ok) {
+      return res.status(502).json({ ok: false, error: 'report_unavailable', reason: r.reason });
+    }
+    res.type('text/markdown').send(r.markdown);
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: 'report_error' });
+  }
+});
+
 // ---- Autonomous agent chat (owner order 3 Nov 2026) ----------------------
 // POST /api/v1/hunts/:id/agent-chat — talk to the scan agent about THIS
 // hunt. Meta API answers from the hunt's own findings, in the user's

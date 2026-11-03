@@ -232,7 +232,7 @@ export default function ChatPage({
     setVoiceOpen(true);
   }
 
-  function handleGetReport(huntId) {
+  function handleGetReport(huntId, brainMode) {
     if (!ensureHuntAuth()) return;
     // Open the professional bug bounty report in a new tab (markdown format)
     // The backend generates it from hunt memory + findings via the Head agent
@@ -240,7 +240,11 @@ export default function ChatPage({
     // var is unset in the Cloudflare build, so this opened a relative
     // Pages URL instead of the backend. Use the shared resolver.
     const apiBase = resolveApiBase();
-    window.open(`${apiBase}/api/v1/hunts/${huntId}/report?format=md`, '_blank', 'noopener');
+    // AGENT REPORT (3 Nov 2026, owner order): Autonomous hunts get the
+    // AI-written report from the scanner's data (Meta API); AI hunts keep
+    // the deterministic memory report.
+    const path = brainMode === 'scanner' ? 'agent-report' : 'report?format=md';
+    window.open(`${apiBase}/api/v1/hunts/${huntId}/${path}`, '_blank', 'noopener');
   }
 
   function handleVoiceClose() {

@@ -980,7 +980,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         {onGetReport && (
           <button
             className="hunt-pill-btn"
-            onClick={() => onGetReport(hunt.huntId)}
+            onClick={() => onGetReport(hunt.huntId, isScanner ? 'scanner' : brainMode)}
             title="Generate a professional bug bounty report from this hunt's findings and memory"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
