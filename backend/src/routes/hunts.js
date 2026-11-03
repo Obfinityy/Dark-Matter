@@ -890,6 +890,32 @@ router.get('/:id/report', requireAuth, async (req, res) => {
   res.type('text/markdown').send(md);
 });
 
+// ---- Autonomous agent chat (owner order 3 Nov 2026) ----------------------
+// POST /api/v1/hunts/:id/agent-chat — talk to the scan agent about THIS
+// hunt. Meta API answers from the hunt's own findings, in the user's
+// language, strictly scoped to bug-bounty + the current target; anything
+// outside scope gets a short refusal. Minimal cost by construction
+// (one short call per message). Auth: JWT + hunt ownership.
+router.post('/:id/agent-chat', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  const message = String((req.body && req.body.message) || '').slice(0, 2000).trim();
+  if (!message) {
+    return res.status(400).json({ ok: false, error: 'empty_message' });
+  }
+  const lang = String((req.body && req.body.lang) || 'hinglish-roman').slice(0, 40);
+  try {
+    const { agentChatReply } = await import('../scanner/agentChat.js');
+    const r = await agentChatReply(req.params.id, message, { lang });
+    if (!r.ok) {
+      return res.status(502).json({ ok: false, error: 'agent_unavailable', reason: r.reason });
+    }
+    return res.json({ ok: true, reply: r.text, costUsd: r.costUsd });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: 'agent_error' });
+  }
+});
+
 // ---- Live Machine: latest frame of the hunt machine's GUI desktop --------
 // The owner watches the agent's desktop as a picture that refreshes every
 // few seconds (the frontend polls this route ~every 3s). Strictly a
