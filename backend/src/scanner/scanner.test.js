@@ -612,3 +612,47 @@ describe('iter3 probes: nosqli, ldapi, xpathi', () => {
     }
   });
 });
+
+describe('iter4 probe: ssi', () => {
+  const realFetch = globalThis.fetch;
+  const teardown = () => {
+    globalThis.fetch = realFetch;
+  };
+
+  it('ssi confirms when the echo directive executes', async () => {
+    const { probeSsiInjection } = await import('./probes/ssi.js');
+    globalThis.fetch = async (url) => {
+      const u = new URL(String(url));
+      const v = u.searchParams.get('q') || '';
+      const body = v.includes('#echo')
+        ? '<html>Tuesday, 03-Nov-2026 21:30:00 IST</html>'
+        : `<html>you said: ${v}</html>`;
+      return { text: async () => body, status: 200 };
+    };
+    try {
+      const findings = await probeSsiInjection('http://example.com/page', ['q'], { timeoutMs: 5000 });
+      const s = findings.filter((f) => f.class === 'ssi_injection');
+      assert.equal(s.length, 1);
+      assert.equal(s[0].severity, 'high');
+      const { confirmed } = verifyFindings(findings);
+      assert.equal(confirmed.filter((f) => f.class === 'ssi_injection').length, 1);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('ssi stays quiet when the directive echoes back unprocessed', async () => {
+    const { probeSsiInjection } = await import('./probes/ssi.js');
+    globalThis.fetch = async (url) => {
+      const u = new URL(String(url));
+      const v = u.searchParams.get('q') || '';
+      return { text: async () => `<html>you said: ${v}</html>`, status: 200 };
+    };
+    try {
+      const findings = await probeSsiInjection('http://example.com/page', ['q'], { timeoutMs: 5000 });
+      assert.equal(findings.length, 0);
+    } finally {
+      teardown();
+    }
+  });
+});

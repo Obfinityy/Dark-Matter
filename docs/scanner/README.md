@@ -11,7 +11,7 @@ paste link
                                       every request is scope-checked)
   → recon: crawl + tech fingerprint  (crawl.js, fingerprint.js — same-origin
                                       links/forms/params; server, libs, DB family)
-  → probe battery (23 probe modules)  (probes/ — one deterministic check per
+  → probe battery (24 probe modules)  (probes/ — one deterministic check per
                                       class, each with its own proof oracle)
   → Nuclei template battery          (nuclei.js — ~13k verified-check templates
                                       via docker/tools/nuclei/run-nuclei.sh)
@@ -47,6 +47,7 @@ proves the signal comes from the malicious input.
 | [nosqli.md](nosqli.md) | NoSQL injection | probes/nosqli.js |
 | [ldapi.md](ldapi.md) | LDAP injection | probes/ldapi.js |
 | [xpathi.md](xpathi.md) | XPath injection | probes/xpathi.js |
+| [ssi.md](ssi.md) | SSI injection | probes/ssi.js |
 | [nuclei.md](nuclei.md) | Nuclei template battery (CVEs etc.) | nuclei.js |
 
 ## Honest limits

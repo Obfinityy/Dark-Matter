@@ -31,7 +31,7 @@
  */
 export const ELEMENT_VULN_MATRIX = {
   // Text-like inputs: the classic injection surface.
-  'input:text': ['sqli-error', 'sqli-blind', 'xss', 'cmdi', 'ssti', 'stored-xss', 'nosqli', 'ldapi', 'xpathi'],
+  'input:text': ['sqli-error', 'sqli-blind', 'xss', 'cmdi', 'ssti', 'stored-xss', 'nosqli', 'ldapi', 'xpathi', 'ssi'],
   'input:search': ['sqli-error', 'sqli-blind', 'xss', 'ssti', 'stored-xss', 'nosqli', 'ldapi', 'xpathi'],
   'input:email': ['sqli-error', 'xss', 'stored-xss', 'nosqli'],
   'input:url': ['sqli-error', 'xss', 'ssrf', 'redirect', 'stored-xss'],
@@ -44,7 +44,7 @@ export const ELEMENT_VULN_MATRIX = {
   // File picker: inventoried; upload battery is a documented future slot.
   'input:file': [],
   // Multi-line + choice inputs.
-  textarea: ['sqli-error', 'sqli-blind', 'xss', 'ssti', 'stored-xss', 'nosqli', 'ldapi', 'xpathi'],
+  textarea: ['sqli-error', 'sqli-blind', 'xss', 'ssti', 'stored-xss', 'nosqli', 'ldapi', 'xpathi', 'ssi'],
   select: ['sqli-error', 'xss'],
   // Query-string parameters on the page URL itself.
   'url-param': [
@@ -59,6 +59,7 @@ export const ELEMENT_VULN_MATRIX = {
     'nosqli',
     'ldapi',
     'xpathi',
+    'ssi',
   ],
   // Whole-form properties.
   form: ['csrf', 'post-forms'],

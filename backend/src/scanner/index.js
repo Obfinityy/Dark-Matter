@@ -30,6 +30,7 @@ import { probeHostHeader } from './probes/hostHeader.js';
 import { probeNoSqli } from './probes/nosqli.js';
 import { probeLdapInjection } from './probes/ldapi.js';
 import { probeXpathInjection } from './probes/xpathi.js';
+import { probeSsiInjection } from './probes/ssi.js';
 import { runNuclei } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -59,6 +60,7 @@ export const DEFAULT_PHASES = [
   'nosqli',
   'ldapi',
   'xpathi',
+  'ssi',
   'nuclei',
 ];
 
@@ -227,6 +229,7 @@ export async function runScan(
     await step('nosqli', () => probeNoSqli(u, uparams, opts));
     await step('ldapi', () => probeLdapInjection(u, uparams, opts));
     await step('xpathi', () => probeXpathInjection(u, uparams, opts));
+    await step('ssi', () => probeSsiInjection(u, uparams, opts));
     await step('cmdi', () => probeCmdiTime(u, uparams, opts));
     await step('traversal', () => probeTraversal(u, uparams, opts));
     await step('ssti', () => probeSsti(u, uparams, opts));
