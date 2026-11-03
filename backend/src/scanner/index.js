@@ -8,6 +8,7 @@ import { fingerprint, fetchPage } from './fingerprint.js';
 import { crawl, extractParams, extractForms } from './crawl.js';
 import { probeHeaders } from './probes/headers.js';
 import { probeSqliError } from './probes/sqliError.js';
+import { probeBlindSqli } from './probes/sqliBlind.js';
 import { probeXssReflected } from './probes/xss.js';
 import { probeCmdiTime } from './probes/cmdi.js';
 import { probeTraversal } from './probes/traversal.js';
@@ -27,6 +28,7 @@ const DEFAULT_PHASES = [
   'crawl',
   'headers',
   'sqli-error',
+  'sqli-blind',
   'xss',
   'cmdi',
   'traversal',
@@ -160,6 +162,9 @@ export async function runScan(
     const uparams = [...new Set(extractParams(u))];
     if (uparams.length === 0) continue;
     await step('sqli-error', () => probeSqliError(u, uparams, opts));
+    await step('sqli-blind', () =>
+      probeBlindSqli(u, uparams, { ...opts, dbHint: fp?.dbHint })
+    );
     await step('xss', () => probeXssReflected(u, uparams, opts));
     await step('cmdi', () => probeCmdiTime(u, uparams, opts));
     await step('traversal', () => probeTraversal(u, uparams, opts));

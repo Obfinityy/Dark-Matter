@@ -265,3 +265,44 @@ describe('probePostForms', () => {
     }
   });
 });
+
+describe('probeBlindSqli', () => {
+  const realFetch = globalThis.fetch;
+  const teardown = () => {
+    globalThis.fetch = realFetch;
+  };
+  it('flags time-based blind SQLi when the SLEEP payload adds ~5s', async () => {
+    globalThis.fetch = async (url) => {
+      const u = new URL(String(url));
+      const v = u.searchParams.get('id') || '';
+      if (v.includes('SLEEP')) {
+        await new Promise((r) => setTimeout(r, 4500));
+      }
+      return { text: async () => '<html>ok</html>' };
+    };
+    try {
+      const { probeBlindSqli } = await import('./probes/sqliBlind.js');
+      const findings = await probeBlindSqli('http://example.com/?id=1', ['id'], {
+        timeoutMs: 10000,
+      });
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].class, 'sqli_blind');
+      assert.equal(findings[0].severity, 'critical');
+      assert.ok(findings[0].evidence.delayTracks);
+    } finally {
+      teardown();
+    }
+  });
+  it('stays quiet when SLEEP adds no delay', async () => {
+    globalThis.fetch = async () => ({ text: async () => '<html>ok</html>' });
+    try {
+      const { probeBlindSqli } = await import('./probes/sqliBlind.js');
+      const findings = await probeBlindSqli('http://example.com/?id=1', ['id'], {
+        timeoutMs: 10000,
+      });
+      assert.equal(findings.length, 0);
+    } finally {
+      teardown();
+    }
+  });
+});
