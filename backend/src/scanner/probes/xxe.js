@@ -14,7 +14,7 @@ export async function probeXxe(url, opts = {}) {
       const res = await fetch(url, {
         method: 'POST',
         signal: ctrl.signal,
-        headers: { 'User-Agent': UA, 'Content-Type': 'application/xml' },
+        headers: { 'User-Agent': UA, 'Content-Type': 'application/xml', ...(opts.headers || {}) },
         body: payload,
       });
       text = await res.text().catch(() => '');

@@ -2,11 +2,11 @@
 // Oracle: known file-content markers (root:x:0:0 / [extensions]) in the response.
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
-async function get(url, timeoutMs = 15000) {
+async function get(url, opts = {}) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  const t = setTimeout(() => ctrl.abort(), opts.timeoutMs || 15000);
   try {
-    const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': UA } });
+    const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': UA, ...(opts.headers || {}) } });
     return await res.text().catch(() => '');
   } finally {
     clearTimeout(t);
@@ -30,7 +30,7 @@ export async function probeTraversal(url, params, opts = {}) {
     for (const { payload, marker, os } of TRAVERSAL_CASES) {
       let body;
       try {
-        body = await get(withParam(url, param, payload), opts.timeoutMs);
+        body = await get(withParam(url, param, payload), opts);
       } catch {
         continue;
       }

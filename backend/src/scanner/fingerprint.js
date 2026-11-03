@@ -2,24 +2,24 @@
 // Pure Node fetch; supplements the wappalyzer-cli pipeline phase.
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
-export async function fetchPage(url, { timeoutMs = 15000 } = {}) {
+export async function fetchPage(url, { timeoutMs = 15000, headers = {} } = {}) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
       signal: ctrl.signal,
       redirect: 'follow',
-      headers: { 'User-Agent': UA, Accept: 'text/html,*/*' },
+      headers: { 'User-Agent': UA, Accept: 'text/html,*/*', ...headers },
     });
-    const headers = {};
-    for (const [k, v] of res.headers) headers[k.toLowerCase()] = v;
+    const respHeaders = {};
+    for (const [k, v] of res.headers) respHeaders[k.toLowerCase()] = v;
     let body = '';
     try {
       body = await res.text();
     } catch {
       body = '';
     }
-    return { url, status: res.status, headers, body: body.slice(0, 500000) };
+    return { url, status: res.status, headers: respHeaders, body: body.slice(0, 500000) };
   } finally {
     clearTimeout(t);
   }

@@ -5,11 +5,11 @@
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 const URL_PARAM_RE = /^(url|uri|image|img|src|source|fetch|feed|redirect|next|callback|webhook)$/i;
 
-async function get(url, timeoutMs = 15000) {
+async function get(url, opts = {}) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  const t = setTimeout(() => ctrl.abort(), opts.timeoutMs || 15000);
   try {
-    const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': UA } });
+    const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': UA, ...(opts.headers || {}) } });
     return await res.text().catch(() => '');
   } finally {
     clearTimeout(t);
@@ -30,7 +30,7 @@ export async function probeSsrf(url, params, opts = {}) {
     try {
       body = await get(
         withParam(url, param, 'http://169.254.169.254/latest/meta-data/'),
-        opts.timeoutMs
+        opts
       );
     } catch {
       continue;

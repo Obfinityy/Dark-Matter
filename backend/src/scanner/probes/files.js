@@ -10,11 +10,11 @@ const FILE_CHECKS = [
   { path: '/.DS_Store', marker: null, title: 'Exposed .DS_Store', severity: 'low' },
 ];
 
-async function get(url, timeoutMs = 15000) {
+async function get(url, opts = {}) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  const t = setTimeout(() => ctrl.abort(), opts.timeoutMs || 15000);
   try {
-    const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': UA } });
+    const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': UA, ...(opts.headers || {}) } });
     const text = await res.text().catch(() => '');
     return { status: res.status, text: text.slice(0, 5000) };
   } finally {
@@ -28,7 +28,7 @@ export async function probeSensitiveFiles(baseUrl, opts = {}) {
   for (const c of FILE_CHECKS) {
     let res;
     try {
-      res = await get(base + c.path, opts.timeoutMs);
+      res = await get(base + c.path, opts);
     } catch {
       continue;
     }

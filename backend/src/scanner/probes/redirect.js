@@ -3,14 +3,14 @@
 // redirect:'manual' so we observe the Location header instead of following it.
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
-async function getManual(url, timeoutMs = 15000) {
+async function getManual(url, opts = {}) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  const t = setTimeout(() => ctrl.abort(), opts.timeoutMs || 15000);
   try {
     const res = await fetch(url, {
       signal: ctrl.signal,
       redirect: 'manual',
-      headers: { 'User-Agent': UA },
+      headers: { 'User-Agent': UA, ...(opts.headers || {}) },
     });
     await res.text().catch(() => '');
     return { status: res.status, location: res.headers.get('location') };
@@ -31,7 +31,7 @@ export async function probeOpenRedirect(url, params, opts = {}) {
   for (const param of params.slice(0, 10)) {
     let r;
     try {
-      r = await getManual(withParam(url, param, evil), opts.timeoutMs);
+      r = await getManual(withParam(url, param, evil), opts);
     } catch {
       continue;
     }

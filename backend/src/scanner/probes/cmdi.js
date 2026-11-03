@@ -3,12 +3,12 @@
 // The baseline must be fast; otherwise the result is inconclusive (no finding).
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
-async function getTimed(url, timeoutMs = 20000) {
+async function getTimed(url, opts = {}) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  const t = setTimeout(() => ctrl.abort(), opts.timeoutMs || 20000);
   const start = Date.now();
   try {
-    const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': UA } });
+    const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': UA, ...(opts.headers || {}) } });
     await res.text().catch(() => '');
     return { ms: Date.now() - start, ok: true };
   } catch {
@@ -28,14 +28,11 @@ export async function probeCmdiTime(url, params, opts = {}) {
   const findings = [];
   const SLEEP_S = 5;
   for (const param of params.slice(0, 6)) {
-    const base = await getTimed(withParam(url, param, '1'), opts.timeoutMs).catch(
+    const base = await getTimed(withParam(url, param, '1'), opts).catch(
       () => null
     );
     if (!base || !base.ok || base.ms > 3000) continue;
-    const injected = await getTimed(
-      withParam(url, param, `1;sleep ${SLEEP_S}`),
-      25000
-    ).catch(() => null);
+    const injected = await getTimed(withParam(url, param, `1;sleep ${SLEEP_S}`), { ...opts, timeoutMs: 25000 }).catch(() => null);
     if (!injected || !injected.ok) continue;
     const delayTracks =
       injected.ms >= SLEEP_S * 1000 - 1500 && injected.ms - base.ms >= (SLEEP_S - 1) * 1000;

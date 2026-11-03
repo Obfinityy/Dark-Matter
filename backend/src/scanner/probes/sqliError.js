@@ -5,11 +5,11 @@ import { detectDbFamily } from '../fingerprint.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
-async function get(url, timeoutMs = 15000) {
+async function get(url, opts = {}) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  const t = setTimeout(() => ctrl.abort(), opts.timeoutMs || 15000);
   try {
-    const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': UA } });
+    const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': UA, ...(opts.headers || {}) } });
     const text = await res.text().catch(() => '');
     return { status: res.status, text: text.slice(0, 200000) };
   } finally {
@@ -34,8 +34,8 @@ export async function probeSqliError(url, params, opts = {}) {
     } catch {
       continue;
     }
-    const benign = await get(base, opts.timeoutMs).catch(() => null);
-    const malicious = await get(withParam(url, param, "1'"), opts.timeoutMs).catch(() => null);
+    const benign = await get(base, opts).catch(() => null);
+    const malicious = await get(withParam(url, param, "1'"), opts).catch(() => null);
     if (!benign || !malicious) continue;
 
     const dbFamily = detectDbFamily(malicious.text);
