@@ -64,7 +64,7 @@ export const ELEMENT_VULN_MATRIX = {
   // Whole-form properties.
   form: ['csrf', 'post-forms'],
   // Whole-page properties.
-  page: ['headers', 'cors', 'cookies', 'files', 'xxe', 'idor', 'host-header'],
+  page: ['headers', 'cors', 'cookies', 'files', 'xxe', 'idor', 'host-header', 'cache-poisoning'],
 };
 
 /** Vulnerability classes applicable to an element kind (never null). */

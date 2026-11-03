@@ -716,3 +716,48 @@ describe('iter4 probe: fileUpload (lab-gated)', () => {
     }
   });
 });
+
+describe('iter5 probe: cachePoison', () => {
+  const realFetch = globalThis.fetch;
+  const teardown = () => {
+    globalThis.fetch = realFetch;
+  };
+
+  it('confirms when the poisoned response is served to a clean request', async () => {
+    const { probeCachePoisoning } = await import('./probes/cachePoison.js');
+    let cached = null;
+    globalThis.fetch = async (_url, { headers } = {}) => {
+      const xfh = headers && headers['X-Forwarded-Host'];
+      if (xfh) cached = `<html>host: ${xfh}</html>`; // poison the cache
+      const body = cached || '<html>home</html>';
+      return { text: async () => body, headers: { get: () => null, has: () => false } };
+    };
+    try {
+      const findings = await probeCachePoisoning('http://example.com/', { timeoutMs: 5000 });
+      const cp = findings.filter((f) => f.class === 'cache_poisoning');
+      assert.equal(cp.length, 1);
+      assert.equal(cp[0].severity, 'medium');
+      const { confirmed } = verifyFindings(findings);
+      assert.equal(confirmed.filter((f) => f.class === 'cache_poisoning').length, 1);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('stays quiet when nothing is cached', async () => {
+    const { probeCachePoisoning } = await import('./probes/cachePoison.js');
+    globalThis.fetch = async (_url, { headers } = {}) => {
+      const xfh = headers && headers['X-Forwarded-Host'];
+      return {
+        text: async () => (xfh ? `<html>host: ${xfh}</html>` : '<html>home</html>'),
+        headers: { get: () => null, has: () => false },
+      };
+    };
+    try {
+      const findings = await probeCachePoisoning('http://example.com/', { timeoutMs: 5000 });
+      assert.equal(findings.length, 0);
+    } finally {
+      teardown();
+    }
+  });
+});
