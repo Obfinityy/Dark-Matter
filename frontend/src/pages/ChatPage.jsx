@@ -250,12 +250,16 @@ export default function ChatPage({
 
   async function handleStartHunt(target, scope, mode, confirmed, brainMode = 'ai', forceNew = false, fresh = false) {
     if (!ensureHuntAuth()) return;
-    // Dedup: if a hunt already exists for this target, go to its chat instead
-    // of creating a duplicate. (The backend enforces the same rule on
-    // POST /api/v1/hunts and is the authority; this pre-check just avoids a
-    // needless round-trip. NOTE: the hunts API returns `status`, not
-    // `state` — checking h.state here silently never matched.)
+    // Dedup: if a hunt already exists for this target AND brain mode, go to
+    // its chat instead of creating a duplicate. (The backend enforces the
+    // same rule on POST /api/v1/hunts and is the authority; this pre-check
+    // just avoids a needless round-trip. NOTE: the hunts API returns
+    // `status`, not `state` — checking h.state here silently never matched.)
     // fresh:true (Start from scratch) bypasses this like forceNew does.
+    // MODE-SCOPED (3 Nov 2026): an existing AI hunt must not block a new
+    // automation hunt for the same target, and vice versa. Hunts without a
+    // recorded brainMode predate the "With AI / With Automation" choice and
+    // count as 'ai'.
     if (!forceNew && !fresh) {
       try {
         const { listHunts } = await import('../lib/api');
@@ -263,7 +267,9 @@ export default function ChatPage({
         const hunts = (hr && hr.data && hr.data.hunts) || [];
         const norm = (t) => String(t || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
         const stateOf = (h) => String(h.status || h.state || '').toLowerCase();
-        const matches = hunts.filter((h) => norm(h.target) === norm(target));
+        const reqMode = brainMode === 'scanner' ? 'scanner' : 'ai';
+        const modeOf = (h) => (h && h.brainMode === 'scanner' ? 'scanner' : 'ai');
+        const matches = hunts.filter((h) => norm(h.target) === norm(target) && modeOf(h) === reqMode);
         // Priority matters more than list order: a RUNNING hunt for this
         // target must win over a newer-but-paused duplicate (the list is
         // newest-first, so a plain find() can open a stale paused copy).

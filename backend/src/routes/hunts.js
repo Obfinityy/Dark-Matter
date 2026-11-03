@@ -139,11 +139,23 @@ const HUNT_STATE_RANK = {
   failed: 5,
 };
 
-export function pickExistingHunt(metas, userId, target) {
+export function pickExistingHunt(metas, userId, target, brainMode) {
   const key = normalizeTargetKey(target);
   if (!key || !userId) return null;
+  // MODE-SCOPED DEDUP (3 Nov 2026): the dedup key is (user, target,
+  // brainMode). An existing AI hunt for a target must not block a new
+  // automation (scanner) hunt for the same target, and vice versa —
+  // otherwise the "With AI / With Automation" choice in the New Hunt
+  // dialog can never start a fresh hunt for an already-hunted target.
+  // Hunts created before brainMode was recorded count as 'ai'.
+  // brainMode omitted → legacy target-only match.
+  const want = brainMode == null ? null : brainMode === 'scanner' ? 'scanner' : 'ai';
+  const modeOf = (h) => (h && h.brainMode === 'scanner' ? 'scanner' : 'ai');
   const matches = (metas || []).filter(
-    (h) => h && h.userId && h.userId === userId && normalizeTargetKey(h.target) === key
+    (h) =>
+      h && h.userId && h.userId === userId &&
+      normalizeTargetKey(h.target) === key &&
+      (want === null || modeOf(h) === want)
   );
   if (!matches.length) return null;
   const rank = (h) =>
@@ -277,15 +289,18 @@ router.post('/', requireAuth, async (req, res) => {
   console.log(`[hunts] Credits OK, checking dedupe...`);
   // DEDUPE (owner rule): if this user already hunted this target, redirect to
   // that hunt instead of creating a duplicate — and if it is paused, resume
-  // it from its checkpoint. Matching is canonical (normalizeTargetKey), so
-  // scheme / "www." / trailing-slash variants of a target cannot slip past.
+  // it from its checkpoint. Matching is (user, canonical target, brainMode):
+  // an AI hunt and an automation hunt for the same target are different
+  // hunts (3 Nov 2026). Target matching is canonical (normalizeTargetKey),
+  // so scheme / "www." / trailing-slash variants of a target cannot slip
+  // past.
   // { forceNew: true } (the UI's explicit Re-run action) is the only bypass.
   // { fresh: true } (the "Start from scratch" button, 27 Oct 2026) is the
   // same bypass for the budget lane: a brand-new hunt for the same target
   // with a new huntId and fresh memory — the old hunt stays untouched.
   if (forceNew !== true && fresh !== true) {
     try {
-      const existing = pickExistingHunt(listHuntMetas(), req.user.id, target);
+      const existing = pickExistingHunt(listHuntMetas(), req.user.id, target, reqBrainMode);
       if (existing) {
         const existingId = existing.huntId || existing.id;
         let state = String(existing.state || existing.status || 'unknown').toLowerCase();
@@ -501,6 +516,11 @@ router.get('/', requireAuth, async (req, res) => {
         // 'normal'. Hunts created before mode was recorded report
         // 'normal', the historical default.
         mode: m.mode || 'normal',
+        // BRAIN MODE (3 Nov 2026): the list used to omit brainMode, so the
+        // frontend's dedup pre-check could not tell an AI hunt from an
+        // automation hunt for the same target. Hunts created before
+        // brainMode was recorded report 'ai', the historical default.
+        brainMode: m.brainMode === 'scanner' ? 'scanner' : 'ai',
         createdAt: m.createdAt || null,
         status,
       };
