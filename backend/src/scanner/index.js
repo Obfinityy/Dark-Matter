@@ -20,6 +20,8 @@ import { probeSensitiveFiles } from './probes/files.js';
 import { probeXxe } from './probes/xxe.js';
 import { probeSsrf } from './probes/ssrf.js';
 import { probeIdorSurface } from './probes/idor.js';
+import { probeCors } from './probes/cors.js';
+import { probeCookieFlags } from './probes/cookies.js';
 import { runNuclei } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -40,6 +42,8 @@ const DEFAULT_PHASES = [
   'xxe',
   'ssrf',
   'idor',
+  'cors',
+  'cookies',
   'nuclei',
 ];
 
@@ -177,6 +181,8 @@ export async function runScan(
   await step('files', () => probeSensitiveFiles(url, opts));
   await step('xxe', () => probeXxe(url, opts));
   await step('idor', () => probeIdorSurface(url));
+  await step('cors', () => probeCors(url, opts));
+  await step('cookies', () => probeCookieFlags(url, opts));
   await step('nuclei', async () => (await runNuclei(url, opts)).findings);
 
   const { confirmed, unconfirmed } = verifyFindings(all);

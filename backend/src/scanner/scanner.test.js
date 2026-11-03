@@ -306,3 +306,73 @@ describe('probeBlindSqli', () => {
     }
   });
 });
+
+describe('probeCors', () => {
+  const realFetch = globalThis.fetch;
+  const teardown = () => {
+    globalThis.fetch = realFetch;
+  };
+  it('flags arbitrary origin reflection with credentials as high', async () => {
+    const h = new Headers();
+    h.set('Access-Control-Allow-Origin', 'https://evil-dm-probe.example');
+    h.set('Access-Control-Allow-Credentials', 'true');
+    globalThis.fetch = async () => ({ headers: h, text: async () => '' });
+    try {
+      const { probeCors } = await import('./probes/cors.js');
+      const findings = await probeCors('http://example.com/', { timeoutMs: 5000 });
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].severity, 'high');
+      assert.equal(findings[0].class, 'cors_misconfig');
+    } finally {
+      teardown();
+    }
+  });
+  it('stays quiet when no CORS headers are reflected', async () => {
+    const h = new Headers();
+    globalThis.fetch = async () => ({ headers: h, text: async () => '' });
+    try {
+      const { probeCors } = await import('./probes/cors.js');
+      const findings = await probeCors('http://example.com/', { timeoutMs: 5000 });
+      assert.equal(findings.length, 0);
+    } finally {
+      teardown();
+    }
+  });
+});
+
+describe('probeCookieFlags', () => {
+  const realFetch = globalThis.fetch;
+  const teardown = () => {
+    globalThis.fetch = realFetch;
+  };
+  it('flags a session cookie missing Secure/HttpOnly/SameSite', async () => {
+    const h = new Headers();
+    h.append('set-cookie', 'sessionid=abc123; Path=/');
+    globalThis.fetch = async () => ({
+      headers: { ...h, getSetCookie: () => ['sessionid=abc123; Path=/'] },
+      text: async () => '',
+    });
+    try {
+      const { probeCookieFlags } = await import('./probes/cookies.js');
+      const findings = await probeCookieFlags('http://example.com/', { timeoutMs: 5000 });
+      assert.equal(findings.length, 1);
+      assert.ok(findings[0].title.includes('Secure'));
+      assert.ok(findings[0].title.includes('HttpOnly'));
+    } finally {
+      teardown();
+    }
+  });
+  it('stays quiet when cookies carry all flags', async () => {
+    globalThis.fetch = async () => ({
+      headers: { getSetCookie: () => ['sid=x; Path=/; Secure; HttpOnly; SameSite=Lax'] },
+      text: async () => '',
+    });
+    try {
+      const { probeCookieFlags } = await import('./probes/cookies.js');
+      const findings = await probeCookieFlags('http://example.com/', { timeoutMs: 5000 });
+      assert.equal(findings.length, 0);
+    } finally {
+      teardown();
+    }
+  });
+});
