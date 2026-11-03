@@ -15,6 +15,9 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching }) {
   // Infinity is the running default (owner order, 24 Oct 2026): hunts run
   // until stopped. All six modes stay selectable in the picker.
   const [mode, setMode] = useState('infinity');
+  // Brain mode (3 Nov 2026): the hunt asks "With AI or With Automation?".
+  // 'ai' = the AI agent hunts; 'scanner' = rule-based automation (no AI, $0).
+  const [brainMode, setBrainMode] = useState('scanner');
   const [confirmed, setConfirmed] = useState(false);
 
   if (!open) return null;
@@ -22,7 +25,7 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching }) {
   function submit() {
     const t = target.trim();
     if (!t || !confirmed) return;
-    onSubmit(t, scope.trim(), mode, confirmed);
+    onSubmit(t, scope.trim(), mode, confirmed, brainMode);
   }
 
   return (
@@ -52,6 +55,30 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching }) {
             onChange={(e) => setScope(e.target.value)}
           />
         </label>
+        <div className="field-label">
+          Hunt with
+          <div className="mode-grid">
+            <button
+              type="button"
+              className={`mode-card${brainMode === 'ai' ? ' selected' : ''}`}
+              onClick={() => setBrainMode('ai')}
+              title="The AI agent hunts like a human expert"
+            >
+              <div className="mode-name">With AI</div>
+              <div className="mode-tag">AI agent hunts autonomously</div>
+            </button>
+            <button
+              type="button"
+              className={`mode-card${brainMode === 'scanner' ? ' selected' : ''}`}
+              onClick={() => setBrainMode('scanner')}
+              title="Predefined rule-based automation — no AI, $0, results in minutes"
+            >
+              <div className="mode-name">With Automation</div>
+              <div className="mode-tag">Rule-based scan, no AI, $0</div>
+              <div className="mode-tier">fast</div>
+            </button>
+          </div>
+        </div>
         <div className="field-label">
           Hunt intensity
           <div className="mode-grid">

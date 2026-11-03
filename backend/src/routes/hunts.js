@@ -181,8 +181,11 @@ export function isTargetAllowed(target) {
 // target checks below. Everything else (chat, plugins, reports, health,
 // browsing) stays public.
 router.post('/', requireAuth, async (req, res) => {
-  const { target, scope, confirmedAuthorized, mode, forceNew, fresh } = req.body || {};
-  console.log(`[hunts] CREATE attempt by ${req.user.username} (${req.user.id}): target=${target}, mode=${mode}, confirmed=${confirmedAuthorized}`);
+  const { target, scope, confirmedAuthorized, mode, forceNew, fresh, brainMode } = req.body || {};
+  // brainMode: 'ai' (default) or 'scanner' (rule-based automation, no AI).
+  // The AI option stays — the frontend asks "With AI or With Automation?".
+  const reqBrainMode = brainMode === 'scanner' ? 'scanner' : 'ai';
+  console.log(`[hunts] CREATE attempt by ${req.user.username} (${req.user.id}): target=${target}, mode=${mode}, brainMode=${reqBrainMode}, confirmed=${confirmedAuthorized}`);
   if (typeof target !== 'string' || !target.trim()) {
     return res.status(400).json({
       ok: false,
@@ -416,6 +419,9 @@ router.post('/', requireAuth, async (req, res) => {
       parsedScope,
       scopeGuard,
       mode: huntMode.id,
+      // Brain mode: 'ai' (default) or 'scanner' (rule-based automation).
+      // The frontend asks "With AI or With Automation?" at hunt creation.
+      brainMode: reqBrainMode,
       // HUMAN MODE: flag both keys the human path checks
       // (huntAgent.js: meta.humanMode === true || mode/meta.mode ===
       // 'human'), matching drive-human.mjs + the lab scripts.
@@ -441,13 +447,23 @@ router.post('/', requireAuth, async (req, res) => {
     // AI understands the target first (async, non-blocking): tech stack,
     // endpoints, forms — becomes hunt context for the engine + chat.
     understandTarget(huntId, target).catch(() => {});
-    // Launch the autonomous hunt agent (non-blocking): spawns the isolated
-    // container, runs recon → Bedrock agent loop → verify → chain → teardown.
-    // The user can close the browser; the hunt continues on the backend.
-    runAutonomousHunt(huntId, target, huntMode.id, req.user.id).catch((err) => {
-      appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
-    });
-    res.status(201).json({ ok: true, huntId, ...(fresh === true ? { fresh: true } : {}) });
+    if (reqBrainMode === 'scanner') {
+      // RULE-BASED AUTOMATION (3 Nov 2026): no AI loop — run the predefined
+      // scanner battery (fingerprint → probes → verifier) and record
+      // findings as hunt events. $0 AI spend, results in seconds/minutes.
+      const { runScannerHunt } = await import('../scannerHunt.js');
+      runScannerHunt(huntId, target, { scope, userId: req.user.id }).catch((err) => {
+        appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
+      });
+    } else {
+      // Launch the autonomous hunt agent (non-blocking): spawns the isolated
+      // container, runs recon → Bedrock agent loop → verify → chain → teardown.
+      // The user can close the browser; the hunt continues on the backend.
+      runAutonomousHunt(huntId, target, huntMode.id, req.user.id).catch((err) => {
+        appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
+      });
+    }
+    res.status(201).json({ ok: true, huntId, brainMode: reqBrainMode, ...(fresh === true ? { fresh: true } : {}) });
   } catch (err) {
     engineErrorResponse(res, err);
   }

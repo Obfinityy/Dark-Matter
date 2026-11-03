@@ -248,7 +248,7 @@ export default function ChatPage({
     setVoiceHuntIdOverride(null);
   }
 
-  async function handleStartHunt(target, scope, mode, confirmed, forceNew = false, fresh = false) {
+  async function handleStartHunt(target, scope, mode, confirmed, brainMode = 'ai', forceNew = false, fresh = false) {
     if (!ensureHuntAuth()) return;
     // Dedup: if a hunt already exists for this target, go to its chat instead
     // of creating a duplicate. (The backend enforces the same rule on
@@ -282,7 +282,7 @@ export default function ChatPage({
       } catch { /* best-effort, proceed to create */ }
     }
     setLaunching(true);
-    const res = await startHunt(target, scope, mode, confirmed, forceNew, fresh);
+    const res = await startHunt(target, scope, mode, confirmed, brainMode, forceNew, fresh);
     setLaunching(false);
     if (!res.ok || !res.data.huntId) {
       if (res.status === 401 || res.error === 'auth_required') {
@@ -316,6 +316,9 @@ export default function ChatPage({
       // without it, a "Start from scratch" on this card before the
       // next list sync would fall back to 'normal' and lose the mode.
       mode,
+      // BRAIN MODE (3 Nov 2026): carry brainMode too — re-run / fresh
+      // must inherit "With AI" vs "With Automation".
+      brainMode: res.data.brainMode || brainMode,
       status: 'idle',
       logs: [],
       findings: [],
@@ -340,7 +343,7 @@ export default function ChatPage({
     // forceNew is the explicit fresh-run bypass of the dedupe redirect.
     // MODE FIX (27 Oct 2026): inherit the old hunt's real mode — the
     // list used to omit mode, so this always fell back to 'normal'.
-    await handleStartHunt(hunt.target, hunt.scope || '', await resolveHuntMode(hunt), true, true);
+    await handleStartHunt(hunt.target, hunt.scope || '', await resolveHuntMode(hunt), true, hunt.brainMode || 'ai', true);
   }
 
   /** Start from scratch (27 Oct 2026, budget cap): a brand-new hunt
@@ -352,7 +355,7 @@ export default function ChatPage({
     // MODE FIX (27 Oct 2026): inherit the old hunt's real mode (see
     // resolveHuntMode) — a human-mode hunt re-created in 'normal'
     // loses the whole human loop.
-    await handleStartHunt(hunt.target, hunt.scope || '', await resolveHuntMode(hunt), true, false, true);
+    await handleStartHunt(hunt.target, hunt.scope || '', await resolveHuntMode(hunt), true, hunt.brainMode || 'ai', false, true);
   }
 
   function handleRegenerateMessage(message) {

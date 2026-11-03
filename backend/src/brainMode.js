@@ -94,9 +94,10 @@ function resolveModeDeps(deps = {}) {
   return { ...(brainModeOverrides || {}), ...deps };
 }
 
-/** The hunt's brain mode: 'ai' (default) or 'parent' (the owner). */
+/** The hunt's brain mode: 'ai' (default), 'parent' (the owner), or 'scanner' (rule-based automation). */
 export function getBrainMode(meta) {
-  return meta && meta.brainMode === 'parent' ? 'parent' : 'ai';
+  const m = meta && meta.brainMode;
+  return m === 'parent' || m === 'scanner' ? m : 'ai';
 }
 
 const isEngineDown = (err) =>
