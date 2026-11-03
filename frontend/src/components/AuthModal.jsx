@@ -23,6 +23,7 @@ export function AuthCard({ onDone, onNavigate }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [pendingUser, setPendingUser] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   async function submit(e) {
     e.preventDefault();
@@ -104,10 +105,10 @@ export function AuthCard({ onDone, onNavigate }) {
             required
           />
         </div>
-        <div className="auth-field">
+        <div className="auth-field auth-password-wrap">
           <input
             className="auth-input"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             placeholder="Password (min 8 characters)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -115,6 +116,15 @@ export function AuthCard({ onDone, onNavigate }) {
             aria-label="Password"
             required
           />
+          <button
+            type="button"
+            className="auth-pw-toggle"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            title={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? '🙈' : '👁️'}
+          </button>
         </div>
         <button className="auth-submit" type="submit" disabled={busy}>
           {busy ? 'Please wait…' : mode === 'signup' ? 'Sign up' : 'Log in'}
@@ -130,6 +140,9 @@ export function AuthCard({ onDone, onNavigate }) {
       </div>
       <style>{`
         .auth-toggle { text-align: center; margin: 12px 0; font-size: 14px; color: #666; }
+        .auth-password-wrap { position: relative; }
+        .auth-password-wrap .auth-input { padding-right: 44px; }
+        .auth-pw-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 18px; line-height: 1; padding: 4px; }
         .link-btn { background: none; border: none; color: #0066cc; cursor: pointer; font-size: 14px; text-decoration: underline; padding: 0; }
         .link-btn:hover { color: #004499; }
       `}</style>
