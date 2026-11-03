@@ -663,6 +663,13 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
 
   const totalFindings = uniqueVerifiedFindings.length;
 
+  // AUTONOMOUS MODE (3 Nov 2026, owner order): the rule-based scanner hunt
+  // ("Infinity Autonomous") spends $0 and has no brain to take over — so the
+  // Brain button, Brain model selector, money strip and budget controls are
+  // hidden for scanner hunts. Hunt ID, agent activity, chat, report and
+  // terminal controls stay visible.
+  const isScanner = brainMode === 'scanner' || (!brainMode && hunt.brainMode === 'scanner');
+
   return (
     <div className="hunt-card">
       <div className="hunt-statusline">
@@ -726,6 +733,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
 
       {showFeed && (
         <>
+        {!isScanner && (
         <div className="hunt-money-strip" title="Wallet balance, money burnt on this hunt, and burn rate per iteration">
           <span className="hunt-money">💰 {balance === null ? '…' : `$${Number(balance).toFixed(2)}`} balance</span>
           <span className="hunt-money">🔥 ${cost && cost.totalUsd ? cost.totalUsd.toFixed(2) : '0.00'} burnt</span>
@@ -734,6 +742,8 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
           )}
           <span className="hunt-money hunt-burn-rate">⚡ ${perIter.toFixed(2)}/iter</span>
         </div>
+        )}
+        {!isScanner && (
         <div className="hunt-budget-row" title="Spend cap for this hunt — at the budget the hunt auto-pauses with a checkpoint; Resume continues from there">
           <label className="hunt-budget-label" htmlFor={`budget-${hunt.huntId}`}>Budget $</label>
           <input
@@ -764,6 +774,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
             <span className="hunt-budget-spent">Spent ${spentUsd.toFixed(2)} of ${budgetUsd.toFixed(2)}</span>
           )}
         </div>
+        )}
         <div className="hunt-feed" ref={logEndRef} aria-live="polite">
           {logs.length === 0 && <div className="empty-hint">{historyLoaded ? 'Waiting for hunt output…' : 'Loading hunt history…'}</div>}
           {logs.map((entry, idx) => (
@@ -952,7 +963,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
             {showPiP ? 'Hide Terminal' : 'Live Terminal'}
           </button>
         )}
-        {isActive && (
+        {isActive && !isScanner && (
           <button
             className="hunt-pill-btn brain-takeover"
             disabled={brainModeBusy}
@@ -964,7 +975,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
             {brainModeBusy ? 'Taking over…' : brainMode === 'parent' ? '🧠 Open Brain Console' : '🧠 Be a Brain'}
           </button>
         )}
-        {brain && (
+        {brain && !isScanner && (
           <label className="hunt-model" title="The brain thinking for this hunt — switch mid-hunt; the new brain continues with the same state, history and memory">
             <span className="hunt-model-label">Brain:</span>
             <select
