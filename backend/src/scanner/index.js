@@ -38,6 +38,7 @@ import { probeDeserialization } from './probes/deserialization.js';
 import { probeHpp } from './probes/hpp.js';
 import { probeMassAssignment } from './probes/massAssignment.js';
 import { probeWsMessages } from './probes/wsMessages.js';
+import { probeSubdomainTakeover } from './probes/subdomainTakeover.js';
 import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
@@ -85,6 +86,7 @@ export const DEFAULT_PHASES = [
   'hpp',
   'mass-assignment',
   'ws-messages',
+  'subdomain-takeover',
   'xpathi',
   'ssi',
   'file-upload',
@@ -283,6 +285,7 @@ export async function runScan(
   await step('post-forms', () => probePostForms(postForms, opts));
   await step('mass-assignment', () => probeMassAssignment(forms, url, opts));
   await step('ws-messages', () => probeWsMessages(url, opts));
+  await step('subdomain-takeover', () => probeSubdomainTakeover(url, opts));
   await step('race', () =>
     probeRace(
       forms,
