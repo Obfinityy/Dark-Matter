@@ -32,6 +32,7 @@ import { probeLdapInjection } from './probes/ldapi.js';
 import { probeLdapBlind } from './probes/ldapBlind.js';
 import { probeNoSqlDeep } from './probes/nosqlDeep.js';
 import { probeRace } from './probes/race.js';
+import { probeCrypto } from './probes/crypto.js';
 import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
@@ -73,6 +74,7 @@ export const DEFAULT_PHASES = [
   'ldapi',
   'ldap-blind',
   'race',
+  'crypto',
   'xpathi',
   'ssi',
   'file-upload',
@@ -292,6 +294,7 @@ export async function runScan(
   await step('cswsh', () => probeCswsh(url, opts));
   await step('oauth', () => probeOauth(url, opts));
   await step('saml', () => probeSaml(url, opts));
+  await step('crypto', () => probeCrypto(url, opts));
   await step('nuclei', async () => (await runNuclei(url, opts)).findings);
 
   const { confirmed, unconfirmed } = verifyFindings(all);
