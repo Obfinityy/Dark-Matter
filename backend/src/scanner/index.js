@@ -31,6 +31,7 @@ import { probeNoSqli } from './probes/nosqli.js';
 import { probeLdapInjection } from './probes/ldapi.js';
 import { probeLdapBlind } from './probes/ldapBlind.js';
 import { probeNoSqlDeep } from './probes/nosqlDeep.js';
+import { probeRace } from './probes/race.js';
 import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
@@ -71,6 +72,7 @@ export const DEFAULT_PHASES = [
   'nosql-deep',
   'ldapi',
   'ldap-blind',
+  'race',
   'xpathi',
   'ssi',
   'file-upload',
@@ -266,6 +268,14 @@ export async function runScan(
   }
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));
+  await step('race', () =>
+    probeRace(
+      forms,
+      url,
+      [...new Set(forms.flatMap((f) => (f.inputs || []).map((i) => i.name).filter(Boolean)))],
+      opts
+    )
+  );
   await step('files', () => probeSensitiveFiles(url, opts));
   await step('xxe', () => probeXxe(url, opts));
   await step('idor', () => probeIdorSurface(url));
