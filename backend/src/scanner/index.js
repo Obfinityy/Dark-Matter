@@ -29,6 +29,8 @@ import { probeWeakCreds } from './probes/weakCreds.js';
 import { probeHostHeader } from './probes/hostHeader.js';
 import { probeNoSqli } from './probes/nosqli.js';
 import { probeLdapInjection } from './probes/ldapi.js';
+import { probeLdapBlind } from './probes/ldapBlind.js';
+import { probeNoSqlDeep } from './probes/nosqlDeep.js';
 import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
@@ -66,7 +68,9 @@ export const DEFAULT_PHASES = [
   'weak-creds',
   'host-header',
   'nosqli',
+  'nosql-deep',
   'ldapi',
+  'ldap-blind',
   'xpathi',
   'ssi',
   'file-upload',
@@ -249,7 +253,9 @@ export async function runScan(
     );
     await step('xss', () => probeXssReflected(u, uparams, opts));
     await step('nosqli', () => probeNoSqli(u, uparams, opts));
+    await step('nosql-deep', () => probeNoSqlDeep(u, uparams, opts));
     await step('ldapi', () => probeLdapInjection(u, uparams, opts));
+    await step('ldap-blind', () => probeLdapBlind(u, uparams, opts));
     await step('xpathi', () => probeXpathInjection(u, uparams, opts));
     await step('ssi', () => probeSsiInjection(u, uparams, opts));
     await step('cmdi', () => probeCmdiTime(u, uparams, opts));

