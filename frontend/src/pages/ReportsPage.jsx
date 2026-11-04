@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Markdown from '../components/Markdown';
-import { fetchReportMarkdown, reportPdfUrl, listHunts } from '../lib/api';
-import { useAuth } from '../lib/auth';
+import { fetchReportMarkdown, downloadReport, listHunts } from '../lib/api';
+import { useAuth, openAuthModal } from '../lib/auth';
 import { toast } from '../lib/toast';
 
 const HUNTS_KEY = 'dm.hunts'; // legacy — no longer used, kept to clear stale data
@@ -18,6 +18,7 @@ export default function ReportsPage({ preselectedHuntId }) {
   const [selectedId, setSelectedId] = useState(preselectedHuntId || null);
   const [markdown, setMarkdown] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -92,6 +93,18 @@ export default function ReportsPage({ preselectedHuntId }) {
     }
   }
 
+  async function downloadPdf() {
+    if (!selectedId) return;
+    setDownloading(true);
+    setError('');
+    const res = await downloadReport(selectedId, 'pdf');
+    setDownloading(false);
+    if (!res.ok) {
+      setError(res.error || 'Could not download the report.');
+      toast(res.error || 'Could not download the report.', 'error');
+    }
+  }
+
   function loadManual() {
     const id = manualId.trim();
     if (!id) return;
@@ -125,7 +138,20 @@ export default function ReportsPage({ preselectedHuntId }) {
               Load
             </button>
           </div>
-          {hunts.length === 0 && (
+          {/* FIX (#456): the hunt list loads only when logged in
+              (the `if (user)` gate above), so a logged-out visitor
+              used to read "No hunts yet" — wrong: they may have
+              hunts, they just need to log in to see them. Say so,
+              with a login action, instead of the misleading empty
+              state. */}
+          {!user ? (
+            <div className="empty-hint">
+              Log in to see your reports.
+              <button className="btn btn-ghost btn-sm" onClick={() => openAuthModal('login')}>
+                Log in
+              </button>
+            </div>
+          ) : hunts.length === 0 && (
             <div className="empty-hint">No hunts yet. Start one from the chat page.</div>
           )}
           {hunts.map((h) => (
@@ -152,14 +178,9 @@ export default function ReportsPage({ preselectedHuntId }) {
                 <button className="btn btn-primary btn-sm" onClick={generateReport} disabled={generating}>
                   {generating ? 'Generating…' : 'Generate report'}
                 </button>
-                <a
-                  className="btn btn-ghost btn-sm"
-                  href={reportPdfUrl(selectedId)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Download PDF
-                </a>
+                <button className="btn btn-ghost btn-sm" onClick={downloadPdf} disabled={downloading}>
+                  {downloading ? 'Downloading…' : 'Download PDF'}
+                </button>
                 <span className="report-hunt-id">Hunt ID: {selectedId}</span>
               </div>
               {error && <div className="alert alert-error">{error}</div>}
