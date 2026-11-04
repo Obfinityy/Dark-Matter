@@ -71,6 +71,7 @@ router.get('/hunts', requireAdmin, async (req, res) => {
       target: m.target,
       state: m.state,
       mode: m.mode,
+      brainMode: m.brainMode === 'scanner' ? 'scanner' : 'ai', // admin AI/Autonomous tabs
       userId: m.userId || null,
       username: (m.userId && userMap[m.userId]) || 'unknown',
       createdAt: m.createdAt || null,
