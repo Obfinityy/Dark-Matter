@@ -46,7 +46,7 @@ import { webSearch } from './webSearch.js';
 import { writeArtifact, spillOutput, artifactInfo, writeFileObservation } from './artifacts.js';
 import { evidenceSignalIds, isHttpErrorPage } from './hunt-intel/index.js';
 import { isMachineControlled, getControl } from './machineControl.js';
-import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents } from './store.js';
+import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents, huntDir } from './store.js';
 import { normalisedActionDetail, actionSignature, contentHash } from './actionIdentity.js';
 import { renderBrainFilesScreen } from './brainFiles.js';
 import { recallById, firstRunNumber, parseRecallId, formatFullRecord } from './actionIndex.js';
@@ -4007,8 +4007,10 @@ export async function humanIteration(huntId, target, opts = {}) {
   // across sessions (persistent file). If the brain recalls 5+ times in a
   // row without filing, it's stuck in a proof-bottling loop -- inject
   // a FILE NOW directive. Session-local vars reset on restart, so we
-  // use a file in the hunt dir.
-  const stuckCounterPath = '/opt/Dark-Matter/backend/data/hunts/' + huntId + '/stuck_recall_count.txt';
+  // use a file in the hunt dir (FIX #360: follows the configured data
+  // dir via huntDir — the old hardcoded /opt/Dark-Matter path wrote
+  // counter state outside the deployment's data directory).
+  const stuckCounterPath = huntDir(huntId) + '/stuck_recall_count.txt';
   function getStuckCount() {
     try { return parseInt(fs.readFileSync(stuckCounterPath, 'utf8').trim(), 10) || 0; }
     catch { return 0; }
@@ -4106,7 +4108,7 @@ export async function humanIteration(huntId, target, opts = {}) {
     if (!detected) return;
     if (sweepFiledTitles.has(detected.title)) return;
     try {
-      if (isDuplicate(`/opt/Dark-Matter/backend/data/hunts/${huntId}`, detected.title)) return;
+      if (isDuplicate(huntDir(huntId), detected.title)) return;
     } catch { /* dup check is best-effort; fail-open to filing */ }
     const rawTitle = String(detected.title || '');
     const title = String(rawTitle.trim() ? rawTitle : 'Untitled claim').slice(0, 200);
@@ -4459,7 +4461,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       const c = getStuckCount() + 1;
       setStuckCount(c);
       if (c >= 5) {
-        observation = 'STOP RECALLING. You have repeated recall ' + c + ' times across sessions. You already have the evidence on screen (password hashes dumped via SQLi). FILE THE CLAIM NOW using {"action":"claim_finding","title":"SQL Injection in DVWA","class":"sqli","evidence":"<the hashes you saw>","command":"<your replay command>","counterevidence":"<normal query returns no hashes>","confidence":"high"}. Do NOT recall again. FILE NOW.';
+        observation = 'STOP RECALLING. You have repeated recall ' + c + ' times across sessions. If you already have evidence on screen for a finding on ' + String(target).slice(0, 80) + ', FILE THE CLAIM NOW using {"action":"claim_finding","title":"<the finding you actually observed>","class":"<its class>","evidence":"<what you actually observed>","command":"<your replay command>","counterevidence":"<what normal behavior shows>","confidence":"high"}. Do NOT invent evidence you did not see. If you have NO finding evidence, say so and move to a new test instead of recalling. FILE what you saw, or MOVE ON. Do NOT recall again.';
         try { deps.record(huntId, { type: 'stuck_detector_triggered', count: c, via: 'human-mode' }); } catch {}
         setStuckCount(0);
       }
@@ -4484,12 +4486,11 @@ export async function humanIteration(huntId, target, opts = {}) {
       // scan, so a recovered proof is filed on the next turn.
       const scanText = String(thinkingText || '') + '\n' + String(observation || '') + '\n' + String(lastObservation || '');
       const detected = detectEvidence(scanText);
-      if (detected && isDuplicate(`/opt/Dark-Matter/backend/data/hunts/${huntId}`, detected.title)) {
+      if (detected && isDuplicate(huntDir(huntId), detected.title)) {
         // FIX (#315): the scan text includes lastObservation (previous
         // turn), so without this check the same evidence re-triggers an
         // override every turn. Skip the override; the brain's own action
-        // stands. (Path follows this file's existing convention; the
-        // hardcoded /opt/Dark-Matter prefix itself is tracked in #360.)
+        // stands. (Path follows the configured hunt dir via huntDir, #360.)
         try { deps.record(huntId, { type: 'autofiler_duplicate_skipped', title: detected.title, class: detected.class, via: 'human-mode' }); } catch {}
       } else if (detected) {
         // Construct the claim_finding action
@@ -4500,9 +4501,14 @@ export async function humanIteration(huntId, target, opts = {}) {
           evidence: detected.class === 'sqli' && recallLoopProof
             ? recallLoopProof.evidence
             : detected.evidence,
+          // FIX (#359): the detector returns command: '' (it cannot
+          // ground a replay — see autoFiler.js), so fall back to the
+          // real shell command that produced this evidence, mirroring
+          // the post-dispatch sweep. Without a real command the claim
+          // gate bounces the claim instead of filing a lab replay.
           command: detected.class === 'sqli' && recallLoopProof
             ? recallLoopProof.command
-            : detected.command,
+            : (detected.command || lastShellCommand || ''),
           counterevidence: detected.counterevidence,
           confidence: detected.confidence,
           confidence_rationale: 'Auto-detected by pattern matcher from brain output; brain has not manually filed this claim',
@@ -4533,7 +4539,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       thinkingLower.includes('breaking out') ||
       thinkingLower.includes('break this login loop');
     if (isStuckTalk) {
-      observation = 'YOU SAID YOU ARE STUCK LOOPING. STOP. You have SQLi evidence (password hashes dumped). FILE THE CLAIM NOW: {"action":"claim_finding","title":"SQL Injection in DVWA User ID","class":"sqli","evidence":"First name: admin, Surname: 5f4dcc3b5aa765d61d8327deb882c (MD5 of password)","command":"curl -s http://172.17.0.1:3100/vulnerabilities/sqli/?id=1%27+UNION+SELECT+user%2Cpassword+FROM+users%23&Submit=Submit","counterevidence":"Normal id=1 returns only first name Gordon, no hashes","confidence":"high"}. FILE NOW, DO NOT RECALL.';
+      observation = 'YOU SAID YOU ARE STUCK LOOPING. STOP. If you have observed evidence for a finding on ' + String(target).slice(0, 80) + ', FILE THE CLAIM NOW with ONLY the evidence you actually saw: {"action":"claim_finding","title":"<the finding you observed>","class":"<its class>","evidence":"<what you observed>","command":"<your replay command>","counterevidence":"<what normal behavior shows>","confidence":"high"}. Do NOT file a claim about anything you did not observe. If you have NO finding evidence, stop this line of testing and try a different approach. FILE what you saw, or MOVE ON — DO NOT RECALL.';
       try { deps.record(huntId, { type: 'stuck_detector_v3_triggered', via: 'human-mode' }); } catch {}
     }
 
@@ -4791,9 +4797,22 @@ export async function humanIteration(huntId, target, opts = {}) {
       // the observation so the auto-filer can file. No brain cooperation needed.
       try {
         if (proofHit && /sqli/i.test(proofHit.payloadClass || '')) {
-          const fs = await import('fs');
-          const histPath = `/opt/Dark-Matter/backend/data/hunts/${huntId}/events.jsonl`;
-          const histText = fs.readFileSync(histPath, 'utf8').split('\n').slice(-200).join('\n');
+          // FIX (#360): the old code read the WHOLE events file on every
+          // proof-nudge turn and sliced the last 200 lines — O(file)
+          // per turn, unbounded over a long hunt. Read only the last
+          // 512KB (bounded I/O; covers 200+ typical lines) and match
+          // hashes in that tail. The path also follows the configured
+          // hunt dir now instead of the hardcoded /opt/Dark-Matter one.
+          const histPath = huntDir(huntId) + '/events.jsonl';
+          const fd = fs.openSync(histPath, 'r');
+          let histText = '';
+          try {
+            const size = fs.fstatSync(fd).size;
+            const start = Math.max(0, size - 512 * 1024);
+            const buf = Buffer.alloc(size - start);
+            fs.readSync(fd, buf, 0, buf.length, start);
+            histText = buf.toString('utf8');
+          } finally { fs.closeSync(fd); }
           const histHashes = histText.match(/\b[a-f0-9]{32}\b/g);
           if (histHashes && histHashes.length) {
             const uniqHashes = [...new Set(histHashes)].slice(0, 5);
