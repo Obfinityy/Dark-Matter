@@ -76,10 +76,14 @@ test('buildScreenMap names a blank screen', () => {
 
 test('parseClickAt accepts integers in range and refuses the rest', () => {
   assert.deepEqual(parseClickAt({ x: 1240, y: 310 }), { ok: true, x: 1240, y: 310 });
+  assert.deepEqual(parseClickAt({ x: 1279, y: 799 }), { ok: true, x: 1279, y: 799 });
   assert.equal(parseClickAt({ x: 1.5, y: 2 }).ok, false);
   assert.equal(parseClickAt({ x: -1, y: 2 }).ok, false);
   assert.equal(parseClickAt({ x: '1240', y: 310 }).ok, false);
   assert.equal(parseClickAt({ x: 10000, y: 1 }).ok, false);
+  assert.equal(parseClickAt({ x: 1280, y: 1 }).ok, false);
+  assert.equal(parseClickAt({ x: 1, y: 800 }).ok, false);
+  assert.equal(parseClickAt({ x: 9999, y: 9999 }).ok, false);
   assert.equal(parseClickAt({}).ok, false);
   assert.equal(parseClickAt(null).ok, false);
 });
@@ -106,6 +110,25 @@ test('captureScreenMap: ocr_missing when tesseract is absent (code 127)', async 
   };
   const res = await captureScreenMap('h_x', deps);
   assert.deepEqual(res, { ok: false, error: 'ocr_missing' });
+});
+
+test('captureScreenMap: ocr_missing from stderr alone, and stderr is not discarded (#370)', async () => {
+  const issued = [];
+  const deps = {
+    execRaw: async (h, cmd) => {
+      issued.push(cmd);
+      if (cmd.includes('scrot')) return { stdout: 'captured', stderr: '', code: 0 };
+      if (cmd.includes('getdisplaygeometry')) return { stdout: '1280 800', stderr: '', code: 0 };
+      // A wrapper that normalizes codes to 0: only stderr names the
+      // missing binary. Before #370 this branch was dead because the
+      // command ended in 2>/dev/null.
+      return { stdout: '', stderr: 'sh: 1: tesseract: not found', code: 0 };
+    },
+  };
+  const res = await captureScreenMap('h_x', deps);
+  assert.deepEqual(res, { ok: false, error: 'ocr_missing' });
+  const tess = issued.find((c) => c.includes('tesseract'));
+  assert.ok(tess && !tess.includes('2>/dev/null'), 'tesseract stderr must reach the caller');
 });
 
 test('captureScreenMap: full happy path returns the map', async () => {

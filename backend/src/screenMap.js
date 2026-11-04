@@ -21,12 +21,17 @@
 // format stays the same — one line per element — so the brain's actions do
 // not change.
 
-import { DESKTOP_DISPLAY } from './desktopControl.js';
+import { DESKTOP_DISPLAY, DESKTOP_WIDTH, DESKTOP_HEIGHT } from './desktopControl.js';
 
 export const SCREEN_MAP_BUDGET = 2000; // chars of map text per screen
 export const SCREEN_SHOT_PATH = '/tmp/dm-screen.png'; // distinct from the owner's poller shot
 export const MIN_WORD_CONF = 30; // tesseract 0-100; below this a word is noise
-export const MAX_CLICK_COORD = 10000; // sanity bound for a click coordinate
+// FIX (#370, gap 1): the old single bound (10000) admitted clicks far
+// off-screen — the desktop is FIXED at 1280x800 (desktopControl.js),
+// so each axis is validated against its real geometry. Imported, not
+// copied, so a geometry change moves validator and dispatch together.
+export const MAX_CLICK_X = DESKTOP_WIDTH; // 1280
+export const MAX_CLICK_Y = DESKTOP_HEIGHT; // 800
 
 /**
  * Parse tesseract TSV output (level 5 rows are words) into
@@ -143,7 +148,8 @@ export function buildAtspiMap(controls, { width = 0, height = 0 } = {}) {
 }
 
 /**
- * Validate a click target. Coordinates must be integers in [0, MAX_CLICK_COORD).
+ * Validate a click target. Coordinates must be integers in [0, MAX_CLICK_X)
+ * for x and [0, MAX_CLICK_Y) for y (the fixed 1280x800 desktop — see above).
  * Anything else is refused BEFORE any exec — an unvalidated number would be an
  * injection into the xdotool command line. Returns { ok, x, y } or { ok, error }.
  */
@@ -153,8 +159,11 @@ export function parseClickAt(action) {
   if (!Number.isInteger(x) || !Number.isInteger(y)) {
     return { ok: false, error: 'give integer "x" and "y" from the screen map, e.g. {"action":"desktop_click_at","x":1240,"y":310}' };
   }
-  if (x < 0 || y < 0 || x >= MAX_CLICK_COORD || y >= MAX_CLICK_COORD) {
-    return { ok: false, error: `coordinates out of range (0–${MAX_CLICK_COORD - 1}): got (${x}, ${y}) — take see_screen again and use a point from the map` };
+  if (x < 0 || x >= MAX_CLICK_X) {
+    return { ok: false, error: `x out of range (0–${MAX_CLICK_X - 1}): got ${x} — take see_screen again and use a point from the map` };
+  }
+  if (y < 0 || y >= MAX_CLICK_Y) {
+    return { ok: false, error: `y out of range (0–${MAX_CLICK_Y - 1}): got ${y} — take see_screen again and use a point from the map` };
   }
   return { ok: true, x, y };
 }
@@ -224,7 +233,15 @@ export async function captureScreenMap(huntId, deps) {
     } catch { /* geometry is best-effort beside the map */ }
     const ocr = await execRaw(
       huntId,
-      `tesseract ${SCREEN_SHOT_PATH} stdout --psm 11 tsv 2>/dev/null`,
+      // FIX (#370, gap 2): stderr is NOT discarded here. The old
+      // `2>/dev/null` threw away the shell's "tesseract: not found"
+      // message, so the errText branch below could never fire — the
+      // only live signal was the exit code, and any exec wrapper
+      // that normalizes codes would lose even that. Same convention
+      // as DESKTOP_WINDOWS_CMD: stderr is NOT suppressed, the caller
+      // reads it. Tesseract warnings land in stderr too, but they do
+      // not match the not-found regex and stdout TSV is untouched.
+      `tesseract ${SCREEN_SHOT_PATH} stdout --psm 11 tsv`,
       30000,
       { bypassTmux: true },
     );
