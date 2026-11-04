@@ -63,6 +63,10 @@ import { probeGraphql } from './probes/graphql.js';
 import { probeCswsh } from './probes/cswsh.js';
 import { probeOauth } from './probes/oauth.js';
 import { probeSaml } from './probes/saml.js';
+import { probeTls } from './probes/tlsScan.js';
+import { probePasswordReset } from './probes/passwordReset.js';
+import { probeElInject } from './probes/elInject.js';
+import { probeOgnlInject } from './probes/ognlInject.js';
 import { runNuclei } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -77,6 +81,8 @@ export const DEFAULT_PHASES = [
   'cmdi',
   'traversal',
   'ssti',
+  'el-injection',
+  'ognl-injection',
   'redirect',
   'csrf',
   'post-forms',
@@ -125,6 +131,8 @@ export const DEFAULT_PHASES = [
   'cswsh',
   'oauth',
   'saml',
+  'tls',
+  'password-reset',
   'nuclei',
 ];
 
@@ -316,6 +324,8 @@ export async function runScan(
     await step('padding-oracle', () => probePaddingOracle(u, opts));
     await step('arg-injection', () => probeArgInjection(u, uparams, opts));
     await step('ssti', () => probeSsti(u, uparams, opts));
+    await step('el-injection', () => probeElInject(u, uparams, opts));
+    await step('ognl-injection', () => probeOgnlInject(u, uparams, opts));
     await step('redirect', () => probeOpenRedirect(u, uparams, opts));
     await step('crlf', () => probeCrlf(u, uparams, opts));
     await step('ssrf', () => probeSsrf(u, uparams, opts));
@@ -352,6 +362,8 @@ export async function runScan(
   await step('cswsh', () => probeCswsh(url, opts));
   await step('oauth', () => probeOauth(url, opts));
   await step('saml', () => probeSaml(url, opts));
+  await step('tls', () => probeTls(url, opts));
+  await step('password-reset', () => probePasswordReset(forms, url, opts));
   await step('crypto', () => probeCrypto(url, opts));
   await step('prototype-pollution', () => probePrototypePollution(url, opts));
   await step('deserialization', () => probeDeserialization(url, opts));
