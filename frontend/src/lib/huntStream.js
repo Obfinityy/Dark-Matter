@@ -17,7 +17,13 @@
 //       status    → { status, step?, phase? }    — 'running' | 'paused' | 'done' | 'stopped'
 //       done      → { summary? }             — hunt finished
 //   onError(err)  — transport failure (socket error / non-JSON frame)
-//   onClose()     — socket closed cleanly
+//   onClose(reason) — socket closed for good: 'done' (hunt finished) or
+//       'exhausted' (reconnect attempts ran out). Not called for a
+//       disconnect() by the UI.
+//   onReconnecting(attempt, delayMs) — transient drop: the client is
+//       retrying (up to 5 attempts, backoff 2s/4s/8s/10s/10s, mirroring
+//       useHuntTerminal.js). The UI should show "reconnecting", not
+//       force the user to reload the whole page (FIX #443).
 //
 // When the backend WS is not reachable, connect() reports the failure via
 // onError so the UI can show an honest "live stream unavailable" state and a
@@ -44,11 +50,15 @@ export class HuntStreamClient {
     this.handlers = handlers;
     this.socket = null;
     this.closedByUs = false;
+    this.retryCount = 0;
+    this.reconnectTimer = null;
+    this.sawDone = false;
   }
 
   connect() {
     this.disconnect();
     this.closedByUs = false;
+    this.sawDone = false;
     const url = huntStreamWsUrl(this.huntId);
     let socket;
     try {
@@ -58,6 +68,10 @@ export class HuntStreamClient {
       return;
     }
     this.socket = socket;
+
+    socket.onopen = () => {
+      this.retryCount = 0;
+    };
 
     socket.onmessage = (event) => {
       let msg = null;
@@ -69,6 +83,7 @@ export class HuntStreamClient {
       }
       const type = msg && (msg.type || msg.event);
       if (!type) return;
+      if (type === 'done') this.sawDone = true;
       this.handlers.onEvent && this.handlers.onEvent(type, msg);
     };
 
@@ -79,14 +94,35 @@ export class HuntStreamClient {
     };
 
     socket.onclose = () => {
-      if (!this.closedByUs) {
-        this.handlers.onClose && this.handlers.onClose();
+      if (this.closedByUs) return;
+      // A close after a 'done' event is the hunt finishing, not a drop.
+      if (this.sawDone) {
+        this.handlers.onClose && this.handlers.onClose('done');
+        return;
       }
+      if (this.retryCount < 5) {
+        this.retryCount += 1;
+        const delay = Math.min(1000 * Math.pow(2, this.retryCount), 10000);
+        this.handlers.onReconnecting && this.handlers.onReconnecting(this.retryCount, delay);
+        this.reconnectTimer = setTimeout(() => this.connect(), delay);
+        return;
+      }
+      this.handlers.onClose && this.handlers.onClose('exhausted');
     };
+  }
+
+  // Manual retry (e.g. the card's Retry button): fresh attempt counter.
+  reconnect() {
+    this.retryCount = 0;
+    this.connect();
   }
 
   disconnect() {
     this.closedByUs = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.socket) {
       try {
         this.socket.close();
