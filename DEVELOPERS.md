@@ -517,23 +517,38 @@ Dark-Matter/
 │       ├── autoFiler.js        # Auto-claim filer
 │       ├── brainProvider.js    # Brain API abstraction
 │       ├── huntMemory.js       # Per-hunt memory system
-│       ├── osControl.js        # 17 OS actions
+│       ├── osControl.js        # 17 OS-control actions (subset of the 23-action brain contract — see §5.3)
 │       ├── screenMap.js        # OCR pipeline
 │       ├── llm.js              # LLM client
-│       └── routes/             # API endpoints
+│       ├── routes/             # API endpoint routers (auth, hunts, admin, chat, plugins, voice, payments, …)
+│       ├── billing/            # Credit ledger + payment claims
+│       ├── brain/              # Brain-mode helpers (claim bridge, …)
+│       ├── hunt-intel/         # Chain engine, differential verifier, variant DB
+│       ├── intercept/          # Proxy intercept helpers
+│       └── skill-cards/        # Skill-card definitions
 │
 ├── brain-py/                   # Python brain demos (parent-as-brain)
 │   └── brain-apiloop-v1.py     # Proven 11/11 on DVWA, $0
 │
-├── engine/                     # Security tools (pentagi, etc.)
+├── engine/                     # Security tools
+│   └── pentagi/                # PentAGI engine code (integrated by reference)
+│
+├── third_party/pentagi/        # PentAGI LICENSE + NOTICE (legal — keep)
 │
 ├── ideas/                      # Future roadmap (10,000 ideas)
 │
 └── docs/                       # Additional documentation
-    └── aws-deploy.md           # EC2 deployment guide
+    ├── aws-deploy.md           # EC2 deployment guide
+    ├── ELITE-PROOF.md
+    ├── brain-architecture.md
+    ├── vnc-pip-plan.md
+    ├── vuln-research-2026-10-13.md
+    └── vuln-research-round2-2026-10-13.md
 ```
 
-**Root holds ONLY:** frontend, backend, ideas, brain-py, engine, docs, .gitignore, AGENTS.md, COORDINATION.md, README.md, VISION.md, DEVELOPERS.md, THIRD_PARTY_NOTICES.md
+**Root also holds:** `.github/workflows/` (`deploy-backend.yml`,
+`deploy-gh-pages.yml`), `.editorconfig`, `.prettierrc`, plus the
+files listed at the top of the tree (`.gitignore` included).
 
 ---
 
