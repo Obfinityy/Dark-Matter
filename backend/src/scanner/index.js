@@ -42,6 +42,7 @@ import { probeSubdomainTakeover } from './probes/subdomainTakeover.js';
 import { probeCrlf } from './probes/crlf.js';
 import { probeCsvLog } from './probes/csvLogInjection.js';
 import { probeSmtpInject } from './probes/smtpInject.js';
+import { probeSessionFixation } from './probes/sessionFixation.js';
 import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
@@ -93,6 +94,7 @@ export const DEFAULT_PHASES = [
   'crlf',
   'csv-log-injection',
   'smtp-injection',
+  'session-fixation',
   'xpathi',
   'ssi',
   'file-upload',
@@ -292,6 +294,7 @@ export async function runScan(
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));
   await step('smtp-injection', () => probeSmtpInject(forms, url, opts));
+  await step('session-fixation', () => probeSessionFixation(forms, url, opts));
   await step('mass-assignment', () => probeMassAssignment(forms, url, opts));
   await step('ws-messages', () => probeWsMessages(url, opts));
   await step('subdomain-takeover', () => probeSubdomainTakeover(url, opts));
