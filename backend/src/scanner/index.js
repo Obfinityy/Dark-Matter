@@ -39,6 +39,7 @@ import { probeHpp } from './probes/hpp.js';
 import { probeMassAssignment } from './probes/massAssignment.js';
 import { probeWsMessages } from './probes/wsMessages.js';
 import { probeSubdomainTakeover } from './probes/subdomainTakeover.js';
+import { probeCrlf } from './probes/crlf.js';
 import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
@@ -87,6 +88,7 @@ export const DEFAULT_PHASES = [
   'mass-assignment',
   'ws-messages',
   'subdomain-takeover',
+  'crlf',
   'xpathi',
   'ssi',
   'file-upload',
@@ -279,6 +281,7 @@ export async function runScan(
     await step('traversal', () => probeTraversal(u, uparams, opts));
     await step('ssti', () => probeSsti(u, uparams, opts));
     await step('redirect', () => probeOpenRedirect(u, uparams, opts));
+    await step('crlf', () => probeCrlf(u, uparams, opts));
     await step('ssrf', () => probeSsrf(u, uparams, opts));
   }
   await step('csrf', () => probeCsrf(forms, url));
