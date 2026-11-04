@@ -61,9 +61,11 @@ if [ ! -d /opt/Dark-Matter ]; then
 fi
 chown -R ubuntu:ubuntu /opt/Dark-Matter
 
-# Node.js 20 (backend runtime)
+# Node.js 22 (backend runtime — same major as Dockerfile + render.yaml,
+# which pin 22.12.0; nodesource tracks 22.x latest, so EC2 carries the
+# major pin while Docker/Render carry the exact pin, #349)
 if ! command -v node >/dev/null 2>&1; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   apt-get install -y nodejs
 fi
 
