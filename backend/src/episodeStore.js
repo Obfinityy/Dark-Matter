@@ -415,15 +415,44 @@ export function queryEpisodes(huntId, { kind = null, outcome = null, limit = 50 
   return d.prepare(sql).all(...args);
 }
 
+/** Parse a stored/caller timestamp to epoch ms, or null if unparseable.
+ *  All-digit strings are epoch milliseconds (the format this codebase
+ *  writes); anything else goes through Date.parse (ISO and friends). */
+function tsToMs(v) {
+  if (v == null) return null;
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (/^\d+$/.test(s)) {
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
+  const ms = Date.parse(s);
+  return Number.isFinite(ms) ? ms : null;
+}
+
 /** Verified finding episodes across ALL hunts after a timestamp (promotion gate evidence). */
 export function getVerifiedFindingsSince(tsIso, limit = 200) {
   const d = getDb();
   if (!d) return [];
-  return d
-    .prepare(
-      "SELECT * FROM episodes WHERE kind = 'finding' AND outcome = 'verified' AND ts > ? ORDER BY id ASC LIMIT ?"
-    )
-    .all(String(tsIso), limit);
+  // FIX (#364): the old `ts > ?` string compare misordered any
+  // non-ISO stored value (and any non-ISO caller value). Normalize
+  // both sides to epoch ms; unparseable stored rows are excluded
+  // (fail-closed: cannot prove they are after the cutoff), and an
+  // unparseable cutoff yields no evidence rather than arbitrary rows.
+  // Iteration stays id ASC with the same first-`limit` semantics.
+  const cutoff = tsToMs(tsIso);
+  if (cutoff === null) return [];
+  const rows = d
+    .prepare("SELECT * FROM episodes WHERE kind = 'finding' AND outcome = 'verified' ORDER BY id ASC")
+    .all();
+  const out = [];
+  for (const r of rows) {
+    const ms = tsToMs(r.ts);
+    if (ms !== null && ms > cutoff) out.push(r);
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 
 /** Highest mirrored source_idx for a hunt (-1 when the ledger is empty). */
@@ -470,19 +499,38 @@ export function searchEpisodes(query, { huntId = null, limit = 8 } = {}) {
   if (!tokens.length) return [];
   let rows = [];
   if (ftsAvailable) {
-    const match = tokens.map((t) => `"${t.replace(/"/g, '')}"`).join(' OR ');
+    // FIX (#364a): the FTS path had no try/catch — a missing/corrupt
+    // FTS table threw out of searchEpisodes instead of degrading.
+    // On failure, disable FTS for the process and fall through to LIKE.
+    try {
+      const match = tokens.map((t) => `"${t.replace(/"/g, '')}"`).join(' OR ');
+      const sql = huntId
+        ? `SELECT e.* FROM episodes_fts f JOIN episodes e ON e.id = f.rowid
+             WHERE episodes_fts MATCH ? AND e.hunt_id = ? ORDER BY f.rank LIMIT ?`
+        : `SELECT e.* FROM episodes_fts f JOIN episodes e ON e.id = f.rowid
+             WHERE episodes_fts MATCH ? ORDER BY f.rank LIMIT ?`;
+      rows = huntId ? d.prepare(sql).all(match, String(huntId), limit) : d.prepare(sql).all(match, limit);
+    } catch (err) {
+      console.warn(`[episodes] FTS search failed (${err && err.message ? err.message : err}); falling back to LIKE`);
+      ftsAvailable = false;
+    }
+  }
+  if (!ftsAvailable) {
+    // FIX (#364b): the LIKE fallback searched only tokens[0] — a
+    // multi-word query silently narrowed to its first token. Now
+    // every token matches (OR, same as the FTS path), with LIKE
+    // wildcards escaped so a token '_' matches literally.
+    const ors = [];
+    const args = [];
+    for (const t of tokens) {
+      ors.push('(title LIKE ? ESCAPE \'\\\' OR body LIKE ? ESCAPE \'\\\')');
+      const like = `%${t.replace(/\\/g, '\\\\').replace(/_/g, '\\_')}%`;
+      args.push(like, like);
+    }
     const sql = huntId
-      ? `SELECT e.* FROM episodes_fts f JOIN episodes e ON e.id = f.rowid
-           WHERE episodes_fts MATCH ? AND e.hunt_id = ? ORDER BY f.rank LIMIT ?`
-      : `SELECT e.* FROM episodes_fts f JOIN episodes e ON e.id = f.rowid
-           WHERE episodes_fts MATCH ? ORDER BY f.rank LIMIT ?`;
-    rows = huntId ? d.prepare(sql).all(match, String(huntId), limit) : d.prepare(sql).all(match, limit);
-  } else {
-    const like = `%${tokens[0]}%`;
-    const sql = huntId
-      ? 'SELECT * FROM episodes WHERE hunt_id = ? AND (title LIKE ? OR body LIKE ?) ORDER BY importance DESC, id DESC LIMIT ?'
-      : 'SELECT * FROM episodes WHERE (title LIKE ? OR body LIKE ?) ORDER BY importance DESC, id DESC LIMIT ?';
-    rows = huntId ? d.prepare(sql).all(String(huntId), like, like, limit) : d.prepare(sql).all(like, like, limit);
+      ? `SELECT * FROM episodes WHERE hunt_id = ? AND (${ors.join(' OR ')}) ORDER BY importance DESC, id DESC LIMIT ?`
+      : `SELECT * FROM episodes WHERE (${ors.join(' OR ')}) ORDER BY importance DESC, id DESC LIMIT ?`;
+    rows = huntId ? d.prepare(sql).all(String(huntId), ...args, limit) : d.prepare(sql).all(...args, limit);
   }
   if (rows.length) {
     recordEpisodeAccess(rows.map((r) => r.id));
