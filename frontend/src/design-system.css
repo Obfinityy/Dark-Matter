@@ -562,19 +562,34 @@ textarea:focus-visible, [tabindex]:focus-visible {
   overflow: visible;
   min-height: 0;
 }
-/* Drag handle for resizing the sidebar. */
+/* Drag handle for resizing the sidebar — visible grip + wide hit strip
+   straddling the edge (owner order 4 Nov 2026). */
 .sidebar-resize-handle {
   position: absolute;
   top: 0;
   bottom: 0;
-  right: -5px;
-  width: 10px;
+  right: -7px;
+  width: 14px;
   cursor: ew-resize;
   z-index: 45;
   border-radius: 4px;
+  touch-action: none;
+}
+.sidebar-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 3px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.16);
 }
 .sidebar-resize-handle:hover { background: rgba(20, 60, 65, 0.10); }
+.sidebar-resize-handle:hover::after { background: rgba(255, 255, 255, 0.38); }
 .sidebar-resize-handle:active { background: rgba(20, 60, 65, 0.18); }
+.sidebar-resize-handle:active::after { background: rgba(255, 255, 255, 0.55); }
 
 /* Smooth open/close on desktop — the old instant display:none is gone. */
 @media (min-width: 769px) {

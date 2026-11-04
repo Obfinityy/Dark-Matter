@@ -79,7 +79,7 @@ function groupLabel(createdAt) {
   return 'Previous 30 days';
 }
 
-function HistoryItem({ chat, active, running, onSelect, onRename, onDelete }) {
+function HistoryItem({ chat, active, running, onSelect, onRename, onDelete, hunterMode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(chat.title || 'Untitled chat');
@@ -109,15 +109,16 @@ function HistoryItem({ chat, active, running, onSelect, onRename, onDelete }) {
     else setDraft(chat.title || 'Untitled chat');
   }
 
-  // Hunter badge (3 Nov 2026, owner order): hunt chats are labelled by
-  // hunter — "AI" vs "Autonomous" — so the two kinds stay visually
-  // separate. Hunts created before brainMode was recorded count as AI.
-  const huntMsg = (chat.messages || []).find((m) => m && m.role === 'hunt' && m.hunt);
-  const hunterBadge = !huntMsg
-    ? null
-    : huntMsg.hunt.brainMode === 'scanner'
+  // Hunter badge (owner orders 3 Nov 2026 + 4 Nov 2026): labelled by the
+  // SAME resolved mode the sidebar hunter filter uses, so the badge and
+  // the filter can never disagree. Hunts created before brainMode was
+  // recorded count as AI.
+  const hunterBadge =
+    hunterMode === 'scanner'
       ? { label: 'Autonomous', title: 'Infinity Autonomous hunt — rule-based scan, no AI' }
-      : { label: 'AI', title: 'Infinity AI hunt — AI agent' };
+      : hunterMode === 'ai'
+        ? { label: 'AI', title: 'Infinity AI hunt — AI agent' }
+        : null;
 
   return (
     <div
@@ -506,6 +507,7 @@ export default function Sidebar({
                   chat={chat}
                   active={chat.id === activeChatId}
                   running={!!g.running}
+                  hunterMode={chatHunterMode(chat)}
                   onSelect={() => selectChat(chat.id)}
                   onRename={onRenameChat}
                   onDelete={onDeleteChat}

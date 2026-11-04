@@ -716,7 +716,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
             ⚡ Autonomous
           </span>
         )}
-        {(brainMode === 'ai' || (!brainMode && hunt.brainMode !== 'scanner')) && (
+        {(brainMode === 'ai' || (hunt.brainMode && hunt.brainMode !== 'scanner')) && (
           <span className="brain-mode-badge" role="status" title="Infinity AI — AI agent hunts autonomously">
             🤖 AI
           </span>
