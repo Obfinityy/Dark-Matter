@@ -36,7 +36,7 @@ import path from 'node:path';
 // DATA_DIR must be set BEFORE store/config is imported.
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-json-'));
 process.env.DATA_DIR = tmpRoot;
-process.env.JWT_SECRET = 'brain-json-test-secret-1234';
+process.env.JWT_SECRET = 'test-secret-1234567890-abcdefghij9876543210'; // >=32 chars, >=10 unique: required by auth.js since #401
 process.env.ENGINE_URL = 'http://127.0.0.1:9'; // nothing listens: engine unreachable, fast fail
 
 const { validateBrainReply, brainReplyToAction, loadBrainReplySchema } = await import('../brainReply.js');
@@ -111,7 +111,7 @@ test('(a) a valid shell reply passes, and the schema file\'s own examples pass',
   const claim = shellReply({
     task: 'File the reflected XSS finding',
     action: {
-      type: 'claim_finding', title: 'Reflected XSS in search', severity: 'high',
+      type: 'claim_finding', title: 'Reflected XSS in search', class: 'xss', severity: 'high',
       command: "curl -s 'http://172.17.0.1:3100/vulnerabilities/xss_r/?name=test'",
       evidence: 'Hello <script>alert(1)</script> — marker reflected, HTTP 200',
       counterevidence: 'same request without the script tag shows no marker',
@@ -166,6 +166,22 @@ test('(a) a missing per-type field names that field', () => {
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_terminal' } })), 'action.command'));
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'launch_tool' } })), 'action.tool'));
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: 1 } })), 'action.y'));
+  // FIX (#366): coordinates/index are validated as values, not just
+  // presence — mirroring the dispatch contracts (parseClickAt,
+  // readInterceptEntry). Strings/absurd/out-of-range values are
+  // refused up front, naming the field, instead of failing later.
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: 'left', y: 1 } })), 'action.x'));
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: 120.5, y: 1 } })), 'action.x'));
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: -1, y: 1 } })), 'action.x'));
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: 10000, y: 1 } })), 'action.x'));
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: 1, y: null } })), 'action.y'));
+  assert.deepEqual(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: 9999, y: 800 } })), { ok: true });
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'intercept_read', index: 'abc' } })), 'action.index'));
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'intercept_read', index: -1 } })), 'action.index'));
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'intercept_read', index: 1.5 } })), 'action.index'));
+  assert.deepEqual(validateBrainReply(shellReply({ action: { type: 'intercept_read', index: 2 } })), { ok: true });
+  assert.deepEqual(validateBrainReply(shellReply({ action: { type: 'intercept_replay', index: '3' } })), { ok: true }, 'integer strings pass, as the dispatch coerces them');
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'claim_finding', title: 'XSS?', severity: 'high', command: 'curl x', evidence: 'long enough evidence here', counterevidence: 'control shows nothing', confidence: 'high' } })), 'action.class'));
   assert.deepEqual(validateBrainReply(shellReply({ action: { type: 'see_screen' } })), { ok: true });
   assert.deepEqual(validateBrainReply(shellReply({ action: { type: 'desktop_click', window: 'Burp Suite' } })), { ok: true });
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'claim_finding', title: 'XSS?', severity: 'high', command: 'curl x', evidence: 'long enough evidence here', confidence: 'high' } })), 'action.counterevidence'));
@@ -321,7 +337,7 @@ test('(b) the same guards apply: scope refusal and claim bounce via JSON', async
       // 10 chars — the completeness gate must still bounce it, and
       // the verifier must never run for it.
       action: {
-        type: 'claim_finding', title: 'Reflected XSS in search', severity: 'high',
+        type: 'claim_finding', title: 'Reflected XSS in search', class: 'xss', severity: 'high',
         command: 'curl x', evidence: 'too short', counterevidence: 'control',
         confidence: 'high',
       },
@@ -342,7 +358,7 @@ test('(b) a complete claim via JSON goes to the verifier and verifies', async ()
       goal: 'Get the first verified finding on DVWA',
       progress: 'Marker reflected raw in the page body on a 200 response',
       action: {
-        type: 'claim_finding', title: 'Reflected XSS in search', severity: 'high',
+        type: 'claim_finding', title: 'Reflected XSS in search', class: 'xss', severity: 'high',
         command: "curl -s 'http://172.17.0.1:3100/vulnerabilities/xss_r/?name=test'",
         evidence: 'Hello <script>alert(1)</script> — marker QXZ7719 reflected in the page body, HTTP 200, long enough to count',
         counterevidence: 'same request without the script tag shows no marker',
