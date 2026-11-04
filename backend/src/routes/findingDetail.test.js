@@ -33,7 +33,7 @@ import path from 'node:path';
 // DATA_DIR / JWT_SECRET must be set BEFORE store/config/auth load.
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'finding-detail-'));
 process.env.DATA_DIR = tmpRoot;
-process.env.JWT_SECRET = 'finding-detail-test-secret-1234';
+process.env.JWT_SECRET = 'test-secret-1234567890-abcdefghij9876543210'; // >=32 chars, >=10 unique: required by auth.js since #401
 process.env.ENGINE_URL = 'http://127.0.0.1:9'; // nothing listens: engine unreachable, fast fail
 
 const { findingDetail, panelFindings } = await import('../huntMemory.js');

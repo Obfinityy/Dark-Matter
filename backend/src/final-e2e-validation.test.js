@@ -10,7 +10,10 @@
  * 3. Vulnerable fixture: claimTitleGuard allows genuine titles through
  * 4. Non-vulnerable fixture: probe names blocked from becoming verified findings
  * 5. Tool unavailable: scopeGuard handles missing scope gracefully
- * 6. Hunt interruption: (covered by huntCrashRecovery.test.js — boots real backend)
+ * 6. Hunt interruption: NOT COVERED — no test file exists for it.
+ *    (The old comment claimed huntCrashRecovery.test.js covered this;
+ *    that file never existed in the repo — phantom reference, #355.
+ *    Interruption coverage is a gap to fill, not a passing scenario.)
  * 7. Data isolation: hunt ownership checks prevent cross-user access
  * 8. Persistence: (covered by file-based hunt store — meta.json/events.jsonl)
  * 9. Report integrity: findingDetail downgrades probe titles to "probe note"

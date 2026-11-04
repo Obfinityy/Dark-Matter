@@ -36,7 +36,7 @@ import path from 'node:path';
 // DATA_DIR must be set BEFORE store/config is imported.
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-json-'));
 process.env.DATA_DIR = tmpRoot;
-process.env.JWT_SECRET = 'brain-json-test-secret-1234';
+process.env.JWT_SECRET = 'test-secret-1234567890-abcdefghij9876543210'; // >=32 chars, >=10 unique: required by auth.js since #401
 process.env.ENGINE_URL = 'http://127.0.0.1:9'; // nothing listens: engine unreachable, fast fail
 
 const { validateBrainReply, brainReplyToAction, loadBrainReplySchema } = await import('../brainReply.js');
