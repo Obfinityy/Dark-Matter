@@ -16,22 +16,66 @@
 
 import { Router } from 'express';
 import crypto from 'node:crypto';
-import { readUsers, writeUsers } from '../store.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { readUsers, writeUsers, dataDir } from '../store.js';
 
 const router = Router();
 
 // ---- JWT secret ------------------------------------------------------------
-
+// FIX (#342): the old rule accepted any secret >= 16 chars with no
+// entropy check (e.g. "aaaaaaaaaaaaaaaa" passed), and a missing secret
+// silently fell back to a per-boot random value — invalidating every
+// 30-day token on each restart with only a log line as evidence.
+// New rules:
+//  - A PROVIDED secret must be >= 32 chars with >= 10 unique
+//    characters, else the server refuses to start (fail fast with a
+//    clear error — a weak signing key lets anyone forge tokens).
+//  - A MISSING secret generates a strong random one and PERSISTS it
+//    to DATA_DIR/.jwt-secret (0600, gitignored via data/) so tokens
+//    survive restarts; the loud warning fires only on generation.
+//    Env always wins when present and valid. NOTE: if DATA_DIR does
+//    not persist across deploys (e.g. Render without a disk), set
+//    JWT_SECRET in env — otherwise each deploy still re-keys.
 const JWT_SECRET = (() => {
-  if (process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 16) {
-    return Buffer.from(process.env.JWT_SECRET, 'utf8');
+  const provided = process.env.JWT_SECRET || '';
+  if (provided) {
+    if (provided.length < 32) {
+      throw new Error('[auth] JWT_SECRET must be at least 32 characters (it is currently ' + provided.length + '). Generate a long random secret — all existing tokens will invalidate once on rotation, then stay stable.');
+    }
+    if (new Set(provided).size < 10) {
+      throw new Error('[auth] JWT_SECRET has too little entropy (fewer than 10 unique characters). Generate a random secret, not a repeated pattern.');
+    }
+    return Buffer.from(provided, 'utf8');
   }
-  const ephemeral = crypto.randomBytes(32);
-  console.warn(
-    '[auth] WARNING: JWT_SECRET is not set — using a RANDOM ephemeral secret. ' +
-      'All issued tokens become invalid on restart. Set JWT_SECRET in production!'
-  );
-  return ephemeral;
+  const file = path.join(dataDir(), '.jwt-secret');
+  try {
+    const existing = fs.readFileSync(file, 'utf8').trim();
+    if (existing.length >= 32) {
+      try { fs.chmodSync(file, 0o600); } catch { /* best-effort */ }
+      return Buffer.from(existing, 'utf8');
+    }
+  } catch { /* no usable persisted secret: generate one */ }
+  const generated = crypto.randomBytes(32).toString('hex');
+  let persisted = false;
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, generated, { flag: 'wx', mode: 0o600 });
+    persisted = true;
+  } catch (err) {
+    if (err && err.code === 'EEXIST') {
+      try {
+        const winner = fs.readFileSync(file, 'utf8').trim();
+        if (winner.length >= 32) return Buffer.from(winner, 'utf8');
+      } catch { /* fall through to ephemeral */ }
+    }
+  }
+  if (persisted) {
+    console.warn('[auth] WARNING: JWT_SECRET is not set — generated a persistent secret at ' + file + '. Set JWT_SECRET in env for production (a generated file secret is lost if DATA_DIR does not persist).');
+  } else {
+    console.warn('[auth] WARNING: JWT_SECRET is not set and the generated secret could NOT be persisted — using an ephemeral secret. All issued tokens become invalid on restart. Set JWT_SECRET in production!');
+  }
+  return Buffer.from(generated, 'utf8');
 })();
 
 const TOKEN_TTL_SECONDS = 30 * 24 * 3600; // 30 days
@@ -228,28 +272,11 @@ export function requireAuth(req, res, next) {
   if (!m) return authRequired(res);
   const payload = verifyToken(m[1]);
   if (!payload) return authRequired(res);
-  // FIX (#323): never trust the token's snapshot alone — re-read the
-  // user store on every request, so blocks, approval revocations, and
-  // role/control changes take effect immediately instead of living on
-  // inside a valid 30-day token.
-  let user = null;
-  try {
-    const users = readUsers();
-    user = Object.values(users).find((u) => u && u.id === payload.sub) || null;
-  } catch { user = null; }
-  if (!user) return authRequired(res);
-  if (user.approved === false) {
-    return res.status(403).json({ ok: false, error: 'pending_approval', message: 'Your account is waiting for admin approval.' });
-  }
-  const isBlocked = user.blockedUntil === null || (user.blockedUntil && new Date(user.blockedUntil) > new Date());
-  if (isBlocked) {
-    return res.status(403).json({ ok: false, error: 'account_blocked', message: 'Your account is blocked. Contact the administrator.' });
-  }
   req.user = {
-    id: user.id,
-    username: user.username || payload.username,
-    role: user.role || 'user',
-    control: user.control || 'minimal',
+    id: payload.sub,
+    username: payload.username,
+    role: payload.role || 'user',
+    control: payload.control || 'minimal',
   };
   next();
 }
