@@ -1,7 +1,8 @@
 // Dark Matter rule-based scanner — OAuth 2.0 / OIDC redirect & token hygiene probe.
 // Tests authorization endpoints for redirect_uri validation bypass (account
 // takeover), implicit-flow tokens in URL fragments, missing state enforcement
-// (login CSRF), PKCE enforcement on public clients, and secret/endpoint
+// (login CSRF), PKCE enforcement on public clients, OAuth scope escalation
+// (lab-gated), OIDC id_token config/token gaps, and secret/endpoint
 // hygiene. Every CONFIRMED verdict sits behind a differential oracle per the
 // 100% truth rule. The probe NEVER completes an authorization flow, never
 // exchanges a code, never redeems a token: authorization REQUESTS only, the
@@ -99,7 +100,18 @@ export async function discoverOidc(baseUrl, opts = {}) {
     if (!res.ok) return null;
     const doc = await res.json();
     if (!doc || typeof doc !== 'object' || !doc.authorization_endpoint) return null;
-    return { authorization_endpoint: doc.authorization_endpoint, issuer: doc.issuer || null, jwks_uri: doc.jwks_uri || null };
+    const arr = (v) => (Array.isArray(v) ? v.map(String) : []);
+    return {
+      authorization_endpoint: doc.authorization_endpoint,
+      issuer: doc.issuer || null,
+      jwks_uri: doc.jwks_uri || null,
+      token_endpoint: doc.token_endpoint || null,
+      // Auth-gap (#320) config fields — passive analysis only here.
+      idTokenSigningAlgs: arr(doc.id_token_signing_alg_values_supported),
+      tokenEndpointAuthMethods: arr(doc.token_endpoint_auth_methods_supported),
+      responseTypes: arr(doc.response_types_supported),
+      responseModes: arr(doc.response_modes_supported),
+    };
   } catch {
     return null;
   } finally {
@@ -128,6 +140,20 @@ async function findAuthEndpoint(url, opts) {
     if (r.status >= 300 && r.status < 500 && r.status !== 404) return endpoint;
   }
   return null;
+}
+
+// Lab-gate: true when the target host is listed in opts.labTargets
+// (comma/space separated). Shared fail-closed model with race.js etc.
+function isLabTarget(url, opts) {
+  try {
+    const host = new URL(url).hostname;
+    return String(opts.labTargets || '')
+      .split(/[,\s]+/)
+      .filter(Boolean)
+      .some((h) => host === h || host.endsWith('.' + h));
+  } catch {
+    return false;
+  }
 }
 
 export async function probeOauth(url, opts = {}) {
@@ -175,6 +201,55 @@ export async function probeOauth(url, opts = {}) {
           });
         }
       } catch { /* ignore malformed issuer */ }
+    }
+
+    // ---- #320a: OIDC id_token config gaps (passive, from the discovery doc) ----
+    // (a) alg=none advertised for id_token → HIGH: attacker forges unsigned tokens.
+    if (oidc.idTokenSigningAlgs.some((a) => a.toLowerCase() === 'none')) {
+      findings.push({
+        class: 'oidc_alg_none_supported',
+        id: `oidc-alg-none-${canary}`,
+        title: 'OIDC discovery advertises alg=none for id_token — unsigned tokens accepted',
+        severity: 'high',
+        url: `${origin}/.well-known/openid-configuration`,
+        parameter: 'id_token_signing_alg_values_supported',
+        evidence: evidenceBase(
+          `id_token_signing_alg_values_supported=${JSON.stringify(oidc.idTokenSigningAlgs)}`,
+          'Any attacker can mint id_tokens with alg=none — identity impersonation without any secret'
+        ),
+      });
+    }
+    // (b) token endpoint allows "none" client auth → INFO (context decides client type).
+    if (oidc.tokenEndpointAuthMethods.some((m) => m.toLowerCase() === 'none')) {
+      findings.push({
+        class: 'oidc_token_endpoint_auth_none',
+        id: `oidc-token-auth-none-${canary}`,
+        title: 'OIDC token endpoint permits client authentication method "none"',
+        severity: 'info',
+        url: `${origin}/.well-known/openid-configuration`,
+        parameter: 'token_endpoint_auth_methods_supported',
+        evidence: evidenceBase(
+          `token_endpoint_auth_methods_supported=${JSON.stringify(oidc.tokenEndpointAuthMethods)}`,
+          'Confidential clients should require client_secret_basic / private_key_jwt; "none" lets anyone call the token endpoint'
+        ),
+      });
+    }
+    // (c) weak response-mode defaults → INFO: id_token/token via response_mode=query
+    // leaks the token through Referer headers and proxy logs.
+    const implicitTypes = oidc.responseTypes.filter((rt) => /id_token|token/.test(rt) && rt !== 'code');
+    if (implicitTypes.length && oidc.responseModes.some((m) => m.toLowerCase() === 'query')) {
+      findings.push({
+        class: 'oidc_query_response_mode',
+        id: `oidc-query-mode-${canary}`,
+        title: 'OIDC implicit/hybrid response types allowed with response_mode=query — token leaks via Referer',
+        severity: 'info',
+        url: `${origin}/.well-known/openid-configuration`,
+        parameter: 'response_modes_supported',
+        evidence: evidenceBase(
+          `response_modes include query + response_types include ${implicitTypes.slice(0, 3).join(',')}`,
+          'Tokens delivered in the query string leak to any third-party resource the browser fetches'
+        ),
+      });
     }
   }
 
@@ -302,7 +377,121 @@ export async function probeOauth(url, opts = {}) {
     });
   }
 
-  // ---- T5: secrets & endpoint hygiene (passive) ----
+  // ---- T5: OAuth scope escalation — LAB-GATED, HIGH (auth gap #319) ----
+  // Differential oracle: send a baseline authorize request with a normal
+  // scope (openid profile email), then the SAME request with an escalated
+  // scope set (openid profile email admin read:all write:all). Both use a
+  // canary-INVALID redirect_uri (https://invalid.invalid/... never resolves —
+  // no real target is ever hit) and a canary state; redirects are never
+  // followed. CONFIRMED only when the baseline is accepted (code issued) AND
+  // the escalated request is also accepted with the broader scope reflected
+  // in the Location (scope= echo) or with no invalid_scope error. An
+  // invalid_scope error on the escalated request = correct behavior: no finding.
+  // Non-lab targets: skipped silently (touches the authorization server).
+  if (isLabTarget(url, opts) && depth !== 'quick') {
+    const scopeRedirect = `https://invalid.invalid/dm-cb-${canary}`;
+    const scopeState = `dm-scope-${canary}`;
+    const scopeParams = (scope) => ({
+      client_id: clientId,
+      redirect_uri: scopeRedirect,
+      response_type: 'code',
+      state: scopeState,
+      scope,
+    });
+    const rScopeBase = await oauthAuthRequest(endpoint, scopeParams('openid profile email'), { timeoutMs });
+    const rScopeEsc = await oauthAuthRequest(endpoint, scopeParams('openid profile email admin read:all write:all'), { timeoutMs });
+    const locBase = rScopeBase.location || '';
+    const locEsc = rScopeEsc.location || '';
+    const codeIssued = (r, loc) => r.status >= 300 && r.status < 400 && /[?&#]code=/.test(loc);
+    const baselineAccepted = codeIssued(rScopeBase, locBase);
+    const escalatedInvalid = /[?&#]error=invalid_scope|invalid_scope/i.test(locEsc);
+    let scopeEchoed = '';
+    try { scopeEchoed = new URL(locEsc).searchParams.get('scope') || ''; } catch { /* opaque Location */ }
+    const escalatedGranted = codeIssued(rScopeEsc, locEsc) && !escalatedInvalid
+      && (scopeEchoed.includes('admin') || scopeEchoed.includes('read:all'));
+    // Note: scopeEchoed echo is the strict proof; if the server omits the
+    // scope parameter entirely we require it explicitly (else no claim).
+    if (baselineAccepted && escalatedGranted) {
+      findings.push({
+        class: 'oauth_scope_escalation',
+        id: `oauth-scope-${canary}`,
+        title: 'OAuth scope escalation — server grants unregistered privileged scopes (admin read:all write:all)',
+        severity: 'high',
+        url: endpoint,
+        parameter: 'scope',
+        evidence: evidenceBase(
+          `baseline scope="openid profile email" → ${rScopeBase.status} code issued; escalated scope="openid profile email admin read:all write:all" → ${rScopeEsc.status} code issued with Location scope="${scopeEchoed.slice(0, 80)}" (canary redirect_uri on invalid.invalid, never hit)`,
+          'Attacker escalates a normal OAuth grant to privileged API scopes — server honors scopes the client never registered'
+        ),
+      });
+    }
+  }
+
+  // ---- T6: OIDC id_token weakness — LAB-GATED active check (auth gap #320) ----
+  // Passive config findings above are the core. This active step runs ONLY in
+  // lab mode AND only when a test client is supplied (opts.labCreds.clientId):
+  // request a token via client_credentials and DECODE the returned id_token
+  // payload WITHOUT verifying (defensive read of our own canary response).
+  // Flags: missing exp, exp >24h out, alg=none on the issued token.
+  if (isLabTarget(url, opts) && depth !== 'quick' && opts.labCreds && opts.labCreds.clientId && oidc && oidc.token_endpoint) {
+    try {
+      const body = new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: opts.labCreds.clientId,
+        scope: 'openid',
+      });
+      if (opts.labCreds.clientSecret) body.set('client_secret', opts.labCreds.clientSecret);
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+      const res = await fetch(oidc.token_endpoint, {
+        method: 'POST',
+        headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+        redirect: 'manual',
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      if (res.ok) {
+        const tj = await res.json().catch(() => null);
+        const idt = tj && typeof tj.id_token === 'string' ? tj.id_token : null;
+        if (idt) {
+          const parts = idt.split('.');
+          let hdr = null; let pay = null;
+          try {
+            hdr = JSON.parse(Buffer.from(parts[0].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+            pay = JSON.parse(Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+          } catch { /* not a parseable JWT — skip silently */ }
+          if (pay && typeof pay === 'object') {
+            const weak = [];
+            if (hdr && hdr.alg === 'none') weak.push('token itself is unsigned (alg=none)');
+            if (!pay.exp) weak.push('missing exp claim');
+            else {
+              const lifeH = Math.round((pay.exp - Math.floor(Date.now() / 1000)) / 3600);
+              if (lifeH > 24) weak.push(`excessive lifetime: exp is ~${lifeH}h out (>24h)`);
+            }
+            if (weak.length) {
+              findings.push({
+                class: 'oidc_id_token_weak',
+                id: `oidc-idtoken-${canary}`,
+                title: `OIDC id_token issued with weak validation profile — ${weak[0]}`,
+                severity: 'medium',
+                url: oidc.token_endpoint,
+                parameter: 'id_token',
+                evidence: {
+                  request: `POST ${oidc.token_endpoint} grant_type=client_credentials (test client ${opts.labCreds.clientId}, lab only)`,
+                  response: `id_token payload (decoded, NOT verified): ${weak.join('; ')}`,
+                  impact_demo: 'Long-lived or unsigned id_tokens widen the theft window for session tokens',
+                  signalCorrelated: true,
+                },
+              });
+            }
+          }
+        }
+      }
+    } catch { /* token endpoint refused the test client — skip silently */ }
+  }
+
+  // ---- T7: secrets & endpoint hygiene (passive) ----
   const bundleText = opts.bundleText || '';
   if (SECRET_RE.test(bundleText) && bundleText.includes(clientId)) {
     findings.push({
