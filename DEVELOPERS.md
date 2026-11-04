@@ -126,7 +126,7 @@ Brain + Memory + OS = Complete Human Hunter
 ┌─────────────────────────────────────────────────────────────┐
 │                        BACKEND                               │
 │              api.thebhavesh.online                           │
-│         (Node.js on EC2, systemd)                            │
+│         (Node.js — live targets per Infrastructure below)     │
 │                                                              │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐    │
 │  │  Hunt Engine │  │ Auto-Filer   │  │    Verifier      │    │
@@ -154,10 +154,25 @@ Brain + Memory + OS = Complete Human Hunter
 ```
 
 ### Infrastructure
-- **Frontend**: Cloudflare Pages (hack.thebhavesh.online), auto-deploys on git push
-- **Backend**: AWS EC2 ap-south-1 (m7i-flex.large, 2 vCPU, 8GB RAM)
-  - URL: https://api.thebhavesh.online
-  - Process: systemd unit `darkmatter-backend` (MUST run via systemd for env vars)
+- **Frontend**: Cloudflare Pages (hack.thebhavesh.online), auto-deploys on git push.
+  Other frontend targets exist in-repo and must not be confused with the
+  canonical one: Vercel (per AGENTS.md) and GitHub Pages emergency
+  (`.github/workflows/deploy-gh-pages.yml`, on push to main touching
+  `frontend/**`). Which host is canonical vs emergency is an open
+  question for the owner to confirm — see issue #430.
+- **Backend**: TWO targets are configured in-repo, and this doc no longer
+  claims only one of them is live (see issue #430 for the live-target
+  decision, still open):
+  - AWS EC2 ap-south-1 (m7i-flex.large, 2 vCPU, 8GB RAM) — deployed by
+    the auto-deploy workflow (`.github/workflows/deploy-backend.yml`:
+    on push to main touching `backend/**`, SSH pull + restart of the
+    `darkmatter-backend` systemd unit, skipped while hunts are active).
+    The manual pull + restart in §11 is the operator fallback, not the
+    deploy mechanism.
+  - Render web service per `backend/render.yaml` (health check
+    `/api/v1/health`).
+  - URL (both paths serve it): https://api.thebhavesh.online
+  - Process (EC2 path): systemd unit `darkmatter-backend` (MUST run via systemd for env vars)
   - Health: `GET /api/v1/health` → `{"ok":true}`
 - **Hunt containers**: Docker, one per hunt, named `dm-hunt-<huntId>`
 - **Target (testing)**: DVWA at `http://172.17.0.1:3100` (Docker on EC2)
@@ -539,14 +554,22 @@ Dark-Matter/
 
 ## 11. Deployment
 
-### Backend (EC2)
+### Backend (EC2 auto-deploy + Render — see Infrastructure)
+Deployments are NOT manual pulls. The EC2 path is the auto-deploy
+workflow (`.github/workflows/deploy-backend.yml`): on push to main
+touching `backend/**` it SSH-deploys (pull + restart of
+`darkmatter-backend`, skipped while hunts are active). A Render
+service is additionally defined in `backend/render.yaml`. Which
+backend target is currently live is an open question (issue #430);
+the manual EC2 steps below are the operator fallback for the EC2
+box, not the deploy mechanism.
 ```bash
 # SSH (direct route, Tailscale is down)
 ssh -o ProxyCommand="python3 ~/workspace/proxy_ssh_direct.py %h %p" \
     -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 \
     ubuntu@13.233.230.240 "<command>"
 
-# Deploy (from EC2 /opt/Dark-Matter)
+# Operator fallback (from EC2 /opt/Dark-Matter) — NOT the deploy path
 git pull origin main  # or merge --ff-only origin/main
 sudo systemctl restart darkmatter-backend
 curl https://api.thebhavesh.online/api/v1/health  # → {"ok":true}
@@ -560,6 +583,9 @@ curl https://api.thebhavesh.online/api/v1/health  # → {"ok":true}
 - Auto-deploys on git push to main (takes ~5 min)
 - URL: https://hack.thebhavesh.online
 - Manual check: curl the URL and verify bundle hash changed
+- Note: Vercel and the GitHub Pages emergency workflow also exist
+  in-repo (see Infrastructure) — Cloudflare Pages is the host this
+  doc describes; canonical-vs-emergency is open per issue #430.
 
 ### Git Push (from EC2)
 ```bash
