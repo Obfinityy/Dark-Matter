@@ -35,6 +35,7 @@ import { probeRace } from './probes/race.js';
 import { probeCrypto } from './probes/crypto.js';
 import { probePrototypePollution } from './probes/prototypePollution.js';
 import { probeDeserialization } from './probes/deserialization.js';
+import { probeHpp } from './probes/hpp.js';
 import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
@@ -79,6 +80,7 @@ export const DEFAULT_PHASES = [
   'crypto',
   'prototype-pollution',
   'deserialization',
+  'hpp',
   'xpathi',
   'ssi',
   'file-upload',
@@ -259,6 +261,7 @@ export async function runScan(
     await step('sqli-blind', () =>
       probeBlindSqli(u, uparams, { ...opts, dbHint: fp?.dbHint })
     );
+    await step('hpp', () => probeHpp(u, uparams, opts));
     await step('xss', () => probeXssReflected(u, uparams, opts));
     await step('nosqli', () => probeNoSqli(u, uparams, opts));
     await step('nosql-deep', () => probeNoSqlDeep(u, uparams, opts));
