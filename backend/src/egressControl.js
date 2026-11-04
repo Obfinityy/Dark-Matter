@@ -93,7 +93,17 @@ export function proxyPortForHunt(huntId) {
 // Ports that MUST go through the filtering proxy — never in the tuple set.
 export const PROXY_ONLY_PORTS = new Set([80, 443]);
 
-const IPV4_RE = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+// FIX (#369, gap 1): the old IPV4_RE (/^\d{1,3}(\.\d{1,3}){3}$/)
+// accepted 999.999.999.999 as an "IPv4 address", which then entered
+// the tuple set. Octets are now range-checked 0-255, and leading-zero
+// forms (010.0.0.1) are rejected outright — they are ambiguous (octal
+// vs decimal) to different parsers downstream. All tuple-building
+// sites use this validator, not a bare regex.
+function isIPv4(ip) {
+  const parts = String(ip || '').split('.');
+  if (parts.length !== 4) return false;
+  return parts.every((p) => /^(0|[1-9]\d{0,2})$/.test(p) && Number(p) <= 255);
+}
 
 function normProto(p) {
   return String(p || '').toLowerCase() === 'udp' ? 'udp' : 'tcp';
@@ -108,11 +118,14 @@ export function tupleEntry(ip, proto, port) {
 // DNS upstream discovery (pure over injected resolv.conf text)
 // ---------------------------------------------------------------------------
 
-/** First non-localhost nameserver from resolv.conf text; null if none. */
+/** First non-localhost nameserver from resolv.conf text; null if none.
+ *  FIX (#369, gap 4): only valid IPv4 nameservers count — this layer
+ *  is IPv4-only (v6 disabled in hunt containers), so an IPv6 or
+ *  malformed entry must not become the pinned resolver. */
 export function resolveUpstreamDns(resolvConfText) {
   for (const line of String(resolvConfText || '').split('\n')) {
     const m = line.trim().match(/^nameserver\s+(\S+)/i);
-    if (m && !/^(127\.|::1)/.test(m[1])) return m[1];
+    if (m && !/^(127\.|::1)/.test(m[1]) && isIPv4(m[1])) return m[1];
   }
   return null;
 }
@@ -160,7 +173,7 @@ export function buildEgressPlan(huntId, scope, opts = {}) {
   const entrySet = new Set();
   const ipSet = new Set();
   const addIp = (ip) => {
-    if (!IPV4_RE.test(ip)) return; // v6 disabled in hunt containers; skip AAAA here
+    if (!isIPv4(ip)) return; // v6 disabled in hunt containers; skip AAAA here
     ipSet.add(ip);
     for (const t of tuples) entrySet.add(tupleEntry(ip, t.proto, t.port));
   };
@@ -393,7 +406,7 @@ export async function removeHuntEgress(huntId, opts = {}, { run = defaultRunner 
       results.push({ cmd, ok: false, error: err.message || String(err) });
     }
   }
-  return { ok: true, results };
+  return { ok: results.every((r) => r.ok), results };
 }
 
 /**
@@ -438,7 +451,7 @@ export async function refreshHuntEgress(
   const want = new Set();
   for (const h of scope.hosts || []) {
     for (const ip of resolved[h] || []) {
-      if (!IPV4_RE.test(ip)) continue;
+      if (!isIPv4(ip)) continue;
       // FIX (#339): same rebinding guard as buildEgressPlan — a
       // freshly resolved private IP for an in-scope hostname must
       // never become an ipset rule. Explicit scope.ips / labIps below
@@ -450,9 +463,27 @@ export async function refreshHuntEgress(
       for (const t of tuples) want.add(tupleEntry(ip, t.proto, t.port));
     }
   }
-  for (const ip of [...(scope.ips || []), ...(scope.labIps || [])]) {
-    if (!IPV4_RE.test(ip)) continue;
+  for (const ip of scope.ips || []) {
+    if (!isIPv4(ip)) continue;
     for (const t of tuples) want.add(tupleEntry(ip, t.proto, t.port));
+  }
+  // FIX (#369, gap 3): translated entries for a lab IP (post-DNAT)
+  // must survive the tick — buildEgressPlan adds them, so the
+  // refresh must too, or the next tick diffs them out and the hunt
+  // silently loses its DNAT-translated lab access. No private-IP
+  // filter here: translations are lab by design, like labIps
+  // themselves (the #339 filter applies only to freshly resolved
+  // public hostnames above). The mapping rides in meta.egress
+  // (persisted by finalizeHuntEgress); the scope itself carries no
+  // translation field and is frozen by design.
+  const labTranslated = (egress && egress.labTranslated) || {};
+  for (const ip of scope.labIps || []) {
+    if (!isIPv4(ip)) continue;
+    for (const t of tuples) want.add(tupleEntry(ip, t.proto, t.port));
+    for (const tip of labTranslated[ip] || []) {
+      if (!isIPv4(tip)) continue;
+      for (const t of tuples) want.add(tupleEntry(tip, t.proto, t.port));
+    }
   }
   const current = getCurrentEntries
     ? await getCurrentEntries(egress.setName)
@@ -467,7 +498,7 @@ export async function refreshHuntEgress(
     const r = await run(['ipset', 'del', egress.setName, e]);
     results.push({ cmd: `ipset del ${egress.setName} ${e}`, ok: r.ok });
   }
-  return { ok: true, added: add.length, removed: del.length, results };
+  return { ok: results.every((r) => r.ok), added: add.length, removed: del.length, results };
 }
 
 async function defaultResolveHost(host) {
@@ -500,6 +531,7 @@ export async function setupHuntEgress(
     startProxy,
     readResolvConf,
     getGatewayIp,
+    resolverIp: resolverIpOpt,
   } = {}
 ) {
   const san = sanitizeHuntId(huntId);
@@ -516,7 +548,20 @@ export async function setupHuntEgress(
   const resolvText = readResolvConf
     ? await readResolvConf()
     : await import('node:fs/promises').then((fs) => fs.readFile('/etc/resolv.conf', 'utf8').catch(() => ''));
-  const resolverIp = resolveUpstreamDns(resolvText) || '8.8.8.8';
+  // FIX (#369, gap 4): no silent fallback to 8.8.8.8. A hunt whose
+  // DNS would go to an unscoped public resolver must not start —
+  // fail closed with a message naming the fix. An explicit
+  // resolverIp opt-in (operator-pinned, IPv4-only like this layer)
+  // is the escape hatch for localhost-only resolv.conf setups
+  // (e.g. Docker's 127.0.0.11 stub, which resolveUpstreamDns
+  // correctly skips as localhost).
+  const resolverIp = resolverIpOpt || resolveUpstreamDns(resolvText);
+  if (!resolverIp) {
+    throw new Error('setupHuntEgress: no upstream DNS resolver found — resolv.conf has only localhost nameservers (or is empty). Add a non-localhost nameserver, or pass resolverIp explicitly. Refusing to fall back to a public resolver (was 8.8.8.8), which would send hunt DNS outside the pinned scope.');
+  }
+  if (!isIPv4(resolverIp)) {
+    throw new Error('setupHuntEgress: resolverIp must be a valid IPv4 address');
+  }
 
   let proxyHandle = null;
   if (startProxy) {
@@ -627,6 +672,10 @@ export async function finalizeHuntEgress(
     proxyPort: egress.proxyPort,
     resolverIp: egress.resolverIp,
     resolved,
+    // FIX (#369, gap 3): wire the translation mapping through the
+    // only production plan builder, so it is installed now AND
+    // persisted below for the reconciler tick to preserve.
+    labTranslated: egress.labTranslated || {},
   });
   const applied = await applyEgressPlan(plan, { run });
   if (!applied.ok) throw new Error('finalizeHuntEgress: iptables/ipset apply failed (fail-closed)');
@@ -642,6 +691,9 @@ export async function finalizeHuntEgress(
         resolverIp: plan.resolverIp,
         containerIps,
         appliedAt: new Date().toISOString(),
+        ...(egress.labTranslated && Object.keys(egress.labTranslated).length
+          ? { labTranslated: egress.labTranslated }
+          : {}),
       },
     });
   } catch { /* meta persist is best-effort; the rules are already live */ }
