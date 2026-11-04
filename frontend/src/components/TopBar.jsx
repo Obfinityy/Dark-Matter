@@ -32,27 +32,18 @@ function IconActivity() {
   );
 }
 
-export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onActivity, onOpenHunt }) {
+export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onActivity, onOpenHunt, hunter = 'scanner', onPickHunter }) {
   const { user } = useAuth();
   const [modelOpen, setModelOpen] = useState(false);
   // Hunter picker (3 Nov 2026, owner order): "Dark Matter" opens two
-  // hunters — Infinity AI and Infinity Autonomous. The choice is the
-  // default hunter for new hunts (the New Hunt dialog reads the same key
-  // and still lets each hunt override it). Persisted per device.
-  const [hunter, setHunter] = useState(() => {
-    try {
-      return window.localStorage.getItem('dm.hunter') === 'ai' ? 'ai' : 'scanner';
-    } catch {
-      return 'scanner';
-    }
-  });
+  // hunters — Infinity AI and Infinity Autonomous. The choice lives in
+  // App.jsx (single source of truth, persisted per device in
+  // localStorage 'dm.hunter'); it is the default hunter for new hunts
+  // (the New Hunt dialog re-reads the same key) and the sidebar's
+  // hunter filter. This component only renders the picker UI.
+  const activeHunter = hunter === 'ai' ? 'ai' : 'scanner';
   function pickHunter(h) {
-    setHunter(h);
-    try {
-      window.localStorage.setItem('dm.hunter', h);
-    } catch {
-      /* storage unavailable — session default still applies */
-    }
+    if (typeof onPickHunter === 'function') onPickHunter(h);
     setModelOpen(false);
   }
   const [profileOpen, setProfileOpen] = useState(false);
@@ -156,9 +147,9 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onA
               marginLeft: 2,
               whiteSpace: 'nowrap',
             }}
-            title={hunter === 'scanner' ? 'Infinity Autonomous — rule-based scan, no AI, $0' : 'Infinity AI — AI agent hunts autonomously'}
+            title={activeHunter === 'scanner' ? 'Infinity Autonomous — rule-based scan, no AI, $0' : 'Infinity AI — AI agent hunts autonomously'}
           >
-            {hunter === 'scanner' ? 'Autonomous' : 'AI'}
+            {activeHunter === 'scanner' ? 'Autonomous' : 'AI'}
           </span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
             <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
@@ -169,14 +160,14 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onA
             <button
               className="model-option"
               role="menuitemradio"
-              aria-checked={hunter === 'ai'}
+              aria-checked={activeHunter === 'ai'}
               onClick={() => pickHunter('ai')}
             >
               <div>
                 <div className="model-option-name">Infinity AI</div>
                 <div className="model-option-sub">AI agent hunts like a human expert</div>
               </div>
-              {hunter === 'ai' && (
+              {activeHunter === 'ai' && (
                 <svg className="model-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
                   <path d="M4 12.5 9.5 18 20 6.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -185,14 +176,14 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onA
             <button
               className="model-option"
               role="menuitemradio"
-              aria-checked={hunter === 'scanner'}
+              aria-checked={activeHunter === 'scanner'}
               onClick={() => pickHunter('scanner')}
             >
               <div>
                 <div className="model-option-name">Infinity Autonomous</div>
                 <div className="model-option-sub">Rule-based scan, no AI, $0 — results in minutes</div>
               </div>
-              {hunter === 'scanner' && (
+              {activeHunter === 'scanner' && (
                 <svg className="model-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
                   <path d="M4 12.5 9.5 18 20 6.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>

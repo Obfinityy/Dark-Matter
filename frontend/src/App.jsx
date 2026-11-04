@@ -101,6 +101,28 @@ function AppInner() {
   // Hunts whose LIVE backend state is running — the sidebar's
   // "Currently Running" section reads this, never chat activity.
   const [runningHunts, setRunningHunts] = useState([]);
+  // Hunter picker (Infinity AI vs Infinity Autonomous) — single source of
+  // truth for TopBar, Sidebar and NewHuntModal (the dialog re-reads the
+  // same localStorage key on every open). Persisted per device.
+  const [hunter, setHunter] = useState(() => {
+    try {
+      return window.localStorage.getItem('dm.hunter') === 'ai' ? 'ai' : 'scanner';
+    } catch {
+      return 'scanner';
+    }
+  });
+  function pickHunter(h) {
+    const v = h === 'ai' ? 'ai' : 'scanner';
+    setHunter(v);
+    try {
+      window.localStorage.setItem('dm.hunter', v);
+    } catch { /* storage unavailable — session default still applies */ }
+  }
+  // huntId -> 'ai' | 'scanner', plus `target:<lowercased target>` keys.
+  // Built from GET /api/v1/hunts (which returns brainMode per hunt) so the
+  // sidebar can filter the chat list by the selected hunter even for hunts
+  // whose chat carries no brainMode (restored / title-pulled chats).
+  const [huntModes, setHuntModes] = useState({});
 
   // CHATS: Backend is the single source of truth. On login/account change,
   // fetch the chat list fresh from the backend. localStorage is NOT used for
@@ -240,10 +262,23 @@ function AppInner() {
         const { listHunts, getChatMessages, getChatTitles } = await import('./lib/api');
         const res = await listHunts();
         if (cancelled || !res.ok || !res.data || !Array.isArray(res.data.hunts)) return;
+        const allHunts = res.data.hunts;
+        // Hunter-mode lookup for the sidebar filter (huntId + target keys).
+        // brainMode 'scanner' = Infinity Autonomous; anything else = AI
+        // (hunts created before brainMode was recorded count as AI — the
+        // app-wide convention, see backend/src/routes/hunts.js).
+        const modes = {};
+        for (const h of allHunts) {
+          if (!h) continue;
+          const m = h.brainMode === 'scanner' ? 'scanner' : 'ai';
+          if (h.huntId) modes[h.huntId] = m;
+          if (h.target) modes[`target:${String(h.target).trim().toLowerCase()}`] = m;
+        }
+        if (!cancelled) setHuntModes(modes);
         // LIVE running state (backend is the source of truth) — the
         // sidebar's "Currently Running" section.
         setRunningHunts(
-          res.data.hunts
+          allHunts
             .filter((h) => h && String(h.status || '').toLowerCase() === 'running')
             .map((h) => ({ huntId: h.huntId, target: h.target || '' })),
         );
@@ -722,6 +757,8 @@ function AppInner() {
           runningHunts={runningHunts}
           activeChatId={activeChatId}
           activePage={page}
+          hunter={hunter}
+          huntModes={huntModes}
           onSelectChat={setActiveChatId}
           onNewHunt={requestHuntModal}
           onNavigate={navigate}
@@ -730,11 +767,19 @@ function AppInner() {
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />
+        {/* Backdrop stays mounted so its fade transition can play on close. */}
+        <button
+          className={`sidebar-backdrop${sidebarOpen ? ' open' : ''}`}
+          aria-label="Close sidebar"
+          onClick={() => setSidebarOpen(false)}
+        />
         <main className="main">
           <TopBar
             onMenu={() => setSidebarOpen((v) => !v)}
             sidebarOpen={sidebarOpen}
             showShare={false}
+            hunter={hunter}
+            onPickHunter={pickHunter}
             onNavigate={navigate}
             onActivity={() => setActivityOpen(true)}
             onOpenHunt={openHuntChat}
@@ -753,6 +798,8 @@ function AppInner() {
         runningHunts={runningHunts}
         activeChatId={activeChatId}
         activePage={page}
+        hunter={hunter}
+        huntModes={huntModes}
         onSelectChat={setActiveChatId}
         onNewHunt={requestHuntModal}
         onNavigate={navigate}
@@ -761,14 +808,19 @@ function AppInner() {
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
-      {sidebarOpen && (
-        <button className="sidebar-backdrop" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)} />
-      )}
+      {/* Backdrop stays mounted so its fade transition can play on close. */}
+      <button
+        className={`sidebar-backdrop${sidebarOpen ? ' open' : ''}`}
+        aria-label="Close sidebar"
+        onClick={() => setSidebarOpen(false)}
+      />
       <main className="main">
         <TopBar
           onMenu={() => setSidebarOpen((v) => !v)}
           sidebarOpen={sidebarOpen}
           showShare={page === 'chat' && !!activeChat && (activeChat.messages || []).length > 0}
+          hunter={hunter}
+          onPickHunter={pickHunter}
           onNavigate={navigate}
           onActivity={() => setActivityOpen(true)}
           onOpenHunt={openHuntChat}
@@ -794,7 +846,7 @@ function AppInner() {
         {page === 'reports' && <ReportsPage preselectedHuntId={reportHuntId} />}
         {page === 'machines' && <LiveMachinesPage onOpenHunt={openHuntChat} />}
         {page === 'pay' && <UpiPayPage />}
-        {page === 'settings' && <SettingsPage />}
+        {page === 'settings' && <SettingsPage onNavigate={navigate} />}
       </main>
       {authModal && (
         <AuthModal

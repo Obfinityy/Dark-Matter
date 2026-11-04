@@ -40,7 +40,16 @@ function IconLogout() {
   );
 }
 
-export default function ProfileMenu({ onNavigate, onClose, positionClass = '' }) {
+function IconDiamond() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M12 2 3 9l9 13 9-13Z" strokeLinejoin="round" />
+      <path d="M3 9h18M9.5 3 8 9l4 13M14.5 3 16 9l-4 13" strokeLinejoin="round" opacity="0.55" />
+    </svg>
+  );
+}
+
+export default function ProfileMenu({ onNavigate, onClose, positionClass = '', premiumSuffix = '' }) {
   const { logout: authLogout } = useAuth();
 
   function go(page) {
@@ -56,6 +65,11 @@ export default function ProfileMenu({ onNavigate, onClose, positionClass = '' })
 
   return (
     <div className={`profile-menu ${positionClass}`} role="menu">
+      {/* Premium + Plugin report live in the Account menu
+          (owner order 4 Nov 2026) — the top bar stays clean. */}
+      <button className="profile-menu-item" onClick={() => go('pay')} role="menuitem">
+        <IconDiamond /> Premium{premiumSuffix ? ` · ${premiumSuffix}` : ''}
+      </button>
       <button className="profile-menu-item" onClick={() => go('plugins')} role="menuitem">
         <IconPlugins /> Plugins
       </button>

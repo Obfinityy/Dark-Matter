@@ -534,3 +534,85 @@ textarea:focus-visible, [tabindex]:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* ---------- Sidebar rework (owner order 4 Nov 2026):
+   sticky New Hunt, one shared scroll region (nav + chats), drag-resize,
+   smooth open/close instead of an instant snap. ---------- */
+.sidebar {
+  width: var(--sidebar-width, 276px);
+  position: relative;
+  transition: width 0.28s ease, padding-left 0.28s ease, padding-right 0.28s ease, border-width 0.28s ease;
+}
+/* Sticky "New hunt" — never scrolls away. */
+.sidebar-newhunt { flex-shrink: 0; padding: 2px 0 8px; }
+.new-hunt-btn { font-weight: 600; }
+/* One shared scroll region: nav items + chats scroll together. */
+.sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.16) transparent;
+}
+.sidebar-scroll .chat-history {
+  flex: none;
+  overflow: visible;
+  min-height: 0;
+}
+/* Drag handle for resizing the sidebar. */
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -5px;
+  width: 10px;
+  cursor: ew-resize;
+  z-index: 45;
+  border-radius: 4px;
+}
+.sidebar-resize-handle:hover { background: rgba(20, 60, 65, 0.10); }
+.sidebar-resize-handle:active { background: rgba(20, 60, 65, 0.18); }
+
+/* Smooth open/close on desktop — the old instant display:none is gone. */
+@media (min-width: 769px) {
+  .app.sidebar-collapsed .sidebar {
+    display: flex;
+    width: 0;
+    min-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-right-width: 0;
+  }
+  .app.sidebar-collapsed .sidebar-resize-handle { display: none; }
+}
+
+/* Mobile: keep the slide transform animation on close (no display:none
+   cutting it off); fade the backdrop instead of mounting/unmounting it. */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    width: min(300px, calc(100vw - 42px));
+    transition: transform 0.25s ease;
+  }
+  .app.sidebar-collapsed .sidebar { display: flex; }
+  .sidebar-resize-handle { display: none; }
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(14, 34, 39, .38);
+    z-index: 35;
+    border: none;
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
+}
+
+/* Settings — Privacy & Terms section (owner order 4 Nov 2026). */
+.settings-legal { display: flex; gap: 12px; flex-wrap: wrap; }
