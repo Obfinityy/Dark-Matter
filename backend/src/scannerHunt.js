@@ -128,6 +128,11 @@ export async function runScannerHunt(huntId, target, opts = {}) {
       {
         timeoutMs: depthOpts.timeoutMs,
         maxUrls: depthOpts.maxUrls,
+        // Nuclei phase gets its own dedicated timeout (default 300s in
+        // nuclei.js). The generic timeoutMs above is for fast HTTP probes;
+        // without this, the nuclei phase inherited 15s/30s and died silently
+        // on every standard/deep scan before any template completed.
+        nucleiTimeoutMs: 300000,
       }
     );
 

@@ -12,10 +12,16 @@ const TOOLS_DIR = path.resolve(
 
 export async function runNuclei(
   url,
-  { severity = 'critical,high,medium', timeoutMs = 300000 } = {}
+  { severity = 'critical,high,medium', nucleiTimeoutMs = 300000 } = {}
 ) {
+  // Nuclei gets its OWN dedicated timeout. The generic runScan timeoutMs
+  // (15s standard / 30s deep) is tuned for fast HTTP probes, but a full
+  // Nuclei template run needs minutes — inheriting the short generic timeout
+  // silently killed every nuclei phase before any template completed
+  // (0 findings, empty errors). The generic opts.timeoutMs is therefore
+  // deliberately IGNORED here; callers override via nucleiTimeoutMs.
   const script = path.join(TOOLS_DIR, 'nuclei', 'run-nuclei.sh');
-  const r = await runCmd('bash', [script, url, severity], { timeoutMs });
+  const r = await runCmd('bash', [script, url, severity], { timeoutMs: nucleiTimeoutMs });
   const findings = parseJsonl(r.stdout).map((f) => ({
     class: 'nuclei',
     id: String(f['template-id'] || f.templateID || 'unknown-template'),
