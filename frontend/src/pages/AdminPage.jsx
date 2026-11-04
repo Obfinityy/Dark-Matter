@@ -33,6 +33,9 @@ export default function AdminPage() {
   const [accounts, setAccounts] = useState([]);
   const [claims, setClaims] = useState([]);
   const [revealed, setRevealed] = useState({}); // handle -> password (admin reveal-on-click only)
+  // Hunter filter for the hunts tab (owner order 4 Nov 2026): separate
+  // AI hunts from Autonomous hunts. 'all' | 'ai' | 'scanner' | 'unknown'.
+  const [huntFilter, setHuntFilter] = useState('all');
 
   async function load() {
     setLoading(true);
@@ -207,6 +210,24 @@ export default function AdminPage() {
     if (until <= new Date()) return null;
     return `🔴 Blocked until ${until.toLocaleString()}`;
   };
+
+  // Hunter mode of an admin hunt row (owner order 4 Nov 2026).
+  // NOTE — backend gap: GET /api/v1/admin/hunts does NOT return brainMode
+  // yet. One line in backend/src/routes/admin.js (the GET /hunts map)
+  // enables the real separation:
+  //   brainMode: m.brainMode === 'scanner' ? 'scanner' : 'ai',
+  // Until that lands every row honestly reads 'unknown' and the AI /
+  // Autonomous tabs stay empty — no fake labels are shown meanwhile.
+  function huntHunter(h) {
+    if (!h) return 'unknown';
+    if (h.brainMode === 'scanner') return 'scanner';
+    if (h.brainMode === 'ai') return 'ai';
+    return 'unknown';
+  }
+
+  const filteredHunts = huntFilter === 'all'
+    ? hunts
+    : hunts.filter((h) => huntHunter(h) === huntFilter);
 
   return (
     <div className="page">
@@ -517,12 +538,40 @@ export default function AdminPage() {
                     <div className="stat-label">📋 Queued</div>
                   </div>
                 </div>
+                {/* Hunter filter — AI vs Autonomous (owner order 4 Nov 2026).
+                    Counts read h.brainMode; 'Unknown' rows appear until the
+                    admin hunts API returns brainMode (see huntHunter note). */}
+                <div className="hunter-filter" role="tablist" aria-label="Filter hunts by hunter">
+                  {[
+                    { id: 'all', label: 'All', count: hunts.length },
+                    { id: 'ai', label: 'AI', count: hunts.filter((h) => huntHunter(h) === 'ai').length },
+                    { id: 'scanner', label: 'Autonomous', count: hunts.filter((h) => huntHunter(h) === 'scanner').length },
+                    { id: 'unknown', label: 'Unknown', count: hunts.filter((h) => huntHunter(h) === 'unknown').length },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      role="tab"
+                      aria-selected={huntFilter === t.id}
+                      className={`hunter-pill${huntFilter === t.id ? ' active' : ''}`}
+                      onClick={() => setHuntFilter(t.id)}
+                    >
+                      {t.label} ({t.count})
+                    </button>
+                  ))}
+                </div>
                 <div className="admin-grid">
-                  {hunts.length === 0 && <p className="page-sub">No hunts yet.</p>}
-                  {hunts.map((h) => {
+                  {filteredHunts.length === 0 && (
+                    <p className="page-sub">
+                      {hunts.length === 0
+                        ? 'No hunts yet.'
+                        : 'No hunts match this hunter filter.'}
+                    </p>
+                  )}
+                  {filteredHunts.map((h) => {
                     const elapsed = h.elapsedSec != null
                       ? `${Math.floor(h.elapsedSec/3600)}h ${Math.floor((h.elapsedSec%3600)/60)}m`
                       : '—';
+                    const hh = huntHunter(h);
                     return (
                       <div key={h.huntId} className={`admin-card hunt-card ${h.state}`}>
                         <div className="admin-card-header">
@@ -530,6 +579,17 @@ export default function AdminPage() {
                             <div className="admin-username">
                               {h.state === 'running' ? '🟢 ' : h.state === 'paused' ? '⏸️ ' : '⚪ '}
                               {h.target || '(unknown target)'}
+                              {' '}
+                              <span
+                                className={`hunter-badge hunter-${hh}`}
+                                title={hh === 'scanner'
+                                  ? 'Infinity Autonomous hunt — rule-based scan, no AI'
+                                  : hh === 'ai'
+                                    ? 'Infinity AI hunt — AI agent'
+                                    : 'Hunter unknown — the admin hunts API does not return brainMode yet'}
+                              >
+                                {hh === 'scanner' ? 'Autonomous' : hh === 'ai' ? 'AI' : 'Unknown'}
+                              </span>
                             </div>
                             <div className="admin-meta">
                               👤 {h.username || 'unknown'} · {h.mode || 'normal'} mode
@@ -778,6 +838,45 @@ export default function AdminPage() {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.6; }
         }
+        .hunter-filter {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin: 4px 0 4px 0;
+        }
+        .hunter-pill {
+          padding: 7px 14px;
+          border: 1px solid #e0e0e0;
+          background: white;
+          border-radius: 999px;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 600;
+          color: #405a60;
+          transition: all 0.2s;
+        }
+        .hunter-pill:hover { background: #f5f5f5; }
+        .hunter-pill.active {
+          background: #1a1a1a;
+          color: white;
+          border-color: #1a1a1a;
+        }
+        .hunter-badge {
+          display: inline-block;
+          vertical-align: middle;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          border: 1px solid currentColor;
+          border-radius: 999px;
+          padding: 2px 8px;
+          margin-left: 6px;
+          opacity: 0.75;
+        }
+        .hunter-badge.hunter-scanner { color: #0f766e; background: #f0fdfa; }
+        .hunter-badge.hunter-ai { color: #1d4ed8; background: #eff6ff; }
+        .hunter-badge.hunter-unknown { color: #78716c; background: #fafaf9; }
         .admin-card-header { margin-bottom: 12px; }
         .admin-username {
           font-weight: 600;
