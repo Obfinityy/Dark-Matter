@@ -36,6 +36,7 @@ import { probeCachePoisoning } from './probes/cachePoison.js';
 import { probeRequestSmuggling } from './probes/smuggling.js';
 import { probeJwt } from './probes/jwt.js';
 import { probeGraphql } from './probes/graphql.js';
+import { probeCswsh } from './probes/cswsh.js';
 import { runNuclei } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -71,6 +72,7 @@ export const DEFAULT_PHASES = [
   'request-smuggling',
   'jwt',
   'graphql',
+  'cswsh',
   'nuclei',
 ];
 
@@ -267,6 +269,7 @@ export async function runScan(
   await step('request-smuggling', () => probeRequestSmuggling(url, opts));
   await step('jwt', () => probeJwt(url, opts));
   await step('graphql', () => probeGraphql(url, opts));
+  await step('cswsh', () => probeCswsh(url, opts));
   await step('nuclei', async () => (await runNuclei(url, opts)).findings);
 
   const { confirmed, unconfirmed } = verifyFindings(all);
