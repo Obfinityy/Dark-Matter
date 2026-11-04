@@ -106,3 +106,29 @@ T1 ≈ 3 handshakes, T2 ≈ 2, T4 ≈ 4 → under 10 handshakes per endpoint, ea
 Message-level injection or CSRF-via-WebSocket-message (needs per-app protocol
 knowledge — future), socket.io polling-transport quirks (protocol-specific —
 future), frame-flooding DoS (out of scope, same no-amplification rule as #28).
+
+## #270 — WebSocket unencrypted channel on HTTPS site — MEDIUM
+
+Owned by `wsMessages.js` (`t270Unencrypted`), runs BEFORE the D1 inventory
+early-return: a referenced `ws://` URL exists regardless of whether any live
+`wss://` endpoint is found.
+
+**Method.**
+1. HTTPS pages only. Fetch the target page HTML; extract `ws://` URLs via
+   regex. Also fetch up to 3 same-origin `<script src>` bundles and extract
+   `ws://` URLs from them (bounded: ≤4 requests).
+2. Each distinct `ws://` reference on an HTTPS page =
+   `ws_unencrypted_channel` (medium), `parameter` = the ws URL. Evidence notes
+   that tokens/messages sent over the channel are network-readable.
+3. Standard/Deep only: **active confirmation** — attempt a real `ws://`
+   handshake to the same host:port using the probe's RFC 6455 client. A 101
+   response upgrades the evidence ("cleartext channel LIVE"); a failed
+   handshake keeps the finding with passive evidence (the reference itself is
+   the vuln — the page instructs clients to go cleartext).
+
+**Proof criteria.** Positive = HTTPS page references `ws://` (not `wss://`).
+HTTP pages never fire (no downgrade). Pages with no `ws://` refs never fire.
+
+**Limits.** Detection only — no frame content is read or sent beyond the
+handshake. Subresource integrity / CSP of the referencing script is out of
+scope.

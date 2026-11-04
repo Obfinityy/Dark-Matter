@@ -55,6 +55,255 @@ async function findGraphQLEndpoint(baseUrl, opts = {}) {
   return null;
 }
 
+async function fetchPage(url, opts = {}) {
+  // Raw GET with manual redirects; returns body text + set-cookie list.
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), opts.timeoutMs || 15000);
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      signal: ctrl.signal,
+      redirect: 'manual',
+      headers: { 'User-Agent': UA, ...(opts.headers || {}) },
+    });
+    const text = await res.text().catch(() => '');
+    let setCookies = [];
+    try {
+      if (res.headers && typeof res.headers.getSetCookie === 'function') {
+        setCookies = res.headers.getSetCookie();
+      } else if (res.headers) {
+        const sc = res.headers.get('set-cookie');
+        if (sc) setCookies = [sc];
+      }
+    } catch {}
+    return { ok: true, status: res.status, text, setCookies };
+  } catch (e) {
+    return { ok: false, error: e.message, setCookies: [] };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function isLabTarget(url, opts) {
+  try {
+    const host = new URL(url).hostname;
+    return String(opts.labTargets || '')
+      .split(/[,\s]+/)
+      .filter(Boolean)
+      .some((h) => host === h || host.endsWith('.' + h));
+  } catch {
+    return false;
+  }
+}
+
+// ---- #155: GraphQL CSRF on GET-based queries (MEDIUM) ---------------------------
+// Fires ONLY when BOTH hold: endpoint executes queries via GET AND a session
+// cookie exists without SameSite=Lax/Strict protection.
+async function t155GetCsrf(endpoint, pageUrl, opts, timeoutMs, canary) {
+  const findings = [];
+  // A) Does the endpoint execute queries over GET? (benign __typename)
+  const getRes = await fetchPage(
+    `${endpoint}?query=${encodeURIComponent('{__typename}')}`,
+    { timeoutMs }
+  );
+  let getExecutes = false;
+  if (getRes.ok) {
+    try {
+      const j = JSON.parse(getRes.text);
+      getExecutes = !!(j.data && j.data.__typename);
+    } catch {}
+  }
+  if (!getExecutes) return findings;
+
+  // B) Session cookie without SameSite protection?
+  const page = await fetchPage(pageUrl, { timeoutMs });
+  const weak = [];
+  for (const sc of page.setCookies || []) {
+    const parts = String(sc).split(';');
+    const name = (parts[0].split('=')[0] || '').trim();
+    if (!name || !/sess|session|auth|token|sid|phpsessid|jsessionid|aspsession/i.test(name)) {
+      continue;
+    }
+    const attrs = parts.slice(1).join(';');
+    const m = /samesite\s*=\s*([a-z]+)/i.exec(attrs);
+    const ss = m ? m[1].toLowerCase() : null;
+    const secure = /;\s*secure\b/i.test(';' + attrs);
+    if (ss === 'lax' || ss === 'strict') continue;
+    if (ss === 'none' && secure) continue; // SameSite=None; Secure is acceptable
+    weak.push(name);
+  }
+  if (!weak.length) return findings;
+
+  findings.push({
+    class: 'graphql_csrf_get',
+    id: `graphql-csrf-get-${canary}`,
+    title: 'GraphQL GET queries + unprotected session cookie — CSRF on authenticated queries (MEDIUM)',
+    severity: 'medium',
+    url: endpoint,
+    parameter: weak[0],
+    evidence: {
+      request: `GET ${endpoint}?query=${encodeURIComponent('{__typename}')}`,
+      response: `GET query executed (data.__typename returned) AND session cookie "${weak[0]}" has no SameSite=Lax/Strict protection`,
+      impact_demo:
+        'A cross-site <img>/link can trigger authenticated GraphQL queries in the victim session; any state-changing query/mutation becomes CSRF-able.',
+      signalCorrelated: true,
+    },
+  });
+  return findings;
+}
+
+// ---- #156: GraphQL field-level authorization bypass (HIGH/CRITICAL) --------------
+// Via introspection, enumerate sensitive-named fields; query a few WITHOUT
+// auth headers. CONFIRMED only on non-null data returned (errors/null = reject).
+const SENSITIVE_FIELD_RE = /password|passhash|ssn|socialsecurity|secret|token|apikey|api_key|email|phone|salary|wage|admin|role/i;
+
+async function t156FieldAuthBypass(endpoint, opts, timeoutMs, canary) {
+  const findings = [];
+  const fRes = await gqlPost(
+    endpoint,
+    '{__schema{queryType{fields{name}}}}',
+    { timeoutMs, headers: opts.headers }
+  );
+  const fields =
+    fRes.ok && fRes.json && fRes.json.data
+      ? fRes.json.data.__schema?.queryType?.fields || []
+      : [];
+  const sensitive = fields
+    .map((f) => f.name)
+    .filter((n) => SENSITIVE_FIELD_RE.test(n))
+    .slice(0, 3);
+  if (!sensitive.length) return findings;
+
+  // Unauthenticated: send WITHOUT any caller-supplied headers (no Authorization).
+  const r = await gqlPost(endpoint, `{${sensitive.join(' ')}}`, { timeoutMs });
+  if (!r.ok || !r.json || !r.json.data) return findings;
+  const leaked = sensitive.filter((n) => {
+    const v = r.json.data[n];
+    return v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0);
+  });
+  if (!leaked.length) return findings;
+
+  // Honest severity: high by default; critical only for clearly privileged
+  // values (e.g. password hashes, secrets) actually returned.
+  let severity = 'high';
+  for (const n of leaked) {
+    const v = String(r.json.data[n] ?? '');
+    if (/^(password|passhash|ssn|secret|token|apikey|api_key)$/i.test(n) && v.length >= 8) {
+      severity = 'critical';
+      break;
+    }
+  }
+
+  findings.push({
+    class: 'graphql_field_auth_bypass',
+    id: `graphql-field-auth-${canary}`,
+    title: `GraphQL field-level authorization bypass — sensitive fields readable unauthenticated (${leaked.join(', ')}) (${severity.toUpperCase()})`,
+    severity,
+    url: endpoint,
+    parameter: leaked.join(','),
+    evidence: {
+      request: `POST ${endpoint} {"query":"{${sensitive.join(' ')}}"} (no auth headers)`,
+      response: `200 with non-null data for: ${leaked.join(', ')}`,
+      impact_demo:
+        'Sensitive fields are returned to unauthenticated callers — field-level authorization is missing on these resolvers.',
+      signalCorrelated: true,
+    },
+  });
+  return findings;
+}
+
+// ---- #158: GraphQL mutation mass assignment (HIGH, lab-gated) --------------------
+// Via introspection, find mutations whose input objects expose privileged
+// field names. Non-lab = PASSIVE low finding only. Lab = active mutation with
+// canary values; CONFIRMED only if no "unknown field" validation error AND
+// data is returned.
+const PRIV_INPUT_RE = /^(role|isadmin|admin|permissions|privilege|is_superuser|superuser)$/i;
+
+async function t158MutationMassAssign(endpoint, opts, timeoutMs, canary) {
+  const findings = [];
+  const mRes = await gqlPost(
+    endpoint,
+    '{__schema{mutationType{fields{name args{name type{kind ofType{name inputFields{name}}}}}}}}',
+    { timeoutMs, headers: opts.headers }
+  );
+  const mutFields =
+    mRes.ok && mRes.json && mRes.json.data
+      ? mRes.json.data.__schema?.mutationType?.fields || []
+      : [];
+  const candidates = [];
+  for (const m of mutFields.slice(0, 5)) {
+    for (const a of m.args || []) {
+      const inner = a.type && a.type.ofType;
+      if (inner && Array.isArray(inner.inputFields)) {
+        const all = inner.inputFields.map((f) => f.name);
+        const privileged = all.filter((n) => PRIV_INPUT_RE.test(n));
+        if (all.length) {
+          candidates.push({
+            mutation: m.name,
+            arg: a.name,
+            typeName: inner.name,
+            privileged,
+            all,
+          });
+        }
+      }
+    }
+  }
+  const withPriv = candidates.filter((c) => c.privileged.length);
+  if (!withPriv.length) return findings;
+
+  // Non-lab: passive surface note only — never send the mutation.
+  if (!isLabTarget(endpoint, opts)) {
+    const c = withPriv[0];
+    findings.push({
+      class: 'graphql_mutation_privileged_fields',
+      id: `graphql-mutpriv-${canary}`,
+      title: 'GraphQL mutation input exposes privileged fields — mass-assignment surface (LOW)',
+      severity: 'low',
+      url: endpoint,
+      parameter: `${c.mutation}.${c.arg}`,
+      evidence: {
+        request: `POST ${endpoint} (introspection only — no mutation sent)`,
+        response: `Mutation "${c.mutation}" input type "${c.typeName}" exposes privileged field(s): ${c.privileged.join(', ')}`,
+        impact_demo:
+          'If the resolver binds the whole input object, a caller could elevate privileges (role/isAdmin) via the input. Verify on a lab target.',
+        signalCorrelated: true,
+      },
+    });
+    return findings;
+  }
+
+  // LAB: active probe with canary values only (fake id — touches no real data).
+  const c = withPriv[0];
+  const canaryVal = `dm_${canary}`;
+  const docField = c.all.find((n) => /id/i.test(n)) || c.all[0];
+  const extra = c.privileged
+    .map((p) => (/isadmin|admin/i.test(p) ? `${p}:true` : `${p}:"${canaryVal}"`))
+    .join(' ');
+  const query = `mutation{${c.mutation}(${c.arg}:{${docField}:"${canaryVal}" ${extra}}){__typename}}`;
+  const r = await gqlPost(endpoint, query, { timeoutMs, headers: opts.headers });
+  const txt = r.ok ? JSON.stringify(r.json || {}) : r.error || '';
+  const unknownFieldErr = /unknown field|did not match|invalid|validation/i.test(txt) && !(r.json && r.json.data);
+  if (r.ok && r.json && r.json.data && !unknownFieldErr) {
+    findings.push({
+      class: 'graphql_mutation_mass_assignment',
+      id: `graphql-massassign-${canary}`,
+      title: `GraphQL mutation mass assignment — privileged input fields accepted without validation (${c.privileged.join(', ')}) (HIGH)`,
+      severity: 'high',
+      url: endpoint,
+      parameter: `${c.mutation}.${c.arg}`,
+      evidence: {
+        request: `POST ${endpoint} {"query":"${query}"} (lab target, canary values only)`,
+        response: `200 with data returned and NO "unknown field" validation error — the privileged input field(s) were accepted: ${c.privileged.join(', ')}`,
+        impact_demo:
+          'The resolver binds unexpected privileged fields from the input object — callers can inject role/isAdmin and escalate privileges.',
+        signalCorrelated: true,
+      },
+    });
+  }
+  return findings;
+}
+
 export async function probeGraphql(url, opts = {}) {
   const findings = [];
   const timeoutMs = opts.timeoutMs || 15000;
@@ -103,6 +352,10 @@ export async function probeGraphql(url, opts = {}) {
     // T4: Error-based field suggestion (only if introspection gave us a schema)
     // Quick depth skips T2-T5; Standard/Deep runs full battery
     if (depth !== 'quick') {
+      // #156: field-level authorization bypass (unauthenticated sensitive fields)
+      findings.push(...(await t156FieldAuthBypass(endpoint, opts, timeoutMs, canary)));
+      // #158: mutation mass assignment (lab-gated active; passive low elsewhere)
+      findings.push(...(await t158MutationMassAssign(endpoint, opts, timeoutMs, canary)));
       const fakeField = `dmfield${rand()}`;
       const errRes = await gqlPost(endpoint, `{${fakeField}}}`, { timeoutMs, headers: opts.headers });
       if (errRes.ok && errRes.json && errRes.json.errors) {
@@ -233,6 +486,12 @@ export async function probeGraphql(url, opts = {}) {
         }
       }
     }
+  }
+
+  // #155: GraphQL CSRF on GET-based queries — needs endpoint only (not
+  // introspection). Standard/Deep; Quick skips.
+  if (depth !== 'quick') {
+    findings.push(...(await t155GetCsrf(endpoint, url, opts, timeoutMs, canary)));
   }
 
   return findings;

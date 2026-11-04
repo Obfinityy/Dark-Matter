@@ -303,10 +303,108 @@ async function t2Replay(live, opts) {
   return findings;
 }
 
+// ---- T270: unencrypted ws:// channel referenced by an https page (MEDIUM) ----
+// Passive at every depth (bounded: page HTML + up to 3 same-origin scripts).
+// Standard/Deep additionally tries an active ws:// handshake to the same
+// host:port — a 101 confirms the cleartext channel end-to-end.
+const WS_URL_RE = /ws:\/\/[^\s"'<>()]+/g;
+
+function extractWsUrls(text) {
+  const out = [];
+  try {
+    for (const m of String(text || '').matchAll(WS_URL_RE)) {
+      if (!out.includes(m[0]) && out.length < 5) out.push(m[0]);
+    }
+  } catch {}
+  return out;
+}
+
+async function fetchHtmlText(url, timeoutMs) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      signal: ctrl.signal,
+      redirect: 'manual',
+      headers: { 'User-Agent': UA },
+    });
+    return { ok: res.ok || res.status < 400, text: await res.text().catch(() => '') };
+  } catch {
+    return { ok: false, text: '' };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function t270Unencrypted(url, opts, depth, timeoutMs) {
+  const findings = [];
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return findings;
+  }
+  if (u.protocol !== 'https:') return findings;
+
+  // Page HTML + up to 3 same-origin scripts.
+  const page = await fetchHtmlText(url, timeoutMs);
+  let wsUrls = extractWsUrls(page.text);
+  if (page.ok) {
+    const srcs = [];
+    const re = /<script[^>]+src=["']([^"']+)["']/gi;
+    let m;
+    while ((m = re.exec(page.text)) && srcs.length < 3) {
+      try {
+        const abs = new URL(m[1], url);
+        if (abs.origin === u.origin) srcs.push(abs.toString());
+      } catch {}
+    }
+    for (const s of srcs) {
+      const js = await fetchHtmlText(s, timeoutMs);
+      if (js.ok) wsUrls = wsUrls.concat(extractWsUrls(js.text).filter((w) => !wsUrls.includes(w)));
+    }
+  }
+
+  for (const wsUrl of wsUrls.slice(0, 3)) {
+    let confirmed = false;
+    if (depth !== 'quick') {
+      // Active confirmation: ws:// handshake to the same host:port.
+      try {
+        const c = await wsConnect(wsUrl, opts, 1200);
+        if (c.ok) {
+          confirmed = true;
+          c.close();
+        }
+      } catch {}
+    }
+    findings.push({
+      class: 'ws_unencrypted_channel',
+      id: `ws-cleartext-${rand()}`,
+      title: `WebSocket cleartext channel on HTTPS site — ws:// instead of wss://${confirmed ? ' (handshake confirmed)' : ''} (MEDIUM)`,
+      severity: 'medium',
+      url: wsUrl,
+      parameter: wsUrl,
+      evidence: ev(
+        `GET ${url} (HTTPS) references cleartext endpoint ${wsUrl}`,
+        confirmed
+          ? `Active ws:// handshake to ${wsUrl} returned 101 — the cleartext channel is LIVE and reachable.`
+          : `The HTTPS page references a cleartext ws:// endpoint. Traffic (tokens, messages) sent over this channel is readable on the network.`,
+        'WS traffic downgrade: session data over cleartext on an HTTPS site.'
+      ),
+    });
+  }
+  return findings;
+}
+
 export async function probeWsMessages(url, opts = {}) {
   const findings = [];
-  const lab = isLab(url, opts);
   const depth = opts.depth || 'standard';
+  const timeoutMs = opts.timeoutMs || 15000;
+  // #270 runs before the D1 early-return: a referenced ws:// URL exists
+  // regardless of whether any wss endpoint is live.
+  findings.push(...(await t270Unencrypted(url, opts, depth, timeoutMs)));
+  const lab = isLab(url, opts);
   const live = await d1Inventory(url, opts);
   if (!live.length) return findings; // no WS surface — class tested, absent
   const rid = rand();
