@@ -534,3 +534,93 @@ textarea:focus-visible, [tabindex]:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+
+/* --------------------------------------------------------------------------
+   Product polish layer
+   Keep the interface quiet and information-dense: restrained neutrals, clear
+   hierarchy, consistent controls, and motion only where it communicates state.
+   These tokens intentionally avoid decorative gradients and oversized cards.
+   -------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+  --dm-bg: #ffffff;
+  --dm-sidebar: #f8f9fa;
+  --dm-surface: #f5f6f7;
+  --dm-surface-hover: #eceef0;
+  --dm-text: #17191c;
+  --dm-secondary: #5f6670;
+  --dm-faint: #858c95;
+  --dm-border: #e2e5e9;
+  --dm-accent: #e9edf2;
+  --dm-black: #202328;
+  --dm-green: #18794e;
+  --dm-yellow: #946200;
+  --dm-red: #b42318;
+  --dm-blue: #245fbd;
+  --dm-brand: #315f9f;
+  --dm-brand-soft: #eaf0f8;
+  --dm-radius: 10px;
+  --dm-shadow: 0 12px 32px rgba(18, 24, 32, 0.10);
+  --dm-shadow-soft: 0 1px 3px rgba(18, 24, 32, 0.045);
+}
+
+body { letter-spacing: 0; }
+.topbar { background: rgba(255, 255, 255, .96); }
+.sidebar { background: var(--dm-sidebar); }
+.nav-item { color: #414852; }
+.nav-item:hover { background: #eceff2; }
+.nav-item.active { background: #e9edf2; color: #202c3b; box-shadow: inset 3px 0 #315f9f; }
+.nav-item.active svg { color: #315f9f; }
+.page-header h1, .machines-title { letter-spacing: -0.03em; }
+.btn, .pill-btn, .icon-btn, .nav-item, .report-hunt-item, .dm-action-card {
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.btn-primary, .pill-btn-solid, .auth-submit { background: #202328; border-color: #202328; }
+.btn-primary:hover:not(:disabled), .pill-btn-solid:hover, .auth-submit:hover:not(:disabled) {
+  background: #353a42; border-color: #353a42;
+}
+.pill-btn-outline, .text-input, .auth-input { background: #fff; }
+.text-input:focus, .auth-input:focus, .composer:focus-within {
+  border-color: #7b98bd;
+  box-shadow: 0 0 0 3px rgba(49, 95, 159, .10);
+}
+.composer { border-color: #d9dde2; box-shadow: 0 2px 8px rgba(18, 24, 32, .045); }
+.composer-wrap { padding-top: 8px; }
+.dm-hero-scroll { background: var(--dm-bg); }
+.dm-wordmark { letter-spacing: .04em; }
+.dm-tagline { margin-bottom: 26px; }
+.dm-action-card { border-radius: 10px; box-shadow: none; }
+.dm-action-card:hover { box-shadow: 0 3px 12px rgba(18, 24, 32, .06); transform: none; }
+.dm-action-icon { background: #edf1f5; color: #315f9f; }
+.hunt-card, .provider-card, .report-hunt-item, .backend-card, .admin-user-row,
+.balance-card, .pay-form, .qr-box, .tier-card, .admin-section, .report-paper {
+  box-shadow: none;
+}
+.hunt-statusline { background: #fff; }
+.finding { background: #fff; }
+.reports-list { background: #f8f9fa; }
+.report-hunt-item.active { background: #eef2f6; box-shadow: inset 3px 0 #315f9f; }
+.machine-card { box-shadow: none; }
+
+/* Motion respects the user's system accessibility preference. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* Narrow screens keep controls reachable without compressing content. */
+@media (max-width: 768px) {
+  .topbar { height: 56px; padding: 0 12px; }
+  .sidebar { width: min(290px, 88vw); }
+  .page { padding: 22px 16px 56px; }
+  .page-header { margin-bottom: 22px; }
+  .dm-hero-scroll { padding: 24px 16px; }
+  .dm-quick-actions { gap: 10px; }
+  .dm-action-card { min-height: 120px; padding: 14px; }
+  .composer { border-radius: 13px; }
+}
