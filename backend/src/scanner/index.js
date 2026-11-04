@@ -34,6 +34,7 @@ import { probeNoSqlDeep } from './probes/nosqlDeep.js';
 import { probeRace } from './probes/race.js';
 import { probeCrypto } from './probes/crypto.js';
 import { probePrototypePollution } from './probes/prototypePollution.js';
+import { probeDeserialization } from './probes/deserialization.js';
 import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
@@ -77,6 +78,7 @@ export const DEFAULT_PHASES = [
   'race',
   'crypto',
   'prototype-pollution',
+  'deserialization',
   'xpathi',
   'ssi',
   'file-upload',
@@ -298,6 +300,7 @@ export async function runScan(
   await step('saml', () => probeSaml(url, opts));
   await step('crypto', () => probeCrypto(url, opts));
   await step('prototype-pollution', () => probePrototypePollution(url, opts));
+  await step('deserialization', () => probeDeserialization(url, opts));
   await step('nuclei', async () => (await runNuclei(url, opts)).findings);
 
   const { confirmed, unconfirmed } = verifyFindings(all);
