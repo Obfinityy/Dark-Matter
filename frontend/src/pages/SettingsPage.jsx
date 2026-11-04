@@ -16,7 +16,7 @@ function getVoice() {
   }
 }
 
-export default function SettingsPage() {
+export default function SettingsPage({ onNavigate }) {
   const [voice, setVoice] = useState(getVoice());
 
   function chooseVoice(id) {
@@ -49,6 +49,26 @@ export default function SettingsPage() {
       <p className="page-sub">
         Toggle the speaker button in the chat input to hear replies read aloud in this voice.
       </p>
+
+      {/* Privacy & Terms live inside Settings (owner order 4 Nov 2026) —
+          they moved out of the sidebar footer / account menu. */}
+      <h2 className="section-title" style={{ marginTop: 32 }}>Privacy &amp; Terms</h2>
+      <div className="settings-legal">
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => onNavigate && onNavigate('privacy')}
+        >
+          Privacy Policy
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => onNavigate && onNavigate('terms')}
+        >
+          Terms of Service
+        </button>
+      </div>
       </div>
     </div>
   );

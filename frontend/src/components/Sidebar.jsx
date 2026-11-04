@@ -222,6 +222,8 @@ export default function Sidebar({
   runningHunts = [],
   activeChatId,
   activePage,
+  hunter = 'scanner',
+  huntModes = {},
   onSelectChat,
   onNewHunt,
   onRenameChat,
@@ -238,8 +240,45 @@ export default function Sidebar({
   const profileRef = useRef(null);
   const searchRef = useRef(null);
 
-  // Access pill next to "Pay" (logged in only; silent on failure).
-  // Shows the paid access window when active, else the credit balance.
+  // ---- Resizable sidebar (owner order 4 Nov 2026) ----
+  // Width in px, persisted per device. Drag the right edge to resize.
+  const MIN_W = 220;
+  const MAX_W = 480;
+  const [sideWidth, setSideWidth] = useState(() => {
+    try {
+      const v = parseInt(window.localStorage.getItem('dm.sidebarWidth'), 10);
+      if (Number.isFinite(v)) return Math.min(MAX_W, Math.max(MIN_W, v));
+    } catch { /* ignore */ }
+    return 276;
+  });
+  function clampW(w) {
+    const cap = Math.min(MAX_W, Math.floor(window.innerWidth * 0.6));
+    return Math.min(cap, Math.max(MIN_W, Math.round(w)));
+  }
+  function onResizeStart(e) {
+    if (isMobile()) return; // overlay sidebar on mobile — no resize
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = sideWidth;
+    function onMove(ev) {
+      setSideWidth(clampW(startW + (ev.clientX - startX)));
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      setSideWidth((w) => {
+        try { window.localStorage.setItem('dm.sidebarWidth', String(w)); } catch { /* ignore */ }
+        return w;
+      });
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  // Access pill for the Premium account-menu item (logged in only;
+  // silent on failure). Shows the paid access window when active, else
+  // the credit balance. (Moved from the sidebar nav into the Account
+  // menu — owner order 4 Nov 2026.)
   useEffect(() => {
     if (!user) { setBalanceText(''); return; }
     let cancelled = false;
@@ -275,6 +314,35 @@ export default function Sidebar({
     if (searchOpen && searchRef.current) searchRef.current.focus();
   }, [searchOpen]);
 
+  // Hunter mode of a chat for the sidebar hunter filter (owner order
+  // 4 Nov 2026): the top-bar hunter picker (Infinity AI vs Infinity
+  // Autonomous) filters the chat list. Returns 'ai' | 'scanner' | null
+  // (null = plain chat, hunter-agnostic — always visible).
+  // Sources, in order: the chat's hunt message brainMode (set at hunt
+  // creation), the huntModes lookup (huntId / target keys from
+  // GET /api/v1/hunts — covers restored and title-pulled chats), and the
+  // app-wide convention that hunts created before brainMode was recorded
+  // count as AI.
+  function chatHunterMode(c) {
+    if (!c) return null;
+    const huntMsg = (c.messages || []).find((m) => m && m.role === 'hunt' && m.hunt);
+    if (huntMsg) {
+      const bm = huntMsg.hunt.brainMode;
+      if (bm === 'scanner' || bm === 'ai') return bm;
+      if (huntMsg.hunt.huntId && huntModes[huntMsg.hunt.huntId]) return huntModes[huntMsg.hunt.huntId];
+      return 'ai';
+    }
+    const id = c.id;
+    if (typeof id === 'string' && id.startsWith('hunt-')) {
+      return huntModes[id.slice('hunt-'.length)] || 'ai';
+    }
+    const t = c.title || '';
+    if (t.startsWith('Hunt: ')) {
+      return huntModes[`target:${t.slice('Hunt: '.length).trim().toLowerCase()}`] || 'ai';
+    }
+    return null;
+  }
+
   // "Currently Running" (owner order 27 Oct 2026): hunts whose LIVE
   // backend state is running sit at the very top, above the date groups,
   // and must NOT also appear under Today/Yesterday/Previous — no
@@ -282,10 +350,20 @@ export default function Sidebar({
   // hunt card in the chat's messages, or the `Hunt: <target>` title.
   // Chat activity or message timestamps are NEVER the signal.
   const groups = useMemo(() => {
+    // Hunter filter (owner order 4 Nov 2026): with 'Autonomous' selected
+    // only autonomous hunt chats show; with 'AI' only AI hunt chats.
+    // The currently-open chat is ALWAYS kept visible so the user is never
+    // stranded; plain (non-hunt) chats are hunter-agnostic and stay.
+    const hunterOk = (c) => {
+      if (!c || c.id === activeChatId) return true;
+      const m = chatHunterMode(c);
+      return !m || m === hunter;
+    };
     const q = query.trim().toLowerCase();
-    const list = q
+    const list = (q
       ? chats.filter((c) => String(c.title || '').toLowerCase().includes(q))
-      : chats;
+      : chats
+    ).filter(hunterOk);
     if (q) return [{ label: 'Results', items: list }];
     const isRunningChat = (c) => {
       if (!c) return false;
@@ -311,7 +389,7 @@ export default function Sidebar({
       if (map.has(g)) out.push({ label: g, items: map.get(g) });
     }
     return out;
-  }, [chats, query, runningHunts]);
+  }, [chats, query, runningHunts, hunter, huntModes, activeChatId]);
 
   // Auto-close the sidebar on navigation — mobile only (<=768px).
   function closeIfMobile() {
@@ -339,7 +417,11 @@ export default function Sidebar({
   const initial = displayName ? String(displayName).trim().charAt(0).toUpperCase() : '•';
 
   return (
-    <aside className={`sidebar${open ? ' open' : ''}`} aria-label="Navigation">
+    <aside
+      className={`sidebar${open ? ' open' : ''}`}
+      style={{ '--sidebar-width': `${sideWidth}px` }}
+      aria-label="Navigation"
+    >
       <div className="sidebar-top">
         <img src="/dark-matter-symbol.png" alt="Dark Matter" className="brand-symbol" />
         <span className="wordmark">Dark Matter</span>
@@ -353,81 +435,85 @@ export default function Sidebar({
         </button>
       </div>
 
-      <nav aria-label="Primary">
-        <button className="nav-item" onClick={newHunt}>
+      {/* Sticky "New hunt" — never scrolls away (owner order 4 Nov 2026). */}
+      <div className="sidebar-newhunt">
+        <button className="nav-item new-hunt-btn" onClick={newHunt}>
           <IconPencilSquare /> New hunt
-        </button>
-        <button className={`nav-item${activePage === 'plugins' ? ' active' : ''}`} onClick={() => go('plugins')}>
-          <IconHexagon /> Plugins
-        </button>
-        <button className={`nav-item${activePage === 'reports' ? ' active' : ''}`} onClick={() => go('reports')}>
-          <IconChart /> Reports
-        </button>
-        <button className={`nav-item${activePage === 'machines' ? ' active' : ''}`} onClick={() => go('machines')}>
-          <IconHexagon /> Live machines
-        </button>
-        <button className={`nav-item${activePage === 'pay' ? ' active' : ''}`} onClick={() => go('pay')}>
-          <IconHexagon /> Premium{balanceText ? ` · ${balanceText}` : ''}
-        </button>
-        <button className={`nav-item${activePage === 'settings' ? ' active' : ''}`} onClick={() => go('settings')}>
-          <IconGear /> Settings
-        </button>
-        {user && user.role === 'admin' && (
-          <button className={`nav-item${activePage === 'admin' ? ' active' : ''}`} onClick={() => go('admin')}>
-            <IconGear /> Admin
-          </button>
-        )}
-      </nav>
-
-      <div className="sidebar-section-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span>Chats</span>
-        <button
-          className="icon-btn sidebar-search-btn"
-          style={{ width: 30, height: 30 }}
-          title="Search chats"
-          aria-label="Search chats"
-          onClick={() => {
-            setSearchOpen((v) => !v);
-            setQuery('');
-          }}
-        >
-          <IconSearch />
         </button>
       </div>
 
-      {searchOpen && (
-        <div className="sidebar-search-box">
-          <input
-            ref={searchRef}
-            placeholder="Search chats…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-      )}
+      {/* One shared scroll region: nav items + chats scroll together. */}
+      <div className="sidebar-scroll">
+        <nav aria-label="Primary">
+          <button className={`nav-item${activePage === 'plugins' ? ' active' : ''}`} onClick={() => go('plugins')}>
+            <IconHexagon /> Plugins
+          </button>
+          <button className={`nav-item${activePage === 'reports' ? ' active' : ''}`} onClick={() => go('reports')}>
+            <IconChart /> Reports
+          </button>
+          <button className={`nav-item${activePage === 'machines' ? ' active' : ''}`} onClick={() => go('machines')}>
+            <IconHexagon /> Live machines
+          </button>
+          <button className={`nav-item${activePage === 'settings' ? ' active' : ''}`} onClick={() => go('settings')}>
+            <IconGear /> Settings
+          </button>
+          {user && user.role === 'admin' && (
+            <button className={`nav-item${activePage === 'admin' ? ' active' : ''}`} onClick={() => go('admin')}>
+              <IconGear /> Admin
+            </button>
+          )}
+        </nav>
 
-      <div className="chat-history">
-        {groups.length === 0 && (
-          <div className="empty-hint">
-            {query ? 'No chats match your search.' : 'No conversations yet.'}
+        <div className="sidebar-section-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Chats</span>
+          <button
+            className="icon-btn sidebar-search-btn"
+            style={{ width: 30, height: 30 }}
+            title="Search chats"
+            aria-label="Search chats"
+            onClick={() => {
+              setSearchOpen((v) => !v);
+              setQuery('');
+            }}
+          >
+            <IconSearch />
+          </button>
+        </div>
+
+        {searchOpen && (
+          <div className="sidebar-search-box">
+            <input
+              ref={searchRef}
+              placeholder="Search chats…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
           </div>
         )}
-        {groups.map((g) => (
-          <React.Fragment key={g.label}>
-            {!query && <div className="history-group-label">{g.label}</div>}
-            {g.items.map((chat) => (
-              <HistoryItem
-                key={chat.id}
-                chat={chat}
-                active={chat.id === activeChatId}
-                running={!!g.running}
-                onSelect={() => selectChat(chat.id)}
-                onRename={onRenameChat}
-                onDelete={onDeleteChat}
-              />
-            ))}
-          </React.Fragment>
-        ))}
+
+        <div className="chat-history">
+          {groups.length === 0 && (
+            <div className="empty-hint">
+              {query ? 'No chats match your search.' : 'No conversations yet.'}
+            </div>
+          )}
+          {groups.map((g) => (
+            <React.Fragment key={g.label}>
+              {!query && <div className="history-group-label">{g.label}</div>}
+              {g.items.map((chat) => (
+                <HistoryItem
+                  key={chat.id}
+                  chat={chat}
+                  active={chat.id === activeChatId}
+                  running={!!g.running}
+                  onSelect={() => selectChat(chat.id)}
+                  onRename={onRenameChat}
+                  onDelete={onDeleteChat}
+                />
+              ))}
+            </React.Fragment>
+          ))}
+        </div>
       </div>
 
       <div className="sidebar-user" ref={profileRef}>
@@ -439,7 +525,7 @@ export default function Sidebar({
         ) : user ? (
           <>
             {profileOpen && (
-              <ProfileMenu onNavigate={(p) => { go(p); }} onClose={() => setProfileOpen(false)} />
+              <ProfileMenu onNavigate={(p) => { go(p); }} onClose={() => setProfileOpen(false)} premiumSuffix={balanceText} />
             )}
             <button className="user-row" onClick={() => setProfileOpen((v) => !v)} aria-haspopup="menu" aria-label={`Open profile menu for ${displayName}`}>
               <span className="user-avatar" aria-hidden="true">{initial}</span>
@@ -459,11 +545,13 @@ export default function Sidebar({
           </div>
         )}
       </div>
-      <footer className="sidebar-legal" aria-label="Legal">
-        <button type="button" onClick={() => go('privacy')}>Privacy</button>
-        <span aria-hidden="true">·</span>
-        <button type="button" onClick={() => go('terms')}>Terms</button>
-      </footer>
+      {/* Drag handle — resize the sidebar (owner order 4 Nov 2026). */}
+      <div
+        className="sidebar-resize-handle"
+        onMouseDown={onResizeStart}
+        title="Drag to resize the sidebar"
+        aria-hidden="true"
+      />
     </aside>
   );
 }
