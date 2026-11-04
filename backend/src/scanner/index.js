@@ -44,6 +44,7 @@ import { probeCsvLog } from './probes/csvLogInjection.js';
 import { probeSmtpInject } from './probes/smtpInject.js';
 import { probeSessionFixation } from './probes/sessionFixation.js';
 import { probeUserEnum } from './probes/userEnum.js';
+import { probeRfi } from './probes/rfi.js';
 import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
@@ -97,6 +98,7 @@ export const DEFAULT_PHASES = [
   'smtp-injection',
   'session-fixation',
   'user-enumeration',
+  'rfi',
   'xpathi',
   'ssi',
   'file-upload',
@@ -288,6 +290,7 @@ export async function runScan(
     await step('ssi', () => probeSsiInjection(u, uparams, opts));
     await step('cmdi', () => probeCmdiTime(u, uparams, opts));
     await step('traversal', () => probeTraversal(u, uparams, opts));
+    await step('rfi', () => probeRfi(u, uparams, opts));
     await step('ssti', () => probeSsti(u, uparams, opts));
     await step('redirect', () => probeOpenRedirect(u, uparams, opts));
     await step('crlf', () => probeCrlf(u, uparams, opts));
