@@ -30,17 +30,44 @@ function storePath() {
   return path.join(config.dataDir, 'payment-claims.json');
 }
 
+function storeBackupPath() {
+  return path.join(config.dataDir, 'payment-claims.bak.json');
+}
+
+function parseStore(raw) {
+  const obj = JSON.parse(raw);
+  if (obj && Array.isArray(obj.claims)) return obj;
+  throw new Error('bad claims shape');
+}
+
 function readStore() {
+  // Missing file = first run, not corruption.
+  let mainRaw = null;
+  try { mainRaw = fs.readFileSync(storePath(), 'utf8'); } catch { mainRaw = null; }
+  if (mainRaw !== null) {
+    try { return parseStore(mainRaw); } catch { /* corrupt main: try backup */ }
+  }
+  // Corrupt main: fall back to the previous-good backup, so the next
+  // write never wipes real claims (#344, same class as #328).
   try {
-    const raw = fs.readFileSync(storePath(), 'utf8');
-    const obj = JSON.parse(raw);
-    if (obj && Array.isArray(obj.claims)) return obj;
-  } catch { /* missing or corrupt -> start fresh */ }
+    const bakRaw = fs.readFileSync(storeBackupPath(), 'utf8');
+    return parseStore(bakRaw);
+  } catch { /* no usable backup */ }
+  if (mainRaw !== null) {
+    // Corrupt main AND no usable backup: true data loss. Never
+    // silently return fresh state — callers must fail loudly.
+    throw new Error('payment-claims store unreadable: main corrupt, no usable backup');
+  }
   return { claims: [] };
 }
 
 function writeStore(obj) {
   const p = storePath();
+  // Rotate first: the previous good main becomes the backup BEFORE the
+  // new main lands, so a crash mid-write can never leave both corrupt.
+  try {
+    if (fs.existsSync(p)) fs.renameSync(p, storeBackupPath());
+  } catch { /* rotation is best-effort; the atomic write below still lands */ }
   const tmp = `${p}.tmp-${process.pid}`;
   fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));
   fs.renameSync(tmp, p);
