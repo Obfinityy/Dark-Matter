@@ -46,6 +46,7 @@ import { probeSessionFixation } from './probes/sessionFixation.js';
 import { probeUserEnum } from './probes/userEnum.js';
 import { probeRfi } from './probes/rfi.js';
 import { probeXslt } from './probes/xslt.js';
+import { probeEvalInject } from './probes/evalInject.js';
 import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
@@ -101,6 +102,7 @@ export const DEFAULT_PHASES = [
   'user-enumeration',
   'rfi',
   'xslt',
+  'eval-injection',
   'xpathi',
   'ssi',
   'file-upload',
@@ -294,6 +296,7 @@ export async function runScan(
     await step('traversal', () => probeTraversal(u, uparams, opts));
     await step('rfi', () => probeRfi(u, uparams, opts));
     await step('xslt', () => probeXslt(u, uparams, opts));
+    await step('eval-injection', () => probeEvalInject(u, uparams, opts));
     await step('ssti', () => probeSsti(u, uparams, opts));
     await step('redirect', () => probeOpenRedirect(u, uparams, opts));
     await step('crlf', () => probeCrlf(u, uparams, opts));
