@@ -36,6 +36,7 @@ import { probeCrypto } from './probes/crypto.js';
 import { probePrototypePollution } from './probes/prototypePollution.js';
 import { probeDeserialization } from './probes/deserialization.js';
 import { probeHpp } from './probes/hpp.js';
+import { probeMassAssignment } from './probes/massAssignment.js';
 import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
@@ -81,6 +82,7 @@ export const DEFAULT_PHASES = [
   'prototype-pollution',
   'deserialization',
   'hpp',
+  'mass-assignment',
   'xpathi',
   'ssi',
   'file-upload',
@@ -277,6 +279,7 @@ export async function runScan(
   }
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));
+  await step('mass-assignment', () => probeMassAssignment(forms, url, opts));
   await step('race', () =>
     probeRace(
       forms,
