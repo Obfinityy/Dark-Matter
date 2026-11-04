@@ -40,6 +40,7 @@ import { probeMassAssignment } from './probes/massAssignment.js';
 import { probeWsMessages } from './probes/wsMessages.js';
 import { probeSubdomainTakeover } from './probes/subdomainTakeover.js';
 import { probeCrlf } from './probes/crlf.js';
+import { probeCsvLog } from './probes/csvLogInjection.js';
 import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
@@ -89,6 +90,7 @@ export const DEFAULT_PHASES = [
   'ws-messages',
   'subdomain-takeover',
   'crlf',
+  'csv-log-injection',
   'xpathi',
   'ssi',
   'file-upload',
@@ -270,6 +272,7 @@ export async function runScan(
       probeBlindSqli(u, uparams, { ...opts, dbHint: fp?.dbHint })
     );
     await step('hpp', () => probeHpp(u, uparams, opts));
+    await step('csv-log-injection', () => probeCsvLog(u, uparams, opts));
     await step('xss', () => probeXssReflected(u, uparams, opts));
     await step('nosqli', () => probeNoSqli(u, uparams, opts));
     await step('nosql-deep', () => probeNoSqlDeep(u, uparams, opts));
