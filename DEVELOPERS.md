@@ -372,8 +372,8 @@ POST /api/v1/hunts
 - Resume: Restores from checkpoint, continues from same iteration
 - Backend restart: Auto-resumes all `running` hunts from checkpoint
 
-### One-Hunt-at-a-Time
-`MAX_CONCURRENT_HUNTS=1`. Additional hunts queue (FIFO, first-started runs first).
+### Concurrent Hunts
+`MAX_CONCURRENT_HUNTS` (default 3, see `store.js` `DEFAULT_MAX_CONCURRENT_HUNTS`). Additional hunts queue (FIFO, first-started runs first).
 
 ---
 
@@ -582,7 +582,7 @@ JWT_SECRET=<secret>            # In /etc/darkmatter/env (0600)
 ```
 
 ### Key Configuration
-- `MAX_CONCURRENT_HUNTS=1` — One hunt at a time
+- `MAX_CONCURRENT_HUNTS` (default 3) — up to three concurrent hunts; further hunts queue
 - `DEFAULT_BRAIN_MODEL` — Currently points to removed model (latent bug, awaiting owner decision)
 - Budget: Enforced per-hunt and globally
 
@@ -606,10 +606,18 @@ JWT_SECRET=<secret>            # In /etc/darkmatter/env (0600)
 cd /opt/Dark-Matter/backend
 npm ci  # Fresh install first
 node --test 'src/**/*.test.js'
-# Baseline (1 Nov 2026): 859 tests, 848 pass, 0 fail, 11 skipped
+# Baseline (1 Nov 2026, measured): 27 suites, 838 pass, 16 fail, 11 skipped.
+# The 16 failures are triage follow-ups, NOT asserted code bugs:
+# huntDesktopScript SS-1..6 + KT-1..8 (desktop supervisor/theme script
+# tests), egress T8 (reconciler-tick timing), proof PG-1 (re-proof
+# counting). The old "859 tests, 848 pass, 0 fail" claim described
+# neither the package-script run nor this pattern run (#355).
 ```
 
-**Note:** `huntCrashRecovery.test.js` boots a REAL backend (~20s). Run sequentially or ≤2-way parallel.
+**Note:** there is no `huntCrashRecovery.test.js` in the repo — the old
+note claiming it boots a real backend was a phantom reference (#355).
+Hunt-interruption coverage is a gap (see
+`final-e2e-validation.test.js` scenario 6), not a passing scenario.
 
 ### Manual Verification
 1. **Health**: `curl https://api.thebhavesh.online/api/v1/health`

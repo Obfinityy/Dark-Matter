@@ -636,9 +636,12 @@ server.listen(config.port, () => {
   console.log(`[backend] listening on :${config.port}`);
   console.log(`[backend] engine -> ${config.engineUrl}`);
   console.log(`[backend] voice  -> ${config.voiceUrl}`);
-  console.log(
-    `[backend] allowlist -> ${config.allowedTargets.length ? config.allowedTargets.join(', ') : '(empty — hunt creation is disabled until ALLOWED_TARGETS is set)'}`
-  );
+  // FIX (#356): the old line claimed hunt creation was disabled until
+  // ALLOWED_TARGETS was set. That was false after the owner-ordered
+  // allowlist removal: creation is gated only by the
+  // confirmedAuthorized checkbox (see routes/hunts.js), and
+  // config.allowedTargets is parsed but no longer consulted.
+  console.log('[backend] hunt creation gate -> confirmedAuthorized: true (no target allowlist)');
 
   // CHECKPOINT RESUME — hunts that were mid-flight when the process died
   // (state 'running' in their memory folder) pick up from their last
