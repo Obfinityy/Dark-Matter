@@ -52,6 +52,7 @@ import { probeRpo } from './probes/rpo.js';
 import { probeTabnabbing } from './probes/tabnabbing.js';
 import { probeDanglingMarkup } from './probes/danglingMarkup.js';
 import { probePaddingOracle } from './probes/paddingOracle.js';
+import { probeArgInjection } from './probes/argInjection.js';
 import { probeXpathInjection } from './probes/xpathi.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
@@ -113,6 +114,7 @@ export const DEFAULT_PHASES = [
   'tabnabbing',
   'dangling-markup',
   'padding-oracle',
+  'arg-injection',
   'xpathi',
   'ssi',
   'file-upload',
@@ -312,6 +314,7 @@ export async function runScan(
     await step('tabnabbing', () => probeTabnabbing(u, opts));
     await step('dangling-markup', () => probeDanglingMarkup(u, uparams, opts));
     await step('padding-oracle', () => probePaddingOracle(u, opts));
+    await step('arg-injection', () => probeArgInjection(u, uparams, opts));
     await step('ssti', () => probeSsti(u, uparams, opts));
     await step('redirect', () => probeOpenRedirect(u, uparams, opts));
     await step('crlf', () => probeCrlf(u, uparams, opts));
