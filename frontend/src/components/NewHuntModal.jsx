@@ -30,7 +30,7 @@ function defaultHunter() {
   }
 }
 
-export default function NewHuntModal({ open, onClose, onSubmit, launching }) {
+export default function NewHuntModal({ open, onClose, onSubmit, launching, duplicate, onOpenDuplicate, onStartDuplicateAnyway }) {
   const [target, setTarget] = useState('');
   const [scope, setScope] = useState('');
   // Infinity is the running default (owner order, 24 Oct 2026): hunts run
@@ -74,6 +74,7 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching }) {
             value={target}
             onChange={(e) => setTarget(e.target.value)}
             autoFocus
+            disabled={!!duplicate}
           />
         </label>
         <label className="field-label">
@@ -156,13 +157,43 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching }) {
           />
           <span>I am authorized to test this target (I own it or it is an in-scope bug-bounty asset).</span>
         </label>
+        {/* DUPLICATE PROMPT (5 Nov 2026, owner order): re-paste returns the
+            saved result, but 'Start new hunt' must start fresh. When a hunt
+            already exists for (target, brainMode) the dialog offers the
+            choice instead of only opening the existing hunt. 'Start new
+            hunt anyway' re-submits the frozen pending args with forceNew. */}
+        {duplicate && duplicate.existing && (
+          <div className="duplicate-notice" role="status">
+            <p>
+              You already have a {duplicate.existing.brainMode === 'scanner' ? 'Infinity Autonomous' : 'Infinity AI'} hunt
+              for {duplicate.existing.target} ({duplicate.existing.state}).
+            </p>
+            <p>Open the saved hunt, or start a fresh one against the same target.</p>
+          </div>
+        )}
         <div className="modal-actions">
-          <button className="btn btn-ghost" onClick={onClose} disabled={launching}>
-            Cancel
-          </button>
-          <button className="btn btn-primary" onClick={submit} disabled={!target.trim() || !confirmed || launching}>
-            {launching ? 'Starting…' : 'Start hunt'}
-          </button>
+          {duplicate && duplicate.existing ? (
+            <>
+              <button className="btn btn-ghost" onClick={onClose} disabled={launching}>
+                Cancel
+              </button>
+              <button className="btn btn-ghost" onClick={() => onOpenDuplicate && onOpenDuplicate(duplicate.existing.huntId)} disabled={launching}>
+                Open existing hunt
+              </button>
+              <button className="btn btn-primary" onClick={() => onStartDuplicateAnyway && onStartDuplicateAnyway()} disabled={launching}>
+                {launching ? 'Starting…' : 'Start new hunt anyway'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn btn-ghost" onClick={onClose} disabled={launching}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={submit} disabled={!target.trim() || !confirmed || launching}>
+                {launching ? 'Starting…' : 'Start hunt'}
+              </button>
+            </>
+          )}
         </div>
         <p className="modal-note">Only hunt targets you are authorized to test.</p>
       </div>

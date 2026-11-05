@@ -189,16 +189,64 @@ export function isTargetAllowed(target) {
   });
 }
 
+// PURE HELPERS (5 Nov 2026, Re-run brainMode fix) — exported for tests.
+//
+// normalizeHuntCreate: the create handler's brainMode/scanDepth rules in
+// one place — 'scanner' stays scanner, anything else (incl. omitted) is
+// 'ai'; scanDepth is quick/standard/deep, anything else is 'standard'.
+// The frontend's Re-run / Start-from-scratch sends the source hunt's
+// values; the backend honours them verbatim here (stored on the meta
+// and echoed in the 201 response).
+export function normalizeHuntCreate(body) {
+  const brainMode = body && body.brainMode === 'scanner' ? 'scanner' : 'ai';
+  const scanDepth =
+    body && (body.scanDepth === 'quick' || body.scanDepth === 'deep')
+      ? body.scanDepth
+      : 'standard';
+  return { brainMode, scanDepth };
+}
+
+// mapListHunt: the static fields of one GET / list item, from a hunt meta.
+// SCAN DEPTH (5 Nov 2026): the list used to omit scanDepth, so a restored
+// hunt card could never inherit the source hunt's depth — a Re-run of a
+// Deep hunt silently fell back to Standard. Legacy metas (no scanDepth
+// recorded) report 'standard', the historical default — same convention
+// as mode ('normal') and brainMode ('ai').
+export function mapListHunt(m) {
+  const mm = m || {};
+  return {
+    huntId: mm.huntId,
+    target: mm.target,
+    scope: mm.scope || null,
+    // MODE FIX (27 Oct 2026): the list used to omit mode, so the
+    // frontend could never inherit a hunt's real mode — "Start
+    // from scratch" on a human-mode hunt always fell back to
+    // 'normal'. Hunts created before mode was recorded report
+    // 'normal', the historical default.
+    mode: mm.mode || 'normal',
+    // BRAIN MODE (3 Nov 2026): the list used to omit brainMode, so the
+    // frontend's dedup pre-check could not tell an AI hunt from an
+    // automation hunt for the same target. Hunts created before
+    // brainMode was recorded report 'ai', the historical default.
+    brainMode: mm.brainMode === 'scanner' ? 'scanner' : 'ai',
+    // SCAN DEPTH (5 Nov 2026): see header comment above.
+    scanDepth:
+      mm.scanDepth === 'quick' || mm.scanDepth === 'deep' ? mm.scanDepth : 'standard',
+    createdAt: mm.createdAt || null,
+  };
+}
+
 // Hunt creation requires login (requireAuth) AND the existing authorized-
 // target checks below. Everything else (chat, plugins, reports, health,
 // browsing) stays public.
 router.post('/', requireAuth, async (req, res) => {
-  const { target, scope, confirmedAuthorized, mode, forceNew, fresh, brainMode, scanDepth } = req.body || {};
+  const { target, scope, confirmedAuthorized, mode, forceNew, fresh } = req.body || {};
   // brainMode: 'ai' (default) or 'scanner' (rule-based automation, no AI).
   // scanDepth: 'quick' | 'standard' (default) | 'deep' — autonomous hunter
   // only; validated, anything else falls back to 'standard'.
-  const reqBrainMode = brainMode === 'scanner' ? 'scanner' : 'ai';
-  const reqScanDepth = scanDepth === 'quick' || scanDepth === 'deep' ? scanDepth : 'standard';
+  // (5 Nov 2026: normalized by normalizeHuntCreate so the rule is
+  // unit-tested in one place — see hunts.create.test.js.)
+  const { brainMode: reqBrainMode, scanDepth: reqScanDepth } = normalizeHuntCreate(req.body);
   // The AI option stays — the frontend asks "Infinity AI or Infinity Autonomous?".
   console.log(`[hunts] CREATE attempt by ${req.user.username} (${req.user.id}): target=${target}, mode=${mode}, brainMode=${reqBrainMode}, scanDepth=${reqScanDepth}, confirmed=${confirmedAuthorized}`);
   if (typeof target !== 'string' || !target.trim()) {
@@ -513,21 +561,7 @@ router.get('/', requireAuth, async (req, res) => {
         // engine down — cached status still shows
       }
       return {
-        huntId: m.huntId,
-        target: m.target,
-        scope: m.scope || null,
-        // MODE FIX (27 Oct 2026): the list used to omit mode, so the
-        // frontend could never inherit a hunt's real mode — "Start
-        // from scratch" on a human-mode hunt always fell back to
-        // 'normal'. Hunts created before mode was recorded report
-        // 'normal', the historical default.
-        mode: m.mode || 'normal',
-        // BRAIN MODE (3 Nov 2026): the list used to omit brainMode, so the
-        // frontend's dedup pre-check could not tell an AI hunt from an
-        // automation hunt for the same target. Hunts created before
-        // brainMode was recorded report 'ai', the historical default.
-        brainMode: m.brainMode === 'scanner' ? 'scanner' : 'ai',
-        createdAt: m.createdAt || null,
+        ...mapListHunt(m),
         status,
       };
     })

@@ -14,6 +14,7 @@ import LegalPage from './pages/LegalPage';
 import AuthModal from './components/AuthModal';
 import ToastHost from './components/ToastHost';
 import { AuthProvider, useAuth } from './lib/auth';
+import { huntCardFromListEntry } from './lib/huntMode';
 
 const CHATS_KEY = 'dm.chats';
 const CHAT_WIPE_VERSION = '2026-10-16-wipe2';
@@ -368,7 +369,14 @@ function AppInner() {
               {
                 id: uid(),
                 role: 'hunt',
-                hunt: { huntId: h.huntId, target: h.target, scope: h.scope || '', status: h.status || 'unknown', createdAt: h.createdAt },
+                // RE-RUN FIX (5 Nov 2026): the restored card used to carry
+                // only {huntId, target, scope, status, createdAt} — no
+                // brainMode/scanDepth/mode — so Re-run on a restored
+                // Autonomous hunt silently created an AI hunt
+                // (`hunt.brainMode || 'ai'`). huntCardFromListEntry
+                // carries everything Re-run inherits, with the same
+                // defaults the backend list uses.
+                hunt: huntCardFromListEntry(h),
               },
             ],
           }));

@@ -9,7 +9,7 @@ import DetailsRequestCard from '../components/DetailsRequestCard';
 import NewHuntModal from '../components/NewHuntModal';
 import VoiceMode from '../components/VoiceMode';
 import { sendChat, startHunt, fetchReportMarkdown } from '../lib/api';
-import { resolveHuntMode } from '../lib/huntMode';
+import { resolveHuntMode, resolveHuntBrainMode, resolveHuntScanDepth } from '../lib/huntMode';
 import { streamReveal } from '../lib/streaming';
 import { useAuth, openAuthModal } from '../lib/auth';
 import { toast } from '../lib/toast';
@@ -35,6 +35,13 @@ export default function ChatPage({
   const [streamingId, setStreamingId] = useState(null);
   const [huntModalOpen, setHuntModalOpen] = useState(false);
   const [launching, setLaunching] = useState(false);
+  // DUPLICATE PROMPT (5 Nov 2026, owner order: re-paste returns the saved
+  // result, but 'Start new hunt' must start fresh): when a hunt already
+  // exists for (target, brainMode), the New Hunt dialog offers the choice
+  // instead of only opening the existing hunt. Holds the existing hunt
+  // plus the pending submit args so 'Start new hunt anyway' can re-run
+  // the submit with forceNew.
+  const [duplicateHunt, setDuplicateHunt] = useState(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
 
   // Open hunt modal when triggered from Sidebar "New hunt".
@@ -295,10 +302,20 @@ export default function ChatPage({
           matches.find((h) => stateOf(h) === 'paused') ||
           matches[0];
         if (existing) {
-          toast(`You already have a hunt for ${target} — opening it.`, 'info');
-          setHuntModalOpen(false);
-          // Find the chat for this hunt and navigate to it
-          if (typeof onOpenHuntChat === 'function') onOpenHuntChat(existing.huntId);
+          // DUPLICATE PROMPT (5 Nov 2026): do not just open the existing
+          // hunt — offer the owner the choice the dialog was missing:
+          // open the saved hunt, or start a fresh one anyway (forceNew).
+          // The modal stays open on the prompt; the pending submit args
+          // are kept so 'Start new hunt anyway' re-submits verbatim.
+          setDuplicateHunt({
+            existing: {
+              huntId: existing.huntId,
+              target,
+              brainMode: modeOf(existing),
+              state: stateOf(existing),
+            },
+            pending: { target, scope, mode, confirmed, brainMode, scanDepth },
+          });
           return;
         }
       } catch { /* best-effort, proceed to create */ }
@@ -322,11 +339,19 @@ export default function ChatPage({
     }
     if (res.data.reused) {
       // The backend redirected us to the hunt that already exists for this
-      // target (resuming it first if it was paused). Open THAT hunt's chat —
-      // never append a second card for the same hunt here.
-      toast(res.data.message || 'Opening your existing hunt for this target.', 'info');
-      if (typeof onOpenHuntChat === 'function') onOpenHuntChat(res.data.huntId);
-      setHuntModalOpen(false);
+      // target (resuming it first if it was paused). Same choice as the
+      // frontend pre-check: open it, or start a fresh hunt anyway.
+      // (Backend dedup is mode-scoped, so the existing hunt is in the
+      // requested brainMode.)
+      setDuplicateHunt({
+        existing: {
+          huntId: res.data.huntId,
+          target,
+          brainMode: brainMode === 'scanner' ? 'scanner' : 'ai',
+          state: String(res.data.state || 'unknown'),
+        },
+        pending: { target, scope, mode, confirmed, brainMode, scanDepth },
+      });
       return;
     }
     const chatId = chat ? chat.id : onNewChat();
@@ -367,7 +392,20 @@ export default function ChatPage({
     // forceNew is the explicit fresh-run bypass of the dedupe redirect.
     // MODE FIX (27 Oct 2026): inherit the old hunt's real mode — the
     // list used to omit mode, so this always fell back to 'normal'.
-    await handleStartHunt(hunt.target, hunt.scope || '', await resolveHuntMode(hunt), true, hunt.brainMode || 'ai', hunt.scanDepth || 'standard', true);
+    // BRAIN-MODE FIX (5 Nov 2026): resolve the lane + depth
+    // authoritatively — a restored card minted before the fix carries
+    // neither, and `hunt.brainMode || 'ai'` silently re-created a
+    // scanner hunt as AI. The resolvers read the card first, then
+    // GET /:id/brain-mode (lane) / GET /:id (depth).
+    await handleStartHunt(
+      hunt.target,
+      hunt.scope || '',
+      await resolveHuntMode(hunt),
+      true,
+      await resolveHuntBrainMode(hunt),
+      await resolveHuntScanDepth(hunt),
+      true,
+    );
   }
 
   /** Start from scratch (27 Oct 2026, budget cap): a brand-new hunt
@@ -379,7 +417,18 @@ export default function ChatPage({
     // MODE FIX (27 Oct 2026): inherit the old hunt's real mode (see
     // resolveHuntMode) — a human-mode hunt re-created in 'normal'
     // loses the whole human loop.
-    await handleStartHunt(hunt.target, hunt.scope || '', await resolveHuntMode(hunt), true, hunt.brainMode || 'ai', hunt.scanDepth || 'standard', false, true);
+    // BRAIN-MODE FIX (5 Nov 2026): same authoritative lane + depth
+    // resolution as Re-run (see handleRerunHunt).
+    await handleStartHunt(
+      hunt.target,
+      hunt.scope || '',
+      await resolveHuntMode(hunt),
+      true,
+      await resolveHuntBrainMode(hunt),
+      await resolveHuntScanDepth(hunt),
+      false,
+      true,
+    );
   }
 
   function handleRegenerateMessage(message) {
@@ -475,9 +524,21 @@ export default function ChatPage({
 
       <NewHuntModal
         open={huntModalOpen}
-        onClose={() => setHuntModalOpen(false)}
+        onClose={() => { setDuplicateHunt(null); setHuntModalOpen(false); }}
         onSubmit={handleStartHunt}
         launching={launching}
+        duplicate={duplicateHunt}
+        onOpenDuplicate={(huntId) => {
+          setDuplicateHunt(null);
+          setHuntModalOpen(false);
+          if (typeof onOpenHuntChat === 'function') onOpenHuntChat(huntId);
+        }}
+        onStartDuplicateAnyway={async () => {
+          const p = duplicateHunt && duplicateHunt.pending;
+          if (!p) return;
+          setDuplicateHunt(null);
+          await handleStartHunt(p.target, p.scope, p.mode, p.confirmed, p.brainMode, p.scanDepth, true);
+        }}
       />
       {voiceOpen && (
         <VoiceMode

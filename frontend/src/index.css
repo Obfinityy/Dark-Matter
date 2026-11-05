@@ -1729,6 +1729,11 @@ button { font-family: inherit; }
 .modal-sub { color: var(--dm-secondary); font-size: 14px; margin: 0 0 8px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .modal-note { color: var(--dm-faint); font-size: 12px; margin: 14px 0 0; }
+/* Duplicate prompt (5 Nov 2026): the New Hunt dialog's "already hunted"
+   choice — plain bordered notice, same tokens as the modal. */
+.duplicate-notice { border: 1px solid var(--dm-border); border-radius: 12px; padding: 12px 14px; margin-top: 14px; }
+.duplicate-notice p { margin: 0; font-size: 13px; color: var(--dm-secondary); }
+.duplicate-notice p + p { margin-top: 4px; }
 
 /* ---------- Buttons / inputs (pages) ---------- */
 .btn {

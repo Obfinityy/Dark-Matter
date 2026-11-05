@@ -357,6 +357,15 @@ export async function getHuntBrain(id) {
   return get(`/api/v1/hunts/${encodeURIComponent(id)}/brain`);
 }
 
+// BRAIN-MODE READ (5 Nov 2026, Re-run fix): the hunt's recorded lane —
+// GET /:id/brain-mode -> { ok, brainMode: 'ai' | 'scanner', state }.
+// Re-run / Start-from-scratch resolves the source hunt's real lane
+// through this when the card itself does not carry brainMode (legacy
+// restored cards), so a scanner hunt is never silently re-created as AI.
+export async function getHuntBrainMode(id) {
+  return get(`/api/v1/hunts/${encodeURIComponent(id)}/brain-mode`);
+}
+
 export async function setHuntBrain(id, model) {
   return post(`/api/v1/hunts/${encodeURIComponent(id)}/brain`, { model });
 }
