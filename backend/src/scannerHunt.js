@@ -2,7 +2,7 @@
 // When a hunt is created with brainMode='scanner', this runs the rule-based
 // vulnerability scanner (no AI, no API spend) and records findings as hunt
 // events, instead of launching the AI agent loop.
-import { runScan } from './scanner/index.js';
+import { runScan, buildPhaseRollup } from './scanner/index.js';
 import { appendHuntEvent, readHuntMeta, writeHuntMeta } from './store.js';
 import { notifyFinding } from './notifications.js';
 
@@ -191,17 +191,14 @@ export async function runScannerHunt(huntId, target, opts = {}) {
     }
 
     // Record the summary.
-    // Phase rollup (5 Nov 2026, phase visibility): the per-phase records
-    // stream into events.jsonl as type:'phase' events via onPhase above;
-    // the finished summary carries only the counts (total/ok/failed/
-    // timedOut) so the panel can show scan coverage at a glance.
+    // Phase rollup (5 Nov 2026, phase visibility; 35/63 fix: skipped
+    // phases count separately — a 35-ok / 28-skipped run must never again
+    // read as a clean 35/35 pass). The per-phase records stream into
+    // events.jsonl as type:'phase' events via onPhase above; the finished
+    // summary carries only the counts (total/ok/failed/skipped/timedOut)
+    // so the panel can show scan coverage at a glance.
     const phaseList = result.phases || [];
-    const phaseRollup = {
-      total: phaseList.length,
-      ok: phaseList.filter((p) => p.ok).length,
-      failed: phaseList.filter((p) => !p.ok).length,
-      timedOut: phaseList.filter((p) => p.timedOut).length,
-    };
+    const phaseRollup = buildPhaseRollup(phaseList);
     record(huntId, {
       type: 'status',
       state: 'scanner_finished',

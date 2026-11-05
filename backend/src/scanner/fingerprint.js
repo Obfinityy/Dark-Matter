@@ -19,7 +19,14 @@ export async function fetchPage(url, { timeoutMs = 15000, headers = {} } = {}) {
     } catch {
       body = '';
     }
-    return { url, status: res.status, headers: respHeaders, body: body.slice(0, 500000) };
+    // Return the POST-REDIRECT landing URL (5 Nov 2026, 35/63 fix):
+    // fetch follows redirects, so `res.url` is where the page actually
+    // lives (e.g. / -> /login.php). Callers resolve links/forms against
+    // this URL; returning the requested URL made crawl describe the
+    // pre-redirect root instead of the real page. `res.url` is absent on
+    // stubbed fetch implementations in tests — fall back to the requested
+    // URL then, never undefined.
+    return { url: res.url || url, status: res.status, headers: respHeaders, body: body.slice(0, 500000) };
   } finally {
     clearTimeout(t);
   }

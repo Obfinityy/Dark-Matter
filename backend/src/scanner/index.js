@@ -136,6 +136,62 @@ export const DEFAULT_PHASES = [
   'nuclei',
 ];
 
+// PARAM BATTERY (5 Nov 2026, 35/63 fix): the 28 injection-class phases
+// below run per URL inside the param loop in runScan. When a scan has ZERO
+// param-bearing targets (bare-root paste on a POST-login page, SPA with no
+// links/forms), the loop body never executes and step() is never invoked
+// for them — previously they vanished with no record at all, so the rollup
+// read a clean 35/35 ok on a 35/63 run. runScan now emits a skipped record
+// for each of them instead; see skipPhase inside runScan.
+export const PARAM_BATTERY_PHASES = [
+  'sqli-error',
+  'sqli-blind',
+  'hpp',
+  'csv-log-injection',
+  'xss',
+  'nosqli',
+  'nosql-deep',
+  'ldapi',
+  'ldap-blind',
+  'xpathi',
+  'ssi',
+  'cmdi',
+  'traversal',
+  'rfi',
+  'xslt',
+  'eval-injection',
+  'jsonp',
+  'rpo',
+  'tabnabbing',
+  'dangling-markup',
+  'padding-oracle',
+  'arg-injection',
+  'ssti',
+  'el-injection',
+  'ognl-injection',
+  'redirect',
+  'crlf',
+  'ssrf',
+];
+
+/**
+ * Build the finished-scan phase rollup from runScan's phase records.
+ * Pure — exported for unit tests. `skipped` counts separately from ok /
+ * failed: a 35-ok / 28-skipped run reports {total: 63, ok: 35, failed: 0,
+ * skipped: 28}, never a clean 35/35 pass. `timedOut` counts every record
+ * carrying timedOut (a timed-out nuclei record is also failed, as before).
+ */
+export function buildPhaseRollup(phaseList) {
+  const list = Array.isArray(phaseList) ? phaseList : [];
+  return {
+    total: list.length,
+    ok: list.filter((p) => p.ok && !p.skipped).length,
+    failed: list.filter((p) => !p.ok && !p.skipped).length,
+    skipped: list.filter((p) => p.skipped).length,
+    timedOut: list.filter((p) => p.timedOut).length,
+  };
+}
+
 /**
  * Run the rule-based scan battery.
  *
@@ -144,7 +200,10 @@ export const DEFAULT_PHASES = [
  * `opts.nucleiRunner` — test seam, defaults to the real runNuclei.
  * Returns `phases` — one record per executed step ({name, startedAt,
  * finishedAt, durationMs, ok, error, findingsCount}; the nuclei record
- * additionally carries ok/timedOut/stderrTail). `errors` is kept for
+ * additionally carries ok/timedOut/stderrTail) PLUS one skipped record per
+ * param-battery phase ({skipped: true, skipReason}) when the scan had zero
+ * param-bearing targets (35/63 fix — a skipped phase is neither ok nor
+ * failed; buildPhaseRollup counts it separately). `errors` is kept for
  * backward compatibility.
  */
 export async function runScan(
@@ -238,6 +297,29 @@ export async function runScan(
     return result;
   };
 
+  // SKIPPED PHASES (5 Nov 2026, 35/63 fix): a phase that never ran must
+  // still leave a record — otherwise the rollup cannot tell "35 of 63 ran"
+  // from "63 of 63 passed". A skipped record is neither a pass nor a
+  // failure: ok stays true so nothing counts it as failed, and the
+  // `skipped` flag (with a reason) lets buildPhaseRollup count it
+  // separately. Like step(), it honours the requested `phases` allowlist
+  // and streams through onPhase.
+  const skipPhase = (name, reason) => {
+    if (!phases.includes(name)) return;
+    const at = new Date().toISOString();
+    emitPhase({
+      name,
+      startedAt: at,
+      finishedAt: at,
+      durationMs: 0,
+      ok: true,
+      skipped: true,
+      skipReason: reason,
+      error: null,
+      findingsCount: 0,
+    });
+  };
+
   fp = await step('fingerprint', () => fingerprint(url, opts));
   crawled = await step('crawl', () => crawl(url, opts));
 
@@ -308,6 +390,18 @@ export async function runScan(
     }
   }
 
+  // Forms are merged from the landing page AND from re-fetching every scan
+  // target — the same form can appear twice (the landing page's own form is
+  // re-found on its re-fetch). Synthesizing a target per copy would probe
+  // the identical form twice with different random fillers. Dedupe by
+  // method+action+inputs first; distinct forms (same action, different
+  // inputs) still get their own target.
+  const uniqueForms = [...new Map(
+    forms.map((f) => [
+      `${String(f.method || 'get').toLowerCase()}|${f.action}|${(f.inputs || []).join(',')}`,
+      f,
+    ])
+  ).values()];
   // GET forms become URL targets so the param battery covers them.
   // SAFETY: fill each input with a UNIQUE value (never empty, never equal).
   // A state-changing GET form (e.g. DVWA's csrf password-change) triggers
@@ -330,8 +424,22 @@ export async function runScan(
       return null;
     }
   };
-  for (const f of forms) {
+  for (const f of uniqueForms) {
     if (String(f.method || 'get').toLowerCase() === 'get') {
+      const fu = toFormUrl(f);
+      if (fu) pushFormTarget(fu);
+    }
+  }
+  // POST forms become GET probe targets too (5 Nov 2026, 35/63 fix): the
+  // DVWA root paste's only form is a POST login form, so without this the
+  // param battery has zero targets and all 28 injection phases are skipped
+  // in silence. We NEVER submit the POST for the battery — we only GET the
+  // action URL with the same UNIQUE filler values the GET-form rule uses
+  // (never empty, never equal), so probing stays read-only: a failed login
+  // with random credentials changes nothing, and a state-changing gate that
+  // requires matching values can never fire on unique fillers.
+  for (const f of uniqueForms) {
+    if (String(f.method || 'get').toLowerCase() === 'post') {
       const fu = toFormUrl(f);
       if (fu) pushFormTarget(fu);
     }
@@ -358,9 +466,15 @@ export async function runScan(
   );
 
   await step('headers', () => (fp ? probeHeaders({ url, headers: fp.headers }) : []));
+  // 35/63 FIX: track whether the param battery ran at all. If no scan
+  // target carried a single parameter, the loop body below never executes
+  // and the 28 phases inside it would vanish in silence — record each of
+  // them as skipped instead (after the loop).
+  let paramBatteryRan = false;
   for (const u of scanTargets) {
     const uparams = [...new Set(extractParams(u))];
     if (uparams.length === 0) continue;
+    paramBatteryRan = true;
     await step('sqli-error', () => probeSqliError(u, uparams, opts));
     await step('sqli-blind', () =>
       probeBlindSqli(u, uparams, { ...opts, dbHint: fp?.dbHint })
@@ -391,6 +505,12 @@ export async function runScan(
     await step('redirect', () => probeOpenRedirect(u, uparams, opts));
     await step('crlf', () => probeCrlf(u, uparams, opts));
     await step('ssrf', () => probeSsrf(u, uparams, opts));
+  }
+  // 35/63 FIX: no param-bearing target existed, so the whole injection
+  // battery was skipped in silence. Emit one skipped record per phase so
+  // the audit trail (and the rollup) shows the gap instead of a clean pass.
+  if (!paramBatteryRan) {
+    for (const name of PARAM_BATTERY_PHASES) skipPhase(name, 'no param targets');
   }
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));

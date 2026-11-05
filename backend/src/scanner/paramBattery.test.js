@@ -1,0 +1,257 @@
+// Dark Matter scanner — param-battery visibility tests (5 Nov 2026).
+//
+// REGRESSION (35/63 gap): on a bare-root paste with zero param-bearing
+// targets, the 28-phase injection battery was skipped in total silence —
+// step() was never invoked, so no record, no error, and the rollup read a
+// clean 35/35 ok on a 35/63 run. DVWA's flagship injection classes (SQLi,
+// XSS, CMDI, traversal, SSTI, SSRF) never ran on the bare-root paste.
+//
+// The fix: (a) runScan emits a skipped record per param-battery phase when
+// no target carries a parameter, and buildPhaseRollup counts skipped
+// distinctly; (b) POST forms yield synthesized GET probe targets (same
+// unique-filler read-only rule as GET forms) so the battery actually runs
+// against a POST-login page; (c) fetchPage returns the post-redirect URL.
+//
+// No network, no docker in these tests — fetch is stubbed throughout.
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { runScan, PARAM_BATTERY_PHASES, DEFAULT_PHASES, buildPhaseRollup } from './index.js';
+import { fetchPage } from './fingerprint.js';
+
+const realFetch = globalThis.fetch;
+const teardown = () => {
+  globalThis.fetch = realFetch;
+};
+
+// A page with no links, no forms, no parameters — the bare-root paste case.
+const BARE_PAGE = `<html><head><title>t</title></head><body><p>hello</p></body></html>`;
+
+// A DVWA-style login page: a single POST form, no GET forms, no links.
+const LOGIN_PAGE = `<html><head><title>Login</title></head><body>
+<form action="/login.php" method="post">
+<input name="username"><input name="password">
+<input name="Login" type="submit" value="Login">
+</form></body></html>`;
+
+function stubPage(html) {
+  globalThis.fetch = async () => ({
+    status: 200,
+    headers: new Headers({ server: 'nginx/1.24' }),
+    text: async () => html,
+  });
+}
+
+describe('param battery skipped records (35/63 fix)', () => {
+  it('PARAM_BATTERY_PHASES is exactly the 28 loop phases, all in DEFAULT_PHASES', () => {
+    assert.equal(PARAM_BATTERY_PHASES.length, 28);
+    assert.equal(new Set(PARAM_BATTERY_PHASES).size, 28);
+    for (const name of PARAM_BATTERY_PHASES) {
+      assert.ok(DEFAULT_PHASES.includes(name), `${name} missing from DEFAULT_PHASES`);
+    }
+    assert.equal(DEFAULT_PHASES.length, 63);
+  });
+
+  it('zero param targets: all 28 param phases emit skipped records, rollup reports them', async () => {
+    stubPage(BARE_PAGE);
+    try {
+      const result = await runScan(
+        {
+          target: 'http://example.com/',
+          confirmedAuthorized: true,
+          phases: [...PARAM_BATTERY_PHASES],
+        },
+        { timeoutMs: 5000 }
+      );
+      assert.equal(result.phases.length, 28);
+      assert.deepEqual(
+        result.phases.map((p) => p.name),
+        PARAM_BATTERY_PHASES
+      );
+      for (const p of result.phases) {
+        assert.equal(p.skipped, true);
+        assert.equal(p.skipReason, 'no param targets');
+        assert.equal(p.ok, true);
+        assert.equal(p.error, null);
+        assert.equal(p.findingsCount, 0);
+        assert.equal(p.durationMs, 0);
+      }
+      // The rollup must NOT read this as a pass: 0 ok, 28 skipped.
+      assert.deepEqual(buildPhaseRollup(result.phases), {
+        total: 28,
+        ok: 0,
+        failed: 0,
+        skipped: 28,
+        timedOut: 0,
+      });
+    } finally {
+      teardown();
+    }
+  });
+
+  it('zero param targets with a mixed phase list: executed phases stay ok, param phases skipped', async () => {
+    stubPage(BARE_PAGE);
+    try {
+      const seen = [];
+      const result = await runScan(
+        {
+          target: 'http://example.com/',
+          confirmedAuthorized: true,
+          phases: ['fingerprint', 'crawl', 'page-analyze', 'headers', 'sqli-error', 'xss'],
+        },
+        { timeoutMs: 5000, onPhase: (p) => seen.push(p) }
+      );
+      assert.equal(result.phases.length, 6);
+      const byName = Object.fromEntries(result.phases.map((p) => [p.name, p]));
+      for (const name of ['fingerprint', 'crawl', 'page-analyze', 'headers']) {
+        assert.equal(byName[name].ok, true);
+        assert.equal(byName[name].skipped, undefined);
+      }
+      assert.equal(byName['sqli-error'].skipped, true);
+      assert.equal(byName['xss'].skipped, true);
+      // Skipped records stream through onPhase exactly like executed ones.
+      assert.equal(seen.length, 6);
+      assert.equal(seen.filter((p) => p.skipped).length, 2);
+      assert.deepEqual(buildPhaseRollup(result.phases), {
+        total: 6,
+        ok: 4,
+        failed: 0,
+        skipped: 2,
+        timedOut: 0,
+      });
+    } finally {
+      teardown();
+    }
+  });
+
+  it('a POST login form yields synthesized GET targets and the battery runs (never submits the POST)', async () => {
+    const calls = [];
+    globalThis.fetch = async (url, init = {}) => {
+      calls.push({ url: String(url), method: String(init.method || 'GET').toUpperCase() });
+      return {
+        status: 200,
+        headers: new Headers({ server: 'nginx/1.24' }),
+        text: async () => LOGIN_PAGE,
+      };
+    };
+    try {
+      const result = await runScan(
+        {
+          target: 'http://example.com/',
+          confirmedAuthorized: true,
+          phases: ['fingerprint', 'crawl', 'page-analyze', 'headers', 'sqli-error', 'xss', 'cmdi', 'traversal', 'csrf'],
+        },
+        { timeoutMs: 5000 }
+      );
+      const byName = Object.fromEntries(result.phases.map((p) => [p.name, p]));
+      // The battery ran against the synthesized target — no skipped records.
+      for (const name of ['sqli-error', 'xss', 'cmdi', 'traversal']) {
+        assert.equal(byName[name].skipped, undefined, `${name} must not be skipped`);
+        assert.equal(byName[name].ok, true);
+      }
+      // The synthesized GET target was actually probed (login.php with
+      // unique fillers for username/password), and the POST form was never
+      // submitted — the battery only GETs.
+      assert.ok(
+        calls.some((c) => /login\.php\?username=dmprobe/.test(c.url)),
+        `expected a GET probe of the synthesized login target, got: ${calls.map((c) => c.url).slice(0, 5).join(' | ')}`
+      );
+      assert.ok(
+        calls.every((c) => c.method === 'GET'),
+        `battery must never POST; saw: ${calls.filter((c) => c.method !== 'GET').map((c) => `${c.method} ${c.url}`).join(', ')}`
+      );
+      assert.deepEqual(buildPhaseRollup(result.phases), {
+        total: 9,
+        ok: 9,
+        failed: 0,
+        skipped: 0,
+        timedOut: 0,
+      });
+    } finally {
+      teardown();
+    }
+  });
+
+  it('a GET form still yields param targets (existing behaviour unchanged)', async () => {
+    stubPage(
+      `<html><body><form action="/s" method="get"><input name="q"></form></body></html>`
+    );
+    try {
+      const result = await runScan(
+        {
+          target: 'http://example.com/',
+          confirmedAuthorized: true,
+          phases: ['fingerprint', 'crawl', 'page-analyze', 'sqli-error'],
+        },
+        { timeoutMs: 5000 }
+      );
+      const sqli = result.phases.find((p) => p.name === 'sqli-error');
+      assert.equal(sqli.skipped, undefined);
+      assert.equal(sqli.ok, true);
+    } finally {
+      teardown();
+    }
+  });
+});
+
+describe('fetchPage post-redirect URL (35/63 fix)', () => {
+  it('returns res.url — the landing URL after redirects', async () => {
+    globalThis.fetch = async () => ({
+      url: 'http://example.com/login.php',
+      status: 200,
+      headers: new Headers({ server: 'nginx/1.24' }),
+      text: async () => LOGIN_PAGE,
+    });
+    try {
+      const page = await fetchPage('http://example.com/', { timeoutMs: 5000 });
+      assert.equal(page.url, 'http://example.com/login.php');
+      assert.equal(page.status, 200);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('falls back to the requested URL when res.url is absent (stubbed fetch)', async () => {
+    globalThis.fetch = async () => ({
+      status: 200,
+      headers: new Headers({ server: 'nginx/1.24' }),
+      text: async () => BARE_PAGE,
+    });
+    try {
+      const page = await fetchPage('http://example.com/', { timeoutMs: 5000 });
+      assert.equal(page.url, 'http://example.com/');
+    } finally {
+      teardown();
+    }
+  });
+});
+
+describe('buildPhaseRollup', () => {
+  it('counts ok/failed/skipped/timedOut distinctly', () => {
+    assert.deepEqual(
+      buildPhaseRollup([
+        { name: 'a', ok: true },
+        { name: 'b', ok: true, skipped: true },
+        { name: 'c', ok: false },
+        { name: 'd', ok: false, timedOut: true },
+      ]),
+      { total: 4, ok: 1, failed: 2, skipped: 1, timedOut: 1 }
+    );
+  });
+
+  it('returns zeros for empty / non-array input', () => {
+    assert.deepEqual(buildPhaseRollup([]), {
+      total: 0,
+      ok: 0,
+      failed: 0,
+      skipped: 0,
+      timedOut: 0,
+    });
+    assert.deepEqual(buildPhaseRollup(null), {
+      total: 0,
+      ok: 0,
+      failed: 0,
+      skipped: 0,
+      timedOut: 0,
+    });
+  });
+});
