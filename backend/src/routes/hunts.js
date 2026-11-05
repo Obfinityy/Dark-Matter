@@ -414,12 +414,18 @@ router.post('/', requireAuth, async (req, res) => {
     const metas = listHuntMetas();
     if (huntQueueFull(metas)) {
       const active = metas.find((h) => h.state === 'running');
+      // QUEUE LANE (5 Nov 2026, queue-drain fix): the entry must carry
+      // brainMode + scanDepth, or a drained scanner re-run restarts in
+      // the wrong lane. Before this fix only {userId, username, target,
+      // scope, mode} were stored.
       const { queueId, position, total } = enqueueHunt({
         userId: req.user.id,
         username: req.user.username,
         target: target.trim(),
         scope: scope || null,
         mode: huntMode.id,
+        brainMode: reqBrainMode,
+        scanDepth: reqScanDepth,
       });
       // FIX (#335): the running hunt's id/target used to leak to any
       // user whose hunt queued behind it. Only the owner (or an admin)
@@ -588,6 +594,12 @@ router.get('/queue', requireAuth, async (req, res) => {
         ...(isMine || req.user.role === 'admin' ? { target: e.target } : {}),
         username: e.username,
         priority: e.priority,
+        // QUEUE LANE (5 Nov 2026): the lane a drained entry will start
+        // in — visible so a queued re-run's lane is never a surprise.
+        // Legacy entries (enqueued before the lane was persisted) report
+        // null here and drain as scanner (see huntCreator.js).
+        brainMode: e.brainMode || null,
+        scanDepth: e.scanDepth || null,
         createdAt: e.createdAt,
         isMine,
       };

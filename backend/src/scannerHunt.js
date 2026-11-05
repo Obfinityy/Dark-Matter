@@ -17,6 +17,21 @@ function record(huntId, event) {
   }
 }
 
+// QUEUE DRAIN (5 Nov 2026): a hunt reaching a terminal state frees a
+// concurrency slot — start the next queued hunt, if any. Best-effort:
+// a drain failure must never break this hunt's finished/failed record.
+// opts.drainQueue is a test seam only (same pattern as runScan's
+// opts.nucleiRunner); production callers never pass it.
+async function drainNextQueuedHunt(opts) {
+  try {
+    const drainQueue =
+      (opts && opts.drainQueue) || (await import('./huntCreator.js')).drainQueue;
+    await drainQueue();
+  } catch {
+    // best-effort
+  }
+}
+
 /**
  * Run the rule-based scanner for a hunt.
  * @param {string} huntId
@@ -224,6 +239,9 @@ export async function runScannerHunt(huntId, target, opts = {}) {
       // best-effort
     }
 
+    // A finished scan frees a concurrency slot — drain the queue.
+    await drainNextQueuedHunt(opts);
+
     return { ok: true, findings: result.findings?.length || 0 };
   } catch (err) {
     record(huntId, {
@@ -237,6 +255,8 @@ export async function runScannerHunt(huntId, target, opts = {}) {
     } catch {
       // best-effort
     }
+    // A failed scan frees its slot too — drain the queue.
+    await drainNextQueuedHunt(opts);
     return { ok: false, error: err.message || String(err) };
   }
 }

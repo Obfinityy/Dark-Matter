@@ -313,8 +313,17 @@ export function writeQueue(queue) {
   writeJsonAtomic(path.join(dataDir(), 'hunt-queue.json'), queue);
 }
 
-/** Add a hunt request to the queue. Returns {position, queueId}. */
-export function enqueueHunt({ userId, username, target, scope, mode }) {
+/** Add a hunt request to the queue. Returns {position, queueId}.
+ *
+ * QUEUE LANE (5 Nov 2026, queue-drain fix): the entry now carries the
+ * hunt's lane — brainMode ('scanner' | 'ai') and scanDepth ('quick' |
+ * 'standard' | 'deep') — so a drained entry restarts in the lane the
+ * user asked for. Before this fix enqueueHunt stored only
+ * {userId, username, target, scope, mode}, so a drained scanner
+ * re-run would have restarted in the wrong lane. Normalization mirrors
+ * normalizeHuntCreate in routes/hunts.js ('scanner' stays scanner,
+ * anything else is 'ai'; scanDepth quick/deep, else 'standard'). */
+export function enqueueHunt({ userId, username, target, scope, mode, brainMode, scanDepth }) {
   const queue = readQueue();
   const queueId = 'q_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const entry = {
@@ -324,6 +333,9 @@ export function enqueueHunt({ userId, username, target, scope, mode }) {
     target,
     scope: scope || null,
     mode: mode || 'normal',
+    brainMode: brainMode === 'scanner' ? 'scanner' : 'ai',
+    scanDepth:
+      scanDepth === 'quick' || scanDepth === 'deep' ? scanDepth : 'standard',
     priority: 0, // admin can raise (higher = sooner)
     status: 'queued',
     createdAt: new Date().toISOString(),
@@ -354,6 +366,37 @@ export function dequeueNextHunt() {
     writeQueue(queue);
   }
   return next;
+}
+
+/**
+ * Put a dequeued entry back in the queue after its hunt failed to start
+ * (5 Nov 2026, queue-drain fix). Without this, dequeueNextHunt's
+ * 'started' mark is a one-way door: a creation failure silently loses
+ * the request — the user sees "queued #1" and nothing ever starts.
+ * Retried at most MAX_QUEUE_ATTEMPTS times; after that the entry is
+ * marked 'failed' (with the error) instead of looping forever. Returns
+ * the entry's new status ('queued' | 'failed') or false when the entry
+ * is gone.
+ */
+export const MAX_QUEUE_ATTEMPTS = 3;
+
+export function requeueHunt(queueId, error) {
+  const queue = readQueue();
+  const idx = queue.findIndex((e) => e.queueId === queueId);
+  if (idx < 0) return false;
+  const entry = queue[idx];
+  const attempts = (Number(entry.attempts) || 0) + 1;
+  entry.attempts = attempts;
+  entry.lastError = (error && error.message) || String(error || 'unknown error');
+  if (attempts >= MAX_QUEUE_ATTEMPTS) {
+    entry.status = 'failed';
+    entry.failedAt = new Date().toISOString();
+  } else {
+    entry.status = 'queued';
+    delete entry.startedAt;
+  }
+  writeQueue(queue);
+  return entry.status;
 }
 
 /** Remove a queue entry (user cancelled or admin removed). */

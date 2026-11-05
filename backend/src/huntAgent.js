@@ -3135,26 +3135,15 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
       writeHuntMetaCheckpoint(huntId, { state: 'finished' });
     } catch { /* meta is best-effort here */ }
 
-    // QUEUE: auto-start next hunt if queued AND a concurrency slot is
-    // free. The cap decision lives in store.js (huntQueueFull), shared
-    // with POST /hunts — dequeueNextHunt marks the entry started, so it
-    // must not be called while the cap is still reached. (This hunt's
-    // meta was checkpointed 'finished' just above, so it no longer
-    // counts as running here.)
+    // QUEUE (5 Nov 2026, queue-drain fix): a finished hunt frees its
+    // concurrency slot — drainQueue (huntCreator.js, shared with the
+    // scanner lane) starts the next queued hunt, if any, in the lane
+    // stored on the entry. Best-effort: a drain failure must never
+    // break the finished record. (This hunt's meta was checkpointed
+    // 'finished' just above, so it no longer counts as running here.)
     try {
-      const { dequeueNextHunt, huntQueueFull } = await import('./store.js');
-      const next = huntQueueFull() ? null : dequeueNextHunt();
-      if (next) {
-        console.log(`[hunt] Queue: auto-starting ${next.queueId} for ${next.username} (target: ${next.target})`);
-        // Import and call the hunt creation (deferred to avoid circular imports)
-        const { default: createHunt } = await import('./huntCreator.js').catch(() => ({ default: null }));
-        if (createHunt) {
-          createHunt(next).catch((err) => console.error('[hunt] queue auto-start failed:', err.message));
-        } else {
-          // Fallback: log for manual start (huntCreator not yet implemented)
-          console.log(`[hunt] Queue: next hunt ready (manual): ${JSON.stringify(next)}`);
-        }
-      }
+      const { drainQueue } = await import('./huntCreator.js');
+      await drainQueue();
     } catch (err) {
       console.error('[hunt] queue auto-start check failed:', err.message);
     }
@@ -3163,6 +3152,12 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
     try {
       writeHuntMetaCheckpoint(huntId, { state: 'failed' });
     } catch { /* meta is best-effort here */ }
+    // QUEUE (5 Nov 2026): a failed hunt frees its slot too — drain,
+    // same as on finish. Best-effort.
+    try {
+      const { drainQueue } = await import('./huntCreator.js');
+      await drainQueue();
+    } catch { /* best-effort */ }
   } finally {
     // Always clean up the container
     try {
