@@ -83,6 +83,24 @@ export const normTitle = (s) => String(s || '')
   .replace(/^poc confirmed:\s*/, '');
 
 /**
+ * The title a retraction event names. Canonical form is
+ * `findingTitle` (the only shape the retraction contract ever
+ * carried in tests); the 4-Nov-2026 hand-emitted retractions for
+ * h_fc3861b36b82 carry only `title: 'Retracted: <finding title>'`
+ * — no findingTitle — and the panel showed those findings as
+ * VERIFIED until the reader tolerated the legacy form. The
+ * 'Retracted:' prefix is stripped BEFORE normalisation. A
+ * retraction NEVER matches on its timestamp alone: both findings
+ * on that hunt share one millisecond stamp, so stamp-only
+ * matching would over-retract.
+ */
+export function retractionTitle(r) {
+  if (!r) return '';
+  const raw = r.findingTitle || String(r.title || '').replace(/^retracted:\s*/i, '');
+  return normTitle(raw);
+}
+
+/**
  * True when a finding's stored evidence is an HTTP error page, not
  * the vulnerability (27 Oct 2026, 404-verified audit — all 5 false
  * "verified" findings on the live DVWA hunt carry a 404 page in
@@ -108,12 +126,12 @@ const eventTs = (e) => (e && (e.cachedAt || e.ts || e.at)) || '';
 /**
  * Finding events with retracted ones removed. A finding is retracted
  * when a LATER retraction event (type 'retraction') names it:
- * findingTitle must match the finding's title (normalised), and when
- * the retraction carries retractsStampTs AND the finding carries a
- * timestamp, the stamp must match too — conservative on purpose: a
- * title-only collision with a different stamp never removes a
- * genuine finding. Pure over the events array (array order is the
- * hunt's chronological record).
+ * retractionTitle() must match the finding's title (normalised),
+ * and when the retraction carries retractsStampTs AND the finding
+ * carries a timestamp, the stamp must match too — conservative on
+ * purpose: a title-only collision with a different stamp never
+ * removes a genuine finding. Pure over the events array (array order
+ * is the hunt's chronological record).
  */
 export function applyRetractions(events) {
   const list = events || [];
@@ -129,7 +147,7 @@ export function applyRetractions(events) {
       for (let j = idx + 1; j < list.length; j++) {
         const r = list[j];
         if (!r || r.type !== 'retraction') continue;
-        if (normTitle(r.findingTitle) !== title) continue;
+        if (retractionTitle(r) !== title) continue;
         if (r.retractsStampTs && fTs && String(r.retractsStampTs) !== String(fTs)) continue;
         return false; // a later retraction names this finding
       }
@@ -559,7 +577,7 @@ function priorHuntPacket(priorMeta) {
     events = readHuntEvents(huntId);
   } catch { /* best-effort */ }
   const retractedTitles = new Set(
-    (events || []).filter((e) => e && e.type === 'retraction').map((e) => normTitle(e.findingTitle)).filter(Boolean),
+    (events || []).filter((e) => e && e.type === 'retraction').map((e) => retractionTitle(e)).filter(Boolean),
   );
   const confirmedFacts = dossierSectionLines(dossierText, 'Confirmed facts')
     .map((line) => ({ line, title: dossierFactTitle(line) }))

@@ -22,7 +22,7 @@
 // real backend; these tests guard the backend half.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { panelFindings } from './huntMemory.js';
+import { applyRetractions, panelFindings } from './huntMemory.js';
 import { confirmedTitles, summaryReply } from './routes/chat.js';
 import { buildReportMarkdown } from './routes/hunts.js';
 
@@ -153,6 +153,45 @@ test('buildReportMarkdown: a retraction removes the finding from the report', ()
   assert.match(md, /6 unique findings: 0 confirmed, 6 under investigation/);
   assert.match(md, /_No confirmed vulnerabilities yet\._/);
   assert.doesNotMatch(md, /reflected xss in search parameter/);
+});
+
+// LEGACY RETRACTION FORM (5 Nov 2026, h_fc3861b36b82 vs
+// thebhavesh.online): the two hand-emitted retractions carry NO
+// findingTitle — only `title: 'Retracted: <finding title>'` — and
+// the panel kept showing both findings as VERIFIED (displayed 3,
+// true 1). The reader must resolve the title from either form.
+// Both retracted findings AND the genuine one share one
+// millisecond stamp, so this also proves the match is by title,
+// never by stamp alone (stamp-only matching would retract the
+// genuine CSP finding too).
+const LEGACY_STAMP = '2026-11-04T16:40:38.454Z';
+
+function legacyRetractionEvents() {
+  return [
+    { type: 'finding', title: 'Exposed .env file', severity: 'critical', verified: true, cachedAt: LEGACY_STAMP, url: 'https://thebhavesh.online/.env', evidence: { request: 'GET /.env', response: '<!doctype html>' } },
+    { type: 'finding', title: 'Exposed .DS_Store', severity: 'low', verified: true, cachedAt: LEGACY_STAMP, url: 'https://thebhavesh.online/.DS_Store', evidence: { request: 'GET /.DS_Store', response: '<!doctype html>' } },
+    { type: 'finding', title: 'CSP allows unsafe-inline in script-src', severity: 'medium', verified: true, cachedAt: LEGACY_STAMP, url: 'https://thebhavesh.online/', evidence: { request: 'GET /', response: "content-security-policy: script-src 'self' 'unsafe-inline'" } },
+    { type: 'retraction', title: 'Retracted: Exposed .env file', retractsStampTs: LEGACY_STAMP, at: LEGACY_STAMP, reason: 'false positive: SPA catch-all serves index.html', retractedBy: 'main-agent-verification' },
+    { type: 'retraction', title: 'Retracted: Exposed .DS_Store', retractsStampTs: LEGACY_STAMP, at: LEGACY_STAMP, reason: 'false positive: SPA catch-all serves index.html', retractedBy: 'main-agent-verification' },
+  ];
+}
+
+test('applyRetractions: title-only "Retracted:" retractions remove exactly the named findings', () => {
+  const surviving = applyRetractions(legacyRetractionEvents());
+  assert.deepEqual(surviving.map((f) => f.title), ['CSP allows unsafe-inline in script-src']);
+});
+
+test('buildReportMarkdown: title-only "Retracted:" retractions — 1 confirmed, the genuine one', () => {
+  const md = buildReportMarkdown({
+    huntId: 'h_fc3861b36b82',
+    meta: { target: 'https://thebhavesh.online/', createdAt: '2026-11-04T16:00:00.000Z' },
+    events: legacyRetractionEvents(),
+  });
+  assert.match(md, /1 unique findings: 1 confirmed, 0 under investigation/);
+  const confirmedSection = (md.split('### Confirmed vulnerabilities')[1] || '').split('### Leads under investigation')[0];
+  assert.match(confirmedSection, /CSP allows unsafe-inline in script-src/);
+  assert.doesNotMatch(md, /Exposed \.env file/);
+  assert.doesNotMatch(md, /\.DS_Store/);
 });
 
 test('buildReportMarkdown: a hunt with no findings yet still renders', () => {
