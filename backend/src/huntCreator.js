@@ -7,13 +7,24 @@
 // entry for a manual start, and the scanner lane never drained the
 // queue at all. Queued re-runs sat in hunt-queue.json forever.
 //
-// createHuntFromQueue mirrors the POST /hunts creation path (same
-// dedupe rule, same meta shape, same lane launch) minus the HTTP-only
-// gates — authorization, SSRF validation and the credits check already
-// ran at enqueue time, before the request was queued. Scope is built
-// BEFORE the engine hunt is minted (unlike POST /hunts, which mints
-// first and cleans up on scope failure) so a scope failure here can
-// never leak an engine-side hunt.
+// createHuntFromQueue mirrors the POST /hunts creation path (same meta
+// shape, same lane launch) minus the HTTP-only gates — authorization,
+// SSRF validation and the credits check already ran at enqueue time,
+// before the request was queued. Scope is built BEFORE the engine hunt
+// is minted (unlike POST /hunts, which mints first and cleans up on
+// scope failure) so a scope failure here can never leak an engine-side
+// hunt.
+//
+// DEDUPE DIFFERS from POST /hunts on purpose (5 Nov 2026, drain-dedupe
+// fix): POST returns ANY matching hunt to the New Hunt dialog, which
+// offers "Open existing" vs "Start new hunt anyway". The queue has no
+// dialog — a queued re-run must actually RUN. So the drain reuses a
+// match only when it is paused (resume from checkpoint) or running
+// (already live). A stopped/finished/failed match is ignored and a
+// fresh hunt is created: reusing it would consume the queue entry
+// without ever starting a scan — exactly what happened to
+// q_mw3ipfqa08bfz, which drained onto stopped h_071a785a82a4 (a stopped
+// hunt cannot resume by design) and nothing ran.
 //
 // drainQueue is the shared drain both lanes call when a hunt reaches a
 // terminal state: scannerHunt.js on finish/failure, huntAgent.js on
@@ -58,10 +69,13 @@ export function normalizeQueueScanDepth(value) {
 
 /**
  * Create a hunt from a queue entry, the way POST /hunts would have.
- * Returns { huntId, brainMode, scanDepth, reused } — reused when the
- * (user, target, brainMode) dedupe matched an existing hunt instead of
- * creating a duplicate. Throws when the hunt cannot be created (the
- * caller — drainQueue — requeues the entry so the request is not lost).
+ * Returns { huntId, brainMode, scanDepth, reused } — reused only when
+ * the (user, target, brainMode) dedupe matched a paused hunt (resumed
+ * from its checkpoint) or a running one (already live). A
+ * stopped/finished/failed match is ignored and a fresh hunt is created
+ * instead — reusing it would burn the queue entry without starting a
+ * scan. Throws when the hunt cannot be created (the caller —
+ * drainQueue — requeues the entry so the request is not lost).
  */
 export async function createHuntFromQueue(entry, deps = {}) {
   const target = String((entry && entry.target) || '').trim();
@@ -73,8 +87,11 @@ export async function createHuntFromQueue(entry, deps = {}) {
   const mode = String(entry.mode || 'normal');
   const scope = entry.scope ?? null;
 
-  // DEDUPE (same (user, target, brainMode) rule as POST /hunts): a
-  // matching hunt created after this entry queued wins over a duplicate.
+  // DEDUPE: only a paused or running match is reusable. A paused match
+  // is resumed from its checkpoint; a running match is already live, so
+  // starting a duplicate would waste the slot. Any other state
+  // (stopped/finished/failed/...) is terminal — it cannot resume, so
+  // the match is ignored and a fresh hunt is created below.
   const pickExistingHunt =
     deps.pickExistingHunt ||
     (await import('./routes/hunts.js')).pickExistingHunt;
@@ -82,41 +99,46 @@ export async function createHuntFromQueue(entry, deps = {}) {
   if (existing) {
     const existingId = existing.huntId || existing.id;
     const state = String(existing.state || existing.status || 'unknown').toLowerCase();
-    let resumed = false;
-    if (state === 'paused') {
-      // Mirror POST /hunts dedupe-resume: flip the meta flags, then
-      // continue the loop from its checkpoint.
-      try {
-        const m0 = readHuntMeta(existingId) || existing;
-        writeHuntMeta(existingId, {
-          ...m0,
-          huntId: existingId,
-          paused: false,
-          stopped: false,
-          state: 'running',
-        });
-        appendHuntEvent(existingId, {
-          type: 'status',
-          state: 'resumed',
-          reason: 'queue_drain_dedup',
-          at: new Date().toISOString(),
-        });
-        const resumeInterruptedHunt =
-          deps.resumeInterruptedHunt ||
-          (await import('./huntAgent.js')).resumeInterruptedHunt;
-        resumeInterruptedHunt(existingId).catch((err) => {
+    if (state === 'paused' || state === 'running') {
+      let resumed = false;
+      if (state === 'paused') {
+        // Mirror POST /hunts dedupe-resume: flip the meta flags, then
+        // continue the loop from its checkpoint.
+        try {
+          const m0 = readHuntMeta(existingId) || existing;
+          writeHuntMeta(existingId, {
+            ...m0,
+            huntId: existingId,
+            paused: false,
+            stopped: false,
+            state: 'running',
+          });
           appendHuntEvent(existingId, {
             type: 'status',
-            state: 'failed',
-            error: err.message || String(err),
+            state: 'resumed',
+            reason: 'queue_drain_dedup',
+            at: new Date().toISOString(),
           });
-        });
-        resumed = true;
-      } catch (err) {
-        console.warn(`[queue] dedupe resume failed for ${existingId}: ${err.message}`);
+          const resumeInterruptedHunt =
+            deps.resumeInterruptedHunt ||
+            (await import('./huntAgent.js')).resumeInterruptedHunt;
+          resumeInterruptedHunt(existingId).catch((err) => {
+            appendHuntEvent(existingId, {
+              type: 'status',
+              state: 'failed',
+              error: err.message || String(err),
+            });
+          });
+          resumed = true;
+        } catch (err) {
+          console.warn(`[queue] dedupe resume failed for ${existingId}: ${err.message}`);
+        }
       }
+      return { huntId: existingId, brainMode, scanDepth, reused: true, resumed };
     }
-    return { huntId: existingId, brainMode, scanDepth, reused: true, resumed };
+    console.log(
+      `[queue] dedupe match ${existingId} is ${state}; creating a fresh hunt instead`
+    );
   }
 
   // Scope first (fail-closed, before any engine hunt is minted).
@@ -223,7 +245,7 @@ export async function drainQueue(deps = {}) {
     try {
       const created = await createHuntFromQueue(next, deps);
       console.log(
-        `[queue] drained ${next.queueId} -> hunt ${created.huntId} (${created.brainMode}/${created.scanDepth})`
+        `[queue] drained ${next.queueId} -> hunt ${created.huntId} (${created.brainMode}/${created.scanDepth}${created.reused ? ', reused' : ''})`
       );
       return created;
     } catch (err) {

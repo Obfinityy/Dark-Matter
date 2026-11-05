@@ -209,7 +209,54 @@ test('createHuntFromQueue reuses a paused hunt instead of duplicating it', async
   assert.equal(meta.paused, false);
 });
 
-test('createHuntFromQueue reuses a finished hunt without resuming it', async () => {
+test('createHuntFromQueue ignores a stopped match and creates a fresh hunt', async () => {
+  // Regression (5 Nov 2026, drain-dedupe fix): q_mw3ipfqa08bfz drained
+  // onto stopped h_071a785a82a4, the entry was consumed as 'started',
+  // and no scan ever ran — a stopped hunt cannot resume by design.
+  writeHuntMeta('h_old_stopped', {
+    huntId: 'h_old_stopped',
+    userId: 'u1',
+    target: 'http://example.com/',
+    brainMode: 'scanner',
+    state: 'stopped',
+    stopped: true,
+    createdAt: new Date().toISOString(),
+  });
+  let engineCalls = 0;
+  const deps = baseDeps({
+    pickExistingHunt: () => readHuntMeta('h_old_stopped'),
+    createEngineHunt: async () => {
+      engineCalls += 1;
+      return { huntId: 'h_qc_fresh_stopped' };
+    },
+  });
+  const created = await createHuntFromQueue(
+    {
+      queueId: 'q_4a',
+      userId: 'u1',
+      username: 'alice',
+      target: 'http://example.com/',
+      brainMode: 'scanner',
+      scanDepth: 'standard',
+    },
+    deps
+  );
+  assert.deepEqual(created, {
+    huntId: 'h_qc_fresh_stopped',
+    brainMode: 'scanner',
+    scanDepth: 'standard',
+    reused: false,
+  });
+  assert.equal(engineCalls, 1);
+  assert.equal(deps.calls.scanner.length, 1);
+  assert.equal(deps.calls.scanner[0].huntId, 'h_qc_fresh_stopped');
+  assert.equal(deps.calls.resume.length, 0);
+  // The old stopped hunt is untouched — still stopped, no new events.
+  assert.equal(readHuntMeta('h_old_stopped').state, 'stopped');
+  assert.equal(readHuntMeta('h_qc_fresh_stopped').brainMode, 'scanner');
+});
+
+test('createHuntFromQueue ignores a finished match and creates a fresh hunt', async () => {
   writeHuntMeta('h_old_finished', {
     huntId: 'h_old_finished',
     userId: 'u1',
@@ -218,12 +265,17 @@ test('createHuntFromQueue reuses a finished hunt without resuming it', async () 
     state: 'finished',
     createdAt: new Date().toISOString(),
   });
+  let engineCalls = 0;
   const deps = baseDeps({
     pickExistingHunt: () => readHuntMeta('h_old_finished'),
+    createEngineHunt: async () => {
+      engineCalls += 1;
+      return { huntId: 'h_qc_fresh_finished' };
+    },
   });
   const created = await createHuntFromQueue(
     {
-      queueId: 'q_4',
+      queueId: 'q_4b',
       userId: 'u1',
       username: 'alice',
       target: 'http://example.com/',
@@ -231,15 +283,83 @@ test('createHuntFromQueue reuses a finished hunt without resuming it', async () 
     },
     deps
   );
+  assert.equal(created.huntId, 'h_qc_fresh_finished');
+  assert.equal(created.reused, false);
+  assert.equal(engineCalls, 1);
+  assert.equal(deps.calls.ai.length, 1);
+  assert.equal(deps.calls.ai[0].huntId, 'h_qc_fresh_finished');
+  assert.equal(deps.calls.resume.length, 0);
+  assert.equal(readHuntMeta('h_old_finished').state, 'finished');
+});
+
+test('createHuntFromQueue ignores a failed match and creates a fresh hunt', async () => {
+  writeHuntMeta('h_old_failed', {
+    huntId: 'h_old_failed',
+    userId: 'u1',
+    target: 'http://example.com/',
+    brainMode: 'scanner',
+    state: 'failed',
+    createdAt: new Date().toISOString(),
+  });
+  let engineCalls = 0;
+  const deps = baseDeps({
+    pickExistingHunt: () => readHuntMeta('h_old_failed'),
+    createEngineHunt: async () => {
+      engineCalls += 1;
+      return { huntId: 'h_qc_fresh_failed' };
+    },
+  });
+  const created = await createHuntFromQueue(
+    {
+      queueId: 'q_4c',
+      userId: 'u1',
+      username: 'alice',
+      target: 'http://example.com/',
+      brainMode: 'scanner',
+    },
+    deps
+  );
+  assert.equal(created.huntId, 'h_qc_fresh_failed');
+  assert.equal(created.reused, false);
+  assert.equal(engineCalls, 1);
+  assert.equal(deps.calls.scanner.length, 1);
+  assert.equal(readHuntMeta('h_old_failed').state, 'failed');
+});
+
+test('createHuntFromQueue reuses a running match instead of duplicating it', async () => {
+  writeHuntMeta('h_live_running', {
+    huntId: 'h_live_running',
+    userId: 'u1',
+    target: 'http://example.com/',
+    brainMode: 'scanner',
+    state: 'running',
+    createdAt: new Date().toISOString(),
+  });
+  const deps = baseDeps({
+    pickExistingHunt: () => readHuntMeta('h_live_running'),
+  });
+  const created = await createHuntFromQueue(
+    {
+      queueId: 'q_4d',
+      userId: 'u1',
+      username: 'alice',
+      target: 'http://example.com/',
+      brainMode: 'scanner',
+      scanDepth: 'standard',
+    },
+    deps
+  );
   assert.deepEqual(created, {
-    huntId: 'h_old_finished',
-    brainMode: 'ai',
+    huntId: 'h_live_running',
+    brainMode: 'scanner',
     scanDepth: 'standard',
     reused: true,
     resumed: false,
   });
   assert.equal(deps.calls.engine, 0);
+  assert.equal(deps.calls.scanner.length, 0);
   assert.equal(deps.calls.resume.length, 0);
+  assert.equal(readHuntMeta('h_live_running').state, 'running');
 });
 
 test('createHuntFromQueue mints a host-side id when the engine is unreachable', async () => {
