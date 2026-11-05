@@ -133,6 +133,12 @@ export async function runScannerHunt(huntId, target, opts = {}) {
         // without this, the nuclei phase inherited 15s/30s and died silently
         // on every standard/deep scan before any template completed.
         nucleiTimeoutMs: 300000,
+        // PHASE VISIBILITY (5 Nov 2026): stream each phase into the hunt's
+        // events.jsonl as it finishes, so a 300s nuclei phase does not wait
+        // until scan end to appear. record() is best-effort (never throws)
+        // and runScan wraps the listener in try/catch, so a listener
+        // failure can never break the scan.
+        onPhase: (phase) => record(huntId, { type: 'phase', ...phase }),
       }
     );
 
@@ -170,6 +176,17 @@ export async function runScannerHunt(huntId, target, opts = {}) {
     }
 
     // Record the summary.
+    // Phase rollup (5 Nov 2026, phase visibility): the per-phase records
+    // stream into events.jsonl as type:'phase' events via onPhase above;
+    // the finished summary carries only the counts (total/ok/failed/
+    // timedOut) so the panel can show scan coverage at a glance.
+    const phaseList = result.phases || [];
+    const phaseRollup = {
+      total: phaseList.length,
+      ok: phaseList.filter((p) => p.ok).length,
+      failed: phaseList.filter((p) => !p.ok).length,
+      timedOut: phaseList.filter((p) => p.timedOut).length,
+    };
     record(huntId, {
       type: 'status',
       state: 'scanner_finished',
@@ -181,6 +198,7 @@ export async function runScannerHunt(huntId, target, opts = {}) {
         fingerprint: result.fingerprint || null,
         pagesCrawled: result.pagesCrawled || 0,
         durationMs: result.durationMs || null,
+        phases: phaseRollup,
       },
     });
 

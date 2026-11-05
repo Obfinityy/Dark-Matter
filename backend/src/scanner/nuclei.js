@@ -41,3 +41,16 @@ export async function runNuclei(
   }));
   return { ok: r.ok, timedOut: r.timedOut, findings, stderr: r.stderr };
 }
+
+// Phase-record extras for the nuclei step (5 Nov 2026, phase-visibility
+// fix). runNuclei returns ok/timedOut/stderr beyond its findings, and the
+// scanner used to drop all three — a nuclei timeout/failure vanished with
+// no trace. stderr is capped to its last ~500 chars so a noisy failure
+// cannot bloat the hunt event log. Pure — unit-tested in nuclei.test.js.
+export function nucleiPhaseFields(result) {
+  return {
+    ok: Boolean(result && result.ok),
+    timedOut: Boolean(result && result.timedOut),
+    stderrTail: String((result && result.stderr) || '').slice(-500),
+  };
+}

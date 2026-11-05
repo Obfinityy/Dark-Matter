@@ -67,7 +67,7 @@ import { probeTls } from './probes/tlsScan.js';
 import { probePasswordReset } from './probes/passwordReset.js';
 import { probeElInject } from './probes/elInject.js';
 import { probeOgnlInject } from './probes/ognlInject.js';
-import { runNuclei } from './nuclei.js';
+import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
 export const DEFAULT_PHASES = [
@@ -136,6 +136,17 @@ export const DEFAULT_PHASES = [
   'nuclei',
 ];
 
+/**
+ * Run the rule-based scan battery.
+ *
+ * opts (5 Nov 2026, phase visibility): `opts.onPhase` — optional callback
+ * invoked (best-effort) with each step's phase record as the step finishes;
+ * `opts.nucleiRunner` — test seam, defaults to the real runNuclei.
+ * Returns `phases` — one record per executed step ({name, startedAt,
+ * finishedAt, durationMs, ok, error, findingsCount}; the nuclei record
+ * additionally carries ok/timedOut/stderrTail). `errors` is kept for
+ * backward compatibility.
+ */
 export async function runScan(
   {
     target,
@@ -164,16 +175,67 @@ export async function runScan(
   let fp = null;
   let crawled = null;
 
-  const step = async (name, fn) => {
-    if (!phases.includes(name)) return;
-    try {
-      const r = await fn();
-      if (Array.isArray(r)) all.push(...r);
-      return r;
-    } catch (e) {
-      errors.push(`${name}: ${e.message}`);
-      return null;
+  // PHASE VISIBILITY (5 Nov 2026): every executed step records one phase
+  // record — name, timing, ok/error, findings count — into `phaseRecords`
+  // (returned by runScan) and, when opts.onPhase is set, streams it to the
+  // listener as the step finishes. Before this fix step() emitted NOTHING:
+  // a finished 63-phase scan left 13 event lines, zero per-phase record,
+  // zero timing, zero error trace — a nuclei timeout vanished entirely.
+  // The listener is best-effort (try/catch): a listener failure can NEVER
+  // break the scan.
+  const phaseRecords = [];
+  const onPhase = typeof opts.onPhase === 'function' ? opts.onPhase : null;
+  const emitPhase = (record) => {
+    phaseRecords.push(record);
+    if (onPhase) {
+      try {
+        onPhase(record);
+      } catch {
+        // listener failure must never break the scan
+      }
     }
+  };
+
+  const step = async (name, fn, getExtras) => {
+    if (!phases.includes(name)) return;
+    const startedAt = new Date().toISOString();
+    const startMs = Date.now();
+    let ok = true;
+    let error = null;
+    let result;
+    try {
+      result = await fn();
+      if (Array.isArray(result)) all.push(...result);
+    } catch (e) {
+      // A throwing step is recorded ok:false WITH its error message — it
+      // must NOT vanish into errors[] alone (nothing persisted errors[]).
+      ok = false;
+      error = e && e.message ? String(e.message) : String(e);
+      errors.push(`${name}: ${error}`);
+      result = null;
+    }
+    let extras = {};
+    if (typeof getExtras === 'function') {
+      try {
+        extras = getExtras() || {};
+      } catch {
+        extras = {};
+      }
+    }
+    // Extras may override base fields (the nuclei step's extras carry the
+    // tool's own ok/timedOut, which is the meaningful ok for that phase).
+    const record = {
+      name,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      durationMs: Date.now() - startMs,
+      ok,
+      error,
+      findingsCount: Array.isArray(result) ? result.length : 0,
+      ...extras,
+    };
+    emitPhase(record);
+    return result;
   };
 
   fp = await step('fingerprint', () => fingerprint(url, opts));
@@ -367,7 +429,24 @@ export async function runScan(
   await step('crypto', () => probeCrypto(url, opts));
   await step('prototype-pollution', () => probePrototypePollution(url, opts));
   await step('deserialization', () => probeDeserialization(url, opts));
-  await step('nuclei', async () => (await runNuclei(url, opts)).findings);
+  // Nuclei step: captures the FULL runNuclei result. The old code kept
+  // only `.findings` — a timeout/failure vanished with no trace. The phase
+  // record now carries the tool's ok/timedOut plus a capped stderr tail
+  // (via nucleiPhaseFields); findings still flow into the scan results
+  // exactly as before.
+  // opts.nucleiRunner is a test seam (defaults to the real runNuclei):
+  // unit tests must never spawn docker/nuclei. Production callers never
+  // pass it, so the production path is unchanged.
+  let nucleiResult = null;
+  const nucleiRunner = typeof opts.nucleiRunner === 'function' ? opts.nucleiRunner : runNuclei;
+  await step(
+    'nuclei',
+    async () => {
+      nucleiResult = await nucleiRunner(url, opts);
+      return nucleiResult.findings;
+    },
+    () => (nucleiResult ? nucleiPhaseFields(nucleiResult) : {})
+  );
 
   const { confirmed, unconfirmed } = verifyFindings(all);
   return {
@@ -375,6 +454,7 @@ export async function runScan(
     host,
     startedAt,
     finishedAt: new Date().toISOString(),
+    durationMs: Date.now() - new Date(startedAt).getTime(),
     fingerprint: fp
       ? { status: fp.status, server: fp.server, tech: fp.tech, dbHint: fp.dbHint }
       : null,
@@ -390,5 +470,6 @@ export async function runScan(
     findings: confirmed,
     unconfirmed,
     errors,
+    phases: phaseRecords,
   };
 }

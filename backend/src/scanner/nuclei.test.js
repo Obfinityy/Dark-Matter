@@ -5,7 +5,7 @@
 // nucleiTimeoutMs (default 300s).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { runNuclei } from './nuclei.js';
+import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 
 describe('nuclei timeout', () => {
   it('runNuclei signature uses nucleiTimeoutMs, not generic timeoutMs', () => {
@@ -33,5 +33,42 @@ describe('nuclei timeout', () => {
     const src = runNuclei.toString();
     // Caller can override via nucleiTimeoutMs (e.g. scannerHunt.js passes 300000)
     assert.match(src, /nucleiTimeoutMs/);
+  });
+});
+
+describe('nucleiPhaseFields (phase-visibility fix, 5 Nov 2026)', () => {
+  it('carries ok/timedOut and caps stderr to its last 500 chars', () => {
+    const fields = nucleiPhaseFields({
+      ok: false,
+      timedOut: true,
+      findings: [],
+      stderr: 'x'.repeat(1200),
+    });
+    assert.equal(fields.ok, false);
+    assert.equal(fields.timedOut, true);
+    assert.equal(fields.stderrTail, 'x'.repeat(500));
+  });
+
+  it('returns an empty stderrTail on a clean run', () => {
+    const fields = nucleiPhaseFields({ ok: true, timedOut: false, findings: [], stderr: '' });
+    assert.equal(fields.ok, true);
+    assert.equal(fields.timedOut, false);
+    assert.equal(fields.stderrTail, '');
+  });
+
+  it('keeps a short stderr whole instead of truncating it', () => {
+    const fields = nucleiPhaseFields({
+      ok: false,
+      timedOut: false,
+      findings: [],
+      stderr: 'docker: command not found',
+    });
+    assert.equal(fields.stderrTail, 'docker: command not found');
+  });
+
+  it('is safe on a missing/empty result', () => {
+    assert.deepEqual(nucleiPhaseFields(null), { ok: false, timedOut: false, stderrTail: '' });
+    assert.deepEqual(nucleiPhaseFields(undefined), { ok: false, timedOut: false, stderrTail: '' });
+    assert.deepEqual(nucleiPhaseFields({}), { ok: false, timedOut: false, stderrTail: '' });
   });
 });
