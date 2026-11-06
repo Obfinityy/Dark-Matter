@@ -11,9 +11,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { writeFileObservation, artifactNotOnTargetNote, handleArtifactCommand, CONTAINER_ARTIFACT_DIR } from './artifacts.js';
-import { humanIteration } from './humanLoop.js';
-import { huntDir } from './store.js';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// DATA_DIR isolation (fixture-pollution fix, 6 Nov 2026): humanIteration
+// writes hunt meta into config.dataDir and records episodes into
+// episodes.db, and config resolves dataDir at import time — so the
+// temp dir must be set BEFORE the dynamic imports below (artifacts
+// pulls in store.js too). Without this, the h_test_al dir +
+// episodes.db land in the REAL backend/data tree on every suite run.
+const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hl-al-'));
+process.env.DATA_DIR = tmpRoot;
+
+const { writeFileObservation, artifactNotOnTargetNote, handleArtifactCommand, CONTAINER_ARTIFACT_DIR } = await import('./artifacts.js');
+const { humanIteration } = await import('./humanLoop.js');
+const { huntDir } = await import('./store.js');
 
 const NAME = 'login_curl.sh';
 
@@ -106,6 +119,22 @@ test('AL-9 (shell path): WRITE_ARTIFACT stdout carries the same path + prohibiti
     assert.match(res.stdout, /NEVER download it from the target with curl, wget, or browser_open/);
   } finally {
     // Test hunt dir lives under gitignored backend/data/; remove it anyway.
+    // (With DATA_DIR isolation this resolves into the temp dir.)
     try { fs.rmSync(huntDir(huntId), { recursive: true, force: true }); } catch { /* best-effort */ }
   }
+});
+
+// Regression guard (fixture-pollution fix, 6 Nov 2026): if the
+// DATA_DIR isolation above ever regresses, the AL wire-up test
+// writes h_test_al meta + episodes.db into the REAL backend/data
+// tree. This test fails loudly instead of silently re-polluting it.
+// (h_test_al_shell is cleaned up by AL-9 itself, so it is not
+// asserted here — its absence in the real tree proves nothing.)
+test('AL-ISO: no fixture writes land in the real backend/data tree', async () => {
+  const { config } = await import('./config.js');
+  assert.equal(config.dataDir, tmpRoot, 'DATA_DIR isolation must be active in this process');
+  const realData = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
+  assert.equal(fs.existsSync(path.join(realData, 'hunts', 'h_test_al')), false, 'real backend/data must not contain h_test_al');
+  assert.ok(fs.existsSync(path.join(tmpRoot, 'hunts', 'h_test_al', 'meta.json')), 'wire-up writes for h_test_al must land in the temp dir, not vanish');
+  assert.equal(fs.existsSync(path.join(realData, 'episodes.db')), false, 'real backend/data must not contain episodes.db');
 });

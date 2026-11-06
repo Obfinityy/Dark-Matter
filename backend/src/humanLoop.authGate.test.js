@@ -9,7 +9,21 @@
 // while still on the sign-in page.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { authGateHit, buildActionHistory, humanIteration } from './humanLoop.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// DATA_DIR isolation (fixture-pollution fix, 6 Nov 2026): humanIteration
+// writes hunt meta into config.dataDir and records episodes into
+// episodes.db, and config resolves dataDir at import time — so the
+// temp dir must be set BEFORE the dynamic import of humanLoop.js
+// below. Without this, h_test_aj* dirs + episodes.db land in the
+// REAL backend/data tree on every suite run.
+const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'hl-aj-'));
+process.env.DATA_DIR = tmpRoot;
+
+const { authGateHit, buildActionHistory, humanIteration } = await import('./humanLoop.js');
 
 const LOGIN_OBS =
   'Opened https://ksuite.infomaniak.com/dashboard in your desktop browser.\n' +
@@ -274,4 +288,19 @@ test('AJ-19 (wire-up): the DVWA fresh-attempt GUI login retry executes — gui.t
   assert.deepEqual(typeCalls, ['admin'], 'the fresh-attempt re-type must execute');
   assert.ok(!recorded.some((e) => e.type === 'auth_block'), 'no auth_block for the fresh-attempt re-type');
   assert.ok(res.log.some((e) => String(e.observation || '').includes('Typed.')), 'the turn observation must carry the executed type');
+});
+
+// Regression guard (fixture-pollution fix, 6 Nov 2026): if the
+// DATA_DIR isolation above ever regresses, the AJ wire-up tests
+// write h_test_aj* meta + episodes.db into the REAL backend/data
+// tree. This test fails loudly instead of silently re-polluting it.
+test('AJ-ISO: no fixture writes land in the real backend/data tree', async () => {
+  const { config } = await import('./config.js');
+  assert.equal(config.dataDir, tmpRoot, 'DATA_DIR isolation must be active in this process');
+  const realData = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
+  for (const id of ['h_test_aj', 'h_test_aj11', 'h_test_aj19']) {
+    assert.equal(fs.existsSync(path.join(realData, 'hunts', id)), false, `real backend/data must not contain ${id}`);
+    assert.ok(fs.existsSync(path.join(tmpRoot, 'hunts', id, 'meta.json')), `wire-up writes for ${id} must land in the temp dir, not vanish`);
+  }
+  assert.equal(fs.existsSync(path.join(realData, 'episodes.db')), false, 'real backend/data must not contain episodes.db');
 });
