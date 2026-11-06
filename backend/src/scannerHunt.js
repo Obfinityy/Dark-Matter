@@ -17,6 +17,26 @@ function record(huntId, event) {
   }
 }
 
+// CONTAINER CLEANUP (6 Nov 2026): a scanner hunt's isolated container
+// (dm-hunt-<huntId>) used to linger forever after the scan ended —
+// five orphans from finished lab hunts were still on EC2. Destroy it
+// on BOTH terminal paths. teardownHuntContainer is idempotent
+// (`docker rm -f`; an already-gone container is a no-op) and never
+// throws, and this runs AFTER findings + meta are recorded, so a
+// destroy failure can never lose findings or fail the hunt.
+// opts.teardownContainer is a test seam only (same pattern as
+// opts.drainQueue); production callers never pass it.
+async function destroyHuntContainer(huntId, opts) {
+  try {
+    const teardown =
+      (opts && opts.teardownContainer) || (await import('./huntRunner.js')).teardownHuntContainer;
+    const removed = await teardown(huntId);
+    if (removed) record(huntId, { type: 'status', state: 'container_destroyed' });
+  } catch {
+    // best-effort
+  }
+}
+
 // QUEUE DRAIN (5 Nov 2026): a hunt reaching a terminal state frees a
 // concurrency slot — start the next queued hunt, if any. Best-effort:
 // a drain failure must never break this hunt's finished/failed record.
@@ -236,6 +256,10 @@ export async function runScannerHunt(huntId, target, opts = {}) {
       // best-effort
     }
 
+    // Container cleanup: the scan is done and findings + meta are
+    // recorded — destroy the hunt's container before freeing the slot.
+    await destroyHuntContainer(huntId, opts);
+
     // A finished scan frees a concurrency slot — drain the queue.
     await drainNextQueuedHunt(opts);
 
@@ -252,6 +276,10 @@ export async function runScannerHunt(huntId, target, opts = {}) {
     } catch {
       // best-effort
     }
+    // Container cleanup: the scan failed — destroy the hunt's
+    // container too, so a failed scan never leaves an orphan either.
+    await destroyHuntContainer(huntId, opts);
+
     // A failed scan frees its slot too — drain the queue.
     await drainNextQueuedHunt(opts);
     return { ok: false, error: err.message || String(err) };
