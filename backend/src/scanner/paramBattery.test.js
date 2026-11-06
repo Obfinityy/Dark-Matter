@@ -283,12 +283,12 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
-  // 37/28 since 6 Nov 2026 (VAmPI OpenAPI targets): the battery gained
-  // the 'openapi-targets' phase, so a bare page runs 37 non-param
-  // phases. The spec fetch is stubbed to the bare page (HTML, not
-  // JSON), so the pass records an honest no-op with 0 targets — the
-  // same seam discipline as domRenderer above.
-  it('real runScan on a bare page renders the 37/28 line end to end', async () => {
+  // 38/28 since 7 Nov 2026 (JS-bundle API routes): the battery gained
+  // 'js-api-routes', so a bare page runs 38 non-param phases. The
+  // spec fetch is stubbed to the bare page (HTML, not JSON), so the
+  // pass records an honest no-op with 0 targets — the same seam
+  // discipline as domRenderer above. (37/28 before js-api-routes.)
+  it('real runScan on a bare page renders the 38/28 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(

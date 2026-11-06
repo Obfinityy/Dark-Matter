@@ -310,7 +310,7 @@ describe('runScan DOM integration (Juice-shaped stub server, stubbed renderer)',
     }
   });
 
-  test('DOM-INT-2: static-form target never pays the render — behaviour unchanged', async () => {
+  test('DOM-INT-2: static-form target never pays the render — records a skip instead', async () => {
     const stub = await startStub(
       `<html><body><form action="/login.php" method="post"><input name="username"><input name="password" type="password"></form></body></html>`
     );
@@ -323,8 +323,15 @@ describe('runScan DOM integration (Juice-shaped stub server, stubbed renderer)',
         { timeoutMs: 5000, domRenderer, nucleiRunner: async () => ({ findings: [], ok: true, timedOut: false }) }
       );
       assert.equal(domCalls, 0, 'DOM renderer must not run when static forms exist');
-      assert.equal(result.phases.some((p) => p.name === 'dom-render'), false, 'no dom-render record on static targets');
-      assert.deepEqual(buildPhaseRollup(result.phases), { total: 5, ok: 5, failed: 0, skipped: 0, timedOut: 0 });
+      // GATED SKIP (7 Nov 2026): the phase never fires on static
+      // targets, but it must still leave a skipped record — otherwise
+      // the rollup cannot tell "gate false" from "phase missing".
+      const domPhase = result.phases.find((p) => p.name === 'dom-render');
+      assert.ok(domPhase, 'dom-render must leave a skip record on static targets');
+      assert.equal(domPhase.skipped, true);
+      assert.equal(domPhase.skipReason, 'static elements found');
+      assert.equal(domPhase.ok, true);
+      assert.deepEqual(buildPhaseRollup(result.phases), { total: 6, ok: 5, failed: 0, skipped: 1, timedOut: 0 });
       assert.ok(
         stub.calls.some((c) => /login\.php\?username=dmprobe/.test(c.url)),
         'static POST form must still synthesise its GET target'

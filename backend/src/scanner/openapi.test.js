@@ -588,7 +588,7 @@ describe('runScan OpenAPI integration (VAmPI-shaped stub server)', () => {
     }
   });
 
-  test('OA-6: static-form target never pays the spec fetch — behaviour unchanged', async () => {
+  test('OA-6: static-form target never pays the spec fetch — records a skip instead', async () => {
     const calls = [];
     const loginPage = `<html><body><form action="/login.php" method="post"><input name="username"><input name="password" type="password"></form></body></html>`;
     const server = http.createServer((req, res) => {
@@ -617,11 +617,14 @@ describe('runScan OpenAPI integration (VAmPI-shaped stub server)', () => {
         },
         { timeoutMs: 5000 }
       );
-      assert.equal(
-        result.phases.some((p) => p.name === 'openapi-targets'),
-        false,
-        'no openapi-targets record on static targets'
-      );
+      // GATED SKIP (7 Nov 2026): the phase never fires on static
+      // targets, but it must still leave a skipped record — otherwise
+      // the rollup cannot tell "gate false" from "phase missing".
+      const oaPhase = result.phases.find((p) => p.name === 'openapi-targets');
+      assert.ok(oaPhase, 'openapi-targets must leave a skip record on static targets');
+      assert.equal(oaPhase.skipped, true);
+      assert.equal(oaPhase.skipReason, 'param targets already exist');
+      assert.equal(oaPhase.ok, true);
       assert.equal(
         calls.some((c) => c.url === '/openapi.json'),
         false,

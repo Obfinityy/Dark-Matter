@@ -232,9 +232,11 @@ export function buildPhaseSummaryLine(phaseList) {
  * finishedAt, durationMs, ok, error, findingsCount}; the nuclei record
  * additionally carries ok/timedOut/stderrTail) PLUS one skipped record per
  * param-battery phase ({skipped: true, skipReason}) when the scan had zero
- * param-bearing targets (35/63 fix — a skipped phase is neither ok nor
- * failed; buildPhaseRollup counts it separately). `errors` is kept for
- * backward compatibility.
+ * param-bearing targets (35/63 fix) AND one skipped record per gated
+ * discovery phase (dom-render, openapi-targets, js-api-routes) whose
+ * gate was false (7 Nov 2026, gated-skip fix — a skipped phase is
+ * neither ok nor failed; buildPhaseRollup counts it separately).
+ * `errors` is kept for backward compatibility.
  */
 export async function runScan(
   {
@@ -390,9 +392,10 @@ export async function runScan(
   // exactly as it does for static forms). This step only supplies
   // what static analysis could not see. It fires ONLY on the
   // zero-static-elements trigger, so server-rendered targets (DVWA,
-  // WebGoat) never pay the render and their rollups are byte-identical:
-  // the step is never even invoked for them, so no dom-render record
-  // exists. A failed render throws inside step(), which records
+  // WebGoat) never pay the render. A gated-off run records a skipped
+  // dom-render entry instead (7 Nov 2026, gated-skip fix) — the
+  // rollup gains 1 skipped record, everything else byte-identical.
+  // A failed render throws inside step(), which records
   // ok:false with the error and lets the scan continue static-only.
   // opts.domRenderer is the test seam: a single-page renderer
   // (url) => { ok, html, error } replacing renderDom — the real
@@ -455,6 +458,14 @@ export async function runScan(
             }
           : {}
     );
+  } else {
+    // GATED SKIP (7 Nov 2026): static analysis already found elements,
+    // so no render was needed — but the phase must still leave a
+    // record, or the rollup cannot tell "gate false" from "phase
+    // missing" (the Juice js-routes proof expected 94 and got 92
+    // because js-api-routes vanished entirely). Without a page
+    // analysis at all there was nothing to trigger on.
+    skipPhase('dom-render', pageAnalysis ? 'static elements found' : 'no page analysis');
   }
 
   // Scan targets: the target URL plus every discovered same-origin link
@@ -596,10 +607,11 @@ export async function runScan(
   // GETs them, exactly as for form targets. An absent spec (or one
   // with no probeable GET params) is an honest no-op: the step records
   // ok:true with 0 targets and the battery's skipped records below
-  // still describe the gap. The step is never even invoked where
-  // static/DOM targets already exist (DVWA, WebGoat, Juice Shop), so
-  // their rollups are byte-identical. opts.openApiFetcher is the test
-  // seam: (url, opts) => fetchPage-shaped { url, status, headers, body }
+  // still describe the gap. Where static/DOM targets already exist
+  // (DVWA, WebGoat, Juice Shop) the step never fires and a skipped
+  // record is emitted instead (7 Nov 2026, gated-skip fix), so their
+  // rollups gain 1 skipped record and nothing else changes.
+  // opts.openApiFetcher is the test seam: (url, opts) => fetchPage-shaped { url, status, headers, body }
   // replacing fetchPage; production callers never pass it.
   let openApiDiscovery = null;
   const needsOpenApi = !scanTargets.some((u) => extractParams(u).length > 0);
@@ -631,6 +643,11 @@ export async function runScan(
             }
           : {}
     );
+  } else {
+    // GATED SKIP (7 Nov 2026): param-bearing targets already exist,
+    // so no spec was fetched — record the skip, or the rollup cannot
+    // tell "gate false" from "phase missing" (see dom-render above).
+    skipPhase('openapi-targets', 'param targets already exist');
   }
 
   // JS-API ROUTES (7 Nov 2026, Juice Shop): the spec survey proved
@@ -643,7 +660,9 @@ export async function runScan(
   // <script> bundles for GET-usable routes (see jsRoutes.js) and
   // synthesise GET targets from them. The gate is re-checked fresh
   // here: if openapi-targets already unlocked the battery, this step
-  // never fires, so VAmPI/DVWA/WebGoat rollups stay byte-identical.
+  // never fires — a skipped record is emitted instead (7 Nov 2026,
+  // gated-skip fix), so VAmPI/DVWA/WebGoat rollups gain 1 skipped
+  // record and nothing else changes.
   // opts.jsRoutesFetcher is the test seam, mirroring openApiFetcher.
   let jsRoutesDiscovery = null;
   if (!scanTargets.some((u) => extractParams(u).length > 0)) {
@@ -675,6 +694,13 @@ export async function runScan(
             }
           : {}
     );
+  } else {
+    // GATED SKIP (7 Nov 2026): param-bearing targets already exist,
+    // so no bundle was mined — record the skip (see dom-render
+    // above). This is the exact gap the Juice proof exposed: the
+    // parent brief expected 94 with js-api-routes present as
+    // skipped, and the run read 92 with no record at all.
+    skipPhase('js-api-routes', 'param targets already exist');
   }
 
   await step('headers', () => (fp ? probeHeaders({ url, headers: fp.headers }) : []));
