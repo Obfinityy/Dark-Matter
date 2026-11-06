@@ -162,6 +162,14 @@ export function writeHuntMetaCheckpoint(huntId, patch) {
     if ('stopped' in current) next.stopped = current.stopped;
     if ('pausedReason' in current) next.pausedReason = current.pausedReason;
   }
+  // INVARIANT (6 Nov 2026): a paused state always carries paused:true.
+  // The circuit-breaker pause in huntAgent.js wrote {state:'paused',
+  // pausedReason} without the flag, leaving hunts state=paused but
+  // paused!==true (h_6e909d3c1965, h_bench_6eec511f,
+  // h_parent_test_20261102). Normalise here so no loop-side writer can
+  // repeat that omission — including on a legacy broken meta, where the
+  // next checkpoint write repairs the missing flag.
+  if (next.state === 'paused' && next.paused !== true) next.paused = true;
   writeHuntMeta(huntId, next);
   return next;
 }

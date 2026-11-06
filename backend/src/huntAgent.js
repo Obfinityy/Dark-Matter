@@ -3090,7 +3090,7 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
           think(huntId, `${label} ${aiFailStreak}x in a row — pausing hunt. Resume when it's responsive.`);
           appendHuntEvent(huntId, { type: 'status', state: 'paused', reason: pauseReason, at: new Date().toISOString() });
           try {
-            writeHuntMetaCheckpoint(huntId, { state: 'paused', pausedReason: pauseReason });
+            writeHuntMetaCheckpoint(huntId, { state: 'paused', paused: true, pausedReason: pauseReason });
           } catch { /* best-effort */ }
           // Return early — do NOT fall through to "finished". This hunt is
           // paused, not done. Resume will pick up from the checkpoint.
