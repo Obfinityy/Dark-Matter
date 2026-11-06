@@ -65,6 +65,7 @@ import { probeOauth } from './probes/oauth.js';
 import { probeSaml } from './probes/saml.js';
 import { createOobCollaborator } from './oobCollaborator.js';
 import { discoverDomForms } from './domRender.js';
+import { discoverOpenApiTargets } from './openapi.js';
 import { probeTls } from './probes/tlsScan.js';
 import { probePasswordReset } from './probes/passwordReset.js';
 import { probeElInject } from './probes/elInject.js';
@@ -77,6 +78,7 @@ export const DEFAULT_PHASES = [
   'crawl',
   'page-analyze',
   'dom-render',
+  'openapi-targets',
   'headers',
   'sqli-error',
   'sqli-blind',
@@ -574,6 +576,49 @@ export async function runScan(
   const postForms = forms.filter(
     (f) => String(f.method || 'get').toLowerCase() === 'post'
   );
+
+  // OPENAPI TARGETS (6 Nov 2026, VAmPI): a pure API returns JSON only —
+  // no HTML form can ever exist there, so static analysis AND the DOM
+  // render both find zero param-bearing targets and the 28-phase
+  // battery skips in silence. When (and only when) the target builder
+  // above produced zero param-bearing targets, fetch the target's
+  // OpenAPI spec and synthesise GET targets from its GET operations'
+  // query + path params (see openapi.js). The synthesised targets flow
+  // into the EXISTING battery loop below unchanged — the battery only
+  // GETs them, exactly as for form targets. An absent spec (or one
+  // with no probeable GET params) is an honest no-op: the step records
+  // ok:true with 0 targets and the battery's skipped records below
+  // still describe the gap. The step is never even invoked where
+  // static/DOM targets already exist (DVWA, WebGoat, Juice Shop), so
+  // their rollups are byte-identical. opts.openApiFetcher is the test
+  // seam: (url, opts) => fetchPage-shaped { url, status, headers, body }
+  // replacing fetchPage; production callers never pass it.
+  let openApiDiscovery = null;
+  const needsOpenApi = !scanTargets.some((u) => extractParams(u).length > 0);
+  if (needsOpenApi) {
+    await step(
+      'openapi-targets',
+      async () => {
+        openApiDiscovery = await discoverOpenApiTargets(url, {
+          ...opts,
+          ...(typeof opts.openApiFetcher === 'function' ? { fetchPage: opts.openApiFetcher } : {}),
+        });
+        if (!openApiDiscovery || !openApiDiscovery.targets || openApiDiscovery.targets.length === 0) {
+          return openApiDiscovery;
+        }
+        for (const t of openApiDiscovery.targets) pushFormTarget(t);
+        return openApiDiscovery;
+      },
+      () =>
+        openApiDiscovery
+          ? {
+              findingsCount: (openApiDiscovery.targets || []).length,
+              openApiTargets: (openApiDiscovery.targets || []).length,
+              openApiSpec: openApiDiscovery.specUrl || null,
+            }
+          : {}
+    );
+  }
 
   await step('headers', () => (fp ? probeHeaders({ url, headers: fp.headers }) : []));
   // 35/63 FIX: track whether the param battery ran at all. If no scan

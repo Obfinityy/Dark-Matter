@@ -48,9 +48,10 @@ describe('param battery skipped records (35/63 fix)', () => {
     for (const name of PARAM_BATTERY_PHASES) {
       assert.ok(DEFAULT_PHASES.includes(name), `${name} missing from DEFAULT_PHASES`);
     }
-    // 64 since 6 Nov 2026 (DOM form discovery): 'dom-render' joins the
-    // battery so SPA targets get a real-browser inventory pass.
-    assert.equal(DEFAULT_PHASES.length, 64);
+    // 65 since 6 Nov 2026 (VAmPI OpenAPI targets): 'openapi-targets'
+    // joins the battery so pure-API targets get a spec-driven
+    // inventory pass.
+    assert.equal(DEFAULT_PHASES.length, 65);
   });
 
   it('zero param targets: all 28 param phases emit skipped records, rollup reports them', async () => {
@@ -282,12 +283,12 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
-  // 36/28 since 6 Nov 2026 (DOM form discovery): the battery gained
-  // the 'dom-render' phase, so a bare page runs 36 non-param phases.
-  // The DOM pass needs a renderer; stub it to a successful empty
-  // render (no JS forms) so the test does not depend on docker — the
-  // same seam discipline as nucleiRunner above.
-  it('real runScan on a bare page renders the 36/28 line end to end', async () => {
+  // 37/28 since 6 Nov 2026 (VAmPI OpenAPI targets): the battery gained
+  // the 'openapi-targets' phase, so a bare page runs 37 non-param
+  // phases. The spec fetch is stubbed to the bare page (HTML, not
+  // JSON), so the pass records an honest no-op with 0 targets — the
+  // same seam discipline as domRenderer above.
+  it('real runScan on a bare page renders the 37/28 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -299,15 +300,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 64,
-        ok: 36,
+        total: 65,
+        ok: 37,
         failed: 0,
         skipped: 28,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 36 ran ok, 28 skipped (no param targets), 0 failed, 0 timed out.'
+        'Phases: 37 ran ok, 28 skipped (no param targets), 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

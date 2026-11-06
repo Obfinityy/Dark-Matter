@@ -63,6 +63,11 @@ async function waitFor(fn, timeoutMs = 15000, label = 'condition') {
 // Seed a hunt shaped exactly like the bWAPP orphan: state 'running',
 // scanner lane, 62 phase events whose findingsCounts sum to 8
 // (headers 5, files 1, request-smuggling 1, tls 1), zero finding events.
+// The counted phases are named explicitly instead of relying on a
+// positional slice: a new phase joining DEFAULT_PHASES shifts the
+// slice window, and the tls count fell out of slice(0, 62) when
+// 'openapi-targets' joined the list (6 Nov 2026) — the seed read 7,
+// not 8. 58 uncounted phases + the 4 counted ones = 62 events.
 function seedOrphan(huntId) {
   writeHuntMeta(huntId, {
     huntId,
@@ -78,14 +83,18 @@ function seedOrphan(huntId) {
   });
   appendHuntEvent(huntId, { type: 'status', state: 'scanner_started' });
   const counts = { headers: 5, files: 1, 'request-smuggling': 1, tls: 1 };
-  DEFAULT_PHASES.slice(0, 62).forEach((name) => {
+  const names = [
+    ...DEFAULT_PHASES.filter((n) => !Object.hasOwn(counts, n)).slice(0, 58),
+    ...Object.keys(counts),
+  ];
+  for (const name of names) {
     appendHuntEvent(huntId, {
       type: 'phase',
       name,
       ok: true,
       findingsCount: counts[name] || 0,
     });
-  });
+  }
 }
 
 test('orphan scanner hunt resumes with a full re-run and finalizes', async () => {
