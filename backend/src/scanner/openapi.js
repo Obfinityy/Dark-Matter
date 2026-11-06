@@ -35,18 +35,49 @@
 // ok:true with 0 targets and the battery's own skipped records still
 // describe the gap; a missing spec is NOT a failure.
 //
-// YAML specs (/openapi.yaml, /swagger.yaml) are NOT parsed: the repo
-// carries no YAML dependency, and adding one for this pass would pull
-// a parser into the probe path. JSON specs (/openapi.json,
-// /swagger.json) cover the FastAPI/Swagger-UI conventions and VAmPI
-// itself; YAML support is a documented follow-up.
+// YAML specs (/openapi.yaml, /swagger.yaml) are probed AFTER the JSON
+// locations (JSON stays preferred when both exist) and parsed with
+// js-yaml's safe loader (no custom tags, no code execution — a
+// hostile spec can at worst fail the parse and record an honest
+// no-op). YAML is needed because the same spec is often published
+// only as YAML (VAmPI serves /openapi.yaml alongside /openapi.json;
+// its 19,743-byte YAML uses folded scalars, quoted keys and nested
+// sequences — far past what a hand-rolled subset parser could safely
+// cover). The parse is bounded: fetchPage already caps bodies at
+// 500KB, and parseYamlSpec refuses bodies over 1MB outright.
 import { randomBytes } from 'node:crypto';
+import { load as loadYaml } from 'js-yaml';
 import { fetchPage } from './fingerprint.js';
 
-// JSON spec locations, probed in order. /openapi.json first: it is the
-// location the nuclei #253 template already proves on VAmPI.
-export const OPENAPI_SPEC_PATHS = ['/openapi.json', '/swagger.json'];
+// Spec locations, probed in order. /openapi.json first: it is the
+// location the nuclei #253 template already proves on VAmPI. YAML
+// locations come after the JSON ones — JSON stays preferred when a
+// target publishes both.
+export const OPENAPI_SPEC_PATHS = ['/openapi.json', '/swagger.json', '/openapi.yaml', '/swagger.yaml'];
 export const OPENAPI_MAX_TARGETS = 20;
+
+// Parse cap for a spec body (fetchPage already caps at 500KB; this
+// bounds direct callers and hostile alias-expansion games).
+export const OPENAPI_MAX_SPEC_BYTES = 1000000;
+
+/**
+ * Parse a YAML OpenAPI spec body into a spec object. Pure — exported
+ * for unit tests. Throws on anything unparseable (empty body, oversize
+ * body, invalid YAML, multi-document stream, non-object result) — the
+ * caller records the failure and moves to the next candidate, never a
+ * crash and never a guessed spec. js-yaml `load` is the safe loader:
+ * custom tags (e.g. !!js/function) are rejected; `{ json: true }`
+ * further restricts to JSON-compatible structures (duplicate keys are
+ * an error, timestamps stay strings). Anchors/aliases still resolve,
+ * as real specs use them.
+ */
+export function parseYamlSpec(body) {
+  if (typeof body !== 'string' || body.length === 0) throw new Error('empty YAML spec');
+  if (body.length > OPENAPI_MAX_SPEC_BYTES) throw new Error('YAML spec too large');
+  const spec = loadYaml(body, { json: true });
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Error('YAML spec is not an object');
+  return spec;
+}
 
 /** Unique safe filler per param — same never-empty/never-equal rule as toFormUrl. */
 function filler(n) {
@@ -54,26 +85,30 @@ function filler(n) {
 }
 
 /**
- * Resolve a parameter object, following a local $ref to
- * #/components/parameters/<Name> one level. Returns the resolved
- * parameter, the parameter itself when it carries no $ref, or null
- * when the ref cannot be resolved (the param is skipped, never guessed).
+ * Resolve a parameter object, following a local $ref one level:
+ * OpenAPI 3 `#/components/parameters/<Name>` or Swagger 2.0
+ * `#/parameters/<Name>`. Returns the resolved parameter, the
+ * parameter itself when it carries no $ref, or null when the ref
+ * cannot be resolved (the param is skipped, never guessed).
  * Pure — exported for unit tests.
  */
 export function resolveOpenApiParam(param, spec) {
   if (!param || typeof param !== 'object') return null;
   if (typeof param.$ref === 'string') {
-    const m = /^#\/components\/parameters\/([^/]+)$/.exec(param.$ref);
+    const m = /^#\/(components\/parameters|parameters)\/([^/]+)$/.exec(param.$ref);
     if (!m) return null;
-    const components = spec && spec.components && spec.components.parameters;
-    if (!components || typeof components !== 'object') return null;
+    const table =
+      m[1] === 'components/parameters'
+        ? spec && spec.components && spec.components.parameters
+        : spec && spec.parameters;
+    if (!table || typeof table !== 'object') return null;
     let name;
     try {
-      name = decodeURIComponent(m[1]);
+      name = decodeURIComponent(m[2]);
     } catch {
       return null;
     }
-    const resolved = components[name];
+    const resolved = table[name];
     return resolved && typeof resolved === 'object' ? resolved : null;
   }
   return param;
@@ -162,12 +197,13 @@ export function extractOpenApiTargets(spec, baseUrl) {
 }
 
 /**
- * Discover OpenAPI GET targets for one pasted URL: probe the JSON spec
- * locations in order and extract targets from the first parseable spec.
- * Never throws: every failure mode (no spec, non-200, invalid JSON, no
- * paths object, fetch error) returns { specFound: false, targets: [],
- * pathParams: {} } with the reason recorded in `errors`, so the
- * caller can record an honest no-op instead of a failure.
+ * Discover OpenAPI GET targets for one pasted URL: probe the spec
+ * locations in order (JSON first, then YAML) and extract targets from
+ * the first parseable spec. Never throws: every failure mode (no spec,
+ * non-200, invalid JSON/YAML, no paths object, fetch error) returns
+ * { specFound: false, targets: [], pathParams: {} } with the reason
+ * recorded in `errors`, so the caller can record an honest no-op
+ * instead of a failure.
  * opts.fetchPage is the test seam (defaults to fingerprint.fetchPage);
  * it must return a fetchPage-shaped { url, status, headers, body }.
  */
@@ -207,10 +243,11 @@ export async function discoverOpenApiTargets(baseUrl, opts = {}) {
       continue;
     }
     let spec;
+    const isYaml = /\.ya?ml$/i.test(specPath);
     try {
-      spec = JSON.parse(page.body);
+      spec = isYaml ? parseYamlSpec(page.body) : JSON.parse(page.body);
     } catch {
-      errors.push(`${specPath}: not valid JSON`);
+      errors.push(`${specPath}: not valid ${isYaml ? 'YAML' : 'JSON'}`);
       continue;
     }
     if (!spec || typeof spec !== 'object' || !spec.paths || typeof spec.paths !== 'object') {

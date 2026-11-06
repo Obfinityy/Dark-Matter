@@ -1,11 +1,12 @@
 {
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1150.0",
+    "@aws-sdk/client-sagemaker-runtime": "^3.1150.0",
     "express": "^4.21.2",
+    "js-yaml": "^5.5.0",
     "multer": "^2.0.1",
     "pdfkit": "^0.17.1",
-    "ws": "^8.18.1",
-    "@aws-sdk/client-sagemaker-runtime": "^3.1150.0"
+    "ws": "^8.18.1"
   },
   "description": "Dark Matter full-rebuild orchestrator backend (Express). Bridges the frontend to the PentAGI hunt engine.",
   "engines": {
