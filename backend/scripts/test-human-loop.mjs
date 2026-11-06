@@ -56,7 +56,12 @@ check('scope: target allowed', scopeViolation('http://target.test/login', 'http:
 check('scope: target subdomain allowed', scopeViolation('http://api.target.test/v1', 'http://target.test', PS) === null);
 check('scope: foreign host blocked', scopeViolation('http://evil.example.com/x', 'http://target.test', PS) === 'http://evil.example.com/x');
 check('scope: tool download host allowed', scopeViolation('https://github.com/ffuf/ffuf/releases', 'http://target.test', PS) === null);
-check('scope: no parsedScope -> allowed', scopeViolation('http://anything.example/x', 'http://target.test', null) === null);
+// No parsed scope fails CLOSED (fix #317, e209682a): a missing scope must
+// not mean "everything is allowed" — only the target host (+ download
+// hosts, above) pass. The old fail-open expectation predates #317; both
+// structured gates (scopeParser.isInScope, scopeIntel.isInScope) also
+// return false for a null scope, so all three gates agree.
+check('scope: no parsedScope -> blocked (fail closed)', scopeViolation('http://anything.example/x', 'http://target.test', null) === 'http://anything.example/x');
 
 // ---------------------------------------------------------------------------
 // Full scripted session with fakes

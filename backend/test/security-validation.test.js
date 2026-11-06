@@ -58,6 +58,9 @@ test('target host does not implicitly authorize its subdomains', () => {
   assert.equal(isInScope('https://sub.primary.example', scope), false);
   const wildcardScope = parseScope('primary.example', 'In scope: *.primary.example');
   assert.equal(isInScope('https://sub.primary.example', wildcardScope), true);
+  // The wildcard naming the target itself must survive extraction: the
+  // default rule covers only the exact host, never its subdomains.
+  assert.deepEqual(wildcardScope.inScopeWildcardHosts, ['primary.example']);
 });
 
 test('hunt stream authorization is owner-only and legacy hunts are admin-only', () => {

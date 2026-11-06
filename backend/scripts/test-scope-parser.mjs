@@ -25,12 +25,22 @@ const EZZ = "Ezviz YesWeHack bug bounty. In scope: www.ezviz.com, api.ezvizlife.
 
 const ps = parseScope('https://open.ys7.com', EZZ);
 check('ezviz: target domain first in inScope', ps.inScope[0] === 'open.ys7.com');
-for (const h of ['www.ezviz.com', 'api.ezvizlife.com', 'ezviz.com', 'ys7.com', 'ezvizlife.com', 'eziot.com', 'ezviz7.com', 'hicloudcam.com', 'hikops.com', 'ezvizru.com']) {
-  check(`ezviz: inScope includes ${h}`, ps.inScope.includes(h));
+// Named assets live in the structured host lists (exact vs wildcard),
+// not in legacy inScope — inScope stays [target domain] by design:
+// scopeViolation and scopeGuard treat inScope entries as subdomain
+// bases, so populating it with exact hosts would let nested subdomains
+// past the gates (the 1-Nov rule forbids exactly that). The gate reads
+// the structured lists via isInScope (see the gate checks below).
+for (const h of ['www.ezviz.com', 'api.ezvizlife.com']) {
+  check(`ezviz: inScopeExactHosts includes ${h}`, ps.inScopeExactHosts.includes(h));
 }
+for (const h of ['ezviz.com', 'ys7.com', 'ezvizlife.com', 'eziot.com', 'ezviz7.com', 'hicloudcam.com', 'hikops.com', 'ezvizru.com']) {
+  check(`ezviz: inScopeWildcardHosts includes ${h}`, ps.inScopeWildcardHosts.includes(h));
+}
+check('ezviz: target domain not duplicated into structured lists', !ps.inScopeExactHosts.includes('open.ys7.com') && !ps.inScopeWildcardHosts.includes('open.ys7.com'));
 for (const h of ['test.ys7.com', 'pb.ys7.com', 'ezcpcloudiot.eziot.com']) {
   check(`ezviz: outOfScopeHosts includes ${h}`, ps.outOfScopeHosts.includes(h));
-  check(`ezviz: inScope excludes named-out ${h}`, !ps.inScope.includes(h));
+  check(`ezviz: structured lists exclude named-out ${h}`, !ps.inScopeExactHosts.includes(h) && !ps.inScopeWildcardHosts.includes(h) && !ps.inScope.includes(h));
 }
 check('ezviz: rules still detected (noHeavyScan)', ps.rules.noHeavyScan === true);
 check('ezviz: rules still detected (20 rpm)', ps.rules.maxRequestsPerMin === 20);
@@ -60,7 +70,7 @@ check('bare: outOfScopeHosts empty array', Array.isArray(bare.outOfScopeHosts) &
 // A host named in BOTH lists fails closed (out wins), and the target
 // domain can never be pushed into outOfScopeHosts by prose.
 const both = parseScope('https://a.example.com', 'In scope: a.example.com, b.example.com. Out of scope: b.example.com, a.example.com.');
-check('both: b.example.com out wins', !both.inScope.includes('b.example.com') && both.outOfScopeHosts.includes('b.example.com'));
+check('both: b.example.com out wins', !both.inScope.includes('b.example.com') && !both.inScopeExactHosts.includes('b.example.com') && !both.inScopeWildcardHosts.includes('b.example.com') && both.outOfScopeHosts.includes('b.example.com'));
 check('both: target domain never an out host', !both.outOfScopeHosts.includes('a.example.com'));
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`);

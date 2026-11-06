@@ -98,7 +98,13 @@ export function parseScope(target, scopeText = '') {
       }
       for (const [h, wildcard] of hostsIn) {
         if (hostsOut.has(h)) continue; // named in both lists -> fail closed (out wins)
-        if (h === String(domain).toLowerCase()) continue; // default target rule already covers it
+        // An exact entry naming the target itself is redundant: the
+        // default target rule already covers the exact host. A WILDCARD
+        // entry naming the target is NOT redundant — the default rule
+        // covers only the exact host, never its subdomains — so
+        // *.target must land in inScopeWildcardHosts, or the programme's
+        // own subdomains stay blocked despite being named explicitly.
+        if (h === String(domain).toLowerCase() && !wildcard) continue;
         if (wildcard) result.inScopeWildcardHosts.push(h);
         else result.inScopeExactHosts.push(h);
       }

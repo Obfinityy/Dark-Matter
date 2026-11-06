@@ -19,3 +19,15 @@ test('scope-intel requires exact hosts unless wildcard is explicit', () => {
   assert.equal(isInScope('cdn.example.com', scope), false);
   assert.equal(isInScope('img.cdn.example.com', scope), true);
 });
+
+test('scope-intel subdomain authorization is order-independent (no index leak)', () => {
+  // Regression: scope.inScope.some(matches) leaked the array index into
+  // matches()' exclusion parameter, so subdomains of any non-first asset
+  // were authorized. The verdict must not depend on list order.
+  assert.equal(isInScope('sub.b.com', { inScope: ['a.com', 'b.com'] }), false);
+  assert.equal(isInScope('sub.a.com', { inScope: ['a.com', 'b.com'] }), false);
+  assert.equal(isInScope('sub.b.com', { inScope: ['b.com', 'a.com'] }), false);
+  assert.equal(isInScope('sub.a.com', { inScope: ['b.com', 'a.com'] }), false);
+  assert.equal(isInScope('b.com', { inScope: ['a.com', 'b.com'] }), true);
+  assert.equal(isInScope('img.cdn.example.com', { inScope: ['api.example.com', '*.cdn.example.com'] }), true);
+});

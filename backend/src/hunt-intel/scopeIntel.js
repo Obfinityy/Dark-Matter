@@ -96,5 +96,11 @@ export function isInScope(target, scope) {
     return !basePath || targetUrl.pathname === basePath || targetUrl.pathname.startsWith(`${basePath}/`);
   };
   if ((scope.outOfScope || []).some((candidate) => matches(candidate, true))) return false;
-  return scope.inScope.some(matches);
+  // NOTE: pass matches through an arrow — Array.prototype.some calls
+  // its callback as (element, index, array), and matches() takes an
+  // `exclusion` second parameter. Passing `matches` bare leaked the
+  // array index into `exclusion`, so every candidate after the first
+  // ran the subdomain-accepting exclusion branch (over-authorization:
+  // sub.b.com was authorized whenever b.com was not first in the list).
+  return scope.inScope.some((candidate) => matches(candidate));
 }
