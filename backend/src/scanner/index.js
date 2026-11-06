@@ -194,6 +194,28 @@ export function buildPhaseRollup(phaseList) {
 }
 
 /**
+ * Human-readable one-line phase split for the finished-scan summary.
+ * Pure — exported for unit tests. A skipped battery must never again read
+ * as "all ok": a 35-ok / 28-skipped run renders
+ * "Phases: 35 ran ok, 28 skipped (no param targets), 0 failed, 0 timed out."
+ * The parenthetical names the skip reason only when every skipped record
+ * shares one (the zero-param-targets case); mixed or missing reasons render
+ * as a bare count. Skipped records still carry ok:true by design (see
+ * skipPhase) — this line reads the rollup's `skipped` count, never ok:true,
+ * so counting ok:true phase events can no longer hide a skipped battery.
+ */
+export function buildPhaseSummaryLine(phaseList) {
+  const rollup = buildPhaseRollup(phaseList);
+  const list = Array.isArray(phaseList) ? phaseList : [];
+  const reasons = [
+    ...new Set(list.filter((p) => p.skipped && p.skipReason).map((p) => p.skipReason)),
+  ];
+  const skippedPart =
+    reasons.length === 1 ? `${rollup.skipped} skipped (${reasons[0]})` : `${rollup.skipped} skipped`;
+  return `Phases: ${rollup.ok} ran ok, ${skippedPart}, ${rollup.failed} failed, ${rollup.timedOut} timed out.`;
+}
+
+/**
  * Run the rule-based scan battery.
  *
  * opts (5 Nov 2026, phase visibility): `opts.onPhase` — optional callback

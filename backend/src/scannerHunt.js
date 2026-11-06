@@ -2,7 +2,7 @@
 // When a hunt is created with brainMode='scanner', this runs the rule-based
 // vulnerability scanner (no AI, no API spend) and records findings as hunt
 // events, instead of launching the AI agent loop.
-import { runScan, buildPhaseRollup } from './scanner/index.js';
+import { runScan, buildPhaseRollup, buildPhaseSummaryLine } from './scanner/index.js';
 import { NUCLEI_TIMEOUT_MS } from './scanner/nuclei.js';
 import { appendHuntEvent, readHuntEvents, readHuntMeta, writeHuntMeta } from './store.js';
 import { notifyFinding } from './notifications.js';
@@ -256,7 +256,7 @@ async function runScannerHuntInner(huntId, target, opts = {}) {
     record(huntId, {
       type: 'status',
       state: 'scanner_finished',
-      message: `Scan complete: ${result.findings?.length || 0} confirmed findings, ${result.unconfirmed?.length || 0} unconfirmed.`,
+      message: `Scan complete: ${result.findings?.length || 0} confirmed findings, ${result.unconfirmed?.length || 0} unconfirmed. ${buildPhaseSummaryLine(phaseList)}`,
       summary: {
         confirmed: result.findings?.length || 0,
         unconfirmed: result.unconfirmed?.length || 0,

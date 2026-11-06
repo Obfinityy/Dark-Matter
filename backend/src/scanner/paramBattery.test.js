@@ -15,7 +15,7 @@
 // No network, no docker in these tests — fetch is stubbed throughout.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { runScan, PARAM_BATTERY_PHASES, DEFAULT_PHASES, buildPhaseRollup } from './index.js';
+import { runScan, PARAM_BATTERY_PHASES, DEFAULT_PHASES, buildPhaseRollup, buildPhaseSummaryLine } from './index.js';
 import { fetchPage } from './fingerprint.js';
 
 const realFetch = globalThis.fetch;
@@ -253,5 +253,99 @@ describe('buildPhaseRollup', () => {
       skipped: 0,
       timedOut: 0,
     });
+  });
+});
+
+describe('buildPhaseSummaryLine (phase-split message)', () => {
+  // Fabricate the exact bWAPP / VAmPI / Juice Shop rollup shape from the
+  // 6 Nov 2026 nuclei-600 re-validation: 35 ran ok, 28 skipped, 0 failed.
+  const skippedBattery = () => [
+    ...Array.from({ length: 35 }, (_, i) => ({ name: `ok-${i}`, ok: true })),
+    ...PARAM_BATTERY_PHASES.map((name) => ({
+      name,
+      ok: true,
+      skipped: true,
+      skipReason: 'no param targets',
+    })),
+  ];
+
+  it('35/28 case renders the split with the shared skip reason — never 63/63 ok', () => {
+    const phases = skippedBattery();
+    // Skipped records still carry ok:true by design (see skipPhase) — the
+    // line must read the rollup's skipped count, never ok:true.
+    assert.ok(phases.filter((p) => p.skipped).every((p) => p.ok === true));
+    assert.equal(
+      buildPhaseSummaryLine(phases),
+      'Phases: 35 ran ok, 28 skipped (no param targets), 0 failed, 0 timed out.'
+    );
+  });
+
+  it('real runScan on a bare page renders the 35/28 line end to end', async () => {
+    stubPage(BARE_PAGE);
+    try {
+      const result = await runScan(
+        { target: 'http://example.com/', confirmedAuthorized: true },
+        {
+          timeoutMs: 5000,
+          nucleiRunner: async () => ({ ok: true, timedOut: false, findings: [] }),
+        }
+      );
+      assert.deepEqual(buildPhaseRollup(result.phases), {
+        total: 63,
+        ok: 35,
+        failed: 0,
+        skipped: 28,
+        timedOut: 0,
+      });
+      assert.equal(
+        buildPhaseSummaryLine(result.phases),
+        'Phases: 35 ran ok, 28 skipped (no param targets), 0 failed, 0 timed out.'
+      );
+    } finally {
+      teardown();
+    }
+  });
+
+  it('clean 63/63 run renders zero skipped', () => {
+    const phases = Array.from({ length: 63 }, (_, i) => ({ name: `p-${i}`, ok: true }));
+    assert.equal(
+      buildPhaseSummaryLine(phases),
+      'Phases: 63 ran ok, 0 skipped, 0 failed, 0 timed out.'
+    );
+  });
+
+  it('failed and timed-out phases render distinctly', () => {
+    const phases = [
+      ...Array.from({ length: 60 }, (_, i) => ({ name: `p-${i}`, ok: true })),
+      { name: 'x', ok: false },
+      { name: 'nuclei', ok: false, timedOut: true },
+    ];
+    assert.equal(
+      buildPhaseSummaryLine(phases),
+      'Phases: 60 ran ok, 0 skipped, 2 failed, 1 timed out.'
+    );
+  });
+
+  it('mixed skip reasons render as a bare count, no parenthetical', () => {
+    const phases = [
+      { name: 'a', ok: true },
+      { name: 'b', ok: true, skipped: true, skipReason: 'no param targets' },
+      { name: 'c', ok: true, skipped: true, skipReason: 'other reason' },
+    ];
+    assert.equal(
+      buildPhaseSummaryLine(phases),
+      'Phases: 1 ran ok, 2 skipped, 0 failed, 0 timed out.'
+    );
+  });
+
+  it('returns zeros for empty / non-array input', () => {
+    assert.equal(
+      buildPhaseSummaryLine([]),
+      'Phases: 0 ran ok, 0 skipped, 0 failed, 0 timed out.'
+    );
+    assert.equal(
+      buildPhaseSummaryLine(null),
+      'Phases: 0 ran ok, 0 skipped, 0 failed, 0 timed out.'
+    );
   });
 });
