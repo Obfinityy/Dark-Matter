@@ -407,11 +407,20 @@ export async function applyEgressPlan(plan, { run = defaultRunner } = {}) {
   return { ok: results.every((r) => r.ok), results };
 }
 
-/** Remove all egress state for a hunt. Best-effort, never throws. */
+/** Remove all egress state for a hunt. Best-effort, never throws.
+ *
+ * ORDER MATTERS (6 Nov 2026 ordering wart): the chain's rules reference
+ * the ipsets (`-m set --match-set`), so destroying a set while the chain
+ * still exists fails with "in use by a kernel component" and the set
+ * survives until a later reconciler tick — exactly what happened to
+ * h_fc3861b36b82 on the teardown deploy (boot tick removed the chain,
+ * the two ipsets needed the periodic tick 51s later). Remove the
+ * iptables state FIRST (jump deletes, flush, chain delete), then the
+ * NAT pins, THEN the ipsets, and the docker network last. */
 export async function removeHuntEgress(huntId, opts = {}, { run = defaultRunner } = {}) {
   const plan = buildRemoveEgress(huntId, opts);
   const results = [];
-  for (const cmd of [...plan.ipset, ...plan.iptables, ...plan.nat, ...plan.docker]) {
+  for (const cmd of [...plan.iptables, ...plan.nat, ...plan.ipset, ...plan.docker]) {
     try {
       const r = await run(shSplit(cmd));
       results.push({ cmd, ok: r.ok });

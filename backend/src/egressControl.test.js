@@ -21,6 +21,7 @@ import {
   matchesTuple,
   buildRemoveEgress,
   applyEgressPlan,
+  removeHuntEgress,
   refreshHuntEgress,
   finalizeHuntEgress,
   listLiveEgressNames,
@@ -295,6 +296,43 @@ test('buildRemoveEgress: covers every artifact the plan creates (symmetry)', () 
   assert.ok(r.ipset.includes(`ipset destroy ${IPSET}`));
   // Per-hunt network removed.
   assert.ok(r.docker.includes(`docker network rm ${NET}`));
+});
+
+test('removeHuntEgress: chain is deleted BEFORE the ipsets it references (6 Nov ordering wart)', async () => {
+  // Kernel-faithful stub: an ipset destroy fails while the chain that
+  // references it still exists ("in use by a kernel component"). The
+  // old order (ipsets first) therefore left both sets behind until a
+  // later reconciler tick — h_fc3861b36b82 on the teardown deploy.
+  const issued = [];
+  let chainExists = true;
+  const run = async (argv) => {
+    const cmd = argv.join(' ');
+    issued.push(cmd);
+    if (cmd.startsWith('ipset destroy ')) {
+      if (chainExists) {
+        return { ok: false, error: 'ipset v7.6: Set cannot be destroyed: it is in use by a kernel component' };
+      }
+      return { ok: true, stdout: '' };
+    }
+    if (cmd === `iptables -X ${CHAIN}`) chainExists = false;
+    return { ok: true, stdout: '' };
+  };
+  const { results } = await removeHuntEgress(
+    HUNT,
+    { containerIps: [CIP], resolverIp: RESOLVER },
+    { run }
+  );
+  // Single pass removes everything — no second reconciler tick needed.
+  assert.ok(results.every((r) => r.ok), 'every teardown command succeeds in one pass');
+  const xIdx = issued.indexOf(`iptables -X ${CHAIN}`);
+  const setIdx = issued.indexOf(`ipset destroy ${SET}`);
+  const ipIdx = issued.indexOf(`ipset destroy ${IPSET}`);
+  const netIdx = issued.indexOf(`docker network rm ${NET}`);
+  assert.ok(xIdx !== -1 && setIdx !== -1 && ipIdx !== -1 && netIdx !== -1, 'all artifacts issued');
+  assert.ok(xIdx < setIdx && xIdx < ipIdx, 'chain deleted before both ipset destroys');
+  assert.ok(setIdx < netIdx && ipIdx < netIdx, 'network removed last');
+  // Jump deletes precede the ipset destroys too (they reference the chain).
+  assert.ok(issued.indexOf(`iptables -D DOCKER-USER -s ${CIP} -j ${CHAIN}`) < setIdx);
 });
 
 test('applyEgressPlan: check-then-add idempotency via injected runner', async () => {
