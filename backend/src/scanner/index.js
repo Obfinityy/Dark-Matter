@@ -63,6 +63,7 @@ import { probeGraphql } from './probes/graphql.js';
 import { probeCswsh } from './probes/cswsh.js';
 import { probeOauth } from './probes/oauth.js';
 import { probeSaml } from './probes/saml.js';
+import { createOobCollaborator } from './oobCollaborator.js';
 import { probeTls } from './probes/tlsScan.js';
 import { probePasswordReset } from './probes/passwordReset.js';
 import { probeElInject } from './probes/elInject.js';
@@ -543,7 +544,45 @@ export async function runScan(
   await step('graphql', () => probeGraphql(url, opts));
   await step('cswsh', () => probeCswsh(url, opts));
   await step('oauth', () => probeOauth(url, opts));
-  await step('saml', () => probeSaml(url, opts));
+  // SAML-XXE OOB collaborator (6 Nov 2026): the SAML probe's blind-XXE
+  // variant needs a callback base AND a waiter. Both come from a
+  // collaborator started here for the duration of the saml phase — only
+  // when the target is lab-gated (allowWrite, the same host check as the
+  // file-upload gate). Start is best-effort: a bind failure is recorded
+  // in errors and the scan continues with the OOB variant skipped, exactly
+  // as before this lane. The collaborator is always stopped afterwards
+  // (finally), so no listener outlives the scan. Callback-host default is
+  // the docker bridge gateway (172.17.0.1) — the IP lab containers use to
+  // reach the host; override with opts.oobCallbackHost / DM_OOB_CALLBACK_HOST.
+  let oob = null;
+  if (phases.includes('saml') && allowWrite) {
+    try {
+      oob = createOobCollaborator({
+        listenHost: opts.oobListenHost || process.env.DM_OOB_LISTEN_HOST || '0.0.0.0',
+        listenPort: opts.oobListenPort || (process.env.DM_OOB_PORT ? Number(process.env.DM_OOB_PORT) : 0),
+        callbackHost: opts.oobCallbackHost || process.env.DM_OOB_CALLBACK_HOST || '172.17.0.1',
+      });
+      await oob.start();
+    } catch (e) {
+      errors.push(`oob-collaborator: ${e && e.message ? e.message : String(e)}`);
+      oob = null;
+    }
+  }
+  try {
+    await step('saml', () =>
+      probeSaml(url, {
+        ...opts,
+        labTargets,
+        ...(oob
+          ? { oobCallback: oob.baseUrl(), oobWaitFor: (token, ms) => oob.waitFor(token, ms) }
+          : {}),
+      })
+    );
+  } finally {
+    if (oob) {
+      try { await oob.stop(); } catch { /* stop is best-effort */ }
+    }
+  }
   await step('tls', () => probeTls(url, opts));
   await step('password-reset', () => probePasswordReset(forms, url, opts));
   await step('crypto', () => probeCrypto(url, opts));

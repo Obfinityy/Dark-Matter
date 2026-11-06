@@ -16,6 +16,7 @@ import {
   discoverSamlMetadata,
   sessionGranted,
 } from './saml.js';
+import { createOobCollaborator } from '../oobCollaborator.js';
 
 describe('saml probe', () => {
   let server;
@@ -371,6 +372,109 @@ describe('saml XXE entity expansion (entity-expanding stub)', () => {
       assert.ok(!findings.map((f) => f.class).includes('saml_xxe_entities'));
     } finally {
       await new Promise((r) => s2.server.close(r));
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SAML XXE OOB collaborator (#443b). The stub ACS mimics a vulnerable XML
+// parser: when the DOCTYPE carries an external parameter entity it fetches
+// the SYSTEM URL, then rejects the assertion. The fetch landing on the
+// collaborator is the blind-XXE signal — the probe confirms it in-scan
+// (saml_xxe_oob, high) only when the waiter sees the hit.
+
+// Stub E — OOB-fetching ACS: fetches any SYSTEM url in the DOCTYPE, then 400s.
+function oobFetchHandler() {
+  return async (req, res) => {
+    const u = new URL(req.url, 'http://127.0.0.1');
+    if (u.pathname !== '/saml/acs' || req.method !== 'POST') { res.writeHead(404); res.end(); return; }
+    const xml = decodeSamlBody(await readBody(req));
+    const sysUrl = (xml.match(/<!ENTITY\s+%\s+\w+\s+SYSTEM\s+"([^"]+)"/) || [])[1];
+    if (sysUrl) {
+      // The fetch IS the signal; its success/failure changes nothing.
+      try { await fetch(sysUrl, { signal: AbortSignal.timeout(2000) }); } catch { /* ignore */ }
+    }
+    res.writeHead(400); res.end('rejected');
+  };
+}
+
+describe('saml XXE OOB collaborator', () => {
+  let collab;
+  let baseUrl;
+
+  before(async () => {
+    collab = createOobCollaborator({ listenHost: '127.0.0.1', callbackHost: '127.0.0.1' });
+    baseUrl = await collab.start();
+  });
+
+  after(async () => { await collab.stop(); });
+
+  const oobOpts = (extra = {}) => ({
+    timeoutMs: 3000,
+    depth: 'standard',
+    labTargets: '127.0.0.1',
+    oobCallback: baseUrl,
+    oobWaitFor: (token, ms) => collab.waitFor(token, ms),
+    oobWaitTimeoutMs: 3000,
+    ...extra,
+  });
+
+  it('CONFIRMS saml_xxe_oob (high) when the ACS parser fetches the canary URL', async () => {
+    const stub = await startStub(); stub.setHandler(oobFetchHandler());
+    try {
+      const findings = await probeSaml(`http://127.0.0.1:${stub.port}/`, oobOpts());
+      const classes = findings.map((f) => f.class);
+      assert.ok(classes.includes('saml_xxe_oob'), `expected saml_xxe_oob, got ${classes}`);
+      assert.ok(!classes.includes('saml_xxe_oob_sent'), 'waiter path must not emit the unconfirmed sent record');
+      const f = findings.find((x) => x.class === 'saml_xxe_oob');
+      assert.equal(f.severity, 'high');
+      assert.equal(f.parameter, 'SAMLResponse');
+      assert.equal(f.evidence.oobHit, true);
+      assert.ok(f.evidence.signalCorrelated === true);
+      assert.ok(f.evidence.response.includes('saml-xxe-'), 'evidence must name the callback token');
+      assert.ok(f.evidence.response.includes('collaborator received'), 'evidence must show the callback receipt');
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('NEGATIVE: no saml_xxe_oob when the ACS never fetches the canary URL', async () => {
+    const stub = await startStub(); stub.setHandler(strictHandler());
+    try {
+      const findings = await probeSaml(`http://127.0.0.1:${stub.port}/`, oobOpts({ oobWaitTimeoutMs: 500 }));
+      const classes = findings.map((f) => f.class);
+      assert.ok(!classes.includes('saml_xxe_oob'), `unexpected saml_xxe_oob in ${classes}`);
+      assert.ok(!classes.includes('saml_xxe_oob_sent'), 'waiter path must stay silent on a miss');
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('lab gate: no OOB finding at all when the host is not lab-gated', async () => {
+    const stub = await startStub(); stub.setHandler(oobFetchHandler());
+    try {
+      const hitsBefore = collab.hits.length;
+      const findings = await probeSaml(`http://127.0.0.1:${stub.port}/`, oobOpts({ labTargets: '' }));
+      const classes = findings.map((f) => f.class);
+      assert.ok(!classes.includes('saml_xxe_oob'), `unexpected saml_xxe_oob in ${classes}`);
+      assert.ok(!classes.includes('saml_xxe_oob_sent'), `unexpected saml_xxe_oob_sent in ${classes}`);
+      assert.equal(collab.hits.length, hitsBefore, 'gate closed: the probe must not send any OOB URL');
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('backward compat: string-only oobCallback (no waiter) still emits saml_xxe_oob_sent', async () => {
+    const stub = await startStub(); stub.setHandler(oobFetchHandler());
+    try {
+      const findings = await probeSaml(`http://127.0.0.1:${stub.port}/`, {
+        timeoutMs: 3000, depth: 'standard', labTargets: '127.0.0.1', oobCallback: baseUrl,
+      });
+      const classes = findings.map((f) => f.class);
+      assert.ok(classes.includes('saml_xxe_oob_sent'), `expected saml_xxe_oob_sent, got ${classes}`);
+      assert.ok(!classes.includes('saml_xxe_oob'), 'no waiter means no confirmation');
+    } finally {
+      await new Promise((r) => stub.server.close(r));
     }
   });
 });

@@ -158,6 +158,11 @@ export async function runScannerHunt(huntId, target, opts = {}) {
         target,
         scope: opts.scope || null,
         confirmedAuthorized: true,
+        // LAB_TARGETS (env): the deployment's explicit opt-in list of
+        // authorised lab hosts (same source the hunt route uses for its
+        // SSRF lab exception). runScan gates its write/OOB behaviour on
+        // it — without this the SAML-XXE OOB collaborator never starts.
+        labTargets: process.env.LAB_TARGETS || '',
         ...(depthOpts.phases ? { phases: depthOpts.phases } : {}),
       },
       {

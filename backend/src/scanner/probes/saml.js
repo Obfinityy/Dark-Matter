@@ -557,25 +557,54 @@ export async function probeSaml(url, opts = {}) {
       // (b) OOB external-entity variant: only when an OOB callback base is
       // available (opts.oobCallback) AND the host is lab-gated. Never
       // exfiltrates real files — the entity target is a canary URL only.
-      // xxe.js has no collaborator infra today, so in practice this stays
-      // skipped and the limit is documented in docs/scanner/saml-advanced.md.
+      // When a waiter is wired (opts.oobWaitFor — runScan starts the
+      // in-process collaborator for lab-gated scans), a callback hit for
+      // our token CONFIRMS blind XXE in-scan: the hit record carries
+      // oobHit:true so the differential verifier judges it under the
+      // SSRF/OOB protocol. No hit → no finding (100% truth rule:
+      // unconfirmed stays silent). Without a waiter (an external
+      // oobCallback string only) the old honest INFO record stands —
+      // dispatched, confirmation out-of-band.
       if (opts.oobCallback && isLabHost(url, opts)) {
-        const oobUrl = `${String(opts.oobCallback).replace(/\/+$/, '')}/saml-xxe-${rand()}`;
+        const token = `saml-xxe-${rand()}`;
+        const oobUrl = `${String(opts.oobCallback).replace(/\/+$/, '')}/${token}`;
         const xxeOobXml = buildXxeSamlResponse({ nameId: 'oob-probe', audience, externalUrl: oobUrl });
         const rOob = await postSamlResponse(acsUrl, deflateB64(xxeOobXml), { timeoutMs });
-        findings.push({
-          class: 'saml_xxe_oob_sent',
-          id: `saml-xxeoob-${rand()}`,
-          title: 'SAML XXE OOB probe dispatched (external parameter entity) — confirm via collaborator',
-          severity: 'info',
-          url: acsUrl,
-          parameter: 'SAMLResponse',
-          evidence: evidenceBase(
-            `external parameter entity → ${oobUrl} sent (status ${rOob.status}; canary URL only, no file targets); ` +
-            `confirm out-of-band via the collaborator`,
-            'An OOB hit proves external-entity resolution (blind XXE) on the ACS'
-          ),
-        });
+        if (typeof opts.oobWaitFor === 'function') {
+          const hit = await opts.oobWaitFor(token, opts.oobWaitTimeoutMs || 8000);
+          if (hit) {
+            findings.push({
+              class: 'saml_xxe_oob',
+              id: `saml-xxeoob-${rand()}`,
+              title: 'SAML XXE blind out-of-band — ACS parser fetched the collaborator URL',
+              severity: 'high',
+              url: acsUrl,
+              parameter: 'SAMLResponse',
+              evidence: {
+                ...evidenceBase(
+                  `external parameter entity → ${oobUrl} sent (ACS status ${rOob.status}); ` +
+                  `collaborator received ${hit.method} ${hit.path} at ${hit.at} — the parser resolved the external entity`,
+                  'Blind XXE on the SSO callback: the parser fetches attacker-controlled URLs — gateway to SSRF / file disclosure via external entities'
+                ),
+                oobHit: true,
+              },
+            });
+          }
+        } else {
+          findings.push({
+            class: 'saml_xxe_oob_sent',
+            id: `saml-xxeoob-${rand()}`,
+            title: 'SAML XXE OOB probe dispatched (external parameter entity) — confirm via collaborator',
+            severity: 'info',
+            url: acsUrl,
+            parameter: 'SAMLResponse',
+            evidence: evidenceBase(
+              `external parameter entity → ${oobUrl} sent (status ${rOob.status}; canary URL only, no file targets); ` +
+              `confirm out-of-band via the collaborator`,
+              'An OOB hit proves external-entity resolution (blind XXE) on the ACS'
+            ),
+          });
+        }
       }
     }
   }

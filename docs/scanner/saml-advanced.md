@@ -72,19 +72,29 @@ is possible through the SSO callback.
   value (not the literal `&dmxxe;`), the parser processes entities → the
   endpoint is XXE-capable. Oracle is strict: only the expanded canary
   counts.
-- **(b) OOB external parameter entity** (`saml_xxe_oob_sent`, info): sends
+- **(b) OOB external parameter entity** (`saml_xxe_oob`, high when confirmed;
+  `saml_xxe_oob_sent`, info when only dispatched): sends
   `<!ENTITY % dmxxe SYSTEM "<canary-url>"> %dmxxe;` pointing at a canary URL.
   This variant runs **only** when `opts.oobCallback` is set **and** the host
   matches `opts.labTargets` (same `/[,\s]+/` split + host-includes pattern as
   `index.js`'s `allowWrite` gate). It never targets real files — canary URLs
-  only. Confirmation is out-of-band via the collaborator.
+  only. Confirmation is out-of-band via the collaborator
+  (`backend/src/scanner/oobCollaborator.js`, 6 Nov 2026): `runScan` starts an
+  in-process HTTP listener for the duration of the `saml` phase on lab-gated
+  targets (callback host defaults to the docker bridge gateway `172.17.0.1`,
+  overridable via `opts.oobCallbackHost` / `DM_OOB_CALLBACK_HOST`) and passes
+  its base URL + a waiter into the probe. A callback hit for the probe's
+  token CONFIRMS blind XXE in-scan — the finding carries `oobHit: true` in
+  evidence, judged under the SSRF/OOB protocol. No hit → no finding (100%
+  truth rule). When only a bare `oobCallback` string is passed (no waiter),
+  the probe keeps the old `saml_xxe_oob_sent` info record instead.
 
 ### Honest limits
 - `backend/src/scanner/probes/xxe.js` currently has **no collaborator/OOB
-  infrastructure**, and the scanner does not run its own listener — so in
-  practice variant (b) stays skipped until an OOB callback base is wired
-  through `opts`. Variant (a) alone still proves entity processing, which is
-  the necessary precondition for XXE.
+  infrastructure** of its own (the shared collaborator module exists, but
+  xxe.js does not use it yet) — so the generic XXE probe still has no OOB
+  variant. Variant (a) alone still proves entity processing, which is the
+  necessary precondition for XXE.
 - Severity for (a) is `info`, not higher: expansion alone is evidence of an
   entity-processing parser, not yet of file disclosure. It is the gateway
   signal, meant to trigger manual follow-up.
@@ -123,7 +133,7 @@ emits the low-severity finding noting the metadata is spoofable; HTTPS +
 |---|---|---|---|---|
 | XSW wrap (×2 orders) | `saml_xsw` | critical | 1 control + ≤2 attacks | unsigned rejected, depth ≠ quick |
 | XXE internal entity | `saml_xxe_entities` | info | 1 | depth ≠ quick |
-| XXE OOB param entity | `saml_xxe_oob_sent` | info | 1 | `opts.oobCallback` + lab-gated host |
+| XXE OOB param entity | `saml_xxe_oob` (confirmed) / `saml_xxe_oob_sent` (dispatched only) | high / info | 1 + ≤8s callback wait | `opts.oobCallback` + lab-gated host; waiter → confirmed on hit |
 | Metadata integrity | `saml_metadata_unsigned` | low | 0 (reuse discovery) | metadata found |
 | Issuer confusion | `saml_issuer_spoof` | high | 2 | unsigned rejected + entityID known, depth ≠ quick |
 

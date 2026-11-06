@@ -1,6 +1,8 @@
 // Dark Matter rule-based scanner — unit tests (no network, no docker).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import http from 'node:http';
+import zlib from 'node:zlib';
 import { normalizeTarget, authorizeTarget, assertInScope } from './target.js';
 import { parseJsonl } from './runner.js';
 import { detectTech, detectDbFamily } from './fingerprint.js';
@@ -10,6 +12,7 @@ import { probeCsrf } from './probes/csrf.js';
 import { probeIdorSurface } from './probes/idor.js';
 import { verifyFindings } from './verifier.js';
 import { probePostForms } from './probes/postForms.js';
+import { runScan } from './index.js';
 
 describe('target', () => {
   it('normalizes bare hosts to https', () => {
@@ -838,5 +841,94 @@ describe('iter5 probe: smuggling (raw socket, local TCP server)', () => {
     const { probeRequestSmuggling } = await import('./probes/smuggling.js');
     const findings = await probeRequestSmuggling('https://example.com/', { timeoutMs: 2000 });
     assert.equal(findings.length, 0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runScan OOB wiring (SAML-XXE collaborator, 6 Nov 2026): proves the full
+// path — labTargets plumbing → collaborator starts for the saml phase →
+// the probe's blind-XXE payload makes the stub parser fetch the canary URL
+// → the hit confirms in-scan → verifyFindings marks it confirmed → the
+// finding lands in result.findings (not unconfirmed). The collaborator is
+// stopped when the scan ends (the callback URL refuses connections after).
+describe('runScan SAML-XXE OOB wiring', () => {
+  function startOobStub() {
+    const server = http.createServer(async (req, res) => {
+      const u = new URL(req.url, 'http://127.0.0.1');
+      if (u.pathname === '/saml/acs' && req.method === 'POST') {
+        let raw = '';
+        req.on('data', (c) => { raw += c; });
+        req.on('end', async () => {
+          let xml = '';
+          try {
+            const params = new URLSearchParams(raw);
+            xml = zlib.inflateRawSync(Buffer.from(params.get('SAMLResponse') || '', 'base64')).toString('utf8');
+          } catch { /* malformed */ }
+          const sysUrl = (xml.match(/<!ENTITY\s+%\s+\w+\s+SYSTEM\s+"([^"]+)"/) || [])[1];
+          if (sysUrl) {
+            try { await fetch(sysUrl, { signal: AbortSignal.timeout(2000) }); } catch { /* the fetch IS the signal */ }
+          }
+          res.writeHead(400); res.end('rejected');
+        });
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html><body>stub</body></html>');
+    });
+    return new Promise((resolve) => {
+      server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port }));
+    });
+  }
+
+  const stopStub = (s) => new Promise((r) => s.server.close(r));
+
+  it('CONFIRMS saml_xxe_oob end-to-end on a lab-gated target', async () => {
+    const stub = await startOobStub();
+    try {
+      const result = await runScan(
+        {
+          target: `http://127.0.0.1:${stub.port}/`,
+          labTargets: '127.0.0.1',
+          phases: ['saml'],
+          confirmedAuthorized: true,
+        },
+        { timeoutMs: 3000, oobListenHost: '127.0.0.1', oobCallbackHost: '127.0.0.1' }
+      );
+      const f = (result.findings || []).find((x) => x.class === 'saml_xxe_oob');
+      assert.ok(f, `expected saml_xxe_oob in confirmed findings, got ${JSON.stringify((result.findings || []).map((x) => x.class))}`);
+      assert.equal(f.confirmation, 'confirmed');
+      assert.equal(f.severity, 'high');
+      assert.equal(f.evidence.oobHit, true);
+      assert.ok(!result.unconfirmed.some((x) => x.class === 'saml_xxe_oob'), 'must not also sit in unconfirmed');
+      const samlPhase = (result.phases || []).find((p) => p.name === 'saml');
+      assert.ok(samlPhase && samlPhase.ok, 'saml phase must record ok');
+      // Collaborator lifecycle: the callback URL refuses connections once
+      // the scan (and its finally-stop) has finished.
+      const oobUrl = (f.evidence.response.match(/https?:\/\/127\.0\.0\.1:\d+\/saml-xxe-[a-z0-9]+/) || [])[0];
+      assert.ok(oobUrl, 'evidence must carry the callback URL');
+      await assert.rejects(fetch(oobUrl, { signal: AbortSignal.timeout(2000) }));
+    } finally {
+      await stopStub(stub);
+    }
+  });
+
+  it('NEGATIVE: no saml_xxe_oob when the target is not lab-gated', async () => {
+    const stub = await startOobStub();
+    try {
+      const result = await runScan(
+        {
+          target: `http://127.0.0.1:${stub.port}/`,
+          labTargets: '',
+          phases: ['saml'],
+          confirmedAuthorized: true,
+        },
+        { timeoutMs: 3000, oobListenHost: '127.0.0.1', oobCallbackHost: '127.0.0.1' }
+      );
+      const classes = [...(result.findings || []), ...(result.unconfirmed || [])].map((x) => x.class);
+      assert.ok(!classes.includes('saml_xxe_oob'), `unexpected saml_xxe_oob in ${classes}`);
+      assert.ok(!classes.includes('saml_xxe_oob_sent'), `unexpected saml_xxe_oob_sent in ${classes}`);
+    } finally {
+      await stopStub(stub);
+    }
   });
 });
