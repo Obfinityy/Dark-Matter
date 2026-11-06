@@ -932,3 +932,89 @@ describe('runScan SAML-XXE OOB wiring', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// runScan XXE OOB wiring (6 Nov 2026): proves the full path — labTargets
+// plumbing → collaborator starts for the xxe phase → the probe's blind-XXE
+// payload makes the stub parser fetch the canary URL → the hit confirms
+// in-scan → verifyFindings marks it confirmed → the finding lands in
+// result.findings (not unconfirmed). The collaborator is stopped when the
+// scan ends (the callback URL refuses connections after). Mirrors the
+// saml block above; the xxe collaborator is a separate per-phase
+// listener, so this block also proves the two OOB phases do not interfere.
+describe('runScan XXE OOB wiring', () => {
+  function startOobStub() {
+    const server = http.createServer(async (req, res) => {
+      if (req.method === 'POST') {
+        let raw = '';
+        req.on('data', (c) => { raw += c; });
+        req.on('end', async () => {
+          const sysUrl = (raw.match(/<!ENTITY\s+%\s+\w+\s+SYSTEM\s+"([^"]+)"/) || [])[1];
+          if (sysUrl) {
+            try { await fetch(sysUrl, { signal: AbortSignal.timeout(2000) }); } catch { /* the fetch IS the signal */ }
+          }
+          res.writeHead(200, { 'Content-Type': 'text/plain' });
+          res.end('parsed ok');
+        });
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html><body>stub</body></html>');
+    });
+    return new Promise((resolve) => {
+      server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port }));
+    });
+  }
+
+  const stopStub = (s) => new Promise((r) => s.server.close(r));
+
+  it('CONFIRMS xxe_oob end-to-end on a lab-gated target', async () => {
+    const stub = await startOobStub();
+    try {
+      const result = await runScan(
+        {
+          target: `http://127.0.0.1:${stub.port}/`,
+          labTargets: '127.0.0.1',
+          phases: ['xxe'],
+          confirmedAuthorized: true,
+        },
+        { timeoutMs: 3000, oobListenHost: '127.0.0.1', oobCallbackHost: '127.0.0.1' }
+      );
+      const f = (result.findings || []).find((x) => x.class === 'xxe_oob');
+      assert.ok(f, `expected xxe_oob in confirmed findings, got ${JSON.stringify((result.findings || []).map((x) => x.class))}`);
+      assert.equal(f.confirmation, 'confirmed');
+      assert.equal(f.severity, 'high');
+      assert.equal(f.evidence.oobHit, true);
+      assert.ok(!result.unconfirmed.some((x) => x.class === 'xxe_oob'), 'must not also sit in unconfirmed');
+      const xxePhase = (result.phases || []).find((p) => p.name === 'xxe');
+      assert.ok(xxePhase && xxePhase.ok, 'xxe phase must record ok');
+      // Collaborator lifecycle: the callback URL refuses connections once
+      // the scan (and its finally-stop) has finished.
+      const oobUrl = (f.evidence.response.match(/https?:\/\/127\.0\.0\.1:\d+\/xxe-oob-[a-z0-9]+/) || [])[0];
+      assert.ok(oobUrl, 'evidence must carry the callback URL');
+      await assert.rejects(fetch(oobUrl, { signal: AbortSignal.timeout(2000) }));
+    } finally {
+      await stopStub(stub);
+    }
+  });
+
+  it('NEGATIVE: no xxe_oob when the target is not lab-gated', async () => {
+    const stub = await startOobStub();
+    try {
+      const result = await runScan(
+        {
+          target: `http://127.0.0.1:${stub.port}/`,
+          labTargets: '',
+          phases: ['xxe'],
+          confirmedAuthorized: true,
+        },
+        { timeoutMs: 3000, oobListenHost: '127.0.0.1', oobCallbackHost: '127.0.0.1' }
+      );
+      const classes = [...(result.findings || []), ...(result.unconfirmed || [])].map((x) => x.class);
+      assert.ok(!classes.includes('xxe_oob'), `unexpected xxe_oob in ${classes}`);
+      assert.ok(!classes.includes('xxe_oob_sent'), `unexpected xxe_oob_sent in ${classes}`);
+    } finally {
+      await stopStub(stub);
+    }
+  });
+});

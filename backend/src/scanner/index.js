@@ -552,7 +552,46 @@ export async function runScan(
     )
   );
   await step('files', () => probeSensitiveFiles(url, opts));
-  await step('xxe', () => probeXxe(url, opts));
+  // XXE OOB collaborator (6 Nov 2026): the xxe probe's blind-XXE variant
+  // needs a callback base AND a waiter — same pattern as the saml block
+  // below, one collaborator per OOB phase so each listener lives only for
+  // its own phase and the proven saml wiring stays untouched. Only when
+  // the target is lab-gated (allowWrite, the same host check as the
+  // file-upload gate). Start is best-effort: a bind failure is recorded
+  // in errors and the scan continues with the OOB variant skipped, exactly
+  // as before this lane. The collaborator is always stopped afterwards
+  // (finally), so no listener outlives the scan. Callback-host default is
+  // the docker bridge gateway (172.17.0.1) — the IP lab containers use to
+  // reach the host; override with opts.oobCallbackHost / DM_OOB_CALLBACK_HOST.
+  let xxeOob = null;
+  if (phases.includes('xxe') && allowWrite) {
+    try {
+      xxeOob = createOobCollaborator({
+        listenHost: opts.oobListenHost || process.env.DM_OOB_LISTEN_HOST || '0.0.0.0',
+        listenPort: opts.oobListenPort || (process.env.DM_OOB_PORT ? Number(process.env.DM_OOB_PORT) : 0),
+        callbackHost: opts.oobCallbackHost || process.env.DM_OOB_CALLBACK_HOST || '172.17.0.1',
+      });
+      await xxeOob.start();
+    } catch (e) {
+      errors.push(`oob-collaborator: ${e && e.message ? e.message : String(e)}`);
+      xxeOob = null;
+    }
+  }
+  try {
+    await step('xxe', () =>
+      probeXxe(url, {
+        ...opts,
+        labTargets,
+        ...(xxeOob
+          ? { oobCallback: xxeOob.baseUrl(), oobWaitFor: (token, ms) => xxeOob.waitFor(token, ms) }
+          : {}),
+      })
+    );
+  } finally {
+    if (xxeOob) {
+      try { await xxeOob.stop(); } catch { /* stop is best-effort */ }
+    }
+  }
   await step('idor', () => probeIdorSurface(url));
   await step('cors', () => probeCors(url, opts));
   await step('cookies', () => probeCookieFlags(url, opts));

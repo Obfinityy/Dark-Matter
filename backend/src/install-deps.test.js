@@ -5,8 +5,8 @@
 // on `Cannot find module '@smithy/core/retry'`. `npm ci` deletes
 // node_modules FIRST and then reinstalls, so ANY node start inside the
 // ~2s window fails module resolution. install-deps.sh installs into a
-// staging tree and swaps it in with two renames, so the live tree is never
-// observed half-built.
+// staging tree and swaps it in with one atomic RENAME_EXCHANGE, so the
+// live tree is never observed half-built.
 //
 // These tests run the REAL script (and, as a control, the REAL plain
 // `npm ci`) against a fixture backend dir holding the repo's actual
