@@ -3,7 +3,7 @@
 // vulnerability scanner (no AI, no API spend) and records findings as hunt
 // events, instead of launching the AI agent loop.
 import { runScan, buildPhaseRollup } from './scanner/index.js';
-import { appendHuntEvent, readHuntMeta, writeHuntMeta } from './store.js';
+import { appendHuntEvent, readHuntEvents, readHuntMeta, writeHuntMeta } from './store.js';
 import { notifyFinding } from './notifications.js';
 
 function record(huntId, event) {
@@ -112,7 +112,33 @@ export function buildScannerFindingRecords(f) {
   ];
 }
 
+// ACTIVE SCANNER RUNS (6 Nov 2026, resume/finalize fix): the in-process
+// registry that tells a LIVE scan from an orphaned one. runScannerHunt
+// registers here synchronously at entry (before its first await) and
+// unregisters in a finally, so the boot/periodic reconciler can trust it:
+// after any backend restart this set is empty, so every `running` scanner
+// meta is definitionally orphaned (the process that ran it is gone). A
+// live scan is in the set, so the reconciler never double-starts it.
+// (The AI lane has the equivalent guard in huntAgent.js isDriverActive;
+// scanner runs are host-side in the backend process, not in a container,
+// so the container is NOT a liveness signal for them.)
+const activeScannerRuns = new Set();
+
+/** True while a runScannerHunt invocation for this hunt is live in this process. */
+export function isScannerRunActive(huntId) {
+  return activeScannerRuns.has(huntId);
+}
+
 export async function runScannerHunt(huntId, target, opts = {}) {
+  activeScannerRuns.add(huntId);
+  try {
+    return await runScannerHuntInner(huntId, target, opts);
+  } finally {
+    activeScannerRuns.delete(huntId);
+  }
+}
+
+async function runScannerHuntInner(huntId, target, opts = {}) {
   const startedAt = new Date().toISOString();
   const scanDepth = opts.scanDepth === 'quick' || opts.scanDepth === 'deep' ? opts.scanDepth : 'standard';
   // Depth → real runScan knobs. Quick trims the slowest phases (blind
@@ -289,4 +315,113 @@ export async function runScannerHunt(huntId, target, opts = {}) {
     await drainNextQueuedHunt(opts);
     return { ok: false, error: err.message || String(err) };
   }
+}
+
+// RESUME ACROSS RESTARTS (6 Nov 2026, bWAPP orphan h_f8d776f72365).
+//
+// The gap: the boot + 60s reconciler (server.js scanAndResumeRunningHunts)
+// calls resumeInterruptedHunt, which returns false for scanner hunts (3 Nov
+// fix — the AI loop must never launch for them). A scanner hunt killed
+// mid-flight therefore stayed state:'running' forever: its in-memory
+// runScan result (the ONLY place finding objects live) died with the
+// backend, and the `running` meta held the MAX_CONCURRENT_HUNTS slot so
+// drainQueue could never start the next queued hunt.
+//
+// Design decision — RESUME (full re-run), not finalize-from-disk. The
+// orphan's own data proves finalize is impossible: its 62 phase events
+// carry ONLY findingsCount (headers 5, files 1, request-smuggling 1,
+// tls 1 = 8) — no class/title/severity/evidence survives on disk, so
+// there are no finding objects to emit. A finalize would write
+// "finished, 8 findings" with zero finding events: the findings would
+// still never surface. The only correct recovery is a full re-run —
+// scanner hunts are deterministic, $0 and minutes-long, and the bWAPP
+// re-run proved it recovers the findings (5 verified). panelFindings
+// dedupes by normalised title, so a re-run re-emitting a finding the
+// dead run already emitted (only possible if the process died
+// mid-finalize, a millisecond window) is harmless at the panel.
+//
+// Stopped hunts are deliberately NOT resumed: `stopped` is an
+// owner-held terminal state (stop route / isHeldMeta) — auto-resuming it
+// would undo an explicit stop. A stopped hunt also never blocks the
+// queue (countRunningHunts counts only 'running'), so there is nothing
+// to fix there; recovery for a stopped hunt is a fresh re-run hunt,
+// which is exactly how the bWAPP orphan's findings were recovered.
+//
+// Returns true when a re-run was launched, false when there was nothing
+// to resume (not running, not a scanner hunt, already finalized, live
+// scan in this process, or no target — the no-target case is still
+// failed out so it stops holding the concurrency slot).
+// opts carries the test seams (teardownContainer, drainQueue) through to
+// runScannerHunt; production callers pass none.
+export async function resumeInterruptedScannerHunt(huntId, opts = {}) {
+  const meta = readHuntMeta(huntId);
+  if (!meta || meta.state !== 'running') return false;
+  if (meta.brainMode !== 'scanner') return false;
+  // Already finalized (a previous resume's run finished, or the original
+  // run finalized after the reconciler's read): nothing to do.
+  if (meta.scannerFinishedAt || meta.scannerSummary) return false;
+  // A live scan in this process is NOT orphaned — never double-start.
+  if (isScannerRunActive(huntId)) return false;
+  const target = meta.target;
+  if (!target) {
+    // A running hunt with no target can never scan. Mark it failed so it
+    // stops holding the concurrency slot, then drain the queue.
+    record(huntId, {
+      type: 'status',
+      state: 'scanner_failed',
+      error: 'scanner resume: hunt has no target',
+    });
+    try {
+      writeHuntMeta(huntId, { ...meta, huntId, state: 'failed' });
+    } catch {
+      // best-effort
+    }
+    await destroyHuntContainer(huntId, opts);
+    await drainNextQueuedHunt(opts);
+    return false;
+  }
+  // Audit trail: how far the dead run got. Phase records survive (counts
+  // only); finding objects do not — see the header comment above.
+  let priorPhases = 0;
+  let priorFindingsCount = 0;
+  let priorFindingEvents = 0;
+  try {
+    for (const e of readHuntEvents(huntId)) {
+      if (!e) continue;
+      if (e.type === 'phase') {
+        priorPhases += 1;
+        priorFindingsCount += Number(e.findingsCount) || 0;
+      } else if (e.type === 'finding') {
+        priorFindingEvents += 1;
+      }
+    }
+  } catch {
+    // best-effort
+  }
+  record(huntId, {
+    type: 'status',
+    state: 'resumed_from_restart',
+    reason: 'interrupted',
+    priorPhases,
+    priorFindingsCount,
+    priorFindingEvents,
+    message:
+      `Scanner run interrupted (backend restart); re-running the full battery — ` +
+      `${priorPhases} phases had completed, ${priorFindingsCount} findings counted but not emitted.`,
+  });
+  // Fire and forget — runScannerHunt finalizes normally (findings →
+  // summary → meta finished → container teardown → queue drain).
+  runScannerHunt(huntId, target, {
+    ...opts,
+    scope: meta.scope ?? null,
+    userId: meta.userId || null,
+    scanDepth: meta.scanDepth || 'standard',
+  }).catch((err) => {
+    record(huntId, {
+      type: 'status',
+      state: 'scanner_failed',
+      error: err && err.message ? err.message : String(err),
+    });
+  });
+  return true;
 }

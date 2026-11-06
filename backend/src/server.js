@@ -655,9 +655,28 @@ server.listen(config.port, () => {
     try {
       const { listHuntMetas } = await import('./store.js');
       const { resumeInterruptedHunt } = await import('./huntAgent.js');
+      const { resumeInterruptedScannerHunt } = await import('./scannerHunt.js');
       let resumed = 0;
       for (const meta of listHuntMetas()) {
         if (meta && meta.state === 'running' && meta.huntId) {
+          // SCANNER ORPHANS (6 Nov 2026, resume/finalize fix):
+          // resumeInterruptedHunt returns false for scanner hunts by
+          // design (the AI loop must never launch for them), so a scanner
+          // hunt killed mid-flight stayed 'running' forever and held the
+          // concurrency slot. Scanner hunts re-run instead — findings live
+          // only in runScan's in-memory result, so a re-run is the only
+          // recovery; see resumeInterruptedScannerHunt.
+          if (meta.brainMode === 'scanner') {
+            const ok = await resumeInterruptedScannerHunt(meta.huntId).catch((err) => {
+              console.error(`[resume:${tag}] ${meta.huntId} scanner resume failed:`, err.message || err);
+              return false;
+            });
+            if (ok) {
+              resumed++;
+              console.log(`[resume:${tag}] ${meta.huntId} scanner scan resumed after restart`);
+            }
+            continue;
+          }
           const ok = await resumeInterruptedHunt(meta.huntId).catch((err) => {
             console.error(`[resume:${tag}] ${meta.huntId} failed:`, err.message || err);
             return false;
