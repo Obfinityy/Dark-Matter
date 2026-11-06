@@ -416,31 +416,207 @@ export async function huntContainerRunning(huntId) {
   }
 }
 
-/** Destroy a hunt container (idempotent). Also removes P2 egress state
- * (iptables/ipset/proxy/network) for hunts that carry it — best-effort,
- * never breaks the teardown itself. */
-export async function teardownHuntContainer(huntId) {
+/**
+ * Destroy a hunt container (idempotent). Also removes P2 egress state
+ * (iptables/ipset/proxy/network) — best-effort, never breaks the teardown
+ * itself. Returns true when `docker rm -f` removed the container.
+ *
+ * EGRESS-TEARDOWN LEAK (6 Nov 2026, h_fc3861b36b82): the old code did
+ * `docker rm -f` and returned false on ANY failure — BEFORE the egress
+ * block. `rm -f` exits non-zero when the container is already gone,
+ * so a hunt whose container vanished by any other path (manual removal,
+ * docker prune, a second teardown racing the first) leaked its chain +
+ * ipsets + network forever; and scanner hunts that finished BEFORE the
+ * 6 Nov container-cleanup lane (e52c98c2) never called teardown at all.
+ * The container and the kernel state are INDEPENDENT cleanups: a failed
+ * rm must never gate the egress removal.
+ *
+ * Safety on the ambiguous rm failure: if `rm -f` fails for a reason
+ * OTHER than "no such container", the container may still be alive —
+ * removing its egress filter while it runs would leave a live container
+ * unfiltered. So an ambiguous failure asks `docker inspect`: the
+ * container exists → skip the egress removal (a later teardown /
+ * reconciler tick retries once it is really gone); inspect says "no
+ * such container" → the container is gone, remove the egress state;
+ * inspect itself fails ambiguously (daemon down) → skip (fail-closed).
+ * Only the proven-gone case proceeds. `deps` is a test seam only
+ * (production callers pass nothing): deps.docker replaces the docker
+ * runner, deps.readMeta / deps.stopProxy / deps.removeEgress replace the
+ * dynamic imports, so tests never run live docker/iptables.
+ */
+export async function teardownHuntContainer(huntId, deps = {}) {
   const name = containerName(huntId);
+  const runDocker = deps.docker || docker;
+  let removed = false;
+  let containerGone = false;
   try {
-    await docker(['rm', '-f', name]);
-  } catch {
-    return false;
-  }
-  // P2: clean up egress state for hunts that have it. Hunts without
-  // meta.egress (legacy / pre-P2) skip silently.
-  try {
-    const { readHuntMeta } = await import('./store.js');
-    const meta = readHuntMeta(huntId) || {};
-    if (meta.egress && meta.egress.setName) {
-      const { stopProxyForHunt, removeHuntEgress } = await import('./egressControl.js');
-      await stopProxyForHunt(huntId).catch(() => {});
-      await removeHuntEgress(huntId, {
-        containerIps: meta.egress.containerIps,
-        resolverIp: meta.egress.resolverIp,
-      }).catch(() => {});
+    await runDocker(['rm', '-f', name]);
+    removed = true;
+    containerGone = true;
+  } catch (err) {
+    if (/no such container/i.test(String((err && err.message) || err))) {
+      containerGone = true;
+    } else {
+      // Ambiguous rm failure — is the container still there?
+      try {
+        await runDocker(['inspect', name]);
+        containerGone = false; // exists: keep its egress filter
+      } catch (inspectErr) {
+        containerGone = /no such container/i.test(String((inspectErr && inspectErr.message) || inspectErr));
+      }
     }
-  } catch { /* best-effort only */ }
-  return true;
+  }
+  // P2 egress cleanup — runs whenever the container is proven gone,
+  // whether or not `rm -f` did the removal. meta.egress is deliberately
+  // NOT a gate here: it is a record, not ground truth — hunts whose
+  // meta lost the egress block (or never had one, e.g. the 1 Nov
+  // finalize failures) still leak a docker network, and the removal
+  // plan derives every name from the huntId alone, so it can only ever
+  // touch THIS hunt's state. removeHuntEgress is best-effort and
+  // idempotent: for a hunt that never had kernel state every command
+  // simply fails silently.
+  if (containerGone) {
+    try {
+      const readMeta =
+        deps.readMeta || (await import('./store.js')).readHuntMeta;
+      const meta = readMeta(huntId) || {};
+      const stopProxy =
+        deps.stopProxy || (await import('./egressControl.js')).stopProxyForHunt;
+      const removeEgress =
+        deps.removeEgress || (await import('./egressControl.js')).removeHuntEgress;
+      await stopProxy(huntId).catch(() => {});
+      await removeEgress(huntId, {
+        containerIps: meta.egress ? meta.egress.containerIps : undefined,
+        resolverIp: meta.egress ? meta.egress.resolverIp : undefined,
+      }).catch(() => {});
+    } catch { /* best-effort only */ }
+  }
+  return removed;
+}
+
+/**
+ * Is a hunt's driver live in this process (or another process holding a
+ * fresh driver.lock)? Fail-closed: any doubt reads as live, so the
+ * reconciler below skips the hunt instead of risking a live hunt's
+ * egress state. Dynamic imports keep huntRunner free of a top-level
+ * cycle (huntAgent.js and scannerHunt.js both import this module).
+ */
+async function isHuntLive(huntId) {
+  try {
+    const { isScannerRunActive } = await import('./scannerHunt.js');
+    if (isScannerRunActive(huntId)) return true;
+  } catch {
+    return true;
+  }
+  try {
+    const { isDriverActive } = await import('./huntAgent.js');
+    if (isDriverActive(huntId)) return true;
+  } catch {
+    return true;
+  }
+  return false;
+}
+
+/** Terminal hunt states: a hunt here never runs again (resume 409s). */
+export const TERMINAL_HUNT_STATES = new Set(['finished', 'stopped', 'failed']);
+
+/**
+ * Reconcile stale egress kernel state (boot + periodic, server.js).
+ *
+ * EGRESS-TEARDOWN LEAK (6 Nov 2026): h_fc3861b36b82 finished 4 Nov but
+ * its chain + both ipsets + network were still live on EC2 days later —
+ * the finish path of its day never called teardown at all, and no
+ * later pass ever revisited it. This reconciler is that later pass.
+ *
+ * Safety proof — it CANNOT remove a live hunt's state:
+ *  (1) terminal-state gate: only hunts in finished/stopped/failed are
+ *      considered. A hunt there never runs again: the resume routes
+ *      409 terminal hunts, resumeInterruptedHunt requires a
+ *      running/paused hunt, and resumeInterruptedScannerHunt requires
+ *      state 'running'. Running and paused hunts are never touched —
+ *      a paused hunt's network (e.g. h_7d49c6ef7447) is left alone.
+ *  (2) kernel-presence gate: the hunt is torn down ONLY when one of
+ *      ITS names (chain / tuple set / ip set / network, derived from
+ *      its huntId by the same egress*Name functions the plan builder
+ *      uses) actually appears in the live kernel probe. No artifact →
+ *      no action, so hunts whose state is already gone cost nothing
+ *      and can never be disturbed. Names embed the huntId, so one
+ *      hunt's teardown can never match another hunt's state.
+ *  (3) live-driver guard: a hunt with a live scanner run or AI driver
+ *      in this process (or a fresh driver.lock in another) is skipped,
+ *      and any failure to determine liveness reads as live
+ *      (isHuntLive fails closed). This covers the mid-transition
+ *      window where a finish path has written terminal meta but its
+ *      own teardown has not run yet — the finish path's teardown owns
+ *      the removal; the reconciler stays out of its way.
+ *  (4) the removal itself is teardownHuntContainer — the same
+ *      idempotent path the finish/stop routes already call, now fixed
+ *      so a missing container cannot gate the egress removal.
+ * A hunt with live kernel state but NO meta (deleted data dir) is out
+ * of scope: meta is the source of truth for hunt identity, and
+ * removing kernel state for an id with no hunt record would be
+ * guessing. Such a case needs a one-time manual removal (see the lane
+ * report's commands), not an automated sweep.
+ *
+ * Returns {checked, reconciled:[huntId], skipped:[{huntId, reason}]}.
+ * `opts` carries test seams only (listMetas, listLiveNames, teardown,
+ * isLive, recordEvent); production callers pass none.
+ */
+export async function reconcileStaleEgressState(opts = {}) {
+  const listMetas = opts.listMetas || (await import('./store.js')).listHuntMetas;
+  const listLiveNames =
+    opts.listLiveNames || (await import('./egressControl.js')).listLiveEgressNames;
+  const teardown = opts.teardown || teardownHuntContainer;
+  const isLive = opts.isLive || isHuntLive;
+  const metas = listMetas() || [];
+  const live = await listLiveNames().catch(() => ({ chains: new Set(), sets: new Set(), nets: new Set() }));
+  const liveChains = live.chains || new Set();
+  const liveSets = live.sets || new Set();
+  const liveNets = live.nets || new Set();
+  const { egressChainName, egressSetName, egressIpSetName, egressNetName } =
+    await import('./egressControl.js');
+  const reconciled = [];
+  const skipped = [];
+  for (const meta of metas) {
+    if (!meta || !meta.huntId || !TERMINAL_HUNT_STATES.has(meta.state)) continue;
+    const hasLiveState =
+      liveChains.has(egressChainName(meta.huntId)) ||
+      liveSets.has(egressSetName(meta.huntId)) ||
+      liveSets.has(egressIpSetName(meta.huntId)) ||
+      liveNets.has(egressNetName(meta.huntId));
+    if (!hasLiveState) continue;
+    let liveDriver = true;
+    try {
+      liveDriver = await isLive(meta.huntId);
+    } catch {
+      liveDriver = true;
+    }
+    if (liveDriver) {
+      skipped.push({ huntId: meta.huntId, reason: 'live-driver' });
+      continue;
+    }
+    try {
+      await teardown(meta.huntId);
+      reconciled.push(meta.huntId);
+      try {
+        const recordEvent =
+          opts.recordEvent ||
+          (async (huntId, event) => {
+            const { appendHuntEvent } = await import('./store.js');
+            appendHuntEvent(huntId, event);
+          });
+        await recordEvent(meta.huntId, {
+          type: 'status',
+          state: 'egress_teardown_reconciled',
+          message: 'Stale egress kernel state (chain/ipsets/network) removed by the periodic reconciler.',
+          at: new Date().toISOString(),
+        });
+      } catch { /* audit event is best-effort */ }
+    } catch (err) {
+      skipped.push({ huntId: meta.huntId, reason: `teardown-failed:${err && err.message ? err.message : String(err)}` });
+    }
+  }
+  return { checked: metas.length, reconciled, skipped };
 }
 
 /**

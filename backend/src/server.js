@@ -672,6 +672,26 @@ server.listen(config.port, () => {
       } catch (err) {
         console.error(`[resume:${tag}] queue hygiene failed:`, err.message || err);
       }
+      // EGRESS TEARDOWN (6 Nov 2026, h_fc3861b36b82 leak): a finished
+      // hunt's iptables chain + ipsets + network survived for days
+      // because its finish path never called teardown and nothing ever
+      // revisited it. The reconciler removes stale kernel state for
+      // terminal hunts only (finished/stopped/failed) — it provably
+      // cannot touch a live hunt (terminal-state gate + live kernel
+      // presence gate + live-driver guard; see reconcileStaleEgressState
+      // in huntRunner.js). Best-effort: a reconcile failure must never
+      // break hunt resume.
+      try {
+        const { reconcileStaleEgressState } = await import('./huntRunner.js');
+        const stale = await reconcileStaleEgressState();
+        if (stale.reconciled.length) {
+          console.log(
+            `[resume:${tag}] egress teardown: removed stale kernel state for ${stale.reconciled.length} finished hunt(s): ${stale.reconciled.join(', ')}`
+          );
+        }
+      } catch (err) {
+        console.error(`[resume:${tag}] egress teardown reconcile failed:`, err.message || err);
+      }
       const { listHuntMetas } = await import('./store.js');
       const { resumeInterruptedHunt } = await import('./huntAgent.js');
       const { resumeInterruptedScannerHunt } = await import('./scannerHunt.js');

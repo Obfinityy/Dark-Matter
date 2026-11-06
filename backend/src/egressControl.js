@@ -423,6 +423,58 @@ export async function removeHuntEgress(huntId, opts = {}, { run = defaultRunner 
 }
 
 /**
+ * Read-only probe of the live kernel egress state: which per-hunt
+ * iptables chains, ipsets and docker networks exist RIGHT NOW.
+ *
+ * EGRESS-TEARDOWN LEAK (6 Nov 2026, h_fc3861b36b82): a finished hunt's
+ * chain + both ipsets + network survived for days because NOTHING ever
+ * looked at the kernel — every teardown decision was driven by meta
+ * alone, and the one teardown call that should have removed them never
+ * ran. The stale-state reconciler (huntRunner.js) uses this probe as
+ * its ground truth: a hunt is only torn down when one of ITS names
+ * (derived from its huntId via egressChainName/egressSetName/
+ * egressIpSetName/egressNetName — same functions the plan builder
+ * uses, so truncation matches) actually appears here. No kernel
+ * artifact → no action, so the probe can never disturb a hunt whose
+ * state is already gone. Pure read: `iptables -S`, `ipset list -n`,
+ * `docker network ls` — never a -D/-X/destroy/rm. A failed probe
+ * yields empty sets (fail-closed: the reconciler then does nothing).
+ */
+export async function listLiveEgressNames({ run = defaultRunner } = {}) {
+  const chains = new Set();
+  const sets = new Set();
+  const nets = new Set();
+  try {
+    const r = await run(['iptables', '-S']);
+    if (r && r.ok && r.stdout) {
+      for (const line of String(r.stdout).split('\n')) {
+        const m = line.trim().match(/^-N\s+(\S+)/);
+        if (m) chains.add(m[1]);
+      }
+    }
+  } catch { /* probe failure reads as "nothing live" */ }
+  try {
+    const r = await run(['ipset', 'list', '-n']);
+    if (r && r.ok && r.stdout) {
+      for (const line of String(r.stdout).split('\n')) {
+        const name = line.trim();
+        if (name) sets.add(name);
+      }
+    }
+  } catch { /* probe failure reads as "nothing live" */ }
+  try {
+    const r = await run(['docker', 'network', 'ls', '--format', '{{.Name}}']);
+    if (r && r.ok && r.stdout) {
+      for (const line of String(r.stdout).split('\n')) {
+        const name = line.trim();
+        if (name) nets.add(name);
+      }
+    }
+  } catch { /* probe failure reads as "nothing live" */ }
+  return { chains, sets, nets };
+}
+
+/**
  * Re-resolve scope hostnames and refresh the tuple set (reconciler tick).
  * Skips hunts without egress state. Never removes everything on DNS failure
  * (fail-closed on the allow side would brick the hunt — keep old entries).

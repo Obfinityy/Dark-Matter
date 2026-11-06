@@ -23,6 +23,7 @@ import {
   applyEgressPlan,
   refreshHuntEgress,
   finalizeHuntEgress,
+  listLiveEgressNames,
   isTransientEgressError,
   FINALIZE_APPLY_MAX_ATTEMPTS,
   FINALIZE_RETRY_DELAYS_MS,
@@ -628,4 +629,53 @@ test('finalizeHuntEgress: transient failure exhausts retries, then throws with d
   );
   assert.equal(creates, FINALIZE_APPLY_MAX_ATTEMPTS, 'bounded retries, no more');
   assert.deepEqual(sleeps, FINALIZE_RETRY_DELAYS_MS, 'backoff delays in order');
+});
+
+// EGRESS-TEARDOWN LEAK (6 Nov 2026, h_fc3861b36b82): the stale-state
+// reconciler needs a read-only ground truth for what is actually live
+// in the kernel. listLiveEgressNames parses `iptables -S` (chain lines
+// only — -A rules are not chains), `ipset list -n` and
+// `docker network ls` through an injected runner: no sudo, no docker.
+test('listLiveEgressNames: parses chains, sets and networks from probe output', async () => {
+  const run = async (argv) => {
+    if (argv[0] === 'iptables') {
+      return {
+        ok: true,
+        stdout:
+          '-P INPUT ACCEPT\n' +
+          '-N dm-egress-h_fc3861b36b82\n' +
+          '-A INPUT -s 172.24.0.2/32 -j dm-egress-h_fc3861b36b82\n' +
+          '-N DOCKER-USER\n',
+      };
+    }
+    if (argv[0] === 'ipset') {
+      return { ok: true, stdout: 'dm-allow-h_fc3861b36b82\ndm-allow-ip-h_fc3861b36b82\n' };
+    }
+    if (argv[0] === 'docker') {
+      return { ok: true, stdout: 'bridge\ndm-net-h_fc3861b36b82\n' };
+    }
+    return { ok: false, error: 'unexpected command' };
+  };
+  const { chains, sets, nets } = await listLiveEgressNames({ run });
+  assert.deepEqual([...chains].sort(), ['DOCKER-USER', 'dm-egress-h_fc3861b36b82']);
+  assert.deepEqual([...sets].sort(), ['dm-allow-h_fc3861b36b82', 'dm-allow-ip-h_fc3861b36b82']);
+  assert.deepEqual([...nets].sort(), ['bridge', 'dm-net-h_fc3861b36b82']);
+});
+
+test('listLiveEgressNames: a failed probe reads as nothing live', async () => {
+  const run = async () => ({ ok: false, error: 'iptables: command not found' });
+  const { chains, sets, nets } = await listLiveEgressNames({ run });
+  assert.equal(chains.size, 0);
+  assert.equal(sets.size, 0);
+  assert.equal(nets.size, 0);
+});
+
+test('listLiveEgressNames: a throwing runner reads as nothing live', async () => {
+  const run = async () => {
+    throw new Error('spawn ENOENT');
+  };
+  const { chains, sets, nets } = await listLiveEgressNames({ run });
+  assert.equal(chains.size, 0);
+  assert.equal(sets.size, 0);
+  assert.equal(nets.size, 0);
 });
