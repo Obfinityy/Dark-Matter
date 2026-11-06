@@ -48,10 +48,10 @@ describe('param battery skipped records (35/63 fix)', () => {
     for (const name of PARAM_BATTERY_PHASES) {
       assert.ok(DEFAULT_PHASES.includes(name), `${name} missing from DEFAULT_PHASES`);
     }
-    // 65 since 6 Nov 2026 (VAmPI OpenAPI targets): 'openapi-targets'
-    // joins the battery so pure-API targets get a spec-driven
-    // inventory pass.
-    assert.equal(DEFAULT_PHASES.length, 65);
+    // 66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
+    // joins the battery so spec-less SPA APIs get a bundle-mined
+    // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
+    assert.equal(DEFAULT_PHASES.length, 66);
   });
 
   it('zero param targets: all 28 param phases emit skipped records, rollup reports them', async () => {
@@ -300,15 +300,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 65,
-        ok: 37,
+        total: 66,
+        ok: 38,
         failed: 0,
         skipped: 28,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 37 ran ok, 28 skipped (no param targets), 0 failed, 0 timed out.'
+        'Phases: 38 ran ok, 28 skipped (no param targets), 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

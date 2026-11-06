@@ -67,6 +67,7 @@ import { probeSaml } from './probes/saml.js';
 import { createOobCollaborator } from './oobCollaborator.js';
 import { discoverDomForms } from './domRender.js';
 import { discoverOpenApiTargets } from './openapi.js';
+import { discoverJsRoutes } from './jsRoutes.js';
 import { probeTls } from './probes/tlsScan.js';
 import { probePasswordReset } from './probes/passwordReset.js';
 import { probeElInject } from './probes/elInject.js';
@@ -80,6 +81,7 @@ export const DEFAULT_PHASES = [
   'page-analyze',
   'dom-render',
   'openapi-targets',
+  'js-api-routes',
   'headers',
   'sqli-error',
   'sqli-blind',
@@ -626,6 +628,50 @@ export async function runScan(
               findingsCount: (openApiDiscovery.targets || []).length,
               openApiTargets: (openApiDiscovery.targets || []).length,
               openApiSpec: openApiDiscovery.specUrl || null,
+            }
+          : {}
+    );
+  }
+
+  // JS-API ROUTES (7 Nov 2026, Juice Shop): the spec survey proved
+  // Juice publishes NO standalone OpenAPI spec, so openapi-targets
+  // can never unlock the battery there — but the SPA's served JS
+  // bundle contains every /rest/* + /api/* route the frontend calls
+  // (50 distinct literals + 27 service bases in main.js, live).
+  // When (and only when) the target builder AND openapi-targets both
+  // produced zero param-bearing targets, mine the page's same-origin
+  // <script> bundles for GET-usable routes (see jsRoutes.js) and
+  // synthesise GET targets from them. The gate is re-checked fresh
+  // here: if openapi-targets already unlocked the battery, this step
+  // never fires, so VAmPI/DVWA/WebGoat rollups stay byte-identical.
+  // opts.jsRoutesFetcher is the test seam, mirroring openApiFetcher.
+  let jsRoutesDiscovery = null;
+  if (!scanTargets.some((u) => extractParams(u).length > 0)) {
+    await step(
+      'js-api-routes',
+      async () => {
+        jsRoutesDiscovery = await discoverJsRoutes(url, {
+          ...opts,
+          ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+        });
+        if (!jsRoutesDiscovery || !jsRoutesDiscovery.targets || jsRoutesDiscovery.targets.length === 0) {
+          return jsRoutesDiscovery;
+        }
+        for (const t of jsRoutesDiscovery.targets) pushFormTarget(t);
+        if (jsRoutesDiscovery.pathParams) {
+          for (const [targetUrl, descriptors] of Object.entries(jsRoutesDiscovery.pathParams)) {
+            pathParamsByUrl.set(targetUrl, descriptors);
+          }
+        }
+        return jsRoutesDiscovery;
+      },
+      () =>
+        jsRoutesDiscovery
+          ? {
+              findingsCount: (jsRoutesDiscovery.targets || []).length,
+              jsRoutesFound: (jsRoutesDiscovery.targets || []).length,
+              jsRouteTargets: (jsRoutesDiscovery.targets || []).length,
+              jsBundles: jsRoutesDiscovery.bundlesFetched || 0,
             }
           : {}
     );
