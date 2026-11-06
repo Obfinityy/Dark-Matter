@@ -14,6 +14,16 @@
 //   - a legacy broken meta (state paused, flag missing) is repaired
 //     by the next checkpoint write;
 //   - ordinary progress writes are unaffected.
+// Reason invariant (6 Nov 2026, paused-without-reason lane): a paused
+// state always carries a pausedReason. The owner-pause routes wrote
+// {state:'paused', paused:true} with no reason, leaving h_830317bdc184
+// paused with pausedReason null (28 Oct 2026). Asserted here:
+//   - a reason-less pause patch lands pausedReason 'unknown';
+//   - a legacy reason-less paused meta (the h_830317bdc184 shape) is
+//     repaired to 'unknown' by the next checkpoint write, key present
+//     with null AND key absent;
+//   - a real pause reason is never overwritten by 'unknown';
+//   - a running hunt stays reason-less (no false 'unknown').
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -77,4 +87,48 @@ test('ordinary progress writes are unaffected', () => {
   assert.equal(meta.state, 'running');
   assert.equal(meta.paused, undefined);
   assert.equal(meta.iteration, 8);
+});
+
+test('reason-less pause patch lands pausedReason unknown, never null', () => {
+  seed('h_noreason', { state: 'running', iteration: 10 });
+  writeHuntMetaCheckpoint('h_noreason', { state: 'paused', paused: true });
+  const meta = readHuntMeta('h_noreason');
+  assert.equal(meta.state, 'paused');
+  assert.equal(meta.paused, true);
+  assert.equal(meta.pausedReason, 'unknown');
+});
+
+test('legacy reason-less paused meta (h_830317bdc184 shape) is repaired', () => {
+  // Exact shape of the live hunt: paused, flag set, reason null.
+  seed('h_legacy_noreason', { state: 'paused', paused: true, pausedReason: null, iteration: 248 });
+  writeHuntMetaCheckpoint('h_legacy_noreason', { iteration: 249 });
+  const meta = readHuntMeta('h_legacy_noreason');
+  assert.equal(meta.state, 'paused');
+  assert.equal(meta.paused, true);
+  assert.equal(meta.pausedReason, 'unknown');
+  assert.equal(meta.iteration, 249);
+});
+
+test('legacy reason-less paused meta without the key at all is repaired', () => {
+  seed('h_legacy_nokey', { state: 'paused', paused: true, iteration: 248 });
+  writeHuntMetaCheckpoint('h_legacy_nokey', { iteration: 249 });
+  const meta = readHuntMeta('h_legacy_nokey');
+  assert.equal(meta.pausedReason, 'unknown');
+});
+
+test('a real pause reason is never overwritten by unknown', () => {
+  seed('h_realreason', { state: 'running', iteration: 5 });
+  writeHuntMetaCheckpoint('h_realreason', { state: 'paused', paused: true, pausedReason: 'budget_reached' });
+  assert.equal(readHuntMeta('h_realreason').pausedReason, 'budget_reached');
+  // A later progress write on the held hunt keeps the real reason.
+  writeHuntMetaCheckpoint('h_realreason', { iteration: 6 });
+  assert.equal(readHuntMeta('h_realreason').pausedReason, 'budget_reached');
+});
+
+test('running hunt with no reason stays reason-less (no false unknown)', () => {
+  seed('h_running', { state: 'running', iteration: 7 });
+  writeHuntMetaCheckpoint('h_running', { iteration: 8 });
+  const meta = readHuntMeta('h_running');
+  assert.equal(meta.state, 'running');
+  assert.equal(meta.pausedReason, undefined);
 });

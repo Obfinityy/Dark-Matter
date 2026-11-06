@@ -374,8 +374,8 @@ async function pauseHuntResilient(huntId) {
   } catch (err) {
     if (!(err instanceof EngineUnreachableError)) throw err;
     const m0 = readHuntMeta(huntId) || {};
-    writeHuntMeta(huntId, { ...m0, huntId, paused: true, state: 'paused' });
-    appendHuntEvent(huntId, { type: 'status', state: 'paused', at: new Date().toISOString() });
+    writeHuntMeta(huntId, { ...m0, huntId, paused: true, state: 'paused', pausedReason: 'user_paused' });
+    appendHuntEvent(huntId, { type: 'status', state: 'paused', reason: 'user_paused', at: new Date().toISOString() });
   }
 }
 

@@ -83,6 +83,11 @@ test('(a) setting parent pauses the AI loop; setting ai resumes it', async () =>
   const metaParent = readHuntMeta(huntId);
   assert.equal(getBrainMode(metaParent), 'parent');
   assert.equal(metaParent.paused, true);
+  // Paused-without-reason lane (6 Nov 2026): the engine-path pause
+  // never touches meta, so the re-assert in setBrainMode is the only
+  // meta write — it must carry the reason, or the hunt pauses
+  // reason-less like h_830317bdc184 did.
+  assert.equal(metaParent.pausedReason, 'brain_mode_parent');
 
   // Setting the same mode again is a no-op (no second pause call).
   const again = await setBrainMode(huntId, 'parent', { pauseEngine });
@@ -107,6 +112,9 @@ test('(a) host-side fallback pauses/resumes when there is no engine', async () =
   assert.equal(paused.ok, true);
   assert.equal(paused.via, 'host');
   assert.equal(readHuntMeta(huntId).state, 'paused');
+  // Paused-without-reason lane (6 Nov 2026): the host fallback must
+  // record why the hunt paused — h_830317bdc184 paused reason-less.
+  assert.equal(readHuntMeta(huntId).pausedReason, 'brain_mode_parent');
   const resumed = await resumeHuntLoop(huntId, { resumeEngine: down, resumeInterruptedHunt: async () => {} });
   assert.equal(resumed.ok, true);
   assert.equal(resumed.via, 'host');

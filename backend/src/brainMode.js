@@ -122,7 +122,7 @@ export async function pauseHuntLoop(huntId, deps = {}) {
   } catch (err) {
     if (!isEngineDown(err)) throw err;
     const m0 = readMeta(huntId) || {};
-    writeMeta(huntId, { ...m0, huntId, paused: true, state: 'paused' });
+    writeMeta(huntId, { ...m0, huntId, paused: true, state: 'paused', pausedReason: 'brain_mode_parent' });
     try { record(huntId, { type: 'status', state: 'paused', reason: 'brain_mode_parent', at: new Date().toISOString() }); } catch { /* best-effort */ }
     return { ok: true, via: 'host' };
   }
@@ -216,7 +216,7 @@ export async function setBrainMode(huntId, mode, deps = {}) {
   // every path, not just the host fallback.
   const fresh = readMeta(huntId) || meta;
   const loopFlags = m === 'parent'
-    ? { paused: true, state: 'paused' }
+    ? { paused: true, state: 'paused', pausedReason: 'brain_mode_parent' }
     : { paused: false, stopped: false, state: 'running' };
   writeMeta(huntId, { ...fresh, huntId, brainMode: m, ...loopFlags });
   try { record(huntId, { type: 'status', state: 'brain_mode', brainMode: m, at: new Date().toISOString() }); } catch { /* best-effort */ }

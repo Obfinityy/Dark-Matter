@@ -761,8 +761,8 @@ for (const [route, fn, verb] of [
         if (!noEngine) throw err;
         const m0 = readHuntMeta(huntId) || {};
         if (route === 'pause') {
-          writeHuntMeta(huntId, { ...m0, paused: true, state: 'paused' });
-          appendHuntEvent(huntId, { type: 'status', state: 'paused', at: new Date().toISOString() });
+          writeHuntMeta(huntId, { ...m0, paused: true, state: 'paused', pausedReason: 'user_paused' });
+          appendHuntEvent(huntId, { type: 'status', state: 'paused', reason: 'user_paused', at: new Date().toISOString() });
           return res.json({ ok: true, action: 'pause', huntId, hostSide: true });
         }
         if (route === 'resume') {

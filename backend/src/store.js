@@ -170,6 +170,22 @@ export function writeHuntMetaCheckpoint(huntId, patch) {
   // repeat that omission — including on a legacy broken meta, where the
   // next checkpoint write repairs the missing flag.
   if (next.state === 'paused' && next.paused !== true) next.paused = true;
+  // INVARIANT (6 Nov 2026): a paused state always carries a pausedReason.
+  // The owner-pause routes wrote {state:'paused', paused:true} with no
+  // reason, leaving h_830317bdc184 paused with pausedReason null
+  // (28 Oct 2026: two reason-less paused status events, then a
+  // brain_mode_parent pause that also carried no meta reason).
+  // Normalise here so no loop-side writer can repeat that omission —
+  // including on a legacy reason-less meta, where the next checkpoint
+  // write stamps 'unknown' instead of leaving the pause unexplained.
+  // Call sites still record the real trigger (user_paused,
+  // budget_reached, ai_no_reply, brain_mode_parent); 'unknown' only
+  // fires when none was supplied. Deliberately checkpoint-only, NOT in
+  // plain writeHuntMeta: the resume path clears pausedReason via
+  // writeHuntMeta while state is momentarily still 'paused'
+  // (huntAgent.js resumeInterruptedHunt), and stamping 'unknown'
+  // there would make isPaused() treat the resumed hunt as paused.
+  if (next.state === 'paused' && !next.pausedReason) next.pausedReason = 'unknown';
   writeHuntMeta(huntId, next);
   return next;
 }
