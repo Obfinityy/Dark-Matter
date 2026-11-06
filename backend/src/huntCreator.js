@@ -239,6 +239,16 @@ export async function createHuntFromQueue(entry, deps = {}) {
 export async function drainQueue(deps = {}) {
   try {
     const store = deps.store || (await import('./store.js'));
+    // QUEUE HYGIENE (6 Nov 2026): resolve stale 'started' entries left
+    // by drains that predate the huntId/completed bookkeeping — before
+    // starting the next hunt, so a legacy entry is healed instead of
+    // sitting in 'started' forever. Best-effort: a queue failure must
+    // never break the drain itself.
+    try {
+      store.reconcileStaleStartedEntries();
+    } catch {
+      // Ignore — the drain below still runs.
+    }
     if (store.huntQueueFull()) return null;
     const next = store.dequeueNextHunt();
     if (!next) return null;
@@ -247,6 +257,16 @@ export async function drainQueue(deps = {}) {
       console.log(
         `[queue] drained ${next.queueId} -> hunt ${created.huntId} (${created.brainMode}/${created.scanDepth}${created.reused ? ', reused' : ''})`
       );
+      // Record the consumption (6 Nov 2026, queue-hygiene fix): the
+      // entry leaves 'started' for the terminal 'completed' state with
+      // its huntId. Without this, every drained entry sat in 'started'
+      // forever with no huntId. Best-effort — never break the drain
+      // over a queue write.
+      try {
+        store.completeQueueHunt(next.queueId, created.huntId);
+      } catch {
+        // Ignore — the hunt itself already started.
+      }
       return created;
     } catch (err) {
       console.error(`[queue] auto-start failed for ${next.queueId}:`, err.message);

@@ -413,9 +413,124 @@ test('drainQueue starts a queued scanner entry in its stored lane', async () => 
   assert.equal(created.huntId, 'h_qc_drain');
   assert.equal(created.brainMode, 'scanner');
   assert.equal(created.scanDepth, 'deep');
-  assert.equal(readQueue()[0].status, 'started');
+  // QUEUE HYGIENE (6 Nov 2026): a drained entry leaves 'started' for
+  // the terminal 'completed' state with its huntId recorded.
+  const entry = readQueue()[0];
+  assert.equal(entry.status, 'completed');
+  assert.equal(entry.huntId, 'h_qc_drain');
+  assert.ok(entry.completedAt);
   assert.equal(readHuntMeta('h_qc_drain').brainMode, 'scanner');
   assert.equal(deps.calls.scanner.length, 1);
+});
+
+test('drainQueue heals a stale started entry before starting the next', async () => {
+  writeQueue([]);
+  const base = Date.parse('2026-11-06T08:00:00.000Z');
+  const iso = (ms) => new Date(ms).toISOString();
+  // A legacy 'started' entry whose hunt already finished (the EC2 shape).
+  writeQueue([
+    {
+      queueId: 'q_stale_heal',
+      userId: 'u-stale',
+      username: 'stale',
+      target: 'http://heal.example/',
+      scope: null,
+      mode: 'normal',
+      brainMode: 'scanner',
+      scanDepth: 'standard',
+      priority: 0,
+      status: 'started',
+      createdAt: iso(base - 3600_000),
+      startedAt: iso(base),
+    },
+  ]);
+  writeHuntMeta('h_heal_finished', {
+    huntId: 'h_heal_finished',
+    userId: 'u-stale',
+    target: 'http://heal.example/',
+    brainMode: 'scanner',
+    state: 'finished',
+    createdAt: iso(base + 100),
+  });
+  enqueueHunt({
+    userId: 'u1',
+    username: 'alice',
+    target: 'http://example.com/',
+    brainMode: 'scanner',
+  });
+  const prevCap = process.env.MAX_CONCURRENT_HUNTS;
+  process.env.MAX_CONCURRENT_HUNTS = '10';
+  try {
+    const deps = baseDeps({
+      createEngineHunt: async () => ({ huntId: 'h_qc_heal' }),
+    });
+    const created = await drainQueue(deps);
+    assert.equal(created.huntId, 'h_qc_heal');
+    const queue = readQueue();
+    const stale = queue.find((e) => e.queueId === 'q_stale_heal');
+    assert.equal(stale.status, 'completed');
+    assert.equal(stale.huntId, 'h_heal_finished');
+    const fresh = queue.find((e) => e.target === 'http://example.com/');
+    assert.equal(fresh.status, 'completed');
+    assert.equal(fresh.huntId, 'h_qc_heal');
+  } finally {
+    if (prevCap === undefined) delete process.env.MAX_CONCURRENT_HUNTS;
+    else process.env.MAX_CONCURRENT_HUNTS = prevCap;
+  }
+});
+
+test('drainQueue leaves a stale started entry alone when its hunt is still running', async () => {
+  writeQueue([]);
+  const base = Date.parse('2026-11-06T09:00:00.000Z');
+  const iso = (ms) => new Date(ms).toISOString();
+  writeQueue([
+    {
+      queueId: 'q_stale_live',
+      userId: 'u-stale',
+      username: 'stale',
+      target: 'http://live.example/',
+      scope: null,
+      mode: 'normal',
+      brainMode: 'scanner',
+      scanDepth: 'standard',
+      priority: 0,
+      status: 'started',
+      createdAt: iso(base - 3600_000),
+      startedAt: iso(base),
+    },
+  ]);
+  writeHuntMeta('h_live_running', {
+    huntId: 'h_live_running',
+    userId: 'u-stale',
+    target: 'http://live.example/',
+    brainMode: 'scanner',
+    state: 'running',
+    createdAt: iso(base + 100),
+  });
+  enqueueHunt({
+    userId: 'u1',
+    username: 'alice',
+    target: 'http://example.com/',
+    brainMode: 'scanner',
+  });
+  const prevCap = process.env.MAX_CONCURRENT_HUNTS;
+  process.env.MAX_CONCURRENT_HUNTS = '10';
+  try {
+    const deps = baseDeps({
+      createEngineHunt: async () => ({ huntId: 'h_qc_live' }),
+    });
+    const created = await drainQueue(deps);
+    assert.equal(created.huntId, 'h_qc_live');
+    const queue = readQueue();
+    // The live hunt's entry is untouched — never completed, never re-run.
+    assert.equal(queue.find((e) => e.queueId === 'q_stale_live').status, 'started');
+    assert.equal(queue.find((e) => e.queueId === 'q_stale_live').huntId, undefined);
+    assert.equal(queue.find((e) => e.target === 'http://example.com/').status, 'completed');
+  } finally {
+    if (prevCap === undefined) delete process.env.MAX_CONCURRENT_HUNTS;
+    else process.env.MAX_CONCURRENT_HUNTS = prevCap;
+    fs.rmSync(path.join(tmp, 'hunts', 'h_live_running'), { recursive: true, force: true });
+  }
 });
 
 test('drainQueue returns null when the queue is empty', async () => {

@@ -423,6 +423,140 @@ export function requeueHunt(queueId, error) {
   return entry.status;
 }
 
+/**
+ * Mark a drained entry consumed (6 Nov 2026, queue-hygiene fix).
+ *
+ * ROOT CAUSE: dequeueNextHunt marks an entry 'started', drainQueue then
+ * creates the hunt — but NOTHING ever wrote the huntId back onto the
+ * entry or moved it out of 'started'. Every successfully drained entry
+ * sat in 'started' forever with no huntId (the 3 stale entries on EC2:
+ * q_mw3ipfqa08bfz / q_mw4r2892nu7ia / q_mw4r289fbw1dm, whose hunts all
+ * finished). drainQueue calls this right after createHuntFromQueue
+ * succeeds, so a consumed entry reaches the terminal 'completed' state
+ * with its huntId recorded. Returns false when the entry is gone (user
+ * cancelled meanwhile) or is no longer 'started' — never clobbers an
+ * entry another path already requeued.
+ */
+export function completeQueueHunt(queueId, huntId) {
+  const queue = readQueue();
+  const idx = queue.findIndex((e) => e.queueId === queueId);
+  if (idx < 0) return false;
+  const entry = queue[idx];
+  if (entry.status !== 'started') return false;
+  entry.status = 'completed';
+  if (huntId) entry.huntId = huntId;
+  entry.completedAt = new Date().toISOString();
+  writeQueue(queue);
+  return true;
+}
+
+/**
+ * A 'started' entry younger than this is an in-flight drain — the hunt
+ * is created moments after dequeueNextHunt marks the entry, so the
+ * reconciler must not touch it. Only entries older than the grace are
+ * stale enough to resolve.
+ */
+export const QUEUE_STALE_STARTED_GRACE_MS = 5 * 60 * 1000;
+
+/**
+ * A hunt created by a drain is minted within seconds of the entry's
+ * startedAt (live evidence: 0.008–0.3s). A hunt created in this window
+ * after startedAt, for the same user and target, is the entry's hunt.
+ */
+export const QUEUE_STARTED_HUNT_MATCH_WINDOW_MS = 120 * 1000;
+
+/** Hunt states that are terminal — the hunt will never run again. */
+export const QUEUE_TERMINAL_HUNT_STATES = new Set(['finished', 'stopped', 'failed']);
+
+/**
+ * Find the hunt a 'started' queue entry created: same user and target,
+ * hunt created in the match window after the entry started. The
+ * earliest such hunt wins (two drains of the same target minutes apart
+ * cannot collide inside one 120s window per entry). Brain mode must
+ * match when both sides carry it; legacy entries without one skip the
+ * check. Returns null when nothing matches.
+ */
+export function findHuntForStartedEntry(entry, metas = listHuntMetas()) {
+  const startedAt = Date.parse(entry.startedAt || '') || 0;
+  if (!startedAt) return null;
+  const target = String(entry.target || '');
+  if (!target) return null;
+  let best = null;
+  let bestCreated = Infinity;
+  for (const meta of metas || []) {
+    if (!meta) continue;
+    if (entry.userId && meta.userId && meta.userId !== entry.userId) continue;
+    if (String(meta.target || '') !== target) continue;
+    if (entry.brainMode && meta.brainMode && meta.brainMode !== entry.brainMode) continue;
+    const created = Date.parse(meta.createdAt || '') || 0;
+    if (!created || created < startedAt) continue;
+    if (created - startedAt > QUEUE_STARTED_HUNT_MATCH_WINDOW_MS) continue;
+    if (created < bestCreated) {
+      best = meta;
+      bestCreated = created;
+    }
+  }
+  return best;
+}
+
+/**
+ * Resolve stale 'started' entries in a queue array (pure — no disk I/O,
+ * exported for tests). drainQueue and the boot/periodic reconciler call
+ * this through reconcileStaleStartedEntries().
+ *
+ * - Entry's hunt found and terminal → 'completed' with its huntId.
+ * - Entry's hunt found and live (running/paused) or in-flight (any
+ *   other state — a freshly minted hunt has no state yet) → untouched.
+ * - Entry younger than the grace → untouched (in-flight drain).
+ * - No hunt found → the backend died between dequeue and creation:
+ *   treat it as a failed start with the SAME attempts rule as
+ *   requeueHunt (back to 'queued' until MAX_QUEUE_ATTEMPTS, then
+ *   'failed'). Never re-runs a hunt whose work already finished.
+ * Returns { queue, resolved, changed }.
+ */
+export function reconcileQueueEntries(queue, metas, nowMs = Date.now()) {
+  const resolved = { completed: [], requeued: [], failed: [] };
+  let changed = false;
+  for (const entry of queue || []) {
+    if (!entry || entry.status !== 'started') continue;
+    const startedAt = Date.parse(entry.startedAt || '') || 0;
+    if (!startedAt || nowMs - startedAt < QUEUE_STALE_STARTED_GRACE_MS) continue;
+    const hunt = findHuntForStartedEntry(entry, metas);
+    if (hunt) {
+      const state = String(hunt.state || '').toLowerCase();
+      if (!QUEUE_TERMINAL_HUNT_STATES.has(state)) continue;
+      entry.status = 'completed';
+      entry.huntId = hunt.huntId || hunt.id;
+      entry.completedAt = new Date().toISOString();
+      changed = true;
+      resolved.completed.push(entry.queueId);
+      continue;
+    }
+    const attempts = (Number(entry.attempts) || 0) + 1;
+    entry.attempts = attempts;
+    entry.lastError = 'queue entry started but no hunt was created';
+    if (attempts >= MAX_QUEUE_ATTEMPTS) {
+      entry.status = 'failed';
+      entry.failedAt = new Date().toISOString();
+      resolved.failed.push(entry.queueId);
+    } else {
+      entry.status = 'queued';
+      delete entry.startedAt;
+      resolved.requeued.push(entry.queueId);
+    }
+    changed = true;
+  }
+  return { queue, resolved, changed };
+}
+
+/** Disk wrapper for reconcileQueueEntries: reads hunt-queue.json, writes it back only when something resolved. */
+export function reconcileStaleStartedEntries(metas = listHuntMetas(), nowMs = Date.now()) {
+  const queue = readQueue();
+  const { resolved, changed } = reconcileQueueEntries(queue, metas, nowMs);
+  if (changed) writeQueue(queue);
+  return resolved;
+}
+
 /** Remove a queue entry (user cancelled or admin removed). */
 export function removeFromQueue(queueId, userId, isAdmin) {
   const queue = readQueue();

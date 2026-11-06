@@ -653,6 +653,25 @@ server.listen(config.port, () => {
   // via the activeLoops mutex (huntAgent.js), so re-scanning won't double-start loops.
   async function scanAndResumeRunningHunts(tag) {
     try {
+      // QUEUE HYGIENE (6 Nov 2026): resolve stale 'started' queue
+      // entries — drains that predate the huntId/completed bookkeeping
+      // left entries in 'started' forever (their hunts already
+      // finished). The reconciler heals them on boot and every minute,
+      // so no hunt finish is needed to clean the queue up. Best-effort:
+      // a queue failure must never break hunt resume.
+      try {
+        const { reconcileStaleStartedEntries } = await import('./store.js');
+        const healed = reconcileStaleStartedEntries();
+        const n =
+          healed.completed.length + healed.requeued.length + healed.failed.length;
+        if (n) {
+          console.log(
+            `[resume:${tag}] queue hygiene: ${healed.completed.length} completed, ${healed.requeued.length} requeued, ${healed.failed.length} failed`
+          );
+        }
+      } catch (err) {
+        console.error(`[resume:${tag}] queue hygiene failed:`, err.message || err);
+      }
       const { listHuntMetas } = await import('./store.js');
       const { resumeInterruptedHunt } = await import('./huntAgent.js');
       const { resumeInterruptedScannerHunt } = await import('./scannerHunt.js');
