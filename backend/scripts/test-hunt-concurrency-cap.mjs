@@ -70,11 +70,21 @@ check('the live 23 Oct shape: Ezviz running + lab running + paused bench → DVW
   huntQueueFull([...running(2), meta('h_bench_paused', 'paused')], {}) === false);
 
 // ---- wiring: both call sites use the shared helper ---------------------------
+// The hunt-end drain lives in huntCreator.js's drainQueue (5 Nov 2026
+// queue-drain fix, cef98838 — huntAgent.js calls drainQueue() on finish
+// and on failure); the Lane X ternary shape this check used to grep for
+// in huntAgent.js never existed there. The behaviour the check pins is
+// unchanged: the cap decision runs BEFORE any dequeue.
 const huntsSrc = fs.readFileSync(new URL('../src/routes/hunts.js', import.meta.url), 'utf8');
+const creatorSrc = fs.readFileSync(new URL('../src/huntCreator.js', import.meta.url), 'utf8');
 const agentSrc = fs.readFileSync(new URL('../src/huntAgent.js', import.meta.url), 'utf8');
 check('POST /hunts route decides via huntQueueFull(metas)', huntsSrc.includes('huntQueueFull(metas)'));
+const gateIdx = creatorSrc.indexOf('if (store.huntQueueFull()) return null;');
+const dequeueIdx = creatorSrc.indexOf('store.dequeueNextHunt()');
 check('hunt-end drain decides via huntQueueFull() before dequeuing',
-  agentSrc.includes('huntQueueFull() ? null : dequeueNextHunt()'));
+  gateIdx !== -1 && dequeueIdx !== -1 && gateIdx < dequeueIdx);
+check('huntAgent drains the queue when a hunt ends (finish + fail)',
+  (agentSrc.match(/await drainQueue\(\)/g) || []).length >= 2);
 check('old any-running queue condition is gone from the route',
   !huntsSrc.includes("const active = listHuntMetas().find((h) => h.state === 'running');"));
 check('old singular queue message is gone', !huntsSrc.includes('when the current one finishes'));

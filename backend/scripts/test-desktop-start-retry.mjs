@@ -15,6 +15,12 @@
 // throttle is huntRunner's SHARED failure cache — the same one the
 // screenshot poller stamps — reset between cases via its test hook.
 //
+// NOTE (7 Nov 2026, script-harness lane): guiBrowserType takes a FIELD
+// TARGET — (huntId, target, text, submit, deps) since the GUI-TYPE-TARGET
+// change; a type call without one types empty text into the wrong field.
+// The type calls below pass 'Username' as the field, matching the live
+// call sites (brainMode.js, humanLoop.js) and guiTools.type.test.js.
+//
 // Run: node backend/scripts/test-desktop-start-retry.mjs
 import fs from 'node:fs';
 import os from 'node:os';
@@ -148,7 +154,7 @@ function resetAll() {
   check('fail-click: keeps the hunter-honesty wording', click.observation.includes('cannot be started or installed from inside the hunt'));
   check('fail-click: notes the recent failed restart', click.observation.includes('already attempted moments ago and failed'));
 
-  const type = await guiBrowserType('h_z_fail', 'hello', false, deps);
+  const type = await guiBrowserType('h_z_fail', 'Username', 'hello', false, deps);
   check('fail-type: throttled — no third start attempt', startCalls === 1);
   check('fail-type: still refused with the recent-attempt note', type.ok === false && type.observation.includes('already attempted moments ago and failed'));
 
@@ -199,7 +205,7 @@ function resetAll() {
   check('healthy: desktop open unchanged', open.ok === true && open.observation.includes('Opened http://target.test/ in your desktop browser.'));
   const click = await guiBrowserClick('h_z_healthy', 'Sign in', deps);
   check('healthy: no start attempted on click', startCalls === 0 && click.ok === true);
-  const type = await guiBrowserType('h_z_healthy', 'hello', false, deps);
+  const type = await guiBrowserType('h_z_healthy', 'Username', 'hello', false, deps);
   check('healthy: type works, still no start', startCalls === 0 && type.ok === true && type.observation.includes('Typed "hello"'));
   check('healthy: no recovery wording anywhere', !open.observation.includes('look-only') && !click.observation.includes('restart') && !type.observation.includes('restart'));
 }
@@ -293,7 +299,7 @@ function resetAll() {
 
   const open = await guiBrowserOpen('h_ab_healthy', 'http://target.test/', deps);
   const click = await guiBrowserClick('h_ab_healthy', 'Sign in', deps);
-  const type = await guiBrowserType('h_ab_healthy', 'hello', false, deps);
+  const type = await guiBrowserType('h_ab_healthy', 'Username', 'hello', false, deps);
   check('healthy-counts: exactly one probe across open+click+type (cache reused, no poll probes)', state.probeCalls === 1);
   check('healthy-counts: zero sleeps and zero starts', sleepCalls === 0 && startCalls === 0);
   check('healthy-counts: all actions succeeded on the desktop', open.ok === true && click.ok === true && type.ok === true);

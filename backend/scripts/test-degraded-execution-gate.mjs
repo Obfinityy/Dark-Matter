@@ -123,7 +123,7 @@ function resetAll() {
   const deps = { exec: makeFakeExec(state), startDesktop: async () => ({ ok: false, error: 'cannot start' }) };
   const click = await guiBrowserClick('h_af_down2', 'Login', deps);
   check('gui(1b): click refusal is flagged degraded', click.degraded === true && click.ok === false);
-  const type = await guiBrowserType('h_af_down2', 'admin', false, deps);
+  const type = await guiBrowserType('h_af_down2', 'Username', 'admin', false, deps); // 5-arg form (field target) — see test-desktop-start-retry.mjs note, 7 Nov 2026
   check('gui(1b): type refusal is flagged degraded', type.degraded === true && type.ok === false);
   // A page must be open before a snapshot can fall back to the
   // headless view (with none open it returns the open-first state

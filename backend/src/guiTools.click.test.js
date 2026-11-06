@@ -180,6 +180,10 @@ test('AK-9: the inline fuzzy logic stays in sync with labelMatch.js (the canonic
     ['User Name', ['Username']],
     ['Log in', ['Login']],
     ['Submit', ['low', 'medium', 'Submit']],
+    // NO-WIDENING (7 Nov 2026): an extension / wrong-directory
+    // candidate must match NEITHER copy.
+    ['acquisitions.md', ['acquisitions.md.bak']],
+    ['ftp/acquisitions.md', ['xftp/acquisitions.md']],
   ];
   for (const [wanted, labels] of cases) {
     const verdict = resolveClickTarget(wanted, labels);

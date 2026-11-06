@@ -41,6 +41,10 @@ function check(name, cond) {
 
 const ADMIN = { id: 'u-admin', username: 'tester', role: 'admin', control: 'maximum' };
 const token = issueToken(ADMIN);
+// FIX #323 (1 Nov 2026): requireAuth re-reads the user store on every
+// request — a token whose subject has no user record 401s. Seed the
+// fixture admin into the store so the issued token authenticates.
+store.writeUsers({ [ADMIN.username]: { ...ADMIN } });
 
 function seedHunt(id, { events = [], reasoning = [], target = 'http://172.17.0.1:3000' } = {}) {
   store.writeHuntMeta(id, {
@@ -122,7 +126,11 @@ try {
   check('battery hunt question: HTTP 200', hunt.status === 200 && hunt.body.ok === true);
   check('battery hunt question: NOT declined as off-topic', hunt.body.scoped !== true && !/sirf is hunt/.test(hunt.body.reply || ''));
   check('battery hunt question: 0 confirmed (truth preserved)', /0 confirmed/.test(hunt.body.reply || ''));
-  check('attempts narration present', /Recent attempts:/.test(hunt.body.reply || ''));
+  check('attempts narration present',
+    // The battery question is Hinglish, so the summary renders in
+    // Hinglish (localization, 25 Oct 6fcc0d7d) — the label is
+    // 'Abhi tak kya try kiya', not the English 'Recent attempts'.
+    /Abhi tak kya try kiya:/.test(hunt.body.reply || ''));
   check('attempts include the failed ftp shell probe AND its outcome',
     /shell ftp 172\.17\.0\.1 3000 — sh: 1: ftp: not found/.test(hunt.body.reply || ''));
   check('attempts include the failed curl probe', /curl -O -s -L http:\/\/172\.17\.0\.1:3000\/ftp — Command failed/.test(hunt.body.reply || ''));
@@ -131,9 +139,11 @@ try {
   check('attempts include the failed click AND its outcome',
     /browser_click ftp\/acquisitions\.md — Click failed: no clickable element matches/.test(hunt.body.reply || ''));
 
-  // ---- (3) The "Currently:" quote never ends mid-word ------------
+  // ---- (3) The thinking quote never ends mid-word ----------------
+  // Same localization note as above: the Hinglish reply labels the
+  // quote 'Aakhri soch:', not 'Currently:'.
   const replyText = String(hunt.body.reply || '');
-  const quote = replyText.includes(' Currently: ') ? replyText.split(' Currently: ')[1] : '';
+  const quote = replyText.includes(' Aakhri soch: ') ? replyText.split(' Aakhri soch: ')[1].split(' Right now')[0] : '';
   const normalised = LONG_THINKING.replace(/\s+/g, ' ').trim();
   check('long thinking WAS clipped (source exceeds the 200-char budget)', normalised.length > 200 && quote.length < normalised.length);
   check('clipped quote ends with an ellipsis', /…$/.test(quote.trim()));
@@ -161,10 +171,13 @@ try {
   // ---- Hunt questions must NEVER be declined ----------------------
   const ftpQ = await ask('h_chat_lab', 'ftp par kya mila?');
   check('"ftp par kya mila?": NOT scoped, answered from the record',
-    ftpQ.body.scoped !== true && /Recent attempts:/.test(ftpQ.body.reply || ''));
+    // Hinglish question -> Hinglish narration label (see above).
+    ftpQ.body.scoped !== true && /Abhi tak kya try kiya:/.test(ftpQ.body.reply || ''));
   const prog = await ask('h_chat_lab', 'What is the progress?');
   check('"What is the progress?": summary path intact, NOT scoped',
     prog.body.scoped !== true && /0 confirmed/.test(prog.body.reply || ''));
+  check('"What is the progress?": English question keeps the English labels',
+    /Recent attempts:/.test(prog.body.reply || '') && / Currently: /.test(prog.body.reply || ''));
 
   // ---- Confirmed-truth composition survives the narration --------
   const gen = await ask('h_chat_genuine_attempts', 'What is the progress?');

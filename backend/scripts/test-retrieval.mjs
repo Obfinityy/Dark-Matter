@@ -37,10 +37,18 @@ store.setEmbeddingTransport(async (texts) =>
 );
 
 // --- Fixture: two hunts ------------------------------------------------------
+// #321 (26 Oct 2026, per-hunt isolation): cross-hunt retrieval is only
+// meaningful WITH a target — without one it is scoped to the current
+// hunt, and the same-target filter reads hunt metas via
+// listHuntMetas(). So each fixture hunt gets a meta.json naming the
+// SAME target; without the metas the cross-hunt hit would be dropped
+// by the fail-closed filter even with a target passed.
+const FIXTURE_TARGET = 'http://172.17.0.1:3000';
 function writeHunt(id, events) {
   const dir = path.join(tmp, 'hunts', id);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'events.jsonl'), events.map((e) => JSON.stringify(e)).join('\n') + '\n');
+  fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify({ huntId: id, target: FIXTURE_TARGET, state: 'finished', createdAt: '2026-10-10T00:00:00.000Z' }));
 }
 const A = 'h_retrieval_a';
 writeHunt(A, [
@@ -83,7 +91,7 @@ check(
 );
 
 // --- Cross-hunt retrieval with discount ---------------------------------------
-const cross = await store.retrieveEpisodes('sql injection', { huntId: A, crossHunt: true, limit: 8, now: NOW });
+const cross = await store.retrieveEpisodes('sql injection', { huntId: A, crossHunt: true, limit: 8, now: NOW, target: FIXTURE_TARGET });
 const crossHit = cross.results.find((r) => r.hunt_id === B);
 check('cross-hunt episode is retrievable', !!crossHit);
 check('cross-hunt hit is discounted vs the in-hunt SQLi hit', !!crossHit && crossHit.score < ret.results[0].score);

@@ -60,3 +60,15 @@ test('bestLabelMatch: too far is null; a tie with requireUnique is null', () => 
   assert.equal(bestLabelMatch('', ['Login']), null);
   assert.equal(bestLabelMatch('Login', []), null);
 });
+
+test('bestLabelMatch: NO-WIDENING — an extension / wrong-directory candidate is a different item', () => {
+  // 'acquisitions.md.bak' is distance 3 from 'acquisitions.md'
+  // (within the threshold of 3) but it is a different file.
+  assert.equal(bestLabelMatch('acquisitions.md', ['acquisitions.md.bak'], { maxDistance: 3 }), null);
+  // 'xftp/acquisitions.md' is distance 1 from 'ftp/acquisitions.md'
+  // but it is a different directory.
+  assert.equal(bestLabelMatch('ftp/acquisitions.md', ['xftp/acquisitions.md'], { maxDistance: 4 }), null);
+  // A shorter candidate (a dropped letter — the OCR case) still matches.
+  const dropped = bestLabelMatch('Username', ['uername'], { maxDistance: 2 });
+  assert.equal(dropped && dropped.index, 0);
+});

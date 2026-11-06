@@ -389,7 +389,15 @@ export function pageUrlFromObservation(obs) {
   const s = String(obs || '');
   if (!s) return '';
   const pageLine = s.match(/^Page:.*—\s*(\S+)/m);
-  if (pageLine) return pageLine[1];
+  // The text after the dash is the page URL only when it LOOKS like
+  // one. A snapshot title can end in words instead — 'Page: Login ::
+  // DVWA — Username Password Login' — and returning the first word
+  // ('Username') as the page URL made isReturnToTarget exempt every
+  // repeat open, so the dedup gate never fired (degraded-gate
+  // loop(3a), 7 Nov 2026). A non-URL capture falls through to the
+  // generic URL scan below, which finds the real URL in the
+  // 'Opened ...' line instead.
+  if (pageLine && /^https?:\/\//i.test(pageLine[1])) return pageLine[1];
   const wrong = s.match(/WRONG PAGE — you are on (\S+),/);
   if (wrong) return wrong[1];
   if (/about:blank/.test(s)) return 'about:blank';

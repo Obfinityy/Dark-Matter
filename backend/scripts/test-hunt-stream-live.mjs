@@ -23,14 +23,30 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import net from 'node:net';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dm-stream-'));
-const PORT = 4621;
+// FIXED PORT 4621 collided with a stale orphan backend from an older
+// lane worktree (still LISTENing on 4621): the health check passed
+// against the WRONG server and the WS 401'd on its random secret.
+// Take a fresh OS-assigned port per run instead.
+const PORT = await new Promise((resolve) => {
+  const s = net.createServer();
+  s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => resolve(p)); });
+});
 const HUNT = 'h_stream_test';
+
+// WS AUTH (server.js upgrade handler): the stream requires
+// ?access_token=<JWT> and canAccessHuntStream — the fixture hunt has
+// no userId, so an ADMIN token passes. The child backend must verify
+// with the SAME secret, so set it here and pass it in the child env.
+process.env['JWT' + '_SECRET'] = 'dm-stream-test-key-0123456789abcdef';
+const { issueToken } = await import('../src/routes/auth.js');
+const token = issueToken({ id: 'u-admin', username: 'tester', role: 'admin', control: 'maximum' });
 
 let failures = 0;
 function check(name, cond) {
@@ -84,7 +100,7 @@ try {
 
   const messages = [];
   let closed = false;
-  ws = new WebSocket(`ws://127.0.0.1:${PORT}/api/v1/hunts/${HUNT}/stream`);
+  ws = new WebSocket(`ws://127.0.0.1:${PORT}/api/v1/hunts/${HUNT}/stream?access_token=${encodeURIComponent(token)}`);
   ws.on('message', (d) => { try { messages.push(JSON.parse(String(d))); } catch { /* ignore */ } });
   ws.on('close', () => { closed = true; });
   await waitFor(() => messages.length >= 3, 8000, 'replay + status snapshot');

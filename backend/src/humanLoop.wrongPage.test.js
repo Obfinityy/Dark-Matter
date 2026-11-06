@@ -86,6 +86,22 @@ test('HL-4: pageUrlFromObservation reads the snapshot line and the refusal prose
   assert.equal(pageUrlFromObservation(''), '');
 });
 
+test('HL-4b: a Page line whose dash text is not a URL does not invent a page', () => {
+  // Live shape (degraded-gate loop(3a), 7 Nov 2026): the open
+  // observation's Page line ends in words, not a URL. Returning
+  // the first word ('Username') as the page URL made
+  // isReturnToTarget exempt every repeat open, so the dedup gate
+  // never fired. The real URL comes from the 'Opened ...' line.
+  assert.equal(
+    pageUrlFromObservation('Opened http://dvwa.test/ in your desktop browser.\nPage: Login :: DVWA — Username Password Login'),
+    'http://dvwa.test/'
+  );
+  assert.equal(
+    pageUrlFromObservation('Opened http://dvwa.test/ (headless preview — look-only).\nPage: Login :: DVWA'),
+    'http://dvwa.test/'
+  );
+});
+
 test('HL-5: lastActionResultOfLeftOff returns the last usable result, skipping empty snapshots', () => {
   const leftOff = {
     lastActions: [

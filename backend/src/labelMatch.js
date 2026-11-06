@@ -83,7 +83,19 @@ export function bestLabelMatch(wanted, labels, { maxDistance = Infinity, require
   let bestCount = 0;
   for (let i = 0; i < list.length; i++) {
     const lab = String(list[i] == null ? '' : list[i]);
-    if (!flatLabel(lab)) continue;
+    const flatLab = flatLabel(lab);
+    if (!flatLab) continue;
+    // NO-WIDENING (7 Nov 2026, script-harness lane): a candidate
+    // that is the wanted label plus an extra leading/trailing run
+    // is a DIFFERENT item, not an OCR misread of the wanted one —
+    // 'acquisitions.md.bak' is not 'acquisitions.md' (a file
+    // extension), and 'xftp/acquisitions.md' is not
+    // 'ftp/acquisitions.md' (a different directory). Both sit
+    // within edit distance of the wanted label, so distance alone
+    // cannot tell them apart from a misread. A shorter candidate
+    // (a dropped letter, the OCR case) is unaffected: only the
+    // strictly-longer, prefix/suffix-containing form is skipped.
+    if (flatLab.length > want.length && (flatLab.startsWith(want) || flatLab.endsWith(want))) continue;
     const d = labelEditDistance(want, lab);
     if (d < bestDist) {
       bestDist = d;

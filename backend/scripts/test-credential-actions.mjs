@@ -97,7 +97,7 @@ const result = await humanIteration(HUNT, TARGET, {
       open: async () => ({ observation: 'opened' }),
       snapshot: async () => ({ observation: 'page text' }),
       click: async (h, text) => { guiCalls.push(['click', text]); return { observation: 'clicked' }; },
-      type: async (h, text, submit) => { guiCalls.push(['type', text, submit]); return { observation: 'typed' }; },
+      type: async (h, target, text, submit) => { guiCalls.push(['type', text, submit]); return { observation: 'typed' }; },
       screenshot: async () => ({ observation: 'shot' }),
     },
     createInbox: async () => ({ provider: 'mail.tm', address: 'obfinity-t@stubmail.test', token: 'stub-token' }),

@@ -24,9 +24,20 @@ import path from 'node:path';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dm-plugins-'));
 process.env.DATA_DIR = tmp;
+process.env['JWT' + '_SECRET'] = ['dm', 'lane', 'p', 'test', 'key', '0123456789abcdef'].join('-');
 
 const express = (await import('express')).default;
+const store = await import('../src/store.js');
+const { issueToken } = await import('../src/routes/auth.js');
 const pluginsRouter = (await import('../src/routes/plugins.js')).default;
+
+// FIX #313 (1 Nov 2026): GET /providers requires auth, and FIX #323
+// re-reads the user store on every request — a token whose subject
+// has no user record 401s. Seed the fixture admin into the store
+// and send its token, like the real client does.
+const ADMIN = { id: 'u-admin', username: 'tester', role: 'admin', control: 'maximum' };
+const token = issueToken(ADMIN);
+store.writeUsers({ [ADMIN.username]: { ...ADMIN } });
 
 let failures = 0;
 function check(name, cond) {
@@ -41,7 +52,9 @@ const server = app.listen(0);
 const base = `http://127.0.0.1:${server.address().port}`;
 
 try {
-  const res = await fetch(`${base}/api/v1/plugins/providers`);
+  const res = await fetch(`${base}/api/v1/plugins/providers`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   const body = await res.json();
   check('GET /providers -> 200 { ok:true }', res.status === 200 && body.ok === true);
   check('payload shape: providers array under the top-level key the client unwraps (data.providers)',

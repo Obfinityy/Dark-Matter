@@ -63,6 +63,10 @@ function check(name, cond) {
 
 const ADMIN = { id: 'u-admin', username: 'tester', role: 'admin', control: 'maximum' };
 const token = issueToken(ADMIN);
+// FIX #323 (1 Nov 2026): requireAuth re-reads the user store on every
+// request — a token whose subject has no user record 401s. Seed the
+// fixture admin into the store so the issued token authenticates.
+store.writeUsers({ [ADMIN.username]: { ...ADMIN } });
 
 function seedHunt(id, events) {
   store.writeHuntMeta(id, {

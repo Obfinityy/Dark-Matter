@@ -181,8 +181,17 @@ export function resolveClickTarget(requested, labels) {
     const threshold = Math.max(1, Math.floor(flatReq.length / 4));
     let best = -1; let bestD = Infinity; let secondD = Infinity;
     for (let i = 0; i < labs.length; i++) {
-      if (!labs[i] || !flat(labs[i])) continue;
-      const d = lev(flatReq, flat(labs[i]));
+      if (!labs[i]) continue;
+      const flatLab = flat(labs[i]);
+      if (!flatLab) continue;
+      // NO-WIDENING (7 Nov 2026, script-harness lane — mirror of
+      // labelMatch.js, which is the canonical copy): a candidate
+      // that is the wanted label plus an extra leading/trailing
+      // run is a DIFFERENT item, not an OCR misread —
+      // 'acquisitions.md.bak' is not 'acquisitions.md', and
+      // 'xftp/acquisitions.md' is not 'ftp/acquisitions.md'.
+      if (flatLab.length > flatReq.length && (flatLab.startsWith(flatReq) || flatLab.endsWith(flatReq))) continue;
+      const d = lev(flatReq, flatLab);
       if (d < bestD) { secondD = bestD; bestD = d; best = i; }
       else if (d < secondD) { secondD = d; }
     }
