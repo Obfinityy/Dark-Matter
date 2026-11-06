@@ -4484,7 +4484,26 @@ export async function humanIteration(huntId, target, opts = {}) {
       // scan, so a recovered proof is filed on the next turn.
       const scanText = String(thinkingText || '') + '\n' + String(observation || '') + '\n' + String(lastObservation || '');
       const detected = detectEvidence(scanText);
-      if (detected && isDuplicate(`/opt/Dark-Matter/backend/data/hunts/${huntId}`, detected.title)) {
+      // PG-1 (6 Nov 2026, permanent system-level fix): the scan text
+      // carries the PREVIOUS turn's probe output, so the filer can fire
+      // on evidence of a claim the brain is still proving. When the
+      // brain's own action is a probe of the SAME payload class, the
+      // probe must run — the proof gate owns the filing decision for
+      // that claim (it counts re-proofs to PROOF_THRESHOLD, then
+      // nudges/files). Overriding here eats the probe turn, starves
+      // the count, and lets the claim reach the verifier with one
+      // proof instead of three. The filer still fires when the brain
+      // is doing anything else (recall, search, browser_open, or a
+      // probe of a DIFFERENT class) — cross-class evidence is never
+      // suppressed. proofSignatureFor is pure; currentPageUrl is the
+      // live page, the same page the proof-gate check below uses.
+      const probeSigForDetected = detected
+        ? proofSignatureFor(kind, action, { page: currentPageUrl })
+        : null;
+      const sameClassProbe = !!(probeSigForDetected && probeSigForDetected.payloadClass === detected.class);
+      if (sameClassProbe) {
+        try { deps.record(huntId, { type: 'autofiler_probe_skipped', title: detected.title, class: detected.class, tool: kind, detail: probeSigForDetected.key, via: 'human-mode' }); } catch {}
+      } else if (detected && isDuplicate(`/opt/Dark-Matter/backend/data/hunts/${huntId}`, detected.title)) {
         // FIX (#315): the scan text includes lastObservation (previous
         // turn), so without this check the same evidence re-triggers an
         // override every turn. Skip the override; the brain's own action
