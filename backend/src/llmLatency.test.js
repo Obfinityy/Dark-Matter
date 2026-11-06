@@ -14,6 +14,9 @@ import path from 'node:path';
 import http from 'node:http';
 
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'llm-lat-'));
+process.env.DATA_DIR = tmpRoot; // chatWithAI recordCost()s every ollama call into
+// costs.json — without this the $0 'self-hosted' stub entry lands in the
+// REAL ledger (backend/data/costs.json). The temp dir keeps it in /tmp.
 process.env.LLM_PROVIDER = 'ollama';
 process.env.AI_HEARTBEAT_PATH = path.join(tmpRoot, 'hb.json');
 // Keep every bound tiny so failure paths settle fast.
