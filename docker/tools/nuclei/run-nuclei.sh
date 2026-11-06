@@ -7,15 +7,22 @@
 # every template encodes the exact request/response workflow that CONFIRMS
 # a vulnerability (near-zero false positives by construction).
 #
-# Usage: run-nuclei.sh <target-url> [severity-filter]
+# Usage: run-nuclei.sh <target-url> [severity-filter] [templates-csv]
 #   e.g. run-nuclei.sh https://target.test critical,high
+#   e.g. run-nuclei.sh https://target.test info,low,medium,high,critical http/miscellaneous/directory-listing.yaml,http/misconfiguration/missing-sri.yaml
+# The optional 3rd arg runs ONLY the listed templates (nuclei -t). The scanner
+# uses it for a targeted second pass over curated info/low-severity templates
+# (see backend/src/scanner/nuclei.js NUCLEI_TARGETED_TEMPLATES): the main
+# critical,high,medium sweep can never fire those templates, even when the
+# condition exists on the target.
 #
 # Output: JSONL on stdout, one finding per line.
 # Requires: Docker. Authorized targets only.
 
 set -euo pipefail
-TARGET="${1:?usage: run-nuclei.sh <target-url> [severity]}"
+TARGET="${1:?usage: run-nuclei.sh <target-url> [severity] [templates-csv]}"
 SEVERITY="${2:-critical,high,medium}"
+TEMPLATES="${3:-}"
 
 # Modern nuclei images install templates at /root/nuclei-templates (verified
 # against projectdiscovery/nuclei:latest: -update-templates installs there,
@@ -46,13 +53,27 @@ if [ "$NEEDS_UPDATE" = "1" ]; then
   fi
 fi
 
-docker run --rm \
-  -v "$CACHE:/root/nuclei-templates" \
-  projectdiscovery/nuclei:latest \
-  -u "$TARGET" \
-  -severity "$SEVERITY" \
-  -jsonl \
-  -silent \
-  -timeout 10 \
-  -retries 1 \
-  -rate-limit 50
+if [ -n "$TEMPLATES" ]; then
+  docker run --rm \
+    -v "$CACHE:/root/nuclei-templates" \
+    projectdiscovery/nuclei:latest \
+    -u "$TARGET" \
+    -t "$TEMPLATES" \
+    -severity "$SEVERITY" \
+    -jsonl \
+    -silent \
+    -timeout 10 \
+    -retries 1 \
+    -rate-limit 50
+else
+  docker run --rm \
+    -v "$CACHE:/root/nuclei-templates" \
+    projectdiscovery/nuclei:latest \
+    -u "$TARGET" \
+    -severity "$SEVERITY" \
+    -jsonl \
+    -silent \
+    -timeout 10 \
+    -retries 1 \
+    -rate-limit 50
+fi
