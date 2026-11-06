@@ -58,6 +58,44 @@ describe('xslt probe', () => {
     }
   });
 
+  it('D7 stays silent on a plain HTML page with only a stylesheet link', async () => {
+    // Regression: DVWA re-validation hunt h_f97a2641dfe6 emitted a D7
+    // MEDIUM finding whose evidence was just the login page HTML —
+    // the old D7 regex matched "stylesheet" in
+    // <link rel="stylesheet" ...>, naming no XSLT processor.
+    const login = http.createServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<!DOCTYPE html><html><head><title>Login :: Damn Vulnerable Web Application (DVWA) v1.10 *Development*</title>\n\n\t\t<link rel="stylesheet" type="text/css" href="dvwa/css/login.css" />\n\n\t</head>\n\n\t<body>\n\n\t<div id="wrapper">\n\n\t<div id="head">\n\n\t</div></body></html>');
+    });
+    await new Promise((r) => login.listen(0, '127.0.0.1', r));
+    const p = login.address().port;
+    try {
+      const findings = await probeXslt(`http://127.0.0.1:${p}/login.php`, ['q'], { timeoutMs: 8000 });
+      assert.ok(!findings.some((x) => x.id.startsWith('xslt-err-')), `stylesheet <link> must not fire D7, got ${JSON.stringify(findings.map((x) => x.id))}`);
+      assert.deepEqual(findings, []);
+    } finally {
+      await new Promise((r) => login.close(r));
+    }
+  });
+
+  it('D7 fires on a Saxon processor token, not just libxslt', async () => {
+    const saxon = http.createServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html>Error: net.sf.saxon.Transform failed to compile stylesheet</html>');
+    });
+    await new Promise((r) => saxon.listen(0, '127.0.0.1', r));
+    const p = saxon.address().port;
+    try {
+      const findings = await probeXslt(`http://127.0.0.1:${p}/page`, ['q'], { timeoutMs: 8000 });
+      const f = findings.find((x) => x.id.startsWith('xslt-err-'));
+      assert.ok(f, `expected D7 error-smell finding for Saxon, got ${JSON.stringify(findings.map((x) => x.id))}`);
+      assert.equal(f.severity, 'medium');
+      assert.ok(f.evidence.response.includes('saxon'), 'D7 evidence must quote the processor string verbatim');
+    } finally {
+      await new Promise((r) => saxon.close(r));
+    }
+  });
+
   it('D2 xml-body fires only when the baseline is clean', async () => {
     const xml = http.createServer((req, res) => {
       if (req.method === 'GET') {

@@ -79,7 +79,11 @@ async function d1Surfaces(url, params, opts) {
     if (/application\/xml|text\/xml/i.test(r.ct)) surfaces.push({ kind: 'xml-body' });
     // Retain the matched processor string: D7 quotes it verbatim, and the
     // raw response is discarded after this function returns.
-    const errMatch = r.text.match(/libxslt|saxon|XslCompiledTransform|XSLTProcessor|javax\.xml\.transform|stylesheet/i);
+    // NOTE: `stylesheet` is deliberately NOT in this alternation — it
+    // matches every HTML page's CSS <link> tag (DVWA login-page FP,
+    // 6 Nov 2026: evidence was just '<link rel="stylesheet" ...>')
+    // and names no XSLT processor. Only real processor tokens fire D7.
+    const errMatch = r.text.match(/libxslt|saxon|XslCompiledTransform|XSLTProcessor|javax\.xml\.transform/i);
     if (errMatch) {
       const idx = r.text.indexOf(errMatch[0]);
       surfaces.push({ kind: 'error-smell', sample: r.text.slice(Math.max(0, idx - 60), idx + 120) });
