@@ -55,6 +55,20 @@ export const NUCLEI_TARGETED_TEMPLATES = [
 // list is the whole point.
 export const NUCLEI_TARGETED_SEVERITY = 'info,low,medium,high,critical';
 
+// Per-pass timeout for BOTH nuclei passes (6 Nov 2026, raised 300s → 600s).
+// Lab re-validation measured nuclei phases at 304–319s on every lab vs the
+// old 300s cap, and VAmPI's main pass timed out at 300s (ok=false,
+// timedOut=true) — main-pass coverage truncated, though the targeted pass
+// still found OpenAPI. A main pass that completes runs ~290–320s, so 600s
+// is ~2x the slowest observed pass: headroom for a cold template cache, a
+// loaded 2vCPU box, and slower targets, while still bounding the worst
+// case (2 passes x 600s = 20 min nuclei phase; the typical case is
+// unchanged at ~320s because the pass now completes instead of timing
+// out). Single source of truth: scannerHunt.js passes this constant
+// explicitly, and the runNuclei default below is the same value, so a
+// caller that omits it gets the same cap by construction.
+export const NUCLEI_TIMEOUT_MS = 600000;
+
 function normalizeNucleiJsonl(stdout, url) {
   return parseJsonl(stdout).map((f) => ({
     class: 'nuclei',
@@ -92,7 +106,7 @@ export function mergeNucleiFindings(main, targeted) {
 
 export async function runNuclei(
   url,
-  { severity = 'critical,high,medium', nucleiTimeoutMs = 300000, cmdRunner = runCmd } = {}
+  { severity = 'critical,high,medium', nucleiTimeoutMs = NUCLEI_TIMEOUT_MS, cmdRunner = runCmd } = {}
 ) {
   // Nuclei gets its OWN dedicated timeout. The generic runScan timeoutMs
   // (15s standard / 30s deep) is tuned for fast HTTP probes, but a full

@@ -2,10 +2,11 @@
 // Guards the 4-Nov-2026 fix: runNuclei must NOT inherit the generic runScan
 // timeoutMs (15s standard / 30s deep), which silently killed every nuclei
 // phase before any template completed. Nuclei gets its own dedicated
-// nucleiTimeoutMs (default 300s).
+// nucleiTimeoutMs (default 600s since 6 Nov 2026 — the old 300s cap timed
+// out VAmPI's main pass in lab re-validation, phases measured 304–319s).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { runNuclei, nucleiPhaseFields, mergeNucleiFindings, NUCLEI_TARGETED_TEMPLATES, NUCLEI_TARGETED_SEVERITY } from './nuclei.js';
+import { runNuclei, nucleiPhaseFields, mergeNucleiFindings, NUCLEI_TARGETED_TEMPLATES, NUCLEI_TARGETED_SEVERITY, NUCLEI_TIMEOUT_MS } from './nuclei.js';
 
 describe('nuclei targeted pass (NUCLEI-25, 6 Nov 2026)', () => {
   const mainJsonl = JSON.stringify({
@@ -116,16 +117,35 @@ describe('mergeNucleiFindings', () => {
 describe('nuclei timeout', () => {
   it('runNuclei signature uses nucleiTimeoutMs, not generic timeoutMs', () => {
     const src = runNuclei.toString();
-    // Must destructure nucleiTimeoutMs with 300s default
-    assert.match(src, /nucleiTimeoutMs\s*=\s*300000/);
+    // Default is the NUCLEI_TIMEOUT_MS constant (600s since 6 Nov 2026 —
+    // the old 300s cap timed out VAmPI's main pass in lab re-validation).
+    assert.match(src, /nucleiTimeoutMs\s*=\s*NUCLEI_TIMEOUT_MS/);
+    assert.equal(NUCLEI_TIMEOUT_MS, 600000);
     // Must NOT destructure a generic timeoutMs default (the old bug)
     assert.doesNotMatch(src, /{\s*severity[^}]*timeoutMs\s*=\s*300000/);
   });
 
-  it('ignores generic timeoutMs from runScan opts (uses 300s default)', async () => {
+  it('passes the 600s default to BOTH passes when no override is given', async () => {
+    // Regression for the 6 Nov 2026 lab re-validation finding: the old
+    // 300s cap timed out VAmPI's main pass (phases measured 304–319s).
+    // A run with no explicit nucleiTimeoutMs must hand the 600s default
+    // to both passes, so a ~320s main pass completes instead of timing
+    // out. The stub records what each pass would have been killed at.
+    const timeouts = [];
+    const runner = async (file, args, opts) => {
+      timeouts.push(opts.timeoutMs);
+      return { ok: true, timedOut: false, stdout: '', stderr: '' };
+    };
+    await runNuclei('http://x.test', { cmdRunner: runner });
+    assert.equal(timeouts.length, 2);
+    assert.deepEqual(timeouts, [NUCLEI_TIMEOUT_MS, NUCLEI_TIMEOUT_MS]);
+    assert.equal(NUCLEI_TIMEOUT_MS, 600000);
+  });
+
+  it('ignores generic timeoutMs from runScan opts (uses 600s default)', async () => {
     // Simulate exactly what index.js passes: opts with timeoutMs=15000
     // (standard depth). The old code would kill nuclei at 15s; the fix
-    // must use the 300s dedicated default instead.
+    // must use the 600s dedicated default instead.
     // We verify by checking the function does not reference opts.timeoutMs
     // for its exec timeout — the signature test above covers the contract.
     // Behavioral proof happens live on EC2 (standard scan must show nuclei
@@ -137,7 +157,7 @@ describe('nuclei timeout', () => {
 
   it('honors explicit nucleiTimeoutMs override', () => {
     const src = runNuclei.toString();
-    // Caller can override via nucleiTimeoutMs (e.g. scannerHunt.js passes 300000)
+    // Caller can override via nucleiTimeoutMs (e.g. scannerHunt.js passes NUCLEI_TIMEOUT_MS)
     assert.match(src, /nucleiTimeoutMs/);
   });
 });

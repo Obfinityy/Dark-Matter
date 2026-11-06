@@ -3,6 +3,7 @@
 // vulnerability scanner (no AI, no API spend) and records findings as hunt
 // events, instead of launching the AI agent loop.
 import { runScan, buildPhaseRollup } from './scanner/index.js';
+import { NUCLEI_TIMEOUT_MS } from './scanner/nuclei.js';
 import { appendHuntEvent, readHuntEvents, readHuntMeta, writeHuntMeta } from './store.js';
 import { notifyFinding } from './notifications.js';
 
@@ -194,14 +195,16 @@ async function runScannerHuntInner(huntId, target, opts = {}) {
       {
         timeoutMs: depthOpts.timeoutMs,
         maxUrls: depthOpts.maxUrls,
-        // Nuclei phase gets its own dedicated timeout (default 300s in
-        // nuclei.js). The generic timeoutMs above is for fast HTTP probes;
+        // Nuclei phase gets its own dedicated timeout (NUCLEI_TIMEOUT_MS,
+        // 600s — raised from 300s 6 Nov 2026 after lab re-validation
+        // measured 304–319s phases and VAmPI's main pass timing out at
+        // 300s). The generic timeoutMs above is for fast HTTP probes;
         // without this, the nuclei phase inherited 15s/30s and died silently
         // on every standard/deep scan before any template completed.
-        nucleiTimeoutMs: 300000,
+        nucleiTimeoutMs: NUCLEI_TIMEOUT_MS,
         // PHASE VISIBILITY (5 Nov 2026): stream each phase into the hunt's
-        // events.jsonl as it finishes, so a 300s nuclei phase does not wait
-        // until scan end to appear. record() is best-effort (never throws)
+        // events.jsonl as it finishes, so a minutes-long nuclei phase does
+        // not wait until scan end to appear. record() is best-effort (never throws)
         // and runScan wraps the listener in try/catch, so a listener
         // failure can never break the scan.
         onPhase: (phase) => record(huntId, { type: 'phase', ...phase }),
