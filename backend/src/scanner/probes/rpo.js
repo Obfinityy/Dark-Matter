@@ -16,6 +16,7 @@
 //
 // Class key: rpoinjection. Honest ceiling: string-level sink proof; the
 // scanner never claims CSS execution it did not observe. Per-run canary.
+import { mutateUrl, probePointName, probePointParameter, isPathPoint } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -90,18 +91,23 @@ async function d2Oracle(url, params, surf, opts, rid) {
   const marker = `dmrpo${rid}`;
   const cssFrag = `}${marker}{x:y`;
   for (const p of (params || []).slice(0, 4)) {
-    const u = new URL(url);
-    u.searchParams.set(p, cssFrag);
-    const rPage = await getFull(u.toString(), opts);
+    const rPage = await getFull(mutateUrl(url, p, cssFrag), opts);
     if (!rPage || !rPage.text.includes(marker)) continue; // not reflected
     // Browser-derived stylesheet URL: junk dir + relative href.
     const relHref = surf.rels[0].split('?')[0];
     const manipUrl = `${surf.junkBase}/${relHref}`;
     // Baseline: same manipulated URL, inert value.
-    const uBase = new URL(url);
-    uBase.searchParams.set(p, 'dmrpo-baseline');
-    const rBasePage = await getFull(uBase.toString(), opts);
-    const rManip = await getFull(manipUrl + `?${p}=${encodeURIComponent(cssFrag)}`, opts);
+    const rBasePage = await getFull(mutateUrl(url, p, 'dmrpo-baseline'), opts);
+    // The manipulated stylesheet URL must carry the same mutation as
+    // the page request. For a query point that is ?p=cssFrag on the
+    // junk URL; for a path point the junk URL is rebuilt from the
+    // MUTATED page URL so the segment mutation survives (the junk
+    // URL has no segment at the point's index to mutate in place).
+    const junkDir = surf.junkBase.split('/').pop();
+    const manipRequest = isPathPoint(p)
+      ? `${mutateUrl(url, p, cssFrag).replace(/\/$/, '')}/${junkDir}/${relHref}`
+      : `${manipUrl}?${probePointName(p)}=${encodeURIComponent(cssFrag)}`;
+    const rManip = await getFull(manipRequest, opts);
     if (!rManip) continue;
     const verbatim = rManip.text.includes(marker);
     const pageShape = similarity(surf.page.text, rManip.text) >= 0.9;
@@ -116,9 +122,9 @@ async function d2Oracle(url, params, surf, opts, rid) {
         title: `RPO style-injection sink — relative URL + path tolerance + reflection (${severity.toUpperCase()})`,
         severity,
         url,
-        parameter: p,
+        parameter: probePointParameter(p),
         evidence: ev(
-          `GET ${manipUrl}?${p}=}${marker}{x:y (browser-derived stylesheet URL)`,
+          `GET ${manipRequest} (browser-derived stylesheet URL)`,
           `Verbatim marker in the stylesheet-position response; page-HTML shape served (sim>=0.9); not HTML-escaped; baseline clean. Content-Type: ${rManip.ct || 'n/a'}${rManip.nosniff ? ' + nosniff' : ''} — ${isCss ? 'browser executes as stylesheet (full chain, string-level)' : rManip.nosniff ? 'sink present, not browser-exploitable (nosniff)' : 'sink proven, execution sniffing-dependent'}.`,
           'Defensive finding: harden with absolute URLs, <base>, nosniff.'
         ),

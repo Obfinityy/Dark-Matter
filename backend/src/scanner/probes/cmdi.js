@@ -1,6 +1,7 @@
 // Dark Matter rule-based scanner — OS command injection probe.
 // Oracle: injected sleep tracks the response delay (time differential).
 // The baseline must be fast; otherwise the result is inconclusive (no finding).
+import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 async function getTimed(url, opts = {}) {
@@ -18,11 +19,6 @@ async function getTimed(url, opts = {}) {
   }
 }
 
-function withParam(url, name, value) {
-  const u = new URL(url);
-  u.searchParams.set(name, value);
-  return u.toString();
-}
 
 export async function probeCmdiTime(url, params, opts = {}) {
   const findings = [];
@@ -30,16 +26,16 @@ export async function probeCmdiTime(url, params, opts = {}) {
   for (const param of params.slice(0, 6)) {
     // Two baselines: the max absorbs normal jitter; a wide spread means the
     // page is too unstable for a timing oracle (skip instead of guessing).
-    const base1 = await getTimed(withParam(url, param, '1'), opts).catch(
+    const base1 = await getTimed(mutateUrl(url, param, '1'), opts).catch(
       () => null
     );
-    const base2 = await getTimed(withParam(url, param, '2'), opts).catch(
+    const base2 = await getTimed(mutateUrl(url, param, '2'), opts).catch(
       () => null
     );
     if (!base1 || !base1.ok || !base2 || !base2.ok) continue;
     if (Math.abs(base1.ms - base2.ms) > 2000) continue; // jittery page
     const baseMs = Math.max(base1.ms, base2.ms);
-    const injected = await getTimed(withParam(url, param, `1;sleep ${SLEEP_S}`), { ...opts, timeoutMs: 25000 }).catch(() => null);
+    const injected = await getTimed(mutateUrl(url, param, `1;sleep ${SLEEP_S}`), { ...opts, timeoutMs: 25000 }).catch(() => null);
     if (!injected || !injected.ok) continue;
     // Pure differential: the injected sleep must ADD ~5s on top of whatever
     // the page normally takes (a slow-but-stable baseline like `ping -c 4`
@@ -48,13 +44,13 @@ export async function probeCmdiTime(url, params, opts = {}) {
     if (delayTracks) {
       findings.push({
         class: 'cmd_injection',
-        id: `cmdi-time-${param}`,
-        title: `Time-based OS command injection in parameter '${param}'`,
+        id: `cmdi-time-${probePointName(param)}`,
+        title: `Time-based OS command injection in parameter '${probePointParameter(param)}'`,
         severity: 'critical',
         url,
-        param,
+        param: probePointParameter(param),
         evidence: {
-          request: `GET ${withParam(url, param, `1;sleep ${SLEEP_S}`)}`,
+          request: `GET ${mutateUrl(url, param, `1;sleep ${SLEEP_S}`)}`,
           response: `response took ${injected.ms}ms vs ${baseMs}ms baseline`,
           impact_demo: `injected sleep(${SLEEP_S}) tracks the response delay`,
           delayTracks: true,

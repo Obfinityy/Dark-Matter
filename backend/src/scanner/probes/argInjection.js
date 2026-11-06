@@ -17,6 +17,7 @@
 // HONEST SCOPE (binding): v1 confirms OPTION-PARSER REACH, never code
 // execution. MEDIUM max. Dedup: suppress if cmdi confirmed the same sink.
 // Class key: argumentInjection.
+import { mutateUrl as setParam, probePointName, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -83,15 +84,10 @@ async function d2Differential(url, param, opts) {
   return null;
 }
 
-function setParam(url, param, value) {
-  const u = new URL(url);
-  u.searchParams.set(param, value);
-  return u.toString();
-}
 
 export async function probeArgInjection(url, params, opts = {}) {
   const findings = [];
-  const sinks = (params || []).filter((p) => CLI_SINK_RES.test(p));
+  const sinks = (params || []).filter((p) => CLI_SINK_RES.test(probePointName(p)));
   // Also try generic params on deep (bounded).
   const targets = sinks.length ? sinks : (opts.depth === 'deep' ? (params || []).slice(0, 3) : []);
   for (const p of targets.slice(0, 4)) {
@@ -100,12 +96,12 @@ export async function probeArgInjection(url, params, opts = {}) {
     findings.push({
       class: 'argumentInjection',
       id: `arginj-${rand()}`,
-      title: `Argument injection LIKELY — option-parser reach via "${p}" (MEDIUM)`,
+      title: `Argument injection LIKELY — option-parser reach via "${probePointParameter(p)}" (MEDIUM)`,
       severity: 'medium',
       url,
-      parameter: p,
+      parameter: probePointParameter(p),
       evidence: ev(
-        `GET ${url}?${p}=${hit.probe} vs baseline "inert123" vs control (differential)`,
+        `GET ${setParam(url, p, hit.probe)} vs baseline "inert123" vs control (differential)`,
         `Option probe produced a distinct response family with option-error text — "...${hit.window}..." — differing from BOTH baseline and control. Code execution NOT demonstrated (v1 honest scope); lab confirmation required.`,
         'Defensive finding: insert `--` separator / allowlist before CLI args.'
       ),

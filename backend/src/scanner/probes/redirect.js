@@ -1,6 +1,7 @@
 // Dark Matter rule-based scanner — open redirect probe.
 // Oracle: 3xx response whose Location points at our evil host.
 // redirect:'manual' so we observe the Location header instead of following it.
+import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 async function getManual(url, opts = {}) {
@@ -19,11 +20,6 @@ async function getManual(url, opts = {}) {
   }
 }
 
-function withParam(url, name, value) {
-  const u = new URL(url);
-  u.searchParams.set(name, value);
-  return u.toString();
-}
 
 export async function probeOpenRedirect(url, params, opts = {}) {
   const findings = [];
@@ -31,7 +27,7 @@ export async function probeOpenRedirect(url, params, opts = {}) {
   for (const param of params.slice(0, 10)) {
     let r;
     try {
-      r = await getManual(withParam(url, param, evil), opts);
+      r = await getManual(mutateUrl(url, param, evil), opts);
     } catch {
       continue;
     }
@@ -43,13 +39,13 @@ export async function probeOpenRedirect(url, params, opts = {}) {
     ) {
       findings.push({
         class: 'open_redirect',
-        id: `open-redirect-${param}`,
-        title: `Open redirect in parameter '${param}'`,
+        id: `open-redirect-${probePointName(param)}`,
+        title: `Open redirect in parameter '${probePointParameter(param)}'`,
         severity: 'medium',
         url,
-        param,
+        param: probePointParameter(param),
         evidence: {
-          request: `GET ${withParam(url, param, evil)}`,
+          request: `GET ${mutateUrl(url, param, evil)}`,
           response: `HTTP ${r.status} with Location: ${r.location}`,
           impact_demo: 'attacker-controlled external redirect (phishing)',
           signalCorrelated: true,

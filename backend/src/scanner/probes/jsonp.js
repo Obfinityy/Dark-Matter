@@ -15,6 +15,7 @@
 //   D5. Error-oracle smell — MEDIUM/INFO.
 //
 // Class key: jsonpinjection (no double-count vs xss.js). Per-run canary.
+import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -51,7 +52,7 @@ const ERROR_SMELL_RES = /(stack trace|traceback|uncaught (type|reference|syntax)
 
 // ---- D1: surface inventory ---------------------------------------------------------------------
 function jsonpParams(params) {
-  return (params || []).filter((p) => JSONP_PARAM_RES.test(p));
+  return (params || []).filter((p) => JSONP_PARAM_RES.test(probePointName(p)));
 }
 
 // ---- D2: arbitrary-callback reflection ------------------------------------------------------------
@@ -62,22 +63,18 @@ async function d2Reflection(url, cbParams, opts, rid) {
   const out = { hits: [], errorSmells: [], probed: 0 };
   const cb = `dmCb${rid}`;
   for (const p of cbParams.slice(0, 4)) {
-    const u = new URL(url);
-    u.searchParams.set(p, cb);
-    const r = await getFull(u.toString(), opts);
+    const r = await getFull(mutateUrl(url, p, cb), opts);
     if (!r) continue;
     out.probed += 1;
     const verbatim = r.text.includes(`${cb}(`) && JS_CT_RES.test(r.ct);
     // Validation probe: paren variant, string-level only.
-    const u2 = new URL(url);
-    u2.searchParams.set(p, `${cb}x(1)`);
-    const r2 = await getFull(u2.toString(), opts);
+    const r2 = await getFull(mutateUrl(url, p, `${cb}x(1)`), opts);
     const unsanitized = r2 && r2.text.includes(`${cb}x(1)`);
     if (r2 && ERROR_SMELL_RES.test(r2.text)) {
       const m = r2.text.match(ERROR_SMELL_RES);
       const idx = r2.text.indexOf(m[0]);
       out.errorSmells.push({
-        param: p,
+        param: probePointParameter(p),
         snippet: r2.text.slice(Math.max(0, idx - 60), idx + 120),
       });
     }
@@ -85,7 +82,7 @@ async function d2Reflection(url, cbParams, opts, rid) {
       const sMatch = r.text.match(SENSITIVE_RES);
       const sIdx = sMatch ? r.text.indexOf(sMatch[0]) : -1;
       out.hits.push({
-        param: p, unsanitized: !!unsanitized,
+        param: probePointParameter(p), unsanitized: !!unsanitized,
         sensitive: SENSITIVE_RES.test(r.text),
         sample: r.text.slice(0, 200),
         sensitiveWindow: sIdx >= 0 ? r.text.slice(Math.max(0, sIdx - 60), sIdx + 120) : null,
@@ -117,9 +114,9 @@ export async function probeJsonp(url, params, opts = {}) {
         title: 'JSONP callback injection — reflected XSS in script context (HIGH)',
         severity: 'high',
         url,
-        parameter: hit.param,
+        parameter: probePointParameter(hit.param),
         evidence: ev(
-          `GET ${url}?${hit.param}=dmCb${rid} (string-level reflection check, never rendered)`,
+          `GET ${mutateUrl(url, hit.param, `dmCb${rid}`)} (string-level reflection check, never rendered)`,
           `Unique callback reflected VERBATIM as the JS wrapper — "${hit.sample}" — paren variant also unsanitized; callback parameter is a reflected-XSS sink in a script context.`,
           'Defensive finding: JSONP callback needs strict identifier validation.'
         ),
@@ -131,9 +128,9 @@ export async function probeJsonp(url, params, opts = {}) {
         title: 'JSONP arbitrary callback reflected (HIGH)',
         severity: 'high',
         url,
-        parameter: hit.param,
+        parameter: probePointParameter(hit.param),
         evidence: ev(
-          `GET ${url}?${hit.param}=dmCb${rid}`,
+          `GET ${mutateUrl(url, hit.param, `dmCb${rid}`)}`,
           `Callback reflected verbatim with executable content-type — "${hit.sample}" (validation blocked parens — hardening partial).`,
           'Defensive finding: callback reflection present; tighten validation.'
         ),
@@ -149,9 +146,9 @@ export async function probeJsonp(url, params, opts = {}) {
         title: 'JSONP data exfiltration — sensitive JSON in attacker callback (HIGH)',
         severity: 'high',
         url,
-        parameter: hit.param,
+        parameter: probePointParameter(hit.param),
         evidence: ev(
-          `GET ${url}?${hit.param}=dmCb${rid} (authorized session, own data)`,
+          `GET ${mutateUrl(url, hit.param, `dmCb${rid}`)} (authorized session, own data)`,
           `Sensitive field "${hit.sensitiveField}" wrapped in attacker-controlled callback — "...${hit.sensitiveWindow || hit.sample}..." — cross-origin data theft via script include.`,
           'Defensive finding: authenticated JSONP endpoint needs callback lockdown or CORS migration.'
         ),
@@ -171,9 +168,9 @@ export async function probeJsonp(url, params, opts = {}) {
         title: 'JSONP callback validation held — arbitrary callback not reflected (INFO)',
         severity: 'info',
         url,
-        parameter: targets[0],
+        parameter: probePointParameter(targets[0]),
         evidence: ev(
-          `GET ${url}?${targets[0]}=dmCb${rid}`,
+          `GET ${mutateUrl(url, targets[0], `dmCb${rid}`)}`,
           `Arbitrary callback dmCb${rid} NOT reflected verbatim — endpoint validates callback names (or does not reflect the parameter).`,
           'Positive hardening note: callback parameter is not a reflected-XSS sink.'
         ),

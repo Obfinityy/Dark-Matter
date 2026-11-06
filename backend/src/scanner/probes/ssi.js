@@ -11,6 +11,7 @@
 // class 'ssi_injection' → default protocol → signalCorrelated=true.
 // Severity: high (directive execution; #exec = RCE on misconfigured hosts).
 import { randomBytes } from 'node:crypto';
+import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -26,11 +27,6 @@ async function get(url, opts = {}) {
   }
 }
 
-function withParam(url, name, value) {
-  const u = new URL(url);
-  u.searchParams.set(name, value);
-  return u.toString();
-}
 
 // A rendered date looks like "Tuesday, 03-Nov-2026 21:24:01 IST" or
 // "11/03/2026" — the directive output, not our input.
@@ -44,8 +40,8 @@ export async function probeSsiInjection(url, params, opts = {}) {
     const payload = `<!--#echo var="DATE_LOCAL" -->`;
     let benign, malicious;
     try {
-      benign = await get(withParam(url, param, benignVal), opts);
-      malicious = await get(withParam(url, param, payload), opts);
+      benign = await get(mutateUrl(url, param, benignVal), opts);
+      malicious = await get(mutateUrl(url, param, payload), opts);
     } catch {
       continue;
     }
@@ -59,14 +55,14 @@ export async function probeSsiInjection(url, params, opts = {}) {
       const window = malicious.text.slice(Math.max(0, idx - 60), idx + 120);
       findings.push({
         class: 'ssi_injection',
-        id: `ssi-${param}`,
-        title: `Server-Side Includes injection in parameter '${param}'`,
+        id: `ssi-${probePointName(param)}`,
+        title: `Server-Side Includes injection in parameter '${probePointParameter(param)}'`,
         severity: 'high',
         url,
-        param,
-        parameter: param,
+        param: probePointParameter(param),
+        parameter: probePointParameter(param),
         evidence: {
-          request: `GET ${withParam(url, param, payload)}`,
+          request: `GET ${mutateUrl(url, param, payload)}`,
           response: `SSI #echo directive executed — server rendered the date — "...${window}..." — benign input rendered inertly`,
           impact_demo: 'server-side directive executed from user input; #exec variant is remote code execution',
           signalCorrelated: true,

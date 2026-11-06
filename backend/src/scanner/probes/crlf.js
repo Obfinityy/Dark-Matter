@@ -19,6 +19,7 @@
 
 import http from 'node:http';
 import https from 'node:https';
+import { mutateUrl, probePointName, probePointParameter, isPathPoint, setPathSegmentRaw } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -85,9 +86,7 @@ async function d1EchoPoints(url, params, opts, rid) {
   const points = [];
   const canary = `__dm_crlf_${rid}`;
   for (const p of params.slice(0, 8)) {
-    const u = new URL(url);
-    u.searchParams.set(p, canary);
-    const r = await rawGet(u.toString(), opts);
+    const r = await rawGet(mutateUrl(url, p, canary), opts);
     if (!r) continue;
     const echoHeaders = [];
     for (let i = 0; i < r.rawHeaders.length; i += 2) {
@@ -105,12 +104,9 @@ async function t1InjectedHeader(url, points, opts, rid) {
   const findings = [];
   const hdrName = `X-DM-CRLF-${rid}`;
   for (const pt of points.slice(0, 4)) {
-    const u = new URL(url);
-    u.searchParams.set(pt.param, `v%0d%0a${hdrName}: yes`);
-    const rPay = await rawGet(u.toString(), opts);
-    const uCtrl = new URL(url);
-    uCtrl.searchParams.set(pt.param, 'v');
-    const rCtrl = await rawGet(uCtrl.toString(), opts);
+    const payUrl = mutateUrl(url, pt.param, `v%0d%0a${hdrName}: yes`);
+    const rPay = await rawGet(payUrl, opts);
+    const rCtrl = await rawGet(mutateUrl(url, pt.param, 'v'), opts);
     if (!rPay || !rCtrl) continue;
     const payHas = hasHeader(rPay.rawHeaders, hdrName);
     const ctrlHas = hasHeader(rCtrl.rawHeaders, hdrName);
@@ -122,9 +118,9 @@ async function t1InjectedHeader(url, points, opts, rid) {
         title: 'CRLF injection — arbitrary response header injected (HIGH)',
         severity: 'high',
         url,
-        parameter: pt.param,
+        parameter: probePointParameter(pt.param),
         evidence: ev(
-          `GET ${url}?${pt.param}=v%0d%0a${hdrName}: yes (raw headers, pre-normalization)`,
+          `GET ${payUrl} (raw headers, pre-normalization)`,
           `New header line present in payload response, absent in control — "${injectedLine}"`,
           'Response-header injection primitive: cache poisoning / XSS delivery / session fixation chains.'
         ),
@@ -139,9 +135,8 @@ async function t2Splitting(url, points, opts, rid) {
   const findings = [];
   const canary = `__dm_split_${rid}`;
   for (const pt of points.slice(0, 4)) {
-    const u = new URL(url);
-    u.searchParams.set(pt.param, `v%0d%0a%0d%0a<html>${canary}`);
-    const r = await rawGet(u.toString(), opts);
+    const payUrl = mutateUrl(url, pt.param, `v%0d%0a%0d%0a<html>${canary}`);
+    const r = await rawGet(payUrl, opts);
     if (!r) continue;
     const idxCanary = r.body.indexOf(canary);
     if (idxCanary !== -1 && idxCanary < 2000) {
@@ -152,9 +147,9 @@ async function t2Splitting(url, points, opts, rid) {
         title: 'CRLF injection — response splitting, body injected (HIGH)',
         severity: 'high',
         url,
-        parameter: pt.param,
+        parameter: probePointParameter(pt.param),
         evidence: ev(
-          `GET ${url}?${pt.param}=v%0d%0a%0d%0a<html>${canary}`,
+          `GET ${payUrl}`,
           `Canary lands in the response BODY at offset ${idxCanary} — "...${window}..." — the server honored the injected blank line as a header terminator.`,
           'Response-splitting primitive (cacheable endpoint => cache-poisoning impact).'
         ),
@@ -170,9 +165,8 @@ async function t3CookieFix(url, points, opts, rid) {
   const findings = [];
   for (const pt of points.slice(0, 4)) {
     if (!pt.echoHeaders.some((h) => /set-cookie/i.test(h))) continue;
-    const u = new URL(url);
-    u.searchParams.set(pt.param, `x%0d%0aSet-Cookie: dmfix_${rid}=1`);
-    const rPay = await rawGet(u.toString(), opts);
+    const payUrl = mutateUrl(url, pt.param, `x%0d%0aSet-Cookie: dmfix_${rid}=1`);
+    const rPay = await rawGet(payUrl, opts);
     if (!rPay) continue;
     const injected = rPay.rawHeaders.some(
       (h, i) => i % 2 === 0 && /set-cookie/i.test(h) && String(rPay.rawHeaders[i + 1]).includes(`dmfix_${rid}`)
@@ -185,9 +179,9 @@ async function t3CookieFix(url, points, opts, rid) {
         title: 'CRLF injection — Set-Cookie fixation via header injection (MEDIUM)',
         severity: 'medium',
         url,
-        parameter: pt.param,
+        parameter: probePointParameter(pt.param),
         evidence: ev(
-          `GET ${url}?${pt.param}=x%0d%0aSet-Cookie: dmfix_${rid}=1`,
+          `GET ${payUrl}`,
           `Response carries an injected Set-Cookie — "${injectedLine}" — read-only observation on our own scan session.`,
           'Session-fixation primitive via response-header injection.'
         ),
@@ -209,10 +203,13 @@ async function t4Variants(url, points, opts, rid) {
   for (const pt of points.slice(0, 3)) {
     for (const v of variants) {
       const hdrName = `X-DM-CRLF-${rid}-${v.name}`;
-      const u = new URL(url);
-      // Bypass URLSearchParams encoding: build the query manually.
-      u.search = `?${pt.param}=${v.payload(hdrName)}`;
-      const rPay = await rawGet(u.toString(), opts);
+      // Bypass URLSearchParams encoding: build the query manually for
+      // query points; for path points set the raw segment verbatim
+      // (setPathSegmentRaw — no encoding, same exact bytes).
+      const payUrl = isPathPoint(pt.param)
+        ? setPathSegmentRaw(url, pt.param.segment, v.payload(hdrName))
+        : (() => { const u = new URL(url); u.search = `?${probePointName(pt.param)}=${v.payload(hdrName)}`; return u.toString(); })();
+      const rPay = await rawGet(payUrl, opts);
       if (!rPay) continue;
       if (hasHeader(rPay.rawHeaders, hdrName)) {
         const injectedLine = rawHeaderLines(rPay.rawHeaders).find((l) => l.toLowerCase().startsWith(hdrName.toLowerCase())) || hdrName;
@@ -222,9 +219,9 @@ async function t4Variants(url, points, opts, rid) {
           title: `CRLF injection — encoding bypass (${v.name}) injects header (HIGH)`,
           severity: 'high',
           url,
-          parameter: pt.param,
+          parameter: probePointParameter(pt.param),
           evidence: ev(
-            `GET ${u.toString().slice(0, 160)}`,
+            `GET ${payUrl.slice(0, 160)}`,
             `Variant "${v.name}" produced a NEW header line — "${injectedLine}" — filter bypass confirmed.`,
             'Filter-evasion primitive for header injection.'
           ),

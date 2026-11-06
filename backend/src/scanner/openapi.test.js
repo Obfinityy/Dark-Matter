@@ -199,6 +199,7 @@ describe('extractOpenApiTargets (pure spec → GET targets)', () => {
       targets: [],
       operations: 0,
       params: 0,
+      pathParams: {},
     });
     assert.equal(resolveOpenApiParam({ $ref: '#/components/parameters/Missing' }, spec), null);
     assert.equal(
@@ -225,9 +226,9 @@ describe('extractOpenApiTargets (pure spec → GET targets)', () => {
   });
 
   test('OA-3b: non-spec input and bad base URL yield zero targets, never throw', () => {
-    assert.deepEqual(extractOpenApiTargets(null, 'http://example.com/'), { targets: [], operations: 0, params: 0 });
-    assert.deepEqual(extractOpenApiTargets({ openapi: '3.0.0' }, 'http://example.com/'), { targets: [], operations: 0, params: 0 });
-    assert.deepEqual(extractOpenApiTargets(VAMPI_SPEC, 'not a url'), { targets: [], operations: 0, params: 0 });
+    assert.deepEqual(extractOpenApiTargets(null, 'http://example.com/'), { targets: [], operations: 0, params: 0, pathParams: {} });
+    assert.deepEqual(extractOpenApiTargets({ openapi: '3.0.0' }, 'http://example.com/'), { targets: [], operations: 0, params: 0, pathParams: {} });
+    assert.deepEqual(extractOpenApiTargets(VAMPI_SPEC, 'not a url'), { targets: [], operations: 0, params: 0, pathParams: {} });
     // An absolute path on another origin is never probed (same-origin rule).
     assert.deepEqual(
       extractOpenApiTargets(
@@ -237,7 +238,7 @@ describe('extractOpenApiTargets (pure spec → GET targets)', () => {
         },
         'http://example.com/'
       ),
-      { targets: [], operations: 0, params: 0 }
+      { targets: [], operations: 0, params: 0, pathParams: {} }
     );
   });
 });

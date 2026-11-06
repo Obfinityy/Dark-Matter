@@ -16,6 +16,7 @@
 //
 // Differential oracle: payload vs benign control, raw bytes, per-run
 // canaries (cache-busted re-downloads). $0, no new deps.
+import { mutateUrl, probePointName, probePointParameter, isQueryPoint, isPathPoint } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -93,10 +94,9 @@ async function csvHalf(url, params, opts, rid) {
       `+2+2${fieldCanary}`,
       `@SUM(1+1)${fieldCanary}`,
     ];
-    for (const p of params.slice(0, 4)) {
+    for (const p of params.filter(isQueryPoint).slice(0, 4)) {
       for (const f of formulas.slice(0, 2)) {
-        const u = new URL(expUrl);
-        u.searchParams.set(p, f);
+        const u = new URL(mutateUrl(expUrl, p, f));
         u.searchParams.set('dmcb', rid);
         const r = await fetchFull(u.toString(), opts);
         if (!r) continue;
@@ -112,7 +112,7 @@ async function csvHalf(url, params, opts, rid) {
             title: 'CSV formula injection — unsanitized formula cell in export (HIGH)',
             severity: 'high',
             url: expUrl,
-            parameter: p,
+            parameter: probePointParameter(p),
             evidence: ev(
               `GET ${u.toString().slice(0, 160)} then re-download export`,
               `Formula payload "${f.slice(0, 40)}..." lands VERBATIM at a cell start — "...${vWindow}..."`,
@@ -121,8 +121,7 @@ async function csvHalf(url, params, opts, rid) {
           });
           // T2 DDE variant on the confirmed cell.
           const dde = `=cmd|' /C calc'!A0${fieldCanary}`;
-          const u2 = new URL(expUrl);
-          u2.searchParams.set(p, dde);
+          const u2 = new URL(mutateUrl(expUrl, p, dde));
           u2.searchParams.set('dmcb', rid);
           const r2 = await fetchFull(u2.toString(), opts);
           const ddeRe = new RegExp(`(^|[\\n,"])${dde.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
@@ -136,7 +135,7 @@ async function csvHalf(url, params, opts, rid) {
               title: 'CSV formula injection — DDE command variant verbatim (CRITICAL)',
               severity: 'critical',
               url: expUrl,
-              parameter: p,
+              parameter: probePointParameter(p),
               evidence: ev(
                 `GET export with ${p}=${dde.slice(0, 30)}...`,
                 `DDE payload lands verbatim — "...${dWindow}..." (Windows-Excel-only impact, documented scoping).`,
@@ -174,10 +173,12 @@ async function logHalf(url, params, opts, rid) {
   // reflected responses, admin/log-viewer paths).
   const surfaces = [url];
   for (const p of params.slice(0, 6)) {
-    const u = new URL(url);
-    u.searchParams.set(p, `aaa%0a${lfCanary}_bbb`);
-    // Build manually to keep the encoded LF.
-    u.search = `?${p}=aaa%0a${lfCanary}_bbb`;
+    // Query points keep the manual query build (exact bytes, encoded
+    // LF); path points take the decoded value through mutateUrl, which
+    // encodes the LF into the segment.
+    const u = isPathPoint(p)
+      ? new URL(mutateUrl(url, p, `aaa\n${lfCanary}_bbb`))
+      : (() => { const u2 = new URL(url); u2.search = `?${probePointName(p)}=aaa%0a${lfCanary}_bbb`; return u2; })();
     const r = await fetchFull(u.toString(), opts);
     if (!r) continue;
     // T4: forged line rendered as its own line on an observable surface.
@@ -204,7 +205,7 @@ async function logHalf(url, params, opts, rid) {
           title: 'Log injection — forged log line on observable surface (HIGH)',
           severity: 'high',
           url: u.toString().slice(0, 160),
-          parameter: p,
+          parameter: probePointParameter(p),
           evidence: ev(
             `GET ${u.toString().slice(0, 120)} (LF canary), then GET log-viewer surface`,
             `Canary renders on its OWN stored log line — "...${storedLine.slice(0, 160)}..."`,
@@ -218,7 +219,7 @@ async function logHalf(url, params, opts, rid) {
           title: 'Log injection — LF splits input onto its own line in the reflected response (INFO)',
           severity: 'info',
           url: u.toString().slice(0, 160),
-          parameter: p,
+          parameter: probePointParameter(p),
           evidence: ev(
             `GET ${u.toString().slice(0, 120)} (LF canary)`,
             `Input splits onto its own line in the REFLECTED response only — "...${ownWindow.slice(0, 160)}..." — no stored log surface observed; forgery needs the input to reach a log.`,
@@ -229,8 +230,9 @@ async function logHalf(url, params, opts, rid) {
     }
     // T5: log-viewer XSS bridge. The verbatim check is real, but the title
     // must not claim "stored" — a reflection is not storage.
-    const u2 = new URL(url);
-    u2.search = `?${p}=%0a<script>${lfCanary}x</script>`;
+    const u2 = isPathPoint(p)
+      ? new URL(mutateUrl(url, p, `\n<script>${lfCanary}x</script>`))
+      : (() => { const u3 = new URL(url); u3.search = `?${probePointName(p)}=%0a<script>${lfCanary}x</script>`; return u3; })();
     const r2 = await fetchFull(u2.toString(), opts);
     if (r2 && r2.text.includes(`<script>${lfCanary}x</script>`)) {
       const sIdx = r2.text.indexOf(`<script>${lfCanary}x</script>`);
@@ -241,7 +243,7 @@ async function logHalf(url, params, opts, rid) {
         title: 'Log injection — unescaped script in log-viewer surface (MEDIUM)',
         severity: 'medium',
         url: u2.toString().slice(0, 160),
-        parameter: p,
+        parameter: probePointParameter(p),
         evidence: ev(
           `GET with %0a<script> canary`,
           `Script canary renders UNESCAPED — "...${sWindow}..." — log→XSS chain if this surface is a stored log viewer.`,

@@ -14,6 +14,7 @@
 // class 'xpath_injection' → default protocol → signalCorrelated=true.
 // Severity: high.
 import { randomBytes } from 'node:crypto';
+import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -31,11 +32,6 @@ async function get(url, opts = {}) {
   }
 }
 
-function withParam(url, name, value) {
-  const u = new URL(url);
-  u.searchParams.set(name, value);
-  return u.toString();
-}
 
 const PAYLOADS = [`' or '1'='1`, `'] | //* | //*['`, `1' or 1=1 or '1'='1`];
 
@@ -45,14 +41,14 @@ export async function probeXpathInjection(url, params, opts = {}) {
     const unlikely = `dmxp${randomBytes(3).toString('hex')}`;
     let benign;
     try {
-      benign = await get(withParam(url, param, unlikely), opts);
+      benign = await get(mutateUrl(url, param, unlikely), opts);
     } catch {
       continue;
     }
     for (const payload of PAYLOADS) {
       let malicious;
       try {
-        malicious = await get(withParam(url, param, payload), opts);
+        malicious = await get(mutateUrl(url, param, payload), opts);
       } catch {
         continue;
       }
@@ -62,14 +58,14 @@ export async function probeXpathInjection(url, params, opts = {}) {
         const window = malicious.text.slice(Math.max(0, idx - 60), idx + 120);
         findings.push({
           class: 'xpath_injection',
-          id: `xpathi-error-${param}`,
-          title: `XPath injection (error) in parameter '${param}'`,
+          id: `xpathi-error-${probePointName(param)}`,
+          title: `XPath injection (error) in parameter '${probePointParameter(param)}'`,
           severity: 'high',
           url,
-          param,
-          parameter: param,
+          param: probePointParameter(param),
+          parameter: probePointParameter(param),
           evidence: {
-            request: `GET ${withParam(url, param, payload)}`,
+            request: `GET ${mutateUrl(url, param, payload)}`,
             response: `XPath engine error on breakout input — "...${window}..." — absent on benign input`,
             impact_demo: 'input reached the XPath compiler — node-set logic is attacker-controlled',
             signalCorrelated: true,
@@ -81,14 +77,14 @@ export async function probeXpathInjection(url, params, opts = {}) {
       if (delta > Math.max(benign.text.length, 500) * 0.25 && delta > 200) {
         findings.push({
           class: 'xpath_injection',
-          id: `xpathi-bool-${param}`,
-          title: `XPath injection (boolean) in parameter '${param}'`,
+          id: `xpathi-bool-${probePointName(param)}`,
+          title: `XPath injection (boolean) in parameter '${probePointParameter(param)}'`,
           severity: 'high',
           url,
-          param,
-          parameter: param,
+          param: probePointParameter(param),
+          parameter: probePointParameter(param),
           evidence: {
-            request: `GET ${withParam(url, param, payload)} vs benign`,
+            request: `GET ${mutateUrl(url, param, payload)} vs benign`,
             response: `node set diverged by ${delta} chars — TRUE payload widened the query`,
             impact_demo: `' or '1'='1 matched nodes the benign query hid — data extraction primitive`,
             diverged: true,

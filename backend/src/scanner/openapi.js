@@ -17,14 +17,16 @@
 // shape the form-derived targets use. A path param is templated with
 // a UNIQUE safe filler (never empty, never equal across params — the
 // same read-only rule as toFormUrl in index.js) and mirrored as a
-// query param carrying the same filler, so the existing param battery
-// (which probes query params) runs against a real spec-derived
-// endpoint. Path params are NOT fuzzed in the path segment itself —
-// the battery only ever mutates query values, so path-segment
-// injection stays an honest documented gap (a probe-point refactor,
-// out of scope here); the battery now RUNS on real API endpoints and
-// covers query-param reflection on them, which is strictly more than
-// the 28 skipped phases it replaces.
+// query param carrying the same filler. Since the path-segment lane
+// (6 Nov 2026) the battery ALSO mutates the segment itself: each
+// target carries its path-param descriptors ({ name, segment }) and
+// the probe-point refactor (probePoints.js) treats a segment as a
+// probeable parameter alongside the query params, so path-segment
+// injection is probed with the same payloads and the same
+// differential discipline as query injection. The query mirror is
+// kept: it is what lets query-only probes (hpp, nosqli, ldap-blind)
+// still run against the endpoint, and it is the control that proves
+// a segment finding came from the segment, not the mirror.
 //
 // SCOPE: GET operations only. POST/PUT/DELETE operations never become
 // targets (no writes to the target, ever). Header/cookie params are
@@ -79,16 +81,20 @@ export function resolveOpenApiParam(param, spec) {
 
 /**
  * Extract probeable GET targets from a parsed OpenAPI spec object.
- * Pure — exported for unit tests. Returns { targets, operations, params }:
- * targets are absolute GET URLs (same origin as baseUrl), one per GET
- * operation carrying at least one query/path parameter; operations is
- * the count of such operations; params is the count of probeable
- * parameters across them. A spec without a paths object yields zero
+ * Pure — exported for unit tests. Returns
+ * { targets, operations, params, pathParams }: targets are absolute
+ * GET URLs (same origin as baseUrl), one per GET operation carrying
+ * at least one query/path parameter; operations is the count of such
+ * operations; params is the count of probeable parameters across
+ * them; pathParams maps each target URL to its path-param descriptors
+ * [{ name, segment }] (segment = index in rawPath.split('/'); an
+ * undeclared {template} segment gets a filler but is NOT a probe
+ * point — it has no name). A spec without a paths object yields zero
  * targets. Paths with no GET operation, GET operations with no
  * query/path params, and non-GET operations are skipped silently.
  */
 export function extractOpenApiTargets(spec, baseUrl) {
-  const out = { targets: [], operations: 0, params: 0 };
+  const out = { targets: [], operations: 0, params: 0, pathParams: {} };
   if (!spec || typeof spec !== 'object' || !spec.paths || typeof spec.paths !== 'object') {
     return out;
   }
@@ -111,11 +117,18 @@ export function extractOpenApiTargets(spec, baseUrl) {
     if (probeable.length === 0) continue;
     let n = 0;
     const pathFillers = new Map();
+    const pathDescriptors = [];
     let templated = rawPath;
     for (const p of probeable) {
       if (p.in !== 'path') continue;
       const value = filler(++n);
       pathFillers.set(p.name, value);
+      // Segment index in the CURRENT templated path (earlier
+      // replacements preserve positions — split/join never adds or
+      // removes a segment). A repeated {name} probes only its first
+      // occurrence; both carry the same filler.
+      const segment = templated.split('/').indexOf(`{${p.name}}`);
+      if (segment >= 0) pathDescriptors.push({ name: p.name, segment });
       templated = templated.split(`{${p.name}}`).join(value);
     }
     // Undeclared {template} segments: never probe a literal-brace URL.
@@ -142,6 +155,7 @@ export function extractOpenApiTargets(spec, baseUrl) {
       out.targets.push(url);
       out.operations += 1;
       out.params += probeable.length;
+      if (pathDescriptors.length > 0) out.pathParams[url] = pathDescriptors;
     }
   }
   return out;
@@ -151,9 +165,9 @@ export function extractOpenApiTargets(spec, baseUrl) {
  * Discover OpenAPI GET targets for one pasted URL: probe the JSON spec
  * locations in order and extract targets from the first parseable spec.
  * Never throws: every failure mode (no spec, non-200, invalid JSON, no
- * paths object, fetch error) returns { specFound: false, targets: [] }
- * with the reason recorded in `errors`, so the caller can record an
- * honest no-op instead of a failure.
+ * paths object, fetch error) returns { specFound: false, targets: [],
+ * pathParams: {} } with the reason recorded in `errors`, so the
+ * caller can record an honest no-op instead of a failure.
  * opts.fetchPage is the test seam (defaults to fingerprint.fetchPage);
  * it must return a fetchPage-shaped { url, status, headers, body }.
  */
@@ -170,6 +184,7 @@ export async function discoverOpenApiTargets(baseUrl, opts = {}) {
       targets: [],
       operations: 0,
       params: 0,
+      pathParams: {},
       errors: [`invalid base URL: ${baseUrl}`],
     };
   }
@@ -202,8 +217,8 @@ export async function discoverOpenApiTargets(baseUrl, opts = {}) {
       errors.push(`${specPath}: no OpenAPI paths object`);
       continue;
     }
-    const { targets, operations, params } = extractOpenApiTargets(spec, baseUrl);
-    return { specFound: true, specUrl, targets, operations, params, errors };
+    const { targets, operations, params, pathParams } = extractOpenApiTargets(spec, baseUrl);
+    return { specFound: true, specUrl, targets, operations, params, pathParams, errors };
   }
-  return { specFound: false, specUrl: null, targets: [], operations: 0, params: 0, errors };
+  return { specFound: false, specUrl: null, targets: [], operations: 0, params: 0, pathParams: {}, errors };
 }

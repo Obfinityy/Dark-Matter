@@ -17,6 +17,7 @@
 // string contains 'sqli'), so evidence.diverged=true → 'confirmed'.
 // Severity: high (auth bypass / data exfiltration primitive).
 import { randomBytes } from 'node:crypto';
+import { mutateUrl, probePointName, probePointParameter, isQueryPoint } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -34,11 +35,6 @@ async function get(url, opts = {}) {
   }
 }
 
-function withParam(url, name, value) {
-  const u = new URL(url);
-  u.searchParams.set(name, value);
-  return u.toString();
-}
 
 // Rough result-set size signal: length + count of repeated row markers.
 function resultSignal(text) {
@@ -47,20 +43,23 @@ function resultSignal(text) {
 
 export async function probeNoSqli(url, params, opts = {}) {
   const findings = [];
-  for (const param of params.slice(0, 10)) {
+  // Operator syntax (param[$ne]) only exists in the query string —
+  // path segments carry no operator names. Query points only.
+  const queryParams = params.filter(isQueryPoint);
+  for (const param of queryParams.slice(0, 10)) {
     const unlikely = `dmno${randomBytes(3).toString('hex')}`;
     let benign;
     try {
-      benign = await get(withParam(url, param, unlikely), opts);
+      benign = await get(mutateUrl(url, param, unlikely), opts);
     } catch {
       continue;
     }
     // Variant 1: $ne operator bypass (PHP-style param[$ne] and JSON style).
-    for (const op of [`${param}[$ne]`, param]) {
+    for (const op of [{ kind: 'query', name: `${probePointName(param)}[$ne]` }, param]) {
       const opValue = op === param ? JSON.stringify({ $ne: unlikely }) : unlikely;
       let malicious;
       try {
-        malicious = await get(withParam(url, op, opValue), opts);
+        malicious = await get(mutateUrl(url, op, opValue), opts);
       } catch {
         continue;
       }
@@ -72,14 +71,14 @@ export async function probeNoSqli(url, params, opts = {}) {
         const window = malicious.text.slice(Math.max(0, idx - 60), idx + 120);
         findings.push({
           class: 'nosql_injection',
-          id: `nosqli-error-${param}`,
-          title: `NoSQL injection (MongoDB error) in parameter '${param}'`,
+          id: `nosqli-error-${probePointName(param)}`,
+          title: `NoSQL injection (MongoDB error) in parameter '${probePointParameter(param)}'`,
           severity: 'high',
           url,
-          param,
-          parameter: param,
+          param: probePointParameter(param),
+          parameter: probePointParameter(param),
           evidence: {
-            request: `GET ${withParam(url, op, opValue)}`,
+            request: `GET ${mutateUrl(url, op, opValue)}`,
             response: `MongoDB error text on operator input — "...${window}..." — absent on benign input`,
             impact_demo: 'operator reached the NoSQL query builder — $ne/$gt/$where are injectable',
             diverged: true,
@@ -93,14 +92,14 @@ export async function probeNoSqli(url, params, opts = {}) {
       if (delta > baseline * 0.25 && delta > 200) {
         findings.push({
           class: 'nosql_injection',
-          id: `nosqli-bool-${param}`,
-          title: `NoSQL injection (boolean bypass) in parameter '${param}'`,
+          id: `nosqli-bool-${probePointName(param)}`,
+          title: `NoSQL injection (boolean bypass) in parameter '${probePointParameter(param)}'`,
           severity: 'high',
           url,
-          param,
-          parameter: param,
+          param: probePointParameter(param),
+          parameter: probePointParameter(param),
           evidence: {
-            request: `GET ${withParam(url, op, opValue)} vs benign ${withParam(url, param, unlikely)}`,
+            request: `GET ${mutateUrl(url, op, opValue)} vs benign ${mutateUrl(url, param, unlikely)}`,
             response: `result set diverged by ${delta} chars (benign ${resultSignal(benign.text)}, operator ${resultSignal(malicious.text)})`,
             impact_demo: '$ne operator bypassed the equality filter — authentication/lookup bypass primitive',
             diverged: true,

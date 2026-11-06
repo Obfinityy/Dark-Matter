@@ -20,6 +20,7 @@
 // left to the manual lab lane — this probe reports detection findings;
 // confirmation of execution impact is a human step. Destructive primitives
 // are never probed. Per-run canary. $0, no new deps.
+import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -54,7 +55,7 @@ const EVAL_ERR_RES = /parse error|syntaxerror|referenceerror|traceback|nameerror
 function evalSurfaces(url, params) {
   const out = [];
   for (const p of params || []) {
-    if (EVAL_PARAM_RES.test(p)) out.push(p);
+    if (EVAL_PARAM_RES.test(probePointName(p))) out.push(p);
   }
   try {
     if (EVAL_PATH_RES.test(new URL(url).pathname)) out.push('(path)');
@@ -67,13 +68,9 @@ async function d2Arithmetic(url, surfaces, opts) {
   const out = [];
   for (const p of surfaces.slice(0, 4)) {
     if (p === '(path)') continue;
-    const uBase = new URL(url);
-    uBase.searchParams.set(p, 'DMEVAL-BASELINE');
-    const rBase = await getText(uBase.toString(), opts);
-    const u = new URL(url);
+    const rBase = await getText(mutateUrl(url, p, 'DMEVAL-BASELINE'), opts);
     // Benign arithmetic expression — valid in PHP, Node, Python, Ruby, ELs.
-    u.searchParams.set(p, '1336*7');
-    const r = await getText(u.toString(), opts);
+    const r = await getText(mutateUrl(url, p, '1336*7'), opts);
     if (!r || !rBase) continue;
     if (r.text.includes('9352') && !rBase.text.includes('9352')) {
       out.push({ param: p, kind: 'arithmetic' });
@@ -93,12 +90,8 @@ async function d3Timing(url, surfaces, opts) {
     if (p === '(path)') continue;
     const times = [];
     for (let i = 0; i < 3; i++) {
-      const uBase = new URL(url);
-      uBase.searchParams.set(p, 'DMEVAL-BASELINE');
-      const rBase = await getText(uBase.toString(), opts);
-      const u = new URL(url);
-      u.searchParams.set(p, delays[0]);
-      const r = await getText(u.toString(), opts);
+      const rBase = await getText(mutateUrl(url, p, 'DMEVAL-BASELINE'), opts);
+      const r = await getText(mutateUrl(url, p, delays[0]), opts);
       if (rBase && r) times.push(r.ms - rBase.ms);
       await new Promise((rsl) => setTimeout(rsl, 800));
     }
@@ -117,14 +110,10 @@ async function d4EL(url, surfaces, opts) {
     // Baseline first: 9352 must be ABSENT from the inert response, exactly
     // like D2 (:78) — without it a coincidental 9352 (token, id, timestamp)
     // fires a HIGH finding (same bare-oracle shape as the retracted EL 49).
-    const uBase = new URL(url);
-    uBase.searchParams.set(p, 'DMEVAL-BASELINE');
-    const rBase = await getText(uBase.toString(), opts);
+    const rBase = await getText(mutateUrl(url, p, 'DMEVAL-BASELINE'), opts);
     if (!rBase) continue;
     for (const shape of ['${1336*7}', '%{1336*7}']) {
-      const u = new URL(url);
-      u.searchParams.set(p, shape);
-      const r = await getText(u.toString(), opts);
+      const r = await getText(mutateUrl(url, p, shape), opts);
       if (r && r.text.includes('9352') && !rBase.text.includes('9352')) {
         const idx = r.text.indexOf('9352');
         out.push({ param: p, kind: 'el', shape, window: r.text.slice(Math.max(0, idx - 60), idx + 60) });
@@ -148,9 +137,9 @@ export async function probeEvalInject(url, params, opts = {}) {
         title: 'Code-evaluation sink exposed via error disclosure (MEDIUM)',
         severity: 'medium',
         url,
-        parameter: hit.param,
+        parameter: probePointParameter(hit.param),
         evidence: ev(
-          `GET ${url}?${hit.param}=1336*7) (unbalanced)`,
+          `GET ${mutateUrl(url, hit.param, '1336*7')} (unbalanced)`,
           `Language parse error surfaced — "...${(hit.sample || '').slice(0, 200)}..." — evaluation sink exposed; execution NOT claimed.`,
           'Defensive finding: evaluation sink fingerprint for hardening.'
         ),
@@ -163,9 +152,9 @@ export async function probeEvalInject(url, params, opts = {}) {
       title: 'Server-side code evaluation detected — input evaluated as code (HIGH)',
       severity: 'high',
       url,
-      parameter: hit.param,
+      parameter: probePointParameter(hit.param),
       evidence: ev(
-        `GET ${url}?${hit.param}=1336*7 vs inert baseline`,
+        `GET ${mutateUrl(url, hit.param, '1336*7')} vs inert baseline`,
         `Benign arithmetic evaluated server-side (9352 in output, absent in baseline) — defensive detection of an eval sink. No harmful operation attempted.`,
         'Defensive finding: user input reaches a code-evaluation sink; requires hardening.'
       ),
@@ -181,9 +170,9 @@ export async function probeEvalInject(url, params, opts = {}) {
         title: 'Blind code-evaluation sink — timing oracle (HIGH)',
         severity: 'high',
         url,
-        parameter: hit.param,
+        parameter: probePointParameter(hit.param),
         evidence: ev(
-          `GET ${url}?${hit.param}=<benign delay> vs baseline, median-of-3`,
+          `GET ${mutateUrl(url, hit.param, 'sleep(3)')} vs baseline, median-of-3`,
           `Median delay ${hit.median}ms over baseline — blind evaluation detected via timing.`,
           'Defensive finding: blind eval sink.'
         ),
@@ -200,9 +189,9 @@ export async function probeEvalInject(url, params, opts = {}) {
         title: 'Expression-language evaluation detected (HIGH)',
         severity: 'high',
         url,
-        parameter: hit.param,
+        parameter: probePointParameter(hit.param),
         evidence: ev(
-          `GET ${url}?${hit.param}=${hit.shape} vs inert baseline`,
+          `GET ${mutateUrl(url, hit.param, hit.shape)} vs inert baseline`,
           `EL shape evaluated (9352 in output, absent in baseline) — "...${hit.window}..."`,
           'Defensive finding: EL evaluation sink.'
         ),

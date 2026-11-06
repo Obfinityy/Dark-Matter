@@ -21,6 +21,7 @@
 // stream" = NEGATIVE (blocked), never a finding. Dedupe (target,param,rfi).
 
 import http from 'node:http';
+import { mutateUrl, probePointName, probePointParameter, probePointKind, isPathPoint } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -100,16 +101,24 @@ function includeSmellParams(url, params) {
   } catch {
     return out;
   }
-  const all = new Set([...(params || []), ...u.searchParams.keys()]);
+  // Points plus the URL's own query keys, deduped by kind:name — a
+  // query point and its bare-name twin are the same parameter.
+  const seen = new Set();
+  const all = [...(params || []), ...[...u.searchParams.keys()].map((n) => ({ kind: 'query', name: n }))];
   for (const p of all) {
-    if (INCLUDE_PARAMS.test(p)) {
+    const key = `${probePointKind(p)}:${probePointName(p)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (INCLUDE_PARAMS.test(probePointName(p))) {
       out.push(p);
       continue;
     }
-    const v = u.searchParams.get(p) || '';
+    const v = isPathPoint(p)
+      ? u.pathname.split('/')[Number(p.segment)] || ''
+      : u.searchParams.get(probePointName(p)) || '';
     if (/\.(php|inc|txt|html?)$/i.test(v) || /\.\.\//.test(v)) out.push(p);
   }
-  return [...new Set(out)];
+  return out;
 }
 
 export async function probeRfi(url, params, opts = {}) {
@@ -127,9 +136,7 @@ export async function probeRfi(url, params, opts = {}) {
     const execUrl = `${base}/dm_rfiexe_${rid}.txt`;
     for (const p of targets.slice(0, 6)) {
       // D3: fetch test.
-      const u = new URL(url);
-      u.searchParams.set(p, canaryUrl);
-      const r = await getText(u.toString(), opts);
+      const r = await getText(mutateUrl(url, p, canaryUrl), opts);
       await new Promise((res) => setTimeout(res, 1500)); // listener window
       const contentProof = r && r.text.includes(canary);
       const fetchProof = hits.some((h) => h.path === `/dm_rfi_${rid}.txt`);
@@ -144,9 +151,9 @@ export async function probeRfi(url, params, opts = {}) {
           title: 'Remote file inclusion — server fetched scanner canary (HIGH)',
           severity: 'high',
           url,
-          parameter: p,
+          parameter: probePointParameter(p),
           evidence: ev(
-            `GET ${url}?${p}=${canaryUrl}`,
+            `GET ${mutateUrl(url, p, canaryUrl)}`,
             contentProof
               ? `Response contains the literal canary — "...${cWindow}..." — server fetched AND reflected our file.`
               : `Canary listener logged an inbound GET for /dm_rfi_${rid}.txt from the target — fetch proof even without reflection.`,
@@ -154,9 +161,7 @@ export async function probeRfi(url, params, opts = {}) {
           ),
         });
         // D4: execution test (PHP, only when D3 confirmed).
-        const u2 = new URL(url);
-        u2.searchParams.set(p, execUrl);
-        const r2 = await getText(u2.toString(), opts);
+        const r2 = await getText(mutateUrl(url, p, execUrl), opts);
         if (r2 && r2.text.includes(execCanary) && !r2.text.includes('<?php')) {
           findings.push({
             class: 'rfi',
@@ -164,9 +169,9 @@ export async function probeRfi(url, params, opts = {}) {
             title: 'Remote file inclusion — remote PHP EXECUTED (CRITICAL)',
             severity: 'critical',
             url,
-            parameter: p,
+            parameter: probePointParameter(p),
             evidence: ev(
-              `GET ${url}?${p}=${execUrl}`,
+              `GET ${mutateUrl(url, p, execUrl)}`,
               `Marker "${execCanary}" in response WITHOUT the <?php source — verbatim proof the remote file was EXECUTED server-side.`,
               'Remote code execution via RFI.'
             ),
@@ -178,9 +183,7 @@ export async function probeRfi(url, params, opts = {}) {
           `data://text/plain,${canary}`,
           `php://filter/convert.base64-encode/resource=${canaryUrl}`,
         ]) {
-          const uw = new URL(url);
-          uw.searchParams.set(p, wrap);
-          const rw = await getText(uw.toString(), opts);
+          const rw = await getText(mutateUrl(url, p, wrap), opts);
           if (rw && (rw.text.includes(canary) || /RFBJX1JGSV9DQU5BUlk/.test(rw.text))) {
             const marker = rw.text.includes(canary) ? canary : 'RFBJX1JGSV9DQU5BUlk';
             const idx = rw.text.indexOf(marker);
@@ -191,9 +194,9 @@ export async function probeRfi(url, params, opts = {}) {
               title: 'Remote file inclusion — PHP wrapper variant confirmed (MEDIUM)',
               severity: 'medium',
               url,
-              parameter: p,
+              parameter: probePointParameter(p),
               evidence: ev(
-                `GET ${url}?${p}=${wrap.slice(0, 60)}...`,
+                `GET ${mutateUrl(url, p, wrap).slice(0, 160)}...`,
                 `Canary (or its base64) reflected via PHP wrapper — "...${window}..."`,
                 'Wrapper-based RFI primitive.'
               ),

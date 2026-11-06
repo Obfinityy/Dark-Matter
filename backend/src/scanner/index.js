@@ -7,6 +7,7 @@ import { authorizeTarget } from './target.js';
 import { randomBytes } from 'node:crypto';
 import { fingerprint, fetchPage } from './fingerprint.js';
 import { crawl, extractParams, extractForms } from './crawl.js';
+import { extractProbePoints } from './probePoints.js';
 import { analyzePage, planForPage } from './pageAnalyze.js';
 import { probeHeaders } from './probes/headers.js';
 import { probeSqliError } from './probes/sqliError.js';
@@ -459,6 +460,11 @@ export async function runScan(
   // cover the whole site, not just the landing page.
   const maxUrls = opts.maxUrls || 10;
   const scanTargets = [];
+  // Path-param descriptors per OpenAPI-derived target URL ({ name,
+  // segment } lists from extractOpenApiTargets). The battery loop
+  // reads this map to build probe points; a URL absent here simply
+  // has no path params.
+  const pathParamsByUrl = new Map();
   const seen = new Set();
   const pushTarget = (u) => {
     try {
@@ -607,6 +613,11 @@ export async function runScan(
           return openApiDiscovery;
         }
         for (const t of openApiDiscovery.targets) pushFormTarget(t);
+        if (openApiDiscovery.pathParams) {
+          for (const [targetUrl, descriptors] of Object.entries(openApiDiscovery.pathParams)) {
+            pathParamsByUrl.set(targetUrl, descriptors);
+          }
+        }
         return openApiDiscovery;
       },
       () =>
@@ -627,39 +638,43 @@ export async function runScan(
   // them as skipped instead (after the loop).
   let paramBatteryRan = false;
   for (const u of scanTargets) {
-    const uparams = [...new Set(extractParams(u))];
-    if (uparams.length === 0) continue;
+    // Probe points: path segments first, then query params
+    // (extractProbePoints) — the battery mutates segments with the
+    // same payloads and the same differential discipline as query
+    // values (path-segment lane, 6 Nov 2026).
+    const points = extractProbePoints(u, pathParamsByUrl.get(u));
+    if (points.length === 0) continue;
     paramBatteryRan = true;
-    await step('sqli-error', () => probeSqliError(u, uparams, opts));
+    await step('sqli-error', () => probeSqliError(u, points, opts));
     await step('sqli-blind', () =>
-      probeBlindSqli(u, uparams, { ...opts, dbHint: fp?.dbHint })
+      probeBlindSqli(u, points, { ...opts, dbHint: fp?.dbHint })
     );
-    await step('hpp', () => probeHpp(u, uparams, opts));
-    await step('csv-log-injection', () => probeCsvLog(u, uparams, opts));
-    await step('xss', () => probeXssReflected(u, uparams, opts));
-    await step('nosqli', () => probeNoSqli(u, uparams, opts));
-    await step('nosql-deep', () => probeNoSqlDeep(u, uparams, opts));
-    await step('ldapi', () => probeLdapInjection(u, uparams, opts));
-    await step('ldap-blind', () => probeLdapBlind(u, uparams, opts));
-    await step('xpathi', () => probeXpathInjection(u, uparams, opts));
-    await step('ssi', () => probeSsiInjection(u, uparams, opts));
-    await step('cmdi', () => probeCmdiTime(u, uparams, opts));
-    await step('traversal', () => probeTraversal(u, uparams, opts));
-    await step('rfi', () => probeRfi(u, uparams, opts));
-    await step('xslt', () => probeXslt(u, uparams, opts));
-    await step('eval-injection', () => probeEvalInject(u, uparams, opts));
-    await step('jsonp', () => probeJsonp(u, uparams, opts));
-    await step('rpo', () => probeRpo(u, uparams, opts));
+    await step('hpp', () => probeHpp(u, points, opts));
+    await step('csv-log-injection', () => probeCsvLog(u, points, opts));
+    await step('xss', () => probeXssReflected(u, points, opts));
+    await step('nosqli', () => probeNoSqli(u, points, opts));
+    await step('nosql-deep', () => probeNoSqlDeep(u, points, opts));
+    await step('ldapi', () => probeLdapInjection(u, points, opts));
+    await step('ldap-blind', () => probeLdapBlind(u, points, opts));
+    await step('xpathi', () => probeXpathInjection(u, points, opts));
+    await step('ssi', () => probeSsiInjection(u, points, opts));
+    await step('cmdi', () => probeCmdiTime(u, points, opts));
+    await step('traversal', () => probeTraversal(u, points, opts));
+    await step('rfi', () => probeRfi(u, points, opts));
+    await step('xslt', () => probeXslt(u, points, opts));
+    await step('eval-injection', () => probeEvalInject(u, points, opts));
+    await step('jsonp', () => probeJsonp(u, points, opts));
+    await step('rpo', () => probeRpo(u, points, opts));
     await step('tabnabbing', () => probeTabnabbing(u, opts));
-    await step('dangling-markup', () => probeDanglingMarkup(u, uparams, opts));
+    await step('dangling-markup', () => probeDanglingMarkup(u, points, opts));
     await step('padding-oracle', () => probePaddingOracle(u, opts));
-    await step('arg-injection', () => probeArgInjection(u, uparams, opts));
-    await step('ssti', () => probeSsti(u, uparams, opts));
-    await step('el-injection', () => probeElInject(u, uparams, opts));
-    await step('ognl-injection', () => probeOgnlInject(u, uparams, opts));
-    await step('redirect', () => probeOpenRedirect(u, uparams, opts));
-    await step('crlf', () => probeCrlf(u, uparams, opts));
-    await step('ssrf', () => probeSsrf(u, uparams, opts));
+    await step('arg-injection', () => probeArgInjection(u, points, opts));
+    await step('ssti', () => probeSsti(u, points, opts));
+    await step('el-injection', () => probeElInject(u, points, opts));
+    await step('ognl-injection', () => probeOgnlInject(u, points, opts));
+    await step('redirect', () => probeOpenRedirect(u, points, opts));
+    await step('crlf', () => probeCrlf(u, points, opts));
+    await step('ssrf', () => probeSsrf(u, points, opts));
   }
   // 35/63 FIX: no param-bearing target existed, so the whole injection
   // battery was skipped in silence. Emit one skipped record per phase so

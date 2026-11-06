@@ -17,6 +17,7 @@
 // Read-only GET, per-input unique canaries, redirect: manual.
 
 import { randomBytes } from 'node:crypto';
+import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -40,11 +41,6 @@ async function getText(url, opts = {}) {
   }
 }
 
-function withParam(url, name, value) {
-  const u = new URL(url);
-  u.searchParams.set(name, value);
-  return u.toString();
-}
 
 // Benign evaluation oracles: math shapes for ${}/${} and #{}, plus a
 // string-method shape so string evaluation is distinguished from math
@@ -66,14 +62,14 @@ export async function probeElInject(url, params, opts = {}) {
     // Control: unique filler canary — never empty==empty, proves 49 is new.
     let control;
     try {
-      control = await getText(withParam(url, param, `dm_${rand()}`), opts);
+      control = await getText(mutateUrl(url, param, `dm_${rand()}`), opts);
     } catch {
       continue;
     }
     for (const { payload, expect } of payloads) {
       let body;
       try {
-        body = await getText(withParam(url, param, payload), opts);
+        body = await getText(mutateUrl(url, param, payload), opts);
       } catch {
         continue;
       }
@@ -84,13 +80,13 @@ export async function probeElInject(url, params, opts = {}) {
         const window = body.slice(Math.max(0, idx - 60), idx + 60);
         findings.push({
           class: 'el_injection',
-          id: `el-injection-${param}`,
-          title: `Expression Language injection in parameter '${param}'`,
+          id: `el-injection-${probePointName(param)}`,
+          title: `Expression Language injection in parameter '${probePointParameter(param)}'`,
           severity: 'high',
           url,
-          parameter: param,
+          parameter: probePointParameter(param),
           evidence: {
-            request: `GET ${withParam(url, param, payload)}`,
+            request: `GET ${mutateUrl(url, param, payload)}`,
             response: `payload evaluated to '${expect}' (literal '${payload}' absent; oracle absent in control) — "...${window}..."`,
             impact_demo: `EL expression ${payload} executed server-side — input reaches an EL evaluator`,
             signalCorrelated: true,

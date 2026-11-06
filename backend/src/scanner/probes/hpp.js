@@ -17,6 +17,7 @@
 //
 // Per-run canary pair __hpp_dm_<runid>_A / _B. Severity capped at MEDIUM
 // unless a security-relevant effect is proven. Read-only, inert strings.
+import { mutateUrl, probePointName, probePointParameter, isQueryPoint } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -88,13 +89,11 @@ async function t1Oracle(url, params, opts) {
   const rid = rand();
   const A = `__hpp_dm_${rid}_A`;
   const B = `__hpp_dm_${rid}_B`;
-  for (const p of params.slice(0, 6)) {
-    const base = new URL(url);
-    base.searchParams.set(p, A);
+  for (const p of params.filter(isQueryPoint).slice(0, 6)) {
     const dup = new URL(url);
     // Build ?p=A&p=B manually to preserve duplication order.
-    dup.search = `?${p}=${encodeURIComponent(A)}&${p}=${encodeURIComponent(B)}`;
-    const rBase = await getText(base.toString(), opts);
+    dup.search = `?${probePointName(p)}=${encodeURIComponent(A)}&${probePointName(p)}=${encodeURIComponent(B)}`;
+    const rBase = await getText(mutateUrl(url, p, A), opts);
     const rDup = await getText(dup.toString(), opts);
     if (!rBase || !rDup) continue;
     const cBase = consumedCanary(rBase.text, A, B);
@@ -111,9 +110,9 @@ async function t1Oracle(url, params, opts) {
         title: `HTTP parameter pollution — duplicate params resolved ${resolution} (MEDIUM)`,
         severity: 'medium',
         url,
-        parameter: p,
+        parameter: probePointParameter(p),
         evidence: ev(
-          `GET ${url}?${p}=${A} (baseline) vs ?${p}=${A}&${p}=${B} (duplicated)`,
+          `GET ${url}?${probePointName(p)}=${A} (baseline) vs ?${probePointName(p)}=${A}&${probePointName(p)}=${B} (duplicated)`,
           `Baseline consumed _A; duplicated request consumed _${cDup === 'B' ? 'B' : 'A+B'} — "...${window}..." — the framework resolves duplicates ${resolution}.`,
           'Framework-level HPP resolution fingerprinted with security meaning: filter/validator differential primitive.'
         ),
@@ -129,11 +128,10 @@ async function t4QueryBody(url, params, opts) {
   const rid = rand();
   const QA = `__hpp_dm_${rid}_QA`;
   const BB = `__hpp_dm_${rid}_BB`;
-  for (const p of params.slice(0, 4)) {
-    const target = new URL(url);
-    target.searchParams.set(p, QA);
-    const body = `${encodeURIComponent(p)}=${encodeURIComponent(BB)}`;
-    const r = await postForm(target.toString(), body, opts);
+  for (const p of params.filter(isQueryPoint).slice(0, 4)) {
+    const targetUrl = mutateUrl(url, p, QA);
+    const body = `${encodeURIComponent(probePointName(p))}=${encodeURIComponent(BB)}`;
+    const r = await postForm(targetUrl, body, opts);
     if (!r) continue;
     const c = consumedCanary(r.text, QA, BB);
     if (c === 'QA' || c === 'BB') {
@@ -147,9 +145,9 @@ async function t4QueryBody(url, params, opts) {
         title: `HPP — query-vs-body precedence: ${winner} wins (MEDIUM)`,
         severity: 'medium',
         url,
-        parameter: p,
+        parameter: probePointParameter(p),
         evidence: ev(
-          `POST ${target.toString()} with body ${p}=${BB}`,
+          `POST ${targetUrl} with body ${probePointName(p)}=${BB}`,
           `Effective value came from the ${winner} — "...${window}..."`,
           'Layer-precedence primitive for validator-bypass chains.'
         ),
@@ -168,10 +166,10 @@ async function t5Delimiters(url, params, opts) {
   const rid = rand();
   const A = `__hpp_dm_${rid}_A`;
   const B = `__hpp_dm_${rid}_B`;
-  for (const p of params.slice(0, 4)) {
+  for (const p of params.filter(isQueryPoint).slice(0, 4)) {
     // ;-separated variant
     const semi = new URL(url);
-    semi.search = `?${p}=${encodeURIComponent(A)};${p}=${encodeURIComponent(B)}`;
+    semi.search = `?${probePointName(p)}=${encodeURIComponent(A)};${probePointName(p)}=${encodeURIComponent(B)}`;
     const r = await getText(semi.toString(), opts);
     if (!r) continue;
     const c = consumedCanary(r.text, A, B);
@@ -185,7 +183,7 @@ async function t5Delimiters(url, params, opts) {
         title: 'HPP — semicolon-separated duplicate params parsed (INFO)',
         severity: 'low',
         url,
-        parameter: p,
+        parameter: probePointParameter(p),
         evidence: ev(
           `GET ${semi.toString()}`,
           `;-separated duplicates parsed; effective value _${c === 'B' ? 'B' : 'A+B'} — "...${window}..."`,
@@ -239,13 +237,11 @@ async function t2WafBypass(url, params, opts) {
   if (!isLab(url, opts)) return findings;
   const rid = rand();
   const evil = `'__hpp_probe__`;
-  for (const p of params.slice(0, 4)) {
-    const single = new URL(url);
-    single.searchParams.set(p, evil);
-    const rSingle = await getText(single.toString(), opts);
+  for (const p of params.filter(isQueryPoint).slice(0, 4)) {
+    const rSingle = await getText(mutateUrl(url, p, evil), opts);
     if (!rSingle || rSingle.status !== 403) continue; // no filter to bypass
     const dup = new URL(url);
-    dup.search = `?${p}=1&${p}=${encodeURIComponent(evil)}`;
+    dup.search = `?${probePointName(p)}=1&${probePointName(p)}=${encodeURIComponent(evil)}`;
     const rDup = await getText(dup.toString(), opts);
     if (rDup && rDup.status !== 403 && rDup.text.includes('__hpp_probe__')) {
       const idx = rDup.text.indexOf('__hpp_probe__');
@@ -256,9 +252,9 @@ async function t2WafBypass(url, params, opts) {
         title: 'HPP — WAF/validator bypass with backend consumption (HIGH)',
         severity: 'high',
         url,
-        parameter: p,
+        parameter: probePointParameter(p),
         evidence: ev(
-          `GET ?${p}=${evil} -> 403 (baseline). GET ?${p}=1&${p}=${evil} -> ${rDup.status}`,
+          `GET ?${probePointName(p)}=${evil} -> 403 (baseline). GET ?${probePointName(p)}=1&${probePointName(p)}=${evil} -> ${rDup.status}`,
           `Filter saw the benign first value; the backend consumed the polluted value — "...${window}..."`,
           'WAF-bypass primitive via parameter pollution.'
         ),

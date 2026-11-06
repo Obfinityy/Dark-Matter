@@ -19,6 +19,7 @@
 //
 // Grading: MEDIUM = token in blob; LOW = structural swallow, no secret;
 // INFO = escaped/encoded/not swallowed. Class key: danglingMarkup.
+import { mutateUrl, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -62,9 +63,7 @@ async function d1d2(url, params, opts, rid) {
   const sinks = [];
   const probe = `dmq${rid}"'><`;
   for (const p of (params || []).slice(0, 6)) {
-    const u = new URL(url);
-    u.searchParams.set(p, probe);
-    const html = await getText(u.toString(), opts);
+    const html = await getText(mutateUrl(url, p, probe), opts);
     if (!html || !html.includes(probe)) continue;
     // Context: inside a quoted attribute value?
     const idx = html.indexOf(probe);
@@ -88,9 +87,7 @@ async function d3Oracle(url, sinks, opts, rid) {
   const canaryHost = `dm-dangling-${rid}.invalid`;
   for (const sink of sinks.slice(0, 3)) {
     const payload = `<img src='https://${canaryHost}/`;
-    const u = new URL(url);
-    u.searchParams.set(sink.param, payload);
-    const html = await getText(u.toString(), opts);
+    const html = await getText(mutateUrl(url, sink.param, payload), opts);
     if (!html || !html.includes(payload)) continue; // (1) verbatim required
     const injEnd = html.indexOf(payload) + payload.length;
     // (3) tokenizer span: first matching delimiter quote after injection.
@@ -108,9 +105,9 @@ async function d3Oracle(url, sinks, opts, rid) {
         title: 'Dangling markup injection — page secret exfiltrated via tokenizer (MEDIUM)',
         severity: 'medium',
         url,
-        parameter: sink.param,
+        parameter: probePointParameter(sink.param),
         evidence: ev(
-          `GET ${url}?${sink.param}=<img src='https://${canaryHost}/ (unterminated, response-parsed only)`,
+          `GET ${mutateUrl(url, sink.param, payload)} (unterminated, response-parsed only)`,
           `Verbatim injection at offset ${injEnd}; swallowed span (${blob.length} bytes to ${spanEnd === html.length ? 'EOF' : 'next delimiter'}) contains secret token "${tokenInBlob.slice(0, 20)}...". CSP presence does NOT mitigate (no script involved) — anti-suppression applied.`,
           'Defensive finding: exfiltration primitive via dangling markup; escape attribute delimiters.'
         ),
@@ -122,9 +119,9 @@ async function d3Oracle(url, sinks, opts, rid) {
         title: 'Dangling markup injection — structural attribute swallow (LOW)',
         severity: 'low',
         url,
-        parameter: sink.param,
+        parameter: probePointParameter(sink.param),
         evidence: ev(
-          `GET ${url}?${sink.param}=<img src='https://${canaryHost}/`,
+          `GET ${mutateUrl(url, sink.param, payload)}`,
           `Verbatim injection; ${blob.length}-byte span swallowed with no secret inside — "...${blob.slice(0, 120)}..." — real primitive, no secret impact demonstrated.`,
           'Defensive finding: attribute-escape hardening needed.'
         ),

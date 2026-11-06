@@ -15,6 +15,7 @@
 // (boolean variant also sets diverged=true for the evidence trail).
 // Severity: high.
 import { randomBytes } from 'node:crypto';
+import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -32,11 +33,6 @@ async function get(url, opts = {}) {
   }
 }
 
-function withParam(url, name, value) {
-  const u = new URL(url);
-  u.searchParams.set(name, value);
-  return u.toString();
-}
 
 const BREAKOUTS = ['*)(uid=*))(|(uid=*', '*', 'admin)(uid=*'];
 
@@ -46,14 +42,14 @@ export async function probeLdapInjection(url, params, opts = {}) {
     const unlikely = `dmldap${randomBytes(3).toString('hex')}`;
     let benign;
     try {
-      benign = await get(withParam(url, param, unlikely), opts);
+      benign = await get(mutateUrl(url, param, unlikely), opts);
     } catch {
       continue;
     }
     for (const payload of BREAKOUTS) {
       let malicious;
       try {
-        malicious = await get(withParam(url, param, payload), opts);
+        malicious = await get(mutateUrl(url, param, payload), opts);
       } catch {
         continue;
       }
@@ -63,14 +59,14 @@ export async function probeLdapInjection(url, params, opts = {}) {
         const window = malicious.text.slice(Math.max(0, idx - 60), idx + 120);
         findings.push({
           class: 'ldap_injection',
-          id: `ldapi-error-${param}`,
-          title: `LDAP injection (error) in parameter '${param}'`,
+          id: `ldapi-error-${probePointName(param)}`,
+          title: `LDAP injection (error) in parameter '${probePointParameter(param)}'`,
           severity: 'high',
           url,
-          param,
-          parameter: param,
+          param: probePointParameter(param),
+          parameter: probePointParameter(param),
           evidence: {
-            request: `GET ${withParam(url, param, payload)}`,
+            request: `GET ${mutateUrl(url, param, payload)}`,
             response: `LDAP error text on filter-breakout input — "...${window}..." — absent on benign input`,
             impact_demo: 'input reached the LDAP filter compiler — filter logic is attacker-controlled',
             signalCorrelated: true,
@@ -82,14 +78,14 @@ export async function probeLdapInjection(url, params, opts = {}) {
       if (delta > Math.max(benign.text.length, 500) * 0.25 && delta > 200) {
         findings.push({
           class: 'ldap_injection',
-          id: `ldapi-bool-${param}`,
-          title: `LDAP injection (filter breakout) in parameter '${param}'`,
+          id: `ldapi-bool-${probePointName(param)}`,
+          title: `LDAP injection (filter breakout) in parameter '${probePointParameter(param)}'`,
           severity: 'high',
           url,
-          param,
-          parameter: param,
+          param: probePointParameter(param),
+          parameter: probePointParameter(param),
           evidence: {
-            request: `GET ${withParam(url, param, payload)} vs benign`,
+            request: `GET ${mutateUrl(url, param, payload)} vs benign`,
             response: `result set diverged by ${delta} chars — wildcard/breakout widened the filter`,
             impact_demo: 'filter breakout returned entries the benign query hid — auth bypass primitive',
             diverged: true,

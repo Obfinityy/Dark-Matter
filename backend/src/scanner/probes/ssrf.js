@@ -2,6 +2,7 @@
 // Hunts URL-fetching parameters and tests cloud-metadata exfiltration;
 // the oracle is a metadata marker echoed in the response (oobHit).
 // A full OOB collaborator listener is a documented next step.
+import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 const URL_PARAM_RE = /^(url|uri|image|img|src|source|fetch|feed|redirect|next|callback|webhook)$/i;
 
@@ -16,20 +17,15 @@ async function get(url, opts = {}) {
   }
 }
 
-function withParam(url, name, value) {
-  const u = new URL(url);
-  u.searchParams.set(name, value);
-  return u.toString();
-}
 
 export async function probeSsrf(url, params, opts = {}) {
   const findings = [];
-  const candidates = params.filter((p) => URL_PARAM_RE.test(p));
+  const candidates = params.filter((p) => URL_PARAM_RE.test(probePointName(p)));
   for (const param of candidates.slice(0, 5)) {
     let body;
     try {
       body = await get(
-        withParam(url, param, 'http://169.254.169.254/latest/meta-data/'),
+        mutateUrl(url, param, 'http://169.254.169.254/latest/meta-data/'),
         opts
       );
     } catch {
@@ -41,13 +37,13 @@ export async function probeSsrf(url, params, opts = {}) {
       const window = body.slice(Math.max(0, idx - 60), idx + 120);
       findings.push({
         class: 'ssrf',
-        id: `ssrf-metadata-${param}`,
-        title: `SSRF in parameter '${param}' — cloud metadata reachable`,
+        id: `ssrf-metadata-${probePointName(param)}`,
+        title: `SSRF in parameter '${probePointParameter(param)}' — cloud metadata reachable`,
         severity: 'critical',
         url,
-        param,
+        param: probePointParameter(param),
         evidence: {
-          request: `GET ${withParam(url, param, 'http://169.254.169.254/latest/meta-data/')}`,
+          request: `GET ${mutateUrl(url, param, 'http://169.254.169.254/latest/meta-data/')}`,
           response: `cloud metadata marker in the response — "...${window}..."`,
           impact_demo: 'the server-side fetcher reached 169.254.169.254',
           oobHit: true,

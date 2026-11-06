@@ -5,6 +5,7 @@
 // token substring, a 4-digit product cannot — plus a per-param control
 // request proves 9352 is not already on the page.
 import { randomBytes } from 'node:crypto';
+import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -23,11 +24,6 @@ async function get(url, opts = {}) {
   }
 }
 
-function withParam(url, name, value) {
-  const u = new URL(url);
-  u.searchParams.set(name, value);
-  return u.toString();
-}
 
 export async function probeSsti(url, params, opts = {}) {
   const findings = [];
@@ -35,13 +31,13 @@ export async function probeSsti(url, params, opts = {}) {
     // Control: unique filler — proves the oracle token is not already on the page.
     let control;
     try {
-      control = await get(withParam(url, param, `dm_${rand()}`), opts);
+      control = await get(mutateUrl(url, param, `dm_${rand()}`), opts);
     } catch {
       continue;
     }
     let body;
     try {
-      body = await get(withParam(url, param, '{{1336*7}}'), opts);
+      body = await get(mutateUrl(url, param, '{{1336*7}}'), opts);
     } catch {
       continue;
     }
@@ -52,13 +48,13 @@ export async function probeSsti(url, params, opts = {}) {
       const window = body.slice(Math.max(0, idx - 60), idx + 60);
       findings.push({
         class: 'ssti',
-        id: `ssti-${param}`,
-        title: `Server-side template injection in parameter '${param}'`,
+        id: `ssti-${probePointName(param)}`,
+        title: `Server-side template injection in parameter '${probePointParameter(param)}'`,
         severity: 'critical',
         url,
-        param,
+        param: probePointParameter(param),
         evidence: {
-          request: `GET ${withParam(url, param, '{{1336*7}}')}`,
+          request: `GET ${mutateUrl(url, param, '{{1336*7}}')}`,
           response: `expression evaluated to 9352 (literal {{1336*7}} absent; 9352 absent in control) — "...${window}..."`,
           impact_demo: '{{1336*7}} rendered as 9352 — the template engine executes input',
           signalCorrelated: true,

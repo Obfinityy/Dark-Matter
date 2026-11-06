@@ -14,6 +14,7 @@
 // Detection = math-evaluation differential only. Read-only GET.
 
 import { randomBytes } from 'node:crypto';
+import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -39,11 +40,6 @@ async function getText(url, opts = {}) {
   }
 }
 
-function withParam(url, name, value) {
-  const u = new URL(url);
-  u.searchParams.set(name, value);
-  return u.toString();
-}
 
 // Targeting: Struts2 action URLs, or a Struts marker in the baseline
 // response (headers or body). Keeps the math tests honest — no blind
@@ -108,14 +104,14 @@ export async function probeOgnlInject(url, params, opts = {}) {
     // Control: OGNL-shaped but non-evaluating literal (unknown identifier).
     let control;
     try {
-      control = await getText(withParam(url, param, `%{dm_${rand()}}`), opts);
+      control = await getText(mutateUrl(url, param, `%{dm_${rand()}}`), opts);
     } catch {
       continue;
     }
     for (const { payload, expect } of payloads) {
       let r;
       try {
-        r = await getText(withParam(url, param, payload), opts);
+        r = await getText(mutateUrl(url, param, payload), opts);
       } catch {
         continue;
       }
@@ -126,13 +122,13 @@ export async function probeOgnlInject(url, params, opts = {}) {
         const window = r.text.slice(Math.max(0, idx - 60), idx + 60);
         findings.push({
           class: 'ognl_injection',
-          id: `ognl-injection-${param}`,
-          title: `OGNL injection in parameter '${param}'`,
+          id: `ognl-injection-${probePointName(param)}`,
+          title: `OGNL injection in parameter '${probePointParameter(param)}'`,
           severity: 'critical',
           url,
-          parameter: param,
+          parameter: probePointParameter(param),
           evidence: {
-            request: `GET ${withParam(url, param, payload)}`,
+            request: `GET ${mutateUrl(url, param, payload)}`,
             response: `payload evaluated to '9352' (literal '${payload}' absent; oracle absent in control) — "...${window}..."`,
             impact_demo: `OGNL expression ${payload} executed server-side — Struts2 OGNL evaluates user input; RCE-confirmation is manual-lab-only and was not attempted`,
             signalCorrelated: true,

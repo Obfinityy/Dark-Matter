@@ -94,7 +94,10 @@ describe('evalInject probe', () => {
       assert.equal(f.length, 1, `expected exactly 1 finding, got ${JSON.stringify(findings.map((x) => x.id))}`);
       assert.equal(f[0].severity, 'high');
       assert.ok(f[0].id.startsWith('eval-el-'), 'the finding must be the D4 EL one');
-      assert.ok(f[0].evidence.request.includes('%{1336*7}'), 'request must name the evaluating shape');
+      // Evidence request is the REAL mutated URL now (path-segment lane,
+      // 6 Nov 2026) — the shape is percent-encoded in it, so decode
+      // before checking it names the evaluating shape.
+      assert.ok(decodeURIComponent(f[0].evidence.request).includes('%{1336*7}'), 'request must name the evaluating shape');
     } finally {
       await new Promise((r) => ognl.close(r));
     }

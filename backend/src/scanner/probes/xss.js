@@ -2,6 +2,7 @@
 // Oracle: unique canary reflected UNENCODED (canaryReflected), with an
 // HTML-encoded variant as the control (must not reflect raw).
 import { randomBytes } from 'node:crypto';
+import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -16,11 +17,6 @@ async function get(url, opts = {}) {
   }
 }
 
-function withParam(url, name, value) {
-  const u = new URL(url);
-  u.searchParams.set(name, value);
-  return u.toString();
-}
 
 export async function probeXssReflected(url, params, opts = {}) {
   const findings = [];
@@ -29,7 +25,7 @@ export async function probeXssReflected(url, params, opts = {}) {
     const payload = `'"<>${`dmxss${rand}`}`;
     let body;
     try {
-      body = await get(withParam(url, param, payload), opts);
+      body = await get(mutateUrl(url, param, payload), opts);
     } catch {
       continue;
     }
@@ -42,7 +38,7 @@ export async function probeXssReflected(url, params, opts = {}) {
       .replace(/"/g, '&quot;');
     let body2 = '';
     try {
-      body2 = await get(withParam(url, param, encoded), opts);
+      body2 = await get(mutateUrl(url, param, encoded), opts);
     } catch {
       // ignore control failure
     }
@@ -50,13 +46,13 @@ export async function probeXssReflected(url, params, opts = {}) {
     const pWindow = pIdx >= 0 ? body.slice(Math.max(0, pIdx - 60), pIdx + 120) : body.slice(0, 200);
     findings.push({
       class: 'xss_reflected',
-      id: `xss-reflected-${param}`,
-      title: `Reflected XSS in parameter '${param}'`,
+      id: `xss-reflected-${probePointName(param)}`,
+      title: `Reflected XSS in parameter '${probePointParameter(param)}'`,
       severity: 'high',
       url,
-      param,
+      param: probePointParameter(param),
       evidence: {
-        request: `GET ${withParam(url, param, payload)}`,
+        request: `GET ${mutateUrl(url, param, payload)}`,
         response: `payload reflected unencoded — "...${pWindow}..."`,
         impact_demo:
           body2.includes(encoded) && !body2.includes(payload)
