@@ -11,7 +11,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { dataDir } from './store.js';
+import { dataDir, ensureHuntDir } from './store.js';
 import { scopeGlobalMemoriesForTarget } from './globalMemory.js';
 import { findWrongTargetPaths } from './knownApps.js';
 import { extractPremise, premiseKey, UNKNOWN_PREMISE_KEY } from './premiseDedup.js';
@@ -34,6 +34,7 @@ export function recordReasoning(huntId, entry) {
     followUp: entry.followUp || '',
   };
   try {
+    ensureHuntDir(huntId);
     fs.appendFileSync(reasoningFile(huntId), JSON.stringify(record) + '\n');
   } catch { /* best-effort */ }
 }

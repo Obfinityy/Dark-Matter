@@ -37,7 +37,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { huntDir } from './store.js';
+import { huntDir, ensureHuntDir } from './store.js';
 
 export const PAGE_STATE_VERSION = 1;
 const MAX_PAGES = 12; // distinct pages kept, most-recent first
@@ -118,6 +118,7 @@ export function loadPageState(huntId) {
 
 export function savePageState(huntId, state) {
   try {
+    ensureHuntDir(huntId);
     const file = pageStateFile(huntId);
     const tmp = `${file}.tmp-${process.pid}`;
     fs.writeFileSync(tmp, JSON.stringify(state));

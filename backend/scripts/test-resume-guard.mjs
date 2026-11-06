@@ -38,7 +38,7 @@ function check(name, cond) {
 
 const STALE_MS = 90 * 60 * 1000;
 function writeLock(huntId, lock) {
-  const dir = store.huntDir(huntId);
+  const dir = store.ensureHuntDir(huntId);
   if (lock === null) return;
   fs.writeFileSync(path.join(dir, 'driver.lock'), typeof lock === 'string' ? lock : JSON.stringify(lock));
 }

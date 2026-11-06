@@ -68,9 +68,17 @@ export function writeFileObservation(name, chars) {
 }
 
 export function artifactsDir(huntId) {
-  const dir = path.join(huntDir(huntId), 'artifacts');
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
+  // PURE path builder — never creates the directory (6 Nov 2026 h_nope
+  // leak: listArtifacts/readArtifact called this on a read path and
+  // mkdir'd hunts/<id>/artifacts/ for hunts that never existed).
+  // Writers call ensureArtifactsDir() explicitly before writing.
+  return path.join(huntDir(huntId), 'artifacts');
+}
+
+/** Create the artifacts dir. Writers only — never call this on a read path. */
+export function ensureArtifactsDir(huntId) {
+  fs.mkdirSync(artifactsDir(huntId), { recursive: true });
+  return artifactsDir(huntId);
 }
 
 /** Strict basename check — returns the name or null. */
@@ -116,6 +124,7 @@ export function writeArtifact(huntId, name, content) {
   if (Buffer.byteLength(text) > ARTIFACT_MAX_BYTES) {
     throw new Error(`artifact ${n} exceeds the ${ARTIFACT_MAX_BYTES}-byte storage ceiling`);
   }
+  ensureArtifactsDir(huntId);
   fs.writeFileSync(artifactPath(huntId, n), text);
   return { name: n, chars: text.length, sha256: crypto.createHash('sha256').update(text).digest('hex') };
 }
@@ -132,6 +141,7 @@ export function appendArtifact(huntId, name, chunk) {
   if (Buffer.byteLength(text) > ARTIFACT_MAX_BYTES) {
     throw new Error(`artifact ${n} exceeds the ${ARTIFACT_MAX_BYTES}-byte storage ceiling`);
   }
+  ensureArtifactsDir(huntId);
   fs.writeFileSync(p, text);
   return { name: n, chars: text.length, sha256: crypto.createHash('sha256').update(text).digest('hex') };
 }

@@ -34,7 +34,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { huntDir } from './store.js';
+import { huntDir, ensureHuntDir } from './store.js';
 
 /** Max questions waiting at once — the screen shows the oldest 3. */
 export const MAX_QUEUED_CHAT_QUESTIONS = 5;
@@ -55,6 +55,7 @@ function readQueueFile(huntId) {
 }
 
 function writeQueueFile(huntId, queue) {
+  ensureHuntDir(huntId);
   const file = chatQueuePath(huntId);
   const tmp = `${file}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(queue, null, 2));

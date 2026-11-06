@@ -38,7 +38,7 @@ import {
   desktopStartRecentlyFailed,
   noteDesktopStartFailure,
 } from './huntRunner.js';
-import { artifactsDir } from './artifacts.js';
+import { artifactsDir, ensureArtifactsDir } from './artifacts.js';
 
 const GUI_DIR = '/tmp/dm-gui';
 const CDP_PORT = 9222;
@@ -716,6 +716,7 @@ async function headlessSnapshot(huntId, url, deps = {}) {
 
 async function savePngArtifact(huntId, b64) {
   const name = `screenshot-${new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14)}.png`;
+  ensureArtifactsDir(huntId);
   const file = path.join(artifactsDir(huntId), name);
   fs.writeFileSync(file, Buffer.from(b64, 'base64'));
   return name;

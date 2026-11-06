@@ -27,7 +27,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { huntDir } from './store.js';
+import { huntDir, ensureHuntDir } from './store.js';
 
 export const HUNT_PLAN_VERSION = 1;
 export const MAX_PLAN_STEPS = 12; // a hunter's plan is short; a list longer than this is a wishlist
@@ -73,6 +73,7 @@ export function loadHuntPlan(huntId) {
 
 export function saveHuntPlan(huntId, plan) {
   try {
+    ensureHuntDir(huntId);
     const file = huntPlanFile(huntId);
     const tmp = `${file}.tmp-${process.pid}`;
     fs.writeFileSync(tmp, JSON.stringify(plan));

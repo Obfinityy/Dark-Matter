@@ -61,7 +61,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { artifactsDir } from './artifacts.js';
+import { artifactsDir, ensureArtifactsDir } from './artifacts.js';
 
 export const DESKTOP_DISPLAY = ':99';
 export const DESKTOP_WIDTH = 1280;
@@ -313,6 +313,7 @@ export async function captureDesktopScreenshot(huntId) {
     const shot = await huntDesktopScreenshot(huntId);
     if (!shot.ok) return { ok: false, error: shot.error || 'screenshot_failed' };
     const name = `desktop-${new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14)}.jpg`;
+    ensureArtifactsDir(huntId);
     const file = path.join(artifactsDir(huntId), name);
     fs.writeFileSync(file, shot.buffer);
     return { ok: true, name, contentType: shot.contentType || 'image/jpeg' };

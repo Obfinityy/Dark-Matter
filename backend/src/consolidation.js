@@ -22,7 +22,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { appendHuntEvent, readHuntMeta, huntDir, listHuntMetas } from './store.js';
+import { appendHuntEvent, readHuntMeta, huntDir, ensureHuntDir, listHuntMetas } from './store.js';
 import { getHypothesisLedger, getAllReasoning } from './reasoningMemory.js';
 import { queryEpisodes, maxSourceIdx, lastConsolidationIdx, flushHuntEpisodes } from './episodeStore.js';
 
@@ -129,6 +129,7 @@ export function runConsolidation(huntId, { minNewEpisodes = 150, force = false }
     return { done: false, reason: 'below-threshold', newSince };
   }
   const { text, counts } = buildDossierText(huntId);
+  ensureHuntDir(huntId);
   const file = path.join(huntDir(huntId), 'DOSSIER.md');
   fs.writeFileSync(file, text);
   appendHuntEvent(huntId, {

@@ -51,7 +51,7 @@
 // the files themselves never lose anything.
 import fs from 'node:fs';
 import path from 'node:path';
-import { huntDir } from './store.js';
+import { huntDir, ensureHuntDir } from './store.js';
 import { contentHash } from './actionIndex.js';
 
 const MEMORY_FILE = 'memory.json';
@@ -75,6 +75,7 @@ function readFile(huntId, name, fallback) {
 
 function writeFileAtomic(huntId, name, obj) {
   try {
+    ensureHuntDir(huntId);
     const file = filePath(huntId, name);
     const tmp = `${file}.tmp-${process.pid}`;
     fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));

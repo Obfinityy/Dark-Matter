@@ -26,7 +26,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { huntDir } from './store.js';
+import { huntDir, ensureHuntDir } from './store.js';
 
 export const OUTPUTS_VERSION = 1;
 /** Saved output per entry — the head the brain acts on; the full text lives in the artifact when spilled. */
@@ -57,6 +57,7 @@ export function loadOutputs(huntId) {
 
 export function saveOutputs(huntId, data) {
   try {
+    ensureHuntDir(huntId);
     const file = outputsFile(huntId);
     const tmp = `${file}.tmp-${process.pid}`;
     fs.writeFileSync(tmp, JSON.stringify(data));

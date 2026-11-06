@@ -76,6 +76,7 @@ function lockPidAlive(pid) {
 // Exported for the driver-lock tests (huntAgent.driverLock.test.js) —
 // production callers go through runAutonomousHunt.
 export function tryAcquireDriverLock(huntId) {
+  ensureHuntDir(huntId);
   const lp = driverLockPath(huntId);
   const now = Date.now();
   const claim = { pid: process.pid, startedAt: new Date(now).toISOString(), heartbeatAt: now };
@@ -175,7 +176,7 @@ import { webSearch, searchCVE } from './webSearch.js';
 import { runBrowserTask, crawlScript } from './browserAgent.js';
 import { getHuntCost } from './costTracker.js';
 import { checkBudget } from './budgetCap.js';
-import { appendHuntEvent, writeHuntMeta, writeHuntMetaCheckpoint, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel, huntDir } from './store.js';
+import { appendHuntEvent, writeHuntMeta, writeHuntMetaCheckpoint, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel, huntDir, ensureHuntDir } from './store.js';
 import { episodeLedgerEnabled, retrieveEpisodes, formatRetrievalForPrompt, recordRuledOut, getRuledOutCounts, formatLessonsForPrompt, RETRY_BUDGET, recordFact } from './episodeStore.js';
 import { extractPremise, premiseKey, UNKNOWN_PREMISE_KEY } from './premiseDedup.js';
 import { proposePlaybook, formatPlaybookForPrompt } from './playbook.js';

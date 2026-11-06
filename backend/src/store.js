@@ -67,11 +67,23 @@ export function writeUsers(obj) {
 // ---- Hunt event cache ------------------------------------------------------
 
 export function huntDir(huntId) {
-  return ensureDir(path.join(dataDir(), 'hunts', String(huntId)));
+  // PURE path builder — it must NEVER create the directory (6 Nov 2026
+  // h_nope leak): every load*/read* helper in the codebase builds its
+  // file path through huntDir(), so a mkdir here turned ANY read of a
+  // nonexistent hunt (a 404 negative-path check, an agent-chat reply,
+  // a coverage load) into a stray hunts/<id>/ dir on disk. Writers
+  // call ensureHuntDir() explicitly before their first write.
+  return path.join(config.dataDir, 'hunts', String(huntId));
+}
+
+/** Create the hunt dir. Writers only — never call this on a read path. */
+export function ensureHuntDir(huntId) {
+  return ensureDir(huntDir(huntId));
 }
 
 export function appendHuntEvent(huntId, event) {
   try {
+    ensureHuntDir(huntId);
     fs.appendFileSync(
       path.join(huntDir(huntId), 'events.jsonl'),
       JSON.stringify({ ...event, cachedAt: new Date().toISOString() }) + '\n'
