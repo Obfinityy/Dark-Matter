@@ -10,6 +10,9 @@ data/
 
 # Dependencies
 node_modules/
+# Staging dir for backend/scripts/install-deps.sh (the script cleans it
+# up; ignored so a killed run never shows up as untracked clutter)
+.node_modules.staging/
 
 # Logs
 *.log

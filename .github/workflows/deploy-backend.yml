@@ -91,9 +91,22 @@ jobs:
             # merge is the form that works here.
             git fetch origin -q
             git merge --ff-only origin/main -q
-            echo "--- backend deps ---"
+            echo "--- backend deps (staged install: the live tree is never half-built) ---"
             cd backend
-            npm ci --omit=dev
+            # NOTE: install-deps.sh installs into a staging tree and swaps
+            # it in with one atomic renameat2 exchange — a plain `npm ci`
+            # deletes node_modules FIRST, and a restart landing in the ~2s
+            # reinstall window dies with MODULE_NOT_FOUND (8db79ede, 6 Nov
+            # 2026: manual restart 12:31:09 inside npm ci
+            # 12:31:08.313–12:31:09.991, first start died on
+            # @smithy/core/retry). The script is a file because drone-ssh
+            # mangles multi-line shell in this step (same reason
+            # check-active-hunts lives in a file, below). verify-install.mjs
+            # then proves the new tree resolves before any restart, so a
+            # broken install fails the deploy instead of crashing the
+            # backend (fail-closed).
+            bash scripts/install-deps.sh
+            node scripts/verify-install.mjs
             echo "--- brain python deps (Pillow: synthetic-screenshot fallback) ---"
             sudo apt-get install -y -q python3-pil
             echo "--- checking for active hunts ---"
