@@ -37,6 +37,7 @@
 // testable end-to-end with fakes — see scripts/test-human-loop.mjs.
 
 import fs from 'node:fs';
+import path from 'node:path';
 import { execInHuntContainerWithRespawn } from './huntRunner.js';
 import { guardClaimTitle } from './claimTitleGuard.js';
 import { chatWithAI } from './llm.js';
@@ -46,7 +47,7 @@ import { webSearch } from './webSearch.js';
 import { writeArtifact, spillOutput, artifactInfo, writeFileObservation } from './artifacts.js';
 import { evidenceSignalIds, isHttpErrorPage } from './hunt-intel/index.js';
 import { isMachineControlled, getControl } from './machineControl.js';
-import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents } from './store.js';
+import { appendHuntEvent, readHuntMeta, writeHuntMetaCheckpoint, readHuntEvents, huntDir, ensureHuntDir } from './store.js';
 import { normalisedActionDetail, actionSignature, contentHash } from './actionIdentity.js';
 import { renderBrainFilesScreen } from './brainFiles.js';
 import { recallById, firstRunNumber, parseRecallId, formatFullRecord } from './actionIndex.js';
@@ -4008,13 +4009,16 @@ export async function humanIteration(huntId, target, opts = {}) {
   // row without filing, it's stuck in a proof-bottling loop -- inject
   // a FILE NOW directive. Session-local vars reset on restart, so we
   // use a file in the hunt dir.
-  const stuckCounterPath = '/opt/Dark-Matter/backend/data/hunts/' + huntId + '/stuck_recall_count.txt';
+  const stuckCounterPath = path.join(huntDir(huntId), 'stuck_recall_count.txt');
   function getStuckCount() {
     try { return parseInt(fs.readFileSync(stuckCounterPath, 'utf8').trim(), 10) || 0; }
     catch { return 0; }
   }
   function setStuckCount(n) {
-    try { fs.writeFileSync(stuckCounterPath, String(n)); } catch {}
+    // Writer: ensure the hunt dir first (huntDir() is a pure path
+    // builder since the h_nope fix and never mkdirs — a read-only
+    // getStuckCount must never create the dir, but this write may).
+    try { ensureHuntDir(huntId); fs.writeFileSync(stuckCounterPath, String(n)); } catch {}
   }
 
   say(`Human mode session: ${turns} turns at my own machine. Target: ${target}.`);
@@ -4106,7 +4110,7 @@ export async function humanIteration(huntId, target, opts = {}) {
     if (!detected) return;
     if (sweepFiledTitles.has(detected.title)) return;
     try {
-      if (isDuplicate(`/opt/Dark-Matter/backend/data/hunts/${huntId}`, detected.title)) return;
+      if (isDuplicate(huntDir(huntId), detected.title)) return;
     } catch { /* dup check is best-effort; fail-open to filing */ }
     const rawTitle = String(detected.title || '');
     const title = String(rawTitle.trim() ? rawTitle : 'Untitled claim').slice(0, 200);
@@ -4503,12 +4507,12 @@ export async function humanIteration(huntId, target, opts = {}) {
       const sameClassProbe = !!(probeSigForDetected && probeSigForDetected.payloadClass === detected.class);
       if (sameClassProbe) {
         try { deps.record(huntId, { type: 'autofiler_probe_skipped', title: detected.title, class: detected.class, tool: kind, detail: probeSigForDetected.key, via: 'human-mode' }); } catch {}
-      } else if (detected && isDuplicate(`/opt/Dark-Matter/backend/data/hunts/${huntId}`, detected.title)) {
+      } else if (detected && isDuplicate(huntDir(huntId), detected.title)) {
         // FIX (#315): the scan text includes lastObservation (previous
         // turn), so without this check the same evidence re-triggers an
         // override every turn. Skip the override; the brain's own action
-        // stands. (Path follows this file's existing convention; the
-        // hardcoded /opt/Dark-Matter prefix itself is tracked in #360.)
+        // stands. (Path comes from store.js huntDir() so it follows
+        // DATA_DIR — the hardcoded /opt/Dark-Matter hunt prefix is gone.)
         try { deps.record(huntId, { type: 'autofiler_duplicate_skipped', title: detected.title, class: detected.class, via: 'human-mode' }); } catch {}
       } else if (detected) {
         // Construct the claim_finding action
@@ -4810,9 +4814,11 @@ export async function humanIteration(huntId, target, opts = {}) {
       // the observation so the auto-filer can file. No brain cooperation needed.
       try {
         if (proofHit && /sqli/i.test(proofHit.payloadClass || '')) {
-          const fs = await import('fs');
-          const histPath = `/opt/Dark-Matter/backend/data/hunts/${huntId}/events.jsonl`;
-          const histText = fs.readFileSync(histPath, 'utf8').split('\n').slice(-200).join('\n');
+          // History lives in the hunt's events — read it through the
+          // store helper so the path follows DATA_DIR (the old code
+          // read a hardcoded /opt/Dark-Matter path here).
+          const evts = readHuntEvents(huntId) || [];
+          const histText = evts.slice(-200).map((e) => JSON.stringify(e)).join('\n');
           const histHashes = histText.match(/\b[a-f0-9]{32}\b/g);
           if (histHashes && histHashes.length) {
             const uniqHashes = [...new Set(histHashes)].slice(0, 5);
