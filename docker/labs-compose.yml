@@ -1,0 +1,128 @@
+# Dark Matter lab stack — the five intentionally-vulnerable targets the
+# scanner hunts on EC2 (DVWA, Juice Shop, WebGoat, bWAPP, VAmPI).
+#
+# The labs were started ad-hoc with `docker run` on 31 Oct 2026 and had no
+# definition in the repo. This file is now the source of truth: every
+# image, container name, port binding and restart policy below mirrors the
+# live containers on EC2 (verified read-only via `docker inspect`,
+# 7 Nov 2026). Scanner targets are http://172.17.0.1:<port>/ — the port
+# bindings are pinned to 172.17.0.1 so the labs are reachable from the
+# backend but NOT exposed on the EC2 public interface.
+#
+# Usage (on EC2, from the repo checkout):
+#   cd /opt/Dark-Matter && docker compose -f docker/labs-compose.yml up -d
+# To apply the WebGoat healthcheck fix to the live container, recreate
+# just that service — a healthcheck cannot be changed on a running
+# container (`docker update` has no healthcheck flag):
+#   docker compose -f docker/labs-compose.yml up -d --force-recreate webgoat
+# Recreating a lab container does not touch hunts or the backend.
+#
+# Healthchecks: only WebGoat ships one. The other four images define no
+# healthcheck and their live containers carry none — that is intentional,
+# matching live state. WebGoat's healthcheck is defined HERE, overriding
+# the upstream image default, because the upstream check calls `curl`,
+# which is not installed in the webgoat/webgoat image (health log:
+# "/bin/sh: 1: curl: not found", FailingStreak 103848, container
+# permanently "unhealthy" since 31 Oct 2026). The replacement probe hits
+# the SAME endpoint (/WebGoat/actuator/health, verified HTTP 200 live)
+# using only bash builtins — /dev/tcp plus a minimal HTTP/1.0 request —
+# because the image contains no curl, no wget, no python, and perl
+# without HTTP::Tiny (verified live 7 Nov 2026: only bash, java, perl
+# are present). The probe was run live inside the container before this
+# file was written: exit 0 on the real endpoint, non-zero on a 404 path.
+
+name: darkmatter-labs
+
+services:
+  dvwa:
+    image: vulnerables/web-dvwa
+    container_name: lab-dvwa
+    restart: unless-stopped
+    network_mode: bridge
+    ports:
+      - "172.17.0.1:3100:80"
+    entrypoint: /main.sh
+
+  juice-shop:
+    image: bkimminich/juice-shop:v17.3.0
+    container_name: juice-shop-lab
+    restart: unless-stopped
+    network_mode: bridge
+    ports:
+      - "172.17.0.1:3000:3000"
+    entrypoint: /nodejs/bin/node
+    command: /juice-shop/build/app.js
+    environment:
+      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+
+  webgoat:
+    image: webgoat/webgoat
+    container_name: lab-webgoat
+    restart: unless-stopped
+    network_mode: bridge
+    ports:
+      - "172.17.0.1:3200:8080"
+    # Effective entrypoint as observed live on EC2 (image default).
+    entrypoint:
+      - java
+      - -Duser.home=/home/webgoat
+      - -Dfile.encoding=UTF-8
+      - --add-opens
+      - java.base/java.lang=ALL-UNNAMED
+      - --add-opens
+      - java.base/java.util=ALL-UNNAMED
+      - --add-opens
+      - java.base/java.lang.reflect=ALL-UNNAMED
+      - --add-opens
+      - java.base/java.text=ALL-UNNAMED
+      - --add-opens
+      - java.desktop/java.beans=ALL-UNNAMED
+      - --add-opens
+      - java.desktop/java.awt.font=ALL-UNNAMED
+      - --add-opens
+      - java.base/sun.nio.ch=ALL-UNNAMED
+      - --add-opens
+      - java.base/java.io=ALL-UNNAMED
+      - --add-opens
+      - java.base/java.util=ALL-UNNAMED
+      - --add-opens
+      - java.base/sun.nio.ch=ALL-UNNAMED
+      - --add-opens
+      - java.base/java.io=ALL-UNNAMED
+      - -Drunning.in.docker=true
+      - -jar
+      - webgoat.jar
+      - --server.address=0.0.0.0
+    healthcheck:
+      # Same endpoint the upstream check used, same 200 requirement —
+      # only the transport changed (bash builtins instead of curl).
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080; printf \"GET /WebGoat/actuator/health HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n\" >&3; head -1 <&3 | grep -q \"200\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+
+  bwapp:
+    image: raesene/bwapp
+    container_name: lab-bwapp
+    restart: unless-stopped
+    network_mode: bridge
+    ports:
+      - "172.17.0.1:3300:80"
+    command: /run.sh
+    environment:
+      PHP_UPLOAD_MAX_FILESIZE: 10M
+      PHP_POST_MAX_SIZE: 10M
+
+  vampi:
+    image: erev0s/vampi
+    container_name: lab-vampi
+    restart: unless-stopped
+    network_mode: bridge
+    ports:
+      - "172.17.0.1:3400:5000"
+    entrypoint: python
+    command: app.py
+    environment:
+      vulnerable: "1"
+      tokentimetolive: "60"
