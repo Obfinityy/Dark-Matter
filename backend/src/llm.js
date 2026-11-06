@@ -33,6 +33,7 @@ import https from 'node:https';
 // the async APIs as named ESM exports. A static import here crashes the
 // entire backend on startup if the exports don't exist.
 import { recordCost } from './costTracker.js';
+import { config } from './config.js';
 
 const PROVIDER = String(process.env.LLM_PROVIDER || 'bedrock').toLowerCase();
 
@@ -91,6 +92,16 @@ export function aiAvailable() {
   return getBedrockConfig() !== null;
 }
 
+// The heartbeat path: AI_HEARTBEAT_PATH wins; otherwise the
+// config-derived default (checkout root + '.ai-inference-active').
+// Read at call time (not module load) so tests can point it at a temp
+// file. The heartbeat is GLOBAL — one shared model, one file, read by
+// the ollama-watchdog too — so the default is app-root-derived, never
+// hunt-scoped and never a hardcoded install path.
+export function getInferenceHeartbeatPath() {
+  return process.env.AI_HEARTBEAT_PATH || config.aiHeartbeatPath;
+}
+
 // CHAT-ANSWERS (26 Oct 2026): is an inference running RIGHT NOW?
 // chatWithOllama writes a heartbeat file carrying a deadline while a
 // generation runs and deletes it when done (the same file the
@@ -103,7 +114,7 @@ export function aiAvailable() {
 // call time (not module load) so tests can point it at a temp file.
 export function isInferenceActive() {
   try {
-    const p = process.env.AI_HEARTBEAT_PATH || '/opt/Dark-Matter/.ai-inference-active';
+    const p = getInferenceHeartbeatPath();
     const hb = JSON.parse(fs.readFileSync(p, 'utf8'));
     return typeof hb.deadline === 'number' && hb.deadline > Date.now();
   } catch {
@@ -411,7 +422,7 @@ async function chatWithOllamaInner(messages, system, ctx, opts = {}) {
   // it is fresh. Deadline (not deletion) is the signal, so a crashed backend
   // can never wedge the watchdog off permanently. Best-effort: never break
   // the AI call.
-  const hbPath = process.env.AI_HEARTBEAT_PATH || '/opt/Dark-Matter/.ai-inference-active';
+  const hbPath = getInferenceHeartbeatPath();
   const hbTimeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS || '300000', 10);
   // RULE #50 (30 Oct 2026): the advisory bound, env-overridable; a bound
   // of <=0 disables the advisory fast path (falls back to the main path).

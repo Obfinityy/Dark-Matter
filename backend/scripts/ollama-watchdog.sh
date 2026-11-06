@@ -10,8 +10,11 @@
 # monitor resumes -> the cycle repeats and no test ever executes.
 #
 # v3 fix: the backend writes an inference heartbeat
-# ($AI_HEARTBEAT_PATH, default /opt/Dark-Matter/.ai-inference-active)
-# carrying a deadline before every Ollama call and deletes it after.
+# ($AI_HEARTBEAT_PATH, default <install root>/.ai-inference-active —
+# the backend's config.aiHeartbeatPath, derived from its checkout
+# root; the two MUST agree, so if either default ever moves, move
+# both) carrying a deadline before every Ollama call and deletes it
+# after.
 # While the heartbeat is fresh, the server is BUSY (not wedged) — skip the
 # kill and reset the failure counter. The deadline (not file existence) is
 # the signal, so a crashed backend can never wedge the watchdog off.

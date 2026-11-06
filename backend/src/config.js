@@ -58,4 +58,17 @@ export const config = {
 
   // Local persistence (plugin keys, model jobs, hunt event cache)
   dataDir: process.env.DATA_DIR || path.join(here, '..', 'data'),
+
+  // Inference heartbeat (GLOBAL — one shared 8B model, one file; the
+  // ollama-watchdog reads the same path, so backend and watchdog MUST
+  // agree). Derived from the checkout root (this file lives in
+  // backend/src, so two levels up is the install root) — never a
+  // hardcoded install path, so any install resolves correctly; on EC2
+  // the root is the install root and the resolved path is exactly the
+  // historical default. Deliberately NOT under dataDir: the installed
+  // watchdog defaults to this path and the deploy workflow never
+  // reinstalls it, so moving the default would silently break the
+  // watchdog's busy-server protection. AI_HEARTBEAT_PATH still
+  // overrides at call time (resolved in llm.js, not here).
+  aiHeartbeatPath: path.join(here, '..', '..', '.ai-inference-active'),
 };
