@@ -64,6 +64,7 @@ import { probeCswsh } from './probes/cswsh.js';
 import { probeOauth } from './probes/oauth.js';
 import { probeSaml } from './probes/saml.js';
 import { createOobCollaborator } from './oobCollaborator.js';
+import { discoverDomForms } from './domRender.js';
 import { probeTls } from './probes/tlsScan.js';
 import { probePasswordReset } from './probes/passwordReset.js';
 import { probeElInject } from './probes/elInject.js';
@@ -75,6 +76,7 @@ export const DEFAULT_PHASES = [
   'fingerprint',
   'crawl',
   'page-analyze',
+  'dom-render',
   'headers',
   'sqli-error',
   'sqli-blind',
@@ -368,6 +370,88 @@ export async function runScan(
     return pageAnalysis;
   });
 
+  // DOM RENDER (6 Nov 2026, DOM form discovery): an SPA pastes a shell
+  // with zero static forms, so the injection battery would skip all 28
+  // phases in silence (Juice Shop root: 0 forms, 0 named inputs even
+  // AFTER a full JS render — its forms live on its routes, /#/login
+  // renders named email/password inputs). When static analysis found
+  // no element targets at all, render the page in a real browser
+  // (transient chromium container, read-only GET) plus its discovered
+  // SPA routes, and merge the DOM inventory into the page analysis.
+  // The merged forms/inputs flow into the EXISTING target builder
+  // below unchanged — the param battery only GETs the synthesised
+  // targets (a POST form is never submitted FOR THE BATTERY; the
+  // dedicated post-forms probe still POSTs to POST forms by design,
+  // exactly as it does for static forms). This step only supplies
+  // what static analysis could not see. It fires ONLY on the
+  // zero-static-elements trigger, so server-rendered targets (DVWA,
+  // WebGoat) never pay the render and their rollups are byte-identical:
+  // the step is never even invoked for them, so no dom-render record
+  // exists. A failed render throws inside step(), which records
+  // ok:false with the error and lets the scan continue static-only.
+  // opts.domRenderer is the test seam: a single-page renderer
+  // (url) => { ok, html, error } replacing renderDom — the real
+  // discoverDomForms still runs (route extraction + merge), so
+  // integration tests exercise the orchestration and stub only the
+  // chromium execution. Production callers never pass it.
+  let domForms = [];
+  let domDiscovery = null;
+  const needsDom =
+    pageAnalysis &&
+    pageAnalysis.forms.length === 0 &&
+    pageAnalysis.inputs.length === 0 &&
+    pageAnalysis.textareas.length === 0 &&
+    pageAnalysis.selects.length === 0;
+  if (needsDom) {
+    await step(
+      'dom-render',
+      async () => {
+        domDiscovery = await discoverDomForms(url, {
+          ...opts,
+          ...(typeof opts.domRenderer === 'function' ? { domRender: opts.domRenderer } : {}),
+        });
+        if (!domDiscovery || !domDiscovery.analysis) {
+          const why =
+            (domDiscovery && domDiscovery.errors && domDiscovery.errors[0]) || 'dom render failed';
+          throw new Error(why);
+        }
+        const dom = domDiscovery.analysis;
+        pageAnalysis.inputs.push(...(dom.inputs || []));
+        pageAnalysis.textareas.push(...(dom.textareas || []));
+        pageAnalysis.selects.push(...(dom.selects || []));
+        pageAnalysis.buttons.push(...(dom.buttons || []));
+        for (const p of dom.params || []) {
+          if (!pageAnalysis.params.includes(p)) pageAnalysis.params.push(p);
+        }
+        // Route renders that failed are best-effort (the analysis
+        // stands), but the failure is not silent: it lands in the
+        // scan's errors, which the finished summary carries.
+        for (const e of domDiscovery.errors || []) errors.push(e);
+        // Crawl-shape forms for the form battery (csrf / post-forms /
+        // race / ...): every named control on the form — inputs plus
+        // textareas/selects, which the static extractor misses.
+        domForms = (dom.forms || []).map((f) => ({
+          action: f.action,
+          method: f.method,
+          inputs: [...(f.inputs || []), ...(f.textareas || []), ...(f.selects || [])]
+            .map((x) => x.name)
+            .filter(Boolean),
+        }));
+        return dom;
+      },
+      () =>
+        domDiscovery && domDiscovery.analysis
+          ? {
+              findingsCount:
+                (domDiscovery.analysis.inputs || []).length +
+                (domDiscovery.analysis.forms || []).length,
+              domRoutes: (domDiscovery.rendered || []).filter((r) => r.ok).length,
+              domForms: (domDiscovery.analysis.forms || []).length,
+            }
+          : {}
+    );
+  }
+
   // Scan targets: the target URL plus every discovered same-origin link
   // (capped). Param probes run per URL — this is what makes the battery
   // cover the whole site, not just the landing page.
@@ -387,7 +471,7 @@ export async function runScan(
   };
   pushTarget(url);
   for (const l of crawled ? crawled.links : []) pushTarget(l);
-  const forms = crawled ? [...crawled.forms] : [];
+  const forms = [...(crawled ? crawled.forms : []), ...domForms];
   // Form-derived GET URLs get a separate allowance beyond maxUrls — they
   // carry known inputs and are the highest-value probe targets.
   const pushFormTarget = (u) => {
@@ -476,7 +560,10 @@ export async function runScan(
     for (const inp of pageAnalysis.inputs) {
       if (inp.form || !inp.name) continue;
       try {
-        const u = new URL(url);
+        // DOM-discovered standalone inputs live on a route, not the
+        // pasted page — synthesise against the route URL (inp.page);
+        // static inputs carry no page and use the pasted URL as before.
+        const u = new URL(inp.page || url);
         u.searchParams.set(inp.name, `dmprobe_${randomBytes(2).toString('hex')}`);
         pushFormTarget(u.toString());
       } catch {

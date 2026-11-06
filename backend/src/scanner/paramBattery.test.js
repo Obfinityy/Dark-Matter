@@ -48,7 +48,9 @@ describe('param battery skipped records (35/63 fix)', () => {
     for (const name of PARAM_BATTERY_PHASES) {
       assert.ok(DEFAULT_PHASES.includes(name), `${name} missing from DEFAULT_PHASES`);
     }
-    assert.equal(DEFAULT_PHASES.length, 63);
+    // 64 since 6 Nov 2026 (DOM form discovery): 'dom-render' joins the
+    // battery so SPA targets get a real-browser inventory pass.
+    assert.equal(DEFAULT_PHASES.length, 64);
   });
 
   it('zero param targets: all 28 param phases emit skipped records, rollup reports them', async () => {
@@ -280,7 +282,12 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
-  it('real runScan on a bare page renders the 35/28 line end to end', async () => {
+  // 36/28 since 6 Nov 2026 (DOM form discovery): the battery gained
+  // the 'dom-render' phase, so a bare page runs 36 non-param phases.
+  // The DOM pass needs a renderer; stub it to a successful empty
+  // render (no JS forms) so the test does not depend on docker — the
+  // same seam discipline as nucleiRunner above.
+  it('real runScan on a bare page renders the 36/28 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -288,18 +295,19 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         {
           timeoutMs: 5000,
           nucleiRunner: async () => ({ ok: true, timedOut: false, findings: [] }),
+          domRenderer: async () => ({ ok: true, html: '<html><body></body></html>' }),
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 63,
-        ok: 35,
+        total: 64,
+        ok: 36,
         failed: 0,
         skipped: 28,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 35 ran ok, 28 skipped (no param targets), 0 failed, 0 timed out.'
+        'Phases: 36 ran ok, 28 skipped (no param targets), 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
