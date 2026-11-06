@@ -53,6 +53,7 @@ const {
   readHuntEvents,
   readHuntMeta,
   writeHuntMeta,
+  writeUsers,
 } = await import('../store.js');
 const { recordReasoning, getAllReasoning } = await import('../reasoningMemory.js');
 const { contentHash } = await import('../actionIndex.js');
@@ -238,6 +239,10 @@ const express = (await import('express')).default;
 const huntsRouter = (await import('./hunts.js')).default;
 const { issueToken } = await import('./auth.js');
 const OWNER = { id: 'owner-1', username: 'owner', role: 'admin' };
+// Route-auth 401 fix (6 Nov 2026): requireAuth re-reads the user store on
+// every request (#323) and 401s when no stored user matches the token's
+// sub, so the OWNER the JWT is issued for must exist in this temp DATA_DIR.
+writeUsers({ owner: { id: OWNER.id, username: OWNER.username, role: OWNER.role, approved: true } });
 const app = express();
 app.use(express.json());
 app.use('/api/v1/hunts', huntsRouter);

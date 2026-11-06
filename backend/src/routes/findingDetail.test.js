@@ -39,7 +39,7 @@ process.env.ENGINE_URL = 'http://127.0.0.1:9'; // nothing listens: engine unreac
 const { findingDetail, panelFindings } = await import('../huntMemory.js');
 const huntsRouter = (await import('./hunts.js')).default;
 const { issueToken } = await import('./auth.js');
-const { writeHuntMeta, appendHuntEvent, readHuntEvents, readHuntMeta } = await import('../store.js');
+const { writeHuntMeta, appendHuntEvent, readHuntEvents, readHuntMeta, writeUsers } = await import('../store.js');
 const express = (await import('express')).default;
 
 const XSS_TITLE = 'Reflected XSS in /vulnerabilities/xss_r name parameter';
@@ -190,6 +190,15 @@ test('(e) findingDetail: unknown or empty title returns null; matching is by nor
 
 // (f) the route, mounted for real ----------------------------------------------
 const OWNER = { id: 'owner-1', username: 'owner', role: 'admin' };
+// Route-auth 401 fix (6 Nov 2026): requireAuth re-reads the user store on
+// every request (#323) and 401s when no stored user matches the token's
+// sub. Seed OWNER (the JWT subject) and the non-owner 'someone-else' the
+// owner-only test issues a token for — without the latter, requireAuth 401s
+// before requireHuntOwner can return the expected 403.
+writeUsers({
+  owner: { id: OWNER.id, username: OWNER.username, role: OWNER.role, approved: true },
+  other: { id: 'someone-else', username: 'other', role: 'member', approved: true },
+});
 const HUNT_ID = 'h_lab_finding_detail';
 const TARGET = 'http://172.17.0.1:3100/';
 
