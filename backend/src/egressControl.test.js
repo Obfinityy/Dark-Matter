@@ -22,6 +22,10 @@ import {
   buildRemoveEgress,
   applyEgressPlan,
   refreshHuntEgress,
+  finalizeHuntEgress,
+  isTransientEgressError,
+  FINALIZE_APPLY_MAX_ATTEMPTS,
+  FINALIZE_RETRY_DELAYS_MS,
 } from './egressControl.js';
 
 const HUNT = 'h_testegress';
@@ -415,4 +419,213 @@ test('refreshHuntEgress: skips hunts without egress state', async () => {
     run: async () => ({ ok: true }),
   });
   assert.equal(r.skipped, 'no-egress-state');
+});
+
+// ---------------------------------------------------------------------------
+// 6 Nov 2026 — finalize resume failures (1 Nov cluster + 3 Nov h_63678b397e72).
+// The old code threw a generic "iptables/ipset apply failed" with the
+// failing command and its stderr discarded; the 6 live failures were
+// diagnosable only from sudo's journal lines. The apply now records
+// error text, finalize names the failing command, transient failures
+// are retried (bounded), and a failed apply leaves no half-built state.
+// ---------------------------------------------------------------------------
+
+test('applyEgressPlan: failed commands carry the runner error text', async () => {
+  const fakeRun = async (argv) => {
+    if (argv.includes('-m') && argv.includes('set')) {
+      return { ok: false, error: 'iptables: No chain/target/match by that name.' };
+    }
+    return { ok: true, stdout: '' };
+  };
+  const r = await applyEgressPlan(plan(), { run: fakeRun });
+  assert.equal(r.ok, false);
+  const failed = r.results.filter((x) => !x.ok);
+  assert.equal(failed.length, 2, 'both -m set rules fail (filter + icmp)');
+  for (const f of failed) {
+    assert.ok(f.error.includes('No chain/target/match'), `stderr recorded: ${f.cmd}`);
+  }
+  assert.ok(r.results.every((x) => x.ok || x.error), 'every failure carries error text');
+});
+
+test('applyEgressPlan: chain-add race is tolerated (re-check wins)', async () => {
+  const calls = {};
+  const fakeRun = async (argv) => {
+    const cmd = argv.join(' ');
+    calls[cmd] = (calls[cmd] || 0) + 1;
+    // Chain missing at first check; a concurrent finalize creates it,
+    // so our -N loses with "already exists" and the re-check passes.
+    if (cmd === `iptables -n -L ${CHAIN}`) {
+      return calls[cmd] === 1 ? { ok: false, error: 'no such chain' } : { ok: true, stdout: '' };
+    }
+    if (cmd === `iptables -N ${CHAIN}`) {
+      return { ok: false, error: 'iptables: Chain already exists.' };
+    }
+    return { ok: true, stdout: '' };
+  };
+  const r = await applyEgressPlan(plan(), { run: fakeRun });
+  assert.equal(r.ok, true, 'concurrent chain creation is not a failure');
+  assert.equal(calls[`iptables -N ${CHAIN}`], 1);
+  assert.ok(
+    r.results.some((x) => x.cmd === `iptables -N ${CHAIN}` && x.skipped === 'created-concurrently'),
+    'race recorded as created-concurrently, not as failure'
+  );
+});
+
+test('applyEgressPlan: jump-add race is tolerated (re-check wins)', async () => {
+  const calls = {};
+  const jumpCheck = `iptables -C DOCKER-USER -s ${CIP} -j ${CHAIN}`;
+  const jumpAdd = `iptables -I DOCKER-USER 1 -s ${CIP} -j ${CHAIN}`;
+  const fakeRun = async (argv) => {
+    const cmd = argv.join(' ');
+    calls[cmd] = (calls[cmd] || 0) + 1;
+    if (cmd === jumpCheck) {
+      return calls[cmd] === 1 ? { ok: false, error: 'no such rule' } : { ok: true, stdout: '' };
+    }
+    if (cmd === jumpAdd) return { ok: false, error: 'iptables: Rule already exists.' };
+    return { ok: true, stdout: '' };
+  };
+  const r = await applyEgressPlan(plan(), { run: fakeRun });
+  assert.equal(r.ok, true, 'concurrent jump creation is not a failure');
+  assert.ok(
+    r.results.some((x) => x.cmd === jumpAdd && x.skipped === 'created-concurrently'),
+    'race recorded as created-concurrently, not as failure'
+  );
+});
+
+test('isTransientEgressError: only the lock/busy/timeout class is transient', () => {
+  assert.equal(isTransientEgressError('Another app is currently holding the xtables lock'), true);
+  assert.equal(isTransientEgressError('Resource temporarily unavailable'), true);
+  assert.equal(isTransientEgressError('ipset: Timeout'), true);
+  assert.equal(isTransientEgressError('timed out after 30000ms'), true);
+  assert.equal(isTransientEgressError('Bad argument `foo`'), false);
+  assert.equal(isTransientEgressError('sudo: a password is required'), false);
+  assert.equal(isTransientEgressError('iptables: Chain already exists.'), false);
+  assert.equal(isTransientEgressError(''), false);
+  assert.equal(isTransientEgressError(null), false);
+});
+
+// --- finalizeHuntEgress helpers (injected deps; no root/docker) ---
+
+const EGRESS = {
+  scope: SCOPE,
+  gatewayIp: GW,
+  proxyPort: PROXY_PORT,
+  resolverIp: RESOLVER,
+};
+
+function finalizeDeps({ run, sleeps = [] } = {}) {
+  const metas = [];
+  return {
+    deps: {
+      docker: async () => `${CIP} `,
+      resolveHost: async () => ['93.184.216.34'],
+      run,
+      writeMeta: (id, patch) => {
+        metas.push({ id, patch });
+      },
+      sleep: async (ms) => {
+        sleeps.push(ms);
+      },
+    },
+    metas,
+    sleeps,
+  };
+}
+
+test('finalizeHuntEgress: happy path applies the plan and persists meta.egress', async () => {
+  const issued = [];
+  const { deps, metas } = finalizeDeps({
+    run: async (argv) => {
+      issued.push(argv.join(' '));
+      return { ok: true, stdout: '' };
+    },
+  });
+  const { plan: p, applied } = await finalizeHuntEgress(HUNT, 'dm-hunt-h_testegress', EGRESS, deps);
+  assert.equal(applied.ok, true);
+  assert.equal(p.setName, SET);
+  assert.equal(metas.length, 1);
+  assert.equal(metas[0].patch.egress.setName, SET);
+  assert.equal(metas[0].patch.egress.chain, CHAIN);
+  assert.deepEqual(metas[0].patch.egress.containerIps, [CIP]);
+});
+
+test('finalizeHuntEgress: thrown error names the failing command and its stderr', async () => {
+  const issued = [];
+  const { deps } = finalizeDeps({
+    run: async (argv) => {
+      issued.push(argv.join(' '));
+      if (argv.includes('-m') && argv.includes('set')) {
+        return { ok: false, error: 'Could not fetch rule set generation id: Invalid argument' };
+      }
+      return { ok: true, stdout: '' };
+    },
+  });
+  await assert.rejects(
+    () => finalizeHuntEgress(HUNT, 'dm-hunt-h_testegress', EGRESS, deps),
+    (err) => {
+      assert.ok(err.message.includes('iptables/ipset apply failed'), err.message);
+      assert.ok(err.message.includes(`-m set --match-set ${SET} dst,dst -j ACCEPT`), err.message);
+      assert.ok(err.message.includes('Could not fetch rule set generation id'), err.message);
+      assert.ok(err.message.includes('after 1 attempt(s)'), err.message);
+      return true;
+    }
+  );
+  // Deterministic failure fails fast: the ipset create ran exactly once.
+  assert.equal(issued.filter((c) => c === `ipset create ${SET} hash:ip,port -exist`).length, 1);
+});
+
+test('finalizeHuntEgress: failed apply leaves no half-built state (cleanup issued)', async () => {
+  const issued = [];
+  const { deps } = finalizeDeps({
+    run: async (argv) => {
+      issued.push(argv.join(' '));
+      if (argv.includes('-m') && argv.includes('set')) {
+        return { ok: false, error: 'Could not fetch rule set generation id' };
+      }
+      return { ok: true, stdout: '' };
+    },
+  });
+  await assert.rejects(() => finalizeHuntEgress(HUNT, 'dm-hunt-h_testegress', EGRESS, deps));
+  assert.ok(issued.includes(`ipset destroy ${SET}`), 'tuple set destroyed on failure');
+  assert.ok(issued.includes(`ipset destroy ${IPSET}`), 'ip set destroyed on failure');
+  assert.ok(issued.includes(`iptables -X ${CHAIN}`), 'chain removed on failure');
+});
+
+test('finalizeHuntEgress: transient lock failure is retried and succeeds', async () => {
+  let creates = 0;
+  const { deps, sleeps } = finalizeDeps({
+    run: async (argv) => {
+      const cmd = argv.join(' ');
+      if (cmd.startsWith(`ipset create ${SET} `)) creates++;
+      if (creates < 2) {
+        return { ok: false, error: 'Another app is currently holding the xtables lock' };
+      }
+      return { ok: true, stdout: '' };
+    },
+  });
+  const { applied } = await finalizeHuntEgress(HUNT, 'dm-hunt-h_testegress', EGRESS, deps);
+  assert.equal(applied.ok, true, 'second attempt succeeds');
+  assert.equal(creates, 2, 'apply ran twice (one retry)');
+  assert.deepEqual(sleeps, [FINALIZE_RETRY_DELAYS_MS[0]], 'one backoff sleep before the retry');
+});
+
+test('finalizeHuntEgress: transient failure exhausts retries, then throws with detail', async () => {
+  let creates = 0;
+  const { deps, sleeps } = finalizeDeps({
+    run: async (argv) => {
+      const cmd = argv.join(' ');
+      if (cmd.startsWith(`ipset create ${SET} `)) creates++;
+      return { ok: false, error: 'Another app is currently holding the xtables lock' };
+    },
+  });
+  await assert.rejects(
+    () => finalizeHuntEgress(HUNT, 'dm-hunt-h_testegress', EGRESS, deps),
+    (err) => {
+      assert.ok(err.message.includes(`after ${FINALIZE_APPLY_MAX_ATTEMPTS} attempt(s)`), err.message);
+      assert.ok(err.message.includes('xtables lock'), err.message);
+      return true;
+    }
+  );
+  assert.equal(creates, FINALIZE_APPLY_MAX_ATTEMPTS, 'bounded retries, no more');
+  assert.deepEqual(sleeps, FINALIZE_RETRY_DELAYS_MS, 'backoff delays in order');
 });

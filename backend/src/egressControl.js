@@ -351,33 +351,59 @@ function shSplit(cmd) {
 /**
  * Apply a plan. Idempotent: chain rebuilt, jumps/NAT added only if absent.
  * NEVER call against a live hunt outside the EC2 firewall stage.
+ *
+ * Each result carries the runner's error text when a command fails
+ * (6 Nov 2026): finalizeHuntEgress used to throw a generic
+ * "iptables/ipset apply failed" with the failing command and its
+ * stderr discarded — the 1 Nov failures were diagnosable ONLY from
+ * sudo's journal lines. The hunt's status event must name the cause.
  */
 export async function applyEgressPlan(plan, { run = defaultRunner } = {}) {
   const results = [];
   const exec = async (cmd) => {
     const r = await run(shSplit(cmd));
-    results.push({ cmd, ok: r.ok });
+    const entry = { cmd, ok: r.ok };
+    if (!r.ok && r.error) entry.error = String(r.error).slice(0, 500);
+    results.push(entry);
     return r;
+  };
+  // Check-then-add with concurrent-creation tolerance (6 Nov 2026).
+  // Two resumes of the SAME hunt can race: both see the chain/rule
+  // missing, both issue the add, one loses with "already exists".
+  // That is NOT a failure — re-check, and if the object exists now
+  // the add is a success. Without the re-check the loser fails the
+  // whole apply and the hunt dies fail-closed on a race it did not
+  // cause. A re-check that still fails records the real error.
+  const checkThenAdd = async (step) => {
+    const chk = await run(shSplit(step.check));
+    if (chk.ok) {
+      results.push({ cmd: step.check, ok: true, skipped: 'already-present' });
+      return true;
+    }
+    const r = await run(shSplit(step.add));
+    if (r.ok) {
+      results.push({ cmd: step.add, ok: true });
+      return true;
+    }
+    const recheck = await run(shSplit(step.check));
+    if (recheck.ok) {
+      results.push({ cmd: step.add, ok: true, skipped: 'created-concurrently' });
+      return true;
+    }
+    const entry = { cmd: step.add, ok: false };
+    if (r.error) entry.error = String(r.error).slice(0, 500);
+    results.push(entry);
+    return false;
   };
   for (const cmd of plan.ipset) await exec(cmd);
   // Idempotent chain creation — must precede the -A rules below, which
   // reference the chain. Check-then-add (no shell syntax; see above).
   if (plan.chainStep && plan.chainStep.check && plan.chainStep.add) {
-    const chk = await run(shSplit(plan.chainStep.check));
-    if (!chk.ok) await exec(plan.chainStep.add);
-    else results.push({ cmd: plan.chainStep.check, ok: true, skipped: 'already-present' });
+    await checkThenAdd(plan.chainStep);
   }
   for (const cmd of plan.iptables) await exec(cmd);
-  for (const j of plan.jumps) {
-    const chk = await run(shSplit(j.check));
-    if (!chk.ok) await exec(j.add);
-    else results.push({ cmd: j.check, ok: true, skipped: 'already-present' });
-  }
-  for (const n of plan.nat) {
-    const chk = await run(shSplit(n.check));
-    if (!chk.ok) await exec(n.add);
-    else results.push({ cmd: n.check, ok: true, skipped: 'already-present' });
-  }
+  for (const j of plan.jumps) await checkThenAdd(j);
+  for (const n of plan.nat) await checkThenAdd(n);
   return { ok: results.every((r) => r.ok), results };
 }
 
@@ -461,11 +487,15 @@ export async function refreshHuntEgress(
   const results = [];
   for (const e of add) {
     const r = await run(['ipset', 'add', egress.setName, e, '-exist']);
-    results.push({ cmd: `ipset add ${egress.setName} ${e}`, ok: r.ok });
+    const entry = { cmd: `ipset add ${egress.setName} ${e}`, ok: r.ok };
+    if (!r.ok && r.error) entry.error = String(r.error).slice(0, 500);
+    results.push(entry);
   }
   for (const e of del) {
     const r = await run(['ipset', 'del', egress.setName, e]);
-    results.push({ cmd: `ipset del ${egress.setName} ${e}`, ok: r.ok });
+    const entry = { cmd: `ipset del ${egress.setName} ${e}`, ok: r.ok };
+    if (!r.ok && r.error) entry.error = String(r.error).slice(0, 500);
+    results.push(entry);
   }
   return { ok: true, added: add.length, removed: del.length, results };
 }
@@ -588,16 +618,59 @@ export async function stopProxyForHunt(huntId) {
   return true;
 }
 
+/** Attempts for the egress-plan apply inside finalizeHuntEgress. */
+export const FINALIZE_APPLY_MAX_ATTEMPTS = 3;
+/** Backoff between apply attempts in ms: attempt 1→2, then 2→3. */
+export const FINALIZE_RETRY_DELAYS_MS = [250, 500];
+
+/**
+ * Transient apply failures are worth one more attempt; deterministic
+ * ones (bad command, missing binary, sudo denied, bad argument) are
+ * not — retrying them only burns the resume window. The xtables lock
+ * is the classic transient: dockerd's own iptables programming and a
+ * concurrent finalize both take it, and iptables-nft fails fast
+ * ("Another app is currently holding the xtables lock") instead of
+ * waiting. Zero lock errors have been observed in the journal so far
+ * (6 Nov 2026) — this covers the class, it does not claim a sighting.
+ * The evidenced intermittent pattern is the 1 Nov crash-loop resume:
+ * finalize ran once, failed once, and the hunt died on that single
+ * attempt with no second chance.
+ */
+export function isTransientEgressError(text) {
+  return /xtables lock|resource temporarily unavailable|temporarily unavailable|timed? ?out|try again/i.test(
+    String(text || '')
+  );
+}
+
+const defaultSleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** First failing apply result, for the error message. */
+function firstFailedResult(results) {
+  return (results || []).find((r) => !r.ok) || null;
+}
+
 /**
  * Post-container-start: inspect container IPs, resolve, build + apply plan,
  * persist meta.egress. Fail-closed: throws on failure (the hunt must not
  * run unisolated).
+ *
+ * Failure handling (6 Nov 2026 — the 1 Nov / 3 Nov finalize failures):
+ * - The apply is retried a bounded number of times, but ONLY for
+ *   transient failures (xtables lock / resource-busy / timeout). The
+ *   plan is idempotent by construction (create -exist, flush,
+ *   check-then-add), so a full re-apply is safe.
+ * - The thrown error names the first failing command and its stderr
+ *   (truncated): the old generic "iptables/ipset apply failed" was
+ *   diagnosable only from sudo's journal lines.
+ * - A failed apply leaves no half-built state behind: best-effort
+ *   removeHuntEgress with the plan's own data runs before throwing,
+ *   so a later resume re-applies from a clean slate.
  */
 export async function finalizeHuntEgress(
   huntId,
   containerName,
   egress,
-  { docker, resolveHost = defaultResolveHost, run = defaultRunner, writeMeta } = {}
+  { docker, resolveHost = defaultResolveHost, run = defaultRunner, writeMeta, sleep = defaultSleep } = {}
 ) {
   const san = sanitizeHuntId(huntId);
   const runDocker =
@@ -628,8 +701,28 @@ export async function finalizeHuntEgress(
     resolverIp: egress.resolverIp,
     resolved,
   });
-  const applied = await applyEgressPlan(plan, { run });
-  if (!applied.ok) throw new Error('finalizeHuntEgress: iptables/ipset apply failed (fail-closed)');
+  let applied = null;
+  let attemptsMade = 0;
+  let lastErrorText = 'unknown apply failure';
+  for (let attempt = 1; attempt <= FINALIZE_APPLY_MAX_ATTEMPTS; attempt++) {
+    attemptsMade = attempt;
+    applied = await applyEgressPlan(plan, { run });
+    if (applied.ok) break;
+    const failed = firstFailedResult(applied.results);
+    lastErrorText = failed
+      ? `${failed.cmd}${failed.error ? ` :: ${failed.error}` : ''}`
+      : 'unknown apply failure';
+    if (!isTransientEgressError(lastErrorText) || attempt === FINALIZE_APPLY_MAX_ATTEMPTS) break;
+    await sleep(FINALIZE_RETRY_DELAYS_MS[attempt - 1] ?? 500);
+  }
+  if (!applied.ok) {
+    try {
+      await removeHuntEgress(san, { containerIps, resolverIp: egress.resolverIp }, { run });
+    } catch { /* cleanup is best-effort; never masks the apply error */ }
+    throw new Error(
+      `finalizeHuntEgress: iptables/ipset apply failed (fail-closed) after ${attemptsMade} attempt(s): ${lastErrorText.slice(0, 300)}`
+    );
+  }
   try {
     const write = writeMeta || ((await import('./store.js')).writeHuntMetaCheckpoint);
     write(san, {
