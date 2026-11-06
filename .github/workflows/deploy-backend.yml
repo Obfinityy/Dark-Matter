@@ -113,8 +113,14 @@ jobs:
               # A green SKIP used to mean nothing at all. Verify the
               # still-running backend is actually healthy; a failed
               # health check fails the deploy instead of hiding it.
+              # The check RETRIES (wait-for-health.mjs, 12×5s): a manual
+              # restart in flight makes a single curl fail the run even
+              # though the backend comes back seconds later — that exact
+              # race red-flagged runs 42217388113 + 42218258225 (6 Nov
+              # 2026). Still fatal after the budget runs out: a dead
+              # backend must fail the deploy, not hide behind a green SKIP.
               echo "--- health check (running backend, still on old code) ---"
-              curl -sf http://localhost:4000/api/v1/health || { echo "ERROR: running backend failed its health check — investigate before the deferred restart."; exit 1; }
+              node scripts/wait-for-health.mjs || { echo "ERROR: running backend failed its health check after retries — investigate before the deferred restart."; exit 1; }
               echo
               git rev-parse --short HEAD
               exit 0
@@ -123,8 +129,8 @@ jobs:
             sudo systemctl restart darkmatter-backend
             sleep 10
             sudo systemctl is-active darkmatter-backend
-            echo "--- health check ---"
-            curl -sf http://localhost:4000/api/v1/health
+            echo "--- health check (retried: the restart itself — and a transient first-start failure — both look like downtime) ---"
+            node scripts/wait-for-health.mjs
             echo
             echo "--- deployed revision ---"
             git rev-parse --short HEAD
