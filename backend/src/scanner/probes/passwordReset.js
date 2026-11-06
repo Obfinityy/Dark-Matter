@@ -229,7 +229,7 @@ export async function probePasswordReset(forms, url, opts = {}) {
       parameter: param,
       evidence: ev(
         `POST ${action} with canary email(s); issued token inspected (our own canary response only)`,
-        `token fails the entropy bar: ${weakOn}`,
+        `issued token "${t1.slice(0, 10)}…" (truncated) fails the entropy bar: ${weakOn}`,
         'Weak token formats can be brute-forced offline — mailbox never needed'
       ),
     });

@@ -20,4 +20,78 @@ describe('massAssignment probe', () => {
     });
     assert.deepEqual(findings, []);
   });
+
+  // ---- T2: escalation + revert (scripted fetch state machine) --------------
+  // GET returns `{"role":"<state.role>"} <a href="/admin">Admin</a>` — the
+  // chrome deliberately exercises both weak gates. POST with role=<v>
+  // stores state.role; POST with no role param is the revert.
+  const FORMS = [{ action: 'http://lab.local/register', inputs: [{ name: 'user', value: 'x' }] }];
+  const OPTS = { labTargets: 'lab.local', timeoutMs: 2000, depth: 'quick' };
+
+  function makeFetch(state) {
+    return async (url, init = {}) => {
+      const method = init.method || 'GET';
+      if (method === 'GET') {
+        return { ok: true, status: 200, text: async () => `{"role":"${state.role}"} <a href="/admin">Admin</a>` };
+      }
+      const params = new URLSearchParams(init.body || '');
+      if (params.has('role')) {
+        if (state.failEvilPost && params.get('role') === 'admin') throw new Error('network down');
+        if (state.ignorePosts) return { ok: true, status: 200, text: async () => `{"role":"${state.role}"}` };
+        state.role = params.get('role');
+      } else {
+        if (state.failRevert) throw new Error('network down');
+        if (state.revertRestores) state.role = 'user';
+      }
+      return { ok: true, status: 200, text: async () => `{"role":"${state.role}"}` };
+    };
+  }
+
+  async function runT2(state) {
+    const orig = global.fetch;
+    global.fetch = makeFetch(state);
+    try {
+      return await probeMassAssignment(FORMS, 'http://lab.local/register', OPTS);
+    } finally {
+      global.fetch = orig;
+    }
+  }
+
+  it('T2 guard: no T1 confirmation means no escalation finding', async () => {
+    const findings = await runT2({ role: 'user', ignorePosts: true });
+    assert.ok(!findings.some((x) => x.id.startsWith('ma-escalate-')), 'no T1 bindability proof means no T2');
+  });
+
+  it('T2 revert-failure: evidence says revert-ok false, title drops "reverted"', async () => {
+    const findings = await runT2({ role: 'user', revertRestores: false });
+    const f = findings.find((x) => x.id.startsWith('ma-escalate-'));
+    assert.ok(f, 'escalation finding must still fire');
+    assert.ok(f.evidence.response.includes('revert-ok: false'), 'evidence must report the failed revert');
+    assert.ok(!f.title.includes('reverted'), 'title must not claim a revert that failed');
+    assert.ok(f.title.includes('REVERT NOT CONFIRMED'));
+  });
+
+  it('T2 bare-word FP: failed evil POST stays silent despite "admin" chrome', async () => {
+    const findings = await runT2({ role: 'user', failEvilPost: true, revertRestores: true });
+    assert.ok(!findings.some((x) => x.id.startsWith('ma-escalate-')), 'a failed escalation POST is not elevation');
+  });
+
+  it('T2 true positive: escalation + clean revert, verbatim window quoted', async () => {
+    const findings = await runT2({ role: 'user', revertRestores: true });
+    const esc = findings.filter((x) => x.id.startsWith('ma-escalate-'));
+    assert.equal(esc.length, 1, 'exactly one escalation finding');
+    assert.equal(findings.length, 2, 'one T1 finding plus one escalation finding');
+    assert.equal(esc[0].severity, 'critical');
+    assert.equal(esc[0].parameter, 'role');
+    assert.ok(esc[0].title.includes('reverted'), 'title claims the revert only when it succeeded');
+    assert.ok(esc[0].evidence.response.includes('"role":"admin"'), 'evidence must quote the elevated value verbatim');
+    assert.ok(esc[0].evidence.response.includes('revert-ok: true'), 'evidence must report the successful revert');
+  });
+
+  it('T2 revert-network-failure: still reports revert-ok false', async () => {
+    const findings = await runT2({ role: 'user', failRevert: true });
+    const f = findings.find((x) => x.id.startsWith('ma-escalate-'));
+    assert.ok(f, 'escalation finding must still fire');
+    assert.ok(f.evidence.response.includes('revert-ok: false'), 'a thrown revert POST is a failed revert');
+  });
 });

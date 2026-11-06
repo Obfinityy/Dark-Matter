@@ -313,6 +313,8 @@ export async function probeOauth(url, opts = {}) {
     const loc = r.location || '';
     if (r.status >= 300 && r.status < 400 && /[#&]access_token=/.test(loc) && loc.includes(baseU.host)) {
       implicitConfirmed = true;
+      const frag = loc.split('#')[1] || loc;
+      const redactedFrag = frag.replace(/access_token=[^&]*/i, 'access_token=<redacted>');
       const t1 = findings.some((f) => f.class === 'oauth_redirect_uri_bypass');
       findings.push({
         class: 'oauth_implicit_flow',
@@ -324,7 +326,7 @@ export async function probeOauth(url, opts = {}) {
         url: endpoint,
         parameter: 'response_type',
         evidence: evidenceBase(
-          `response_type=${rt} → ${r.status} Location fragment contains access_token= (registered redirect_uri)`,
+          `response_type=${rt} → ${r.status} Location fragment: "${redactedFrag.slice(0, 200)}" (registered redirect_uri; token value redacted)`,
           'Fragment tokens leak via browser history, logs, and Referer headers'
         ),
       });
@@ -340,6 +342,7 @@ export async function probeOauth(url, opts = {}) {
   const r2 = await oauthAuthRequest(endpoint, noStateParams, { timeoutMs });
   const codeIssued = (r) => r.status >= 300 && r.status < 400 && /[?&#]code=/.test(r.location || '');
   if (codeIssued(r1) && codeIssued(r2)) {
+    const loc1 = (r1.location || '').replace(/code=[^&]*/i, 'code=<redacted>');
     findings.push({
       class: 'oauth_state_missing',
       id: `oauth-nostate-${canary}`,
@@ -348,7 +351,7 @@ export async function probeOauth(url, opts = {}) {
       url: endpoint,
       parameter: 'state',
       evidence: evidenceBase(
-        `2 runs without state → both ${r1.status}/${r2.status} with code= issued to registered URI`,
+        `2 runs without state → both ${r1.status}/${r2.status} with code= issued — Location: "${loc1.slice(0, 200)}" (code value redacted)`,
         'Attacker can force a victim to complete login under the attacker account (login CSRF)'
       ),
     });
@@ -361,6 +364,7 @@ export async function probeOauth(url, opts = {}) {
   // Remove the undefined key (URLSearchParams would stringify it).
   if (codeIssued(rPkce)) {
     const publicClient = !opts.clientSecret && /spa|native|mobile|public/i.test(opts.bundleText || '') || !opts.clientSecret;
+    const locPkce = (rPkce.location || '').replace(/code=[^&]*/i, 'code=<redacted>');
     findings.push({
       class: 'oauth_pkce_missing',
       id: `oauth-pkce-${canary}`,
@@ -371,7 +375,7 @@ export async function probeOauth(url, opts = {}) {
       url: endpoint,
       parameter: 'code_challenge',
       evidence: evidenceBase(
-        `no code_challenge → ${rPkce.status} with code= issued to registered URI`,
+        `no code_challenge → ${rPkce.status} with code= issued — Location: "${locPkce.slice(0, 200)}" (code value redacted)`,
         'A network-position attacker can steal the code and redeem it without the verifier'
       ),
     });
@@ -494,6 +498,12 @@ export async function probeOauth(url, opts = {}) {
   // ---- T7: secrets & endpoint hygiene (passive) ----
   const bundleText = opts.bundleText || '';
   if (SECRET_RE.test(bundleText) && bundleText.includes(clientId)) {
+    const sMatch = bundleText.match(SECRET_RE);
+    const sIdx = sMatch ? bundleText.indexOf(sMatch[0]) : -1;
+    // Quote the window around the secret marker, with the secret VALUE
+    // redacted — the key name + surrounding context is the evidence.
+    const rawWindow = sIdx >= 0 ? bundleText.slice(Math.max(0, sIdx - 40), sIdx + 120) : '';
+    const redactedWindow = rawWindow.replace(/(client_secret["'\s:=]+)(["'][^"']{4,}["']|\S{8,})/i, '$1<redacted>');
     findings.push({
       class: 'oauth_secret_exposed',
       id: `oauth-secret-${canary}`,
@@ -502,7 +512,7 @@ export async function probeOauth(url, opts = {}) {
       url,
       parameter: 'client_secret',
       evidence: evidenceBase(
-        'bundle contains client_secret/private-key material adjacent to the discovered client_id',
+        `bundle contains secret material adjacent to client_id "${clientId}" — "...${redactedWindow}..." (secret value redacted)`,
         'Exposed secrets let attackers impersonate the confidential client'
       ),
     });

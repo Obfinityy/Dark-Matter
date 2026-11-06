@@ -98,6 +98,7 @@ async function t1Oracle(url, params, opts) {
     };
     const matrix = { baseline_wrong_user: tBase };
     let consistent = 0;
+    let movedText = null; // response text of the first probe that moved the outcome
     for (const [k, v] of Object.entries(probes)) {
       const f = { ...base, [up]: v };
       let r;
@@ -109,6 +110,7 @@ async function t1Oracle(url, params, opts) {
       }
       const t = triple(r);
       matrix[k] = t;
+      if (t !== tBase && !movedText) movedText = r.text;
       // Filter-logic consistency: a TRUE wildcard ('*') widening the match
       // should move the outcome; a nonsense wildcard ('zzz*') should not.
       if (k === 'star' || k === 'paren') {
@@ -121,6 +123,9 @@ async function t1Oracle(url, params, opts) {
       .map(([k, v]) => `${k}=${v}`)
       .join(' | ');
     if (consistent >= 2) {
+      const m = movedText ? movedText.match(/welcome|dashboard|successfully|logged in|log out|sign out|invalid|wrong|incorrect|denied|fail|not found|unknown|does not exist|bad/i) : null;
+      const idx = m ? movedText.indexOf(m[0]) : -1;
+      const window = idx >= 0 ? movedText.slice(Math.max(0, idx - 60), idx + 120) : (movedText || '').slice(0, 200);
       findings.push({
         class: 'ldap_injection',
         id: `ldap-oracle-${rand()}`,
@@ -130,7 +135,7 @@ async function t1Oracle(url, params, opts) {
         parameter: up,
         evidence: ev(
           `POST ${url} ${up}=* / admin* / zzz* / *)(  (vs wrong-user baseline; redirects NOT followed)`,
-          `Baseline(wrong user): ${tBase}. Matrix: ${matrixText}. Wildcards moved the outcome in a filter-logic-consistent way (${consistent}/3 checks).`,
+          `Baseline(wrong user): ${tBase}. Matrix: ${matrixText}. Wildcards moved the outcome in a filter-logic-consistent way (${consistent}/3 checks). The moved response reads: "...${window}..."`,
           'Differential oracle established: LDAP filter syntax reaches the directory query. Enables boolean-blind extraction (T2).'
         ),
       });

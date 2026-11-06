@@ -36,6 +36,9 @@ export async function probeSsrf(url, params, opts = {}) {
       continue;
     }
     if (/ami-id|instance-id|meta-data/.test(body)) {
+      const m = body.match(/ami-id|instance-id|meta-data/);
+      const idx = body.indexOf(m[0]);
+      const window = body.slice(Math.max(0, idx - 60), idx + 120);
       findings.push({
         class: 'ssrf',
         id: `ssrf-metadata-${param}`,
@@ -45,7 +48,7 @@ export async function probeSsrf(url, params, opts = {}) {
         param,
         evidence: {
           request: `GET ${withParam(url, param, 'http://169.254.169.254/latest/meta-data/')}`,
-          response: 'cloud metadata markers present in the response',
+          response: `cloud metadata marker in the response — "...${window}..."`,
           impact_demo: 'the server-side fetcher reached 169.254.169.254',
           oobHit: true,
         },

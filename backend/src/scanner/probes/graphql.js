@@ -466,6 +466,7 @@ export async function probeGraphql(url, opts = {}) {
           try { json = JSON.parse(text); } catch {}
           // If we got 20 responses back, batching bypassed rate limiting
           if (res.ok && Array.isArray(json) && json.length === 20) {
+            const firstTypename = json[0] && typeof json[0] === 'object' ? JSON.stringify(json[0]).slice(0, 120) : '';
             findings.push({
               class: 'graphql_batching',
               id: `graphql-batch-${canary}`,
@@ -475,7 +476,7 @@ export async function probeGraphql(url, opts = {}) {
               parameter: 'batch',
               evidence: {
                 request: `POST ${endpoint} with 20 batched {__typename} queries`,
-                response: `20/20 responses returned despite rate limiting`,
+                response: `20/20 responses returned despite rate limiting — first response: ${firstTypename}`,
                 impact_demo: 'Attacker can bypass rate limits via batching',
                 signalCorrelated: true,
               },

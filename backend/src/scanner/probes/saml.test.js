@@ -14,6 +14,7 @@ import {
   buildXxeSamlResponse,
   matchSamlBundleHints,
   discoverSamlMetadata,
+  sessionGranted,
 } from './saml.js';
 
 describe('saml probe', () => {
@@ -126,6 +127,16 @@ describe('saml probe', () => {
   it('matches SAML bundle hints', () => {
     const hits = matchSamlBundleHints('form SAMLResponse RelayState urn:oasis:names:tc:SAML:2.0');
     assert.ok(hits.length >= 2, `expected >=2 hints, got ${hits.length}`);
+  });
+
+  it('sessionGranted ignores non-session cookies (tautology-free gate)', () => {
+    // A cookie with no session-like name must not grant a session, even
+    // when long; a session-named cookie or the canary in body/location does.
+    assert.equal(sessionGranted({ setCookie: 'foo=barbarbarbarbar', body: '', location: '' }, 'CANARY'), false);
+    assert.equal(sessionGranted({ setCookie: 'session=abc1234567890', body: '', location: '' }, 'CANARY'), true);
+    assert.equal(sessionGranted({ setCookie: 'auth_token=0123456789abcdef', body: '', location: '' }, 'CANARY'), true);
+    assert.equal(sessionGranted({ setCookie: 'sid=x', body: '', location: '' }, 'CANARY'), false);
+    assert.equal(sessionGranted({ setCookie: '', body: 'welcome CANARY', location: '' }, 'CANARY'), true);
   });
 
   it('returns no hits on plain HTML', () => {

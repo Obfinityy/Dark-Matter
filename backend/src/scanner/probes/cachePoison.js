@@ -70,6 +70,9 @@ export async function probeCachePoisoning(url, opts = {}) {
       // Victim: clean request, must not carry the canary.
       const victim = await get(url, {}, opts);
       if (victim.body.includes(canary)) {
+        const idx = victim.body.indexOf(canary);
+        const window = victim.body.slice(Math.max(0, idx - 60), idx + 80);
+        const hitHeader = Object.entries(victim.headers || {}).find(([k, v]) => /hit/i.test(String(v)) || k === 'age');
         findings.push({
           class: 'cache_poisoning',
           id: 'cache-poisoning-xfh',
@@ -78,7 +81,7 @@ export async function probeCachePoisoning(url, opts = {}) {
           url,
           evidence: {
             request: `GET ${url} with X-Forwarded-Host: ${canary}, then clean GET`,
-            response: `canary served to the clean victim request${victim.cacheHit ? ' (cache-hit headers present)' : ''} — poisoned page cached`,
+            response: `canary served to the clean victim request — "...${window}..."${hitHeader ? ` (${hitHeader[0]}: ${hitHeader[1]})` : ''} — poisoned page cached`,
             impact_demo: 'attacker-controlled host value cached and served to every visitor — defacement/phishing/JS injection primitive',
             signalCorrelated: true,
           },
@@ -182,6 +185,9 @@ async function probeCacheDeception(url, opts = {}) {
   const h = hits[0];
   const vurl = variantUrl(url, h.variant.suffix);
   if (h.sensitive) {
+    const sMatch = h.r2.body.match(h.sensitive);
+    const sIdx = sMatch ? h.r2.body.indexOf(sMatch[0]) : -1;
+    const sWindow = sIdx >= 0 ? h.r2.body.slice(Math.max(0, sIdx - 60), sIdx + 120) : '';
     findings.push({
       class: 'cache_deception',
       id: `cache-deception-${h.variant.slug}`,
@@ -190,7 +196,7 @@ async function probeCacheDeception(url, opts = {}) {
       url,
       evidence: {
         request: `GET ${vurl}?dmscb=${rand} then GET ${vurl}`,
-        response: `unbusted variant served from cache (${h.signals || 'cache-hit headers'}); cached body matched sensitive marker ${h.sensitive.source}`,
+        response: `unbusted variant served from cache (${h.signals || 'cache-hit headers'}); cached body matched sensitive marker — "...${sWindow}..."`,
         impact_demo: 'authenticated page content cached under a static-looking URL — any visitor requesting the variant gets the victim\'s cached page',
         signalCorrelated: true,
       },

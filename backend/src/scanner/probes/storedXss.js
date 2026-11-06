@@ -107,6 +107,7 @@ export async function probeStoredXss(forms, url, opts = {}) {
       // Verify: re-read the action page and the site root.
       let stored = false;
       let storedAt = '';
+      let storedWindow = '';
       for (const checkUrl of [form.action, root]) {
         let body = '';
         try {
@@ -117,6 +118,8 @@ export async function probeStoredXss(forms, url, opts = {}) {
         if (body.includes(canary)) {
           stored = true;
           storedAt = checkUrl;
+          const idx = body.indexOf(canary);
+          storedWindow = body.slice(Math.max(0, idx - 60), idx + 120);
           break;
         }
       }
@@ -131,7 +134,7 @@ export async function probeStoredXss(forms, url, opts = {}) {
         parameter: input, // dedup key: one finding per sink input, not per page
         evidence: {
           request: `${String(form.method || 'get').toUpperCase()} ${form.action} (${input}=${canary})`,
-          response: `canary re-rendered verbatim on ${storedAt} after submit; absent in pre-submit baseline`,
+          response: `canary re-rendered verbatim on ${storedAt} after submit — "...${storedWindow}..." — absent in pre-submit baseline`,
           impact_demo: 'attacker-controlled value persisted server-side and rendered into HTML — executes for every later visitor',
           canaryReflected: true,
         },

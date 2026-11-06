@@ -227,6 +227,7 @@ async function t2Tokens(opts) {
     } catch {}
   }
   if (signals.length >= 2 || predictable) {
+    const prefixes = tokens.slice(0, 2).map((t) => `"${String(t.value).slice(0, 12)}…"`);
     findings.push({
       class: 'weak_crypto',
       id: `token-predict-${rand()}`,
@@ -236,7 +237,7 @@ async function t2Tokens(opts) {
       parameter: 'session-token',
       evidence: ev(
         `${tokens.length} tokens harvested from self-owned lab flows`,
-        `Structural signals (${signals.length}): ${signals.slice(0, 3).join(' | ')}. >=2 independent signals agree — tokens are guessable, not random.`,
+        `Tokens ${prefixes.join(', ')} — structural signals (${signals.length}): ${signals.slice(0, 3).join(' | ')}. >=2 independent signals agree — tokens are guessable, not random.`,
         'Session prediction / fixation primitive: attacker mints valid sessions.'
       ),
     });

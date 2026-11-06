@@ -1,8 +1,11 @@
 // Dark Matter rule-based scanner — unrestricted file upload probe.
 //
 // Finds <input type="file"> forms, uploads a benign marker file, then tries
-// dangerous variants (double extension, .phtml). Confirms by retrieving the
-// uploaded file or by the server accepting an executable extension.
+// dangerous variants (double extension, .phtml). Confirmation tiers:
+//   1. Acceptance — the upload returns 2xx AND echoes the filename/marker
+//      back (a bare "success" word is not storage proof).
+//   2. Retrieval — when the upload response discloses where the file went,
+//      the probe GETs that URL and requires the marker to come back.
 //
 // SAFETY: this probe WRITES files to the target. It runs ONLY when
 // opts.allowWrite is true, which runScan sets solely for lab targets
@@ -59,10 +62,38 @@ async function upload(action, fileInput, filename, content, opts = {}) {
       headers: { 'User-Agent': UA, ...(opts.headers || {}) },
       body: fd,
     });
-    return await res.text().catch(() => '');
+    // Status is load-bearing: a 4xx/5xx error page carrying the word
+    // "success" must not pass the stored gate.
+    return { status: res.status, text: await res.text().catch(() => '') };
   } finally {
     clearTimeout(t);
   }
+}
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function windowAround(text, needle, before = 60, after = 80) {
+  const idx = text.indexOf(needle);
+  if (idx < 0) return text.slice(0, 120);
+  return text.slice(Math.max(0, idx - before), idx + needle.length + after);
+}
+
+// Find a retrievable URL for the uploaded file in the upload response
+// (href/src/action attribute or bare path containing the filename),
+// resolved against the form action. Null when the response discloses none.
+function findUploadedUrl(respText, filename, base) {
+  const esc = escapeRegExp(filename);
+  const attr = new RegExp(`(?:href|src|action)\\s*=\\s*["']([^"']*${esc}[^"']*)["']`, 'i').exec(respText);
+  if (attr) {
+    try { return new URL(attr[1], base).toString(); } catch { return null; }
+  }
+  const bare = new RegExp(`["'\\s]\\s*(/[^"'\\s]*${esc}[^"'\\s]*)`, 'i').exec(respText);
+  if (bare) {
+    try { return new URL(bare[1], base).toString(); } catch { return null; }
+  }
+  return null;
 }
 
 export async function probeFileUpload(url, opts = {}) {
@@ -80,23 +111,42 @@ export async function probeFileUpload(url, opts = {}) {
     const rand = randomBytes(4).toString('hex');
     const marker = `dm-upload-marker-${rand}`;
     const txtName = `dmprobe_${rand}.txt`;
-    let resp = '';
+    let resp;
     try {
       resp = await upload(form.action, form.fileInput, txtName, marker, opts);
     } catch {
       continue;
     }
-    const stored = resp.includes(txtName) || resp.includes(marker) || /success|uploaded/i.test(resp);
+    // Stored gate: 2xx AND the filename/marker echoed back. A bare
+    // success word ("profile updated successfully") is not storage proof.
+    const stored = resp.status >= 200 && resp.status < 300 &&
+      (resp.text.includes(txtName) || resp.text.includes(marker));
     if (!stored) continue;
     // Dangerous variant: executable-ish extension.
     const evilName = `dmprobe_${rand}.phtml`;
-    let evilResp = '';
+    let evilResp = { status: 0, text: '' };
     try {
       evilResp = await upload(form.action, form.fileInput, evilName, marker, opts);
     } catch {
-      // ignore
+      // ignore — a failed evil upload means the extension was not accepted
     }
-    const evilAccepted = evilResp.includes(evilName) || (/success|uploaded/i.test(evilResp) && !/not allowed|invalid|denied|error/i.test(evilResp));
+    const evilAccepted = evilResp.status >= 200 && evilResp.status < 300 &&
+      evilResp.text.includes(evilName);
+    // Fetch-back: prove the file is actually served when the upload
+    // response discloses where it went.
+    let servedBack = null;
+    if (evilAccepted) {
+      const upUrl = findUploadedUrl(evilResp.text, evilName, form.action);
+      if (upUrl) {
+        try {
+          const served = await get(upUrl, opts);
+          if (served.includes(marker)) servedBack = { url: upUrl, window: windowAround(served, marker) };
+        } catch { /* not retrievable at the disclosed URL */ }
+      }
+    }
+    const echoNeedle = evilAccepted ? evilName : (resp.text.includes(txtName) ? txtName : marker);
+    const echoText = evilAccepted ? evilResp.text : resp.text;
+    const echoWindow = windowAround(echoText, echoNeedle);
     findings.push({
       class: 'file_upload',
       id: `file-upload-${form.action}`.slice(0, 120),
@@ -108,8 +158,10 @@ export async function probeFileUpload(url, opts = {}) {
       evidence: {
         request: `POST ${form.action} multipart (${form.fileInput}=${evilAccepted ? evilName : txtName})`,
         response: evilAccepted
-          ? `server accepted ${evilName} — executable extension not rejected`
-          : `server stored ${txtName} with marker content retrievable in response`,
+          ? (servedBack
+            ? `server accepted ${evilName} and serves it back at ${servedBack.url} — "...${servedBack.window}..."`
+            : `server accepted ${evilName} (HTTP ${evilResp.status}, filename echoed in upload response) — "...${echoWindow}..."`)
+          : `server stored ${txtName} (HTTP ${resp.status}, filename/marker echoed) — "...${echoWindow}..."`,
         impact_demo: evilAccepted
           ? 'executable upload primitive — webshell path on misconfigured hosts'
           : 'arbitrary file write primitive — stored-XSS/phishing payload hosting',

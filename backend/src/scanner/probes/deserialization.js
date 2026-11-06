@@ -59,6 +59,16 @@ async function fetchFull(url, opts = {}, extraHeaders = {}) {
   }
 }
 
+// First-divergence window between two response bodies: the window in `b`
+// around the first index where it differs from `a` (or the head if one is
+// a prefix of the other).
+function diffWindow(a, b) {
+  let i = 0;
+  const n = Math.min(a.length, b.length);
+  while (i < n && a[i] === b[i]) i++;
+  return b.slice(Math.max(0, i - 60), i + 140);
+}
+
 function ev(request, response, impact) {
   return { request, response, impact_demo: impact, signalCorrelated: true };
 }
@@ -75,7 +85,8 @@ function detectFormats(text, setCookies) {
   const hay = [text, ...(setCookies || [])].join('\n');
   const hits = [];
   for (const f of SER_FMTS) {
-    if (f.re.test(hay)) hits.push(f);
+    const m = hay.match(f.re);
+    if (m) hits.push({ ...f, marker: m[0] });
   }
   // pickle: raw bytes rarely survive text; check base64-decoded cookie values
   for (const c of setCookies || []) {
@@ -145,7 +156,7 @@ async function t1CookieTamper(url, setCookies, opts) {
         parameter: name,
         evidence: ev(
           `GET ${url} Cookie: ${name}=<serialized, 1 byte flipped> vs untouched baseline`,
-          `Baseline: ${baseSig}. Mutated blob: ${mutSig} — accepted AND behavior diverged. No integrity check (MAC/signature) on the serialized cookie.`,
+          `Baseline: ${baseSig}. Mutated blob: ${mutSig} — accepted AND behavior diverged. First divergence in the mutated response — "...${diffWindow(rBase.text, rMut.text)}..."`,
           'Missing-integrity deserialization sink: attacker-controlled object graph reaches the deserializer.'
         ),
       });
@@ -187,6 +198,8 @@ async function t2PhpMarker(url, opts) {
   const body = `O:8:"stdClass":1:{s:6:"canary";s:${canary.length}:"${canary}";}`;
   const r = await fetchFull(url + (url.includes('?') ? '&' : '?') + `dsp=${encodeURIComponent(body)}`, opts).catch(() => null);
   if (r && r.text.includes(canary)) {
+    const idx = r.text.indexOf(canary);
+    const window = r.text.slice(Math.max(0, idx - 60), idx + 120);
     findings.push({
       class: 'deserialization',
       id: `ds-php-${rand()}`,
@@ -196,7 +209,7 @@ async function t2PhpMarker(url, opts) {
       parameter: 'dsp',
       evidence: ev(
         `GET ${url}?dsp=<O:8:"stdClass" canary object>`,
-        `Canary ${canary} reflected — the unserialize sink acts on attacker object properties (type-confusion marker, no gadget chain).`,
+        `Canary reflected — "...${window}..." — the unserialize sink acts on attacker object properties (type-confusion marker, no gadget chain).`,
         'PHP object-injection sink confirmed on lab target.'
       ),
     });
@@ -212,6 +225,8 @@ async function t4JavaMarker(url, opts) {
   const fakeR0 = Buffer.from([0xac, 0xed, 0x00, 0x05, 0x74, 0x00, 0x10, ...Buffer.from(canary.slice(0, 16))]).toString('base64');
   const r = await fetchFull(url, opts, { Cookie: `dmscan=${encodeURIComponent(fakeR0)}` }).catch(() => null);
   if (r && r.text.includes(canary.slice(0, 12))) {
+    const idx = r.text.indexOf(canary.slice(0, 12));
+    const window = r.text.slice(Math.max(0, idx - 60), idx + 140);
     findings.push({
       class: 'deserialization',
       id: `ds-java-${rand()}`,
@@ -221,7 +236,7 @@ async function t4JavaMarker(url, opts) {
       parameter: 'Cookie',
       evidence: ev(
         `GET ${url} Cookie: dmscan=<rO0 blob, canary class ${canary}>`,
-        `ClassNotFoundException names OUR canary class — CONFIRMED Java deserialization sink, zero RCE attempted.`,
+        `ClassNotFoundException names OUR canary class — "...${window}..." — CONFIRMED Java deserialization sink, zero RCE attempted.`,
         'Java readObject sink confirmed on lab target.'
       ),
     });
@@ -236,6 +251,9 @@ export async function probeDeserialization(url, opts = {}) {
   if (!r0) return findings;
   const fmts = detectFormats(r0.text, r0.setCookies);
   for (const f of fmts) {
+    const hay = [r0.text, ...(r0.setCookies || [])].join('\n');
+    const idx = f.marker ? hay.indexOf(f.marker) : -1;
+    const window = idx >= 0 ? hay.slice(Math.max(0, idx - 40), idx + 120) : '';
     findings.push({
       class: 'deserialization',
       id: `ds-fmt-${rand()}`,
@@ -245,7 +263,7 @@ export async function probeDeserialization(url, opts = {}) {
       parameter: 'response/cookie',
       evidence: ev(
         `GET ${url} (passive format fingerprint)`,
-        `${f.fmt} marker present in response or cookies. Tamper-candidate until a T-test confirms.`,
+        `${f.fmt} marker present in response or cookies — "...${window}..." — tamper-candidate until a T-test confirms.`,
         'Attack-surface inventory: serialized format reaches the client.'
       ),
     });

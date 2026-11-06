@@ -16,9 +16,18 @@ describe('ognlInject probe', () => {
       if (u.pathname === '/search.action') {
         // Vulnerable stub: evaluates benign OGNL math oracles.
         let out;
-        if (q === '%{7*7}' || q === '${7*7}') out = 'hits: 49';
+        if (q === '%{1336*7}' || q === '${1336*7}') out = 'hits: 9352';
         else out = 'hits: baseline-ok';
         res.writeHead(200, { 'Content-Type': 'text/html', 'X-Powered-By': 'Struts2' });
+        res.end(`<html>${out}</html>`);
+        return;
+      }
+      if (u.pathname === '/old.action') {
+        // Renders 49 for the new shapes — the old bare-49 FP shape.
+        let out;
+        if (q === '%{1336*7}' || q === '${1336*7}') out = 'hits: 49';
+        else out = 'hits: baseline-ok';
+        res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(`<html>${out}</html>`);
         return;
       }
@@ -32,12 +41,18 @@ describe('ognlInject probe', () => {
 
   after(() => server.close());
 
-  it('fires on evaluated %{7*7} at a .action endpoint', async () => {
+  it('fires on evaluated %{1336*7} at a .action endpoint', async () => {
     const findings = await probeOgnlInject(`${base()}/search.action`, ['q'], { timeoutMs: 8000 });
     const f = findings.find((x) => x.class === 'ognl_injection' && x.severity === 'critical');
     assert.ok(f, 'expected critical ognl_injection finding');
     assert.equal(f.parameter, 'q');
     assert.equal(f.evidence.signalCorrelated, true);
+    assert.ok(f.evidence.response.includes('9352'), 'evidence must quote the evaluated result verbatim');
+  });
+
+  it('stays silent on a bare-49 render (old FP shape)', async () => {
+    const findings = await probeOgnlInject(`${base()}/old.action`, ['q'], { timeoutMs: 8000 });
+    assert.ok(!findings.some((x) => x.class === 'ognl_injection' && x.severity === 'critical'), 'a 49 render is not a 9352 evaluation');
   });
 
   it('emits a low struts_fingerprint finding on version disclosure', async () => {

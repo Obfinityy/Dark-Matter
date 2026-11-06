@@ -101,6 +101,8 @@ async function t1RoleOverpost(forms, url, opts, rid) {
       // False-positive guard: echo in the POST response alone is not proof.
       const echoOnly = rPost.text.includes(canary) && !persisted;
       if (persisted && !echoOnly) {
+        const idx = readBack.indexOf(canary);
+        const window = idx >= 0 ? readBack.slice(Math.max(0, idx - 60), idx + 80) : readBack.slice(0, 120);
         findings.push({
           class: 'mass_assignment',
           id: `ma-role-${rand()}`,
@@ -110,7 +112,7 @@ async function t1RoleOverpost(forms, url, opts, rid) {
           parameter: field,
           evidence: ev(
             `POST ${action} ${field}=${canary} (inert canary, alongside legitimate fields)`,
-            `Follow-up GET shows the canary PERSISTED in stored state — the framework bound an unwhitelisted privileged field. (Echo-only ruled out.)`,
+            `Follow-up GET shows the canary PERSISTED in stored state — "...${window}..." (Echo-only ruled out.)`,
             'Bindability proven: the model accepts attacker-chosen privileged fields.'
           ),
         });
@@ -121,6 +123,10 @@ async function t1RoleOverpost(forms, url, opts, rid) {
   return { findings, confirmedField: null };
 }
 
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // ---- T2: known-value escalation + revert ------------------------------------------
 async function t2Escalate(t1, url, opts, rid) {
   const findings = [];
@@ -128,26 +134,33 @@ async function t2Escalate(t1, url, opts, rid) {
   const { confirmedField: field, action, base } = t1;
   // Real value on the LAB account only.
   const evil = field.toLowerCase().includes('role') ? 'admin' : 'true';
-  await postForm(action, { ...base, [field]: evil }, opts);
+  // The field-value regex is the ONLY elevation oracle: a bare word match
+  // ("admin" in page chrome) is not elevation. The same regex judges the
+  // revert — a naive `!readAfter.includes(evil)` falsely reports failure
+  // on any page whose chrome mentions admin.
+  const fieldValueRe = new RegExp(`"${escapeRegExp(field)}"\\s*:\\s*"?${escapeRegExp(evil)}"?`, 'i');
+  const rEvil = await postForm(action, { ...base, [field]: evil }, opts);
+  if (!rEvil) return findings; // escalation POST never reached the server
   const readBack = await getText(action, opts);
-  const elevated =
-    readBack.toLowerCase().includes('admin') ||
-    new RegExp(`"${field}"\\s*:\\s*"?${evil}"?`, 'i').test(readBack);
+  const elevated = fieldValueRe.test(readBack);
   // MANDATORY revert: restore baseline values.
   const rRevert = await postForm(action, base, opts);
   const readAfter = await getText(action, opts);
-  const revertOk = !readAfter.includes(evil) || rRevert !== null;
+  const revertOk = !fieldValueRe.test(readAfter);
   if (elevated) {
+    const m = readBack.match(fieldValueRe);
+    const idx = readBack.indexOf(m[0]);
+    const window = readBack.slice(Math.max(0, idx - 60), idx + 80);
     findings.push({
       class: 'mass_assignment',
       id: `ma-escalate-${rand()}`,
-      title: `Mass-assignment — privilege escalation via "${field}" (CRITICAL, reverted)`,
+      title: `Mass-assignment — privilege escalation via "${field}" (CRITICAL${revertOk ? ', reverted' : ', REVERT NOT CONFIRMED'})`,
       severity: 'critical',
       url: action,
       parameter: field,
       evidence: ev(
         `POST ${action} ${field}=${evil} on LAB account, then revert POST`,
-        `Privilege demonstrably elevated (admin marker in stored state), then REVERTED (revert-ok: ${revertOk}). Two-stage: T1 proved bindability, T2 proved exploitability.`,
+        `Privilege demonstrably elevated — "...${window}..." (revert-ok: ${revertOk}). Two-stage: T1 proved bindability, T2 proved exploitability.`,
         'Full privilege-escalation primitive via mass-assignment (lab, reverted).'
       ),
     });
@@ -178,6 +191,8 @@ async function t3JsonOverpost(url, opts, rid) {
     }
     const readBack = await getText(url, opts);
     if (readBack.includes(canary)) {
+      const idx = readBack.indexOf(canary);
+      const window = idx >= 0 ? readBack.slice(Math.max(0, idx - 60), idx + 80) : readBack.slice(0, 120);
       findings.push({
         class: 'mass_assignment',
         id: `ma-json-${rand()}`,
@@ -187,7 +202,7 @@ async function t3JsonOverpost(url, opts, rid) {
         parameter: field,
         evidence: ev(
           `POST ${url} JSON {"${field}":"${canary}"}`,
-          `Canary persisted in stored state — the API layer binds blindly where the form layer might whitelist.`,
+          `Canary persisted in stored state — "...${window}..." — the API layer binds blindly where the form layer might whitelist.`,
           'API-layer mass-assignment primitive.'
         ),
       });
@@ -208,6 +223,8 @@ async function t4FlagFlip(forms, url, opts, rid) {
       await postForm(action, { ...base, [field]: canary }, opts);
       const readBack = await getText(action, opts);
       if (readBack.includes(canary)) {
+        const idx = readBack.indexOf(canary);
+        const window = idx >= 0 ? readBack.slice(Math.max(0, idx - 60), idx + 80) : readBack.slice(0, 120);
         findings.push({
           class: 'mass_assignment',
           id: `ma-flag-${rand()}`,
@@ -217,7 +234,7 @@ async function t4FlagFlip(forms, url, opts, rid) {
           parameter: field,
           evidence: ev(
             `POST ${action} ${field}=${canary}`,
-            `Flag persisted in stored state — verification/approval flows skippable.`,
+            `Flag persisted in stored state — "...${window}..." — verification/approval flows skippable.`,
             'Account-verification bypass primitive.'
           ),
         });

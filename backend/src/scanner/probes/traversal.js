@@ -35,6 +35,8 @@ export async function probeTraversal(url, params, opts = {}) {
         continue;
       }
       if (body.includes(marker)) {
+        const idx = body.indexOf(marker);
+        const window = body.slice(Math.max(0, idx - 60), idx + 120);
         findings.push({
           class: 'lfi',
           id: `traversal-${param}-${os}`,
@@ -44,7 +46,7 @@ export async function probeTraversal(url, params, opts = {}) {
           param,
           evidence: {
             request: `GET ${withParam(url, param, payload)}`,
-            response: `file-content marker present: "${marker}"`,
+            response: `file-content marker present — "...${window}..."`,
             impact_demo: os === 'unix' ? 'read /etc/passwd via traversal' : 'read win.ini via traversal',
             signalCorrelated: true,
           },

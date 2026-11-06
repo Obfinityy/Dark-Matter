@@ -206,7 +206,7 @@ async function t3Reset(form, validUser, opts) {
       parameter: 'email/username',
       evidence: ev(
         `POST reset (valid identifier) vs (invalid identifier), 3 interleaved runs`,
-        `Reproducible differential — oracle proven; no email of any real account was touched.`,
+        `Reproducible differential — valid: "${d.vSig.slice(0, 120)}..." vs invalid: "${d.iSig.slice(0, 120)}..." — oracle proven; no email of any real account was touched.`,
         'Account-existence oracle via password reset.'
       ),
     });

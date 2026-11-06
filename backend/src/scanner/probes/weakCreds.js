@@ -115,12 +115,25 @@ async function tryLogin(form, username, password, hidden, opts = {}) {
 
 function looksAuthenticated(r, baseline) {
   const authMarkers = /log ?out|sign ?out|log ?off|welcome|dashboard|my account/i;
-  if (authMarkers.test(r.body) && !authMarkers.test(baseline.body)) return 'authenticated marker in body (absent in baseline)';
+  const m = r.body.match(authMarkers);
+  if (m && !authMarkers.test(baseline.body)) {
+    const idx = r.body.indexOf(m[0]);
+    return {
+      how: 'authenticated marker in body (absent in baseline)',
+      window: r.body.slice(Math.max(0, idx - 60), idx + 80),
+    };
+  }
   if (r.setCookie && r.setCookie !== baseline.setCookie && /sess|auth|token|sid/i.test(r.setCookie)) {
-    return 'new session cookie set';
+    return {
+      how: 'new session cookie set',
+      window: `Set-Cookie: ${r.setCookie.slice(0, 120)}`,
+    };
   }
   if (r.location && r.location !== baseline.location && r.status >= 300 && r.status < 400) {
-    return `redirected to ${r.location} (baseline: ${baseline.location || 'none'})`;
+    return {
+      how: `redirected to ${r.location} (baseline: ${baseline.location || 'none'})`,
+      window: `Location: ${r.location}`,
+    };
   }
   return null;
 }
@@ -152,7 +165,7 @@ export async function probeWeakCreds(forms, opts = {}) {
         url: form.action,
         evidence: {
           request: `POST ${form.action} (${fieldNames(form).user}=${u}, ${fieldNames(form).pass}=${'*'.repeat(p.length)})`,
-          response: `${how}; wrong-password baseline showed no authenticated state`,
+          response: `${how.how} — "...${how.window}..." — wrong-password baseline showed no authenticated state`,
           impact_demo: 'anyone on the internet can log in with factory defaults',
           signalCorrelated: true,
         },

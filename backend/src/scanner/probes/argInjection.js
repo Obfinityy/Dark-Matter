@@ -45,7 +45,9 @@ async function getText(url, opts = {}) {
 function sig(r) {
   if (!r) return 'ERR';
   const t = r.text.replace(/[0-9a-f]{16,}/gi, '#');
-  return `${r.status}:${t.slice(0, 300)}`;
+  // Full getText cap (3000): a 300-char truncation hid any divergence
+  // past the prefix — a late usage text stayed silent (false negative).
+  return `${r.status}:${t.slice(0, 3000)}`;
 }
 
 const CLI_SINK_RES = /^(file|filename|upload|url|target|host|domain|ip|archive|image|export|format|printer|webhook|repo|branch|ping|traceroute|nslookup|dig)$/i;
@@ -65,10 +67,17 @@ async function d2Differential(url, param, opts) {
     const r = await getText(setParam(url, param, probe), opts);
     if (!r) continue;
     const s = sig(r);
-    // CONFIRM: option family differs from BOTH baseline and control.
+    // CONFIRM: option family differs from BOTH baseline and control AND
+    // the response carries an option-error signal. Sig inequality alone
+    // fires on any echo page (the echoed value differs) — optionish is
+    // the gate that separates parser reach from reflection.
     if (s !== sBase && s !== sCtrl) {
-      const optionish = /(usage|unknown option|invalid option|unrecognized|option .* not|try '--help')/i.test(r.text);
-      return { probe, response: r, optionish, sBase, sCtrl, sProbe: s };
+      const optRe = /(usage|unknown option|invalid option|unrecognized|option .* not|try '--help')/i;
+      const optMatch = r.text.match(optRe);
+      if (!optMatch) continue;
+      const mIdx = r.text.indexOf(optMatch[0]);
+      const window = r.text.slice(Math.max(0, mIdx - 60), mIdx + 140);
+      return { probe, response: r, optionish: true, sBase, sCtrl, sProbe: s, window };
     }
   }
   return null;
@@ -97,7 +106,7 @@ export async function probeArgInjection(url, params, opts = {}) {
       parameter: p,
       evidence: ev(
         `GET ${url}?${p}=${hit.probe} vs baseline "inert123" vs control (differential)`,
-        `Option probe produced a distinct response family${hit.optionish ? ' (usage/option-error text)' : ''} differing from BOTH baseline and control — the value reached an argv option parser. Code execution NOT demonstrated (v1 honest scope); lab confirmation required.`,
+        `Option probe produced a distinct response family with option-error text — "...${hit.window}..." — differing from BOTH baseline and control. Code execution NOT demonstrated (v1 honest scope); lab confirmation required.`,
         'Defensive finding: insert `--` separator / allowlist before CLI args.'
       ),
     });

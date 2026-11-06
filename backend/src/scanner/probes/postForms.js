@@ -49,6 +49,25 @@ async function postFormTimed(form, inputName, payload, opts = {}) {
   return { ms: Date.now() - start, ok };
 }
 
+// DB-error signature per family (mirrors detectDbFamily in fingerprint.js)
+// so the finding quotes the matched error window, not just the family name.
+const DB_ERROR_RES = {
+  mysql: /you have an error in your sql syntax|mysql|mariadb/i,
+  mssql: /microsoft ole db|odbc sql server|unclosed quotation mark/i,
+  postgres: /pg_query|postgresql|psql/i,
+  sqlite: /sqlite/i,
+  oracle: /ora-\d{5}/i,
+};
+
+function dbErrorWindow(text, family) {
+  const re = DB_ERROR_RES[family];
+  if (!re) return text.slice(0, 200);
+  const m = text.match(re);
+  if (!m) return text.slice(0, 200);
+  const idx = text.indexOf(m[0]);
+  return text.slice(Math.max(0, idx - 60), idx + 140);
+}
+
 function withEvidence(form, input, extra) {
   return {
     request: `POST ${form.action} (${input}=<payload>)`,
@@ -81,7 +100,7 @@ export async function probePostForms(forms, opts = {}) {
             url: form.action,
             param: input,
             evidence: withEvidence(form, input, {
-              response: `DB error signature (${dbFamily}) on input "1'"`,
+              response: `DB error signature (${dbFamily}) on input "1'" — "...${dbErrorWindow(malicious, dbFamily)}..."`,
               impact_demo: 'error present on malicious input; absent on benign input',
               errorCorrelated: true,
             }),
@@ -98,6 +117,8 @@ export async function probePostForms(forms, opts = {}) {
         const payload = `'"<>dmxss${rand}`;
         const body = await postForm(form, input, payload, opts);
         if (body.includes(payload)) {
+          const idx = body.indexOf(payload);
+          const window = body.slice(Math.max(0, idx - 60), idx + 120);
           findings.push({
             class: 'xss_reflected',
             id: `xss-reflected-post-${input}`,
@@ -106,7 +127,7 @@ export async function probePostForms(forms, opts = {}) {
             url: form.action,
             param: input,
             evidence: withEvidence(form, input, {
-              response: 'payload reflected unencoded in the response',
+              response: `payload reflected unencoded in the response — "...${window}..."`,
               impact_demo: 'raw canary reflected verbatim in HTML context',
               canaryReflected: true,
             }),

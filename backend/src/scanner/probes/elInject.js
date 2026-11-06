@@ -8,12 +8,12 @@
 //
 // Oracle (differential, per parameter):
 //   1. Control: unique plain-text filler `dm_<rand>` — shows the page's
-//      baseline and proves the oracle token (e.g. 49) is not already on
+//      baseline and proves the oracle token (e.g. 9352) is not already on
 //      the page.
-//   2. Eval: benign EL payload, e.g. `${7*7}` — if the response contains
-//      the EVALUATED result (49) while the literal payload is NOT
+//   2. Eval: benign EL payload, e.g. `${1336*7}` — if the response contains
+//      the EVALUATED result (9352) while the literal payload is NOT
 //      reflected, the server executed the expression: confirmed EL
-//      injection. A literal reflection of ${7*7} is never a finding.
+//      injection. A literal reflection of ${1336*7} is never a finding.
 // Read-only GET, per-input unique canaries, redirect: manual.
 
 import { randomBytes } from 'node:crypto';
@@ -48,10 +48,12 @@ function withParam(url, name, value) {
 
 // Benign evaluation oracles: math shapes for ${}/${} and #{}, plus a
 // string-method shape so string evaluation is distinguished from math
-// coincidence. The oracle token (49 / dmElTest) is unique to the payload.
+// coincidence. The oracle token (9352 / dmElTest) is unique to the payload:
+// 9352 is a distinctive 4-digit product — a bare 49 can coincide with a
+// random token substring, 9352 cannot.
 const EL_PAYLOADS = [
-  { payload: '${7*7}', expect: '49' },
-  { payload: '#{7*7}', expect: '49' },
+  { payload: '${1336*7}', expect: '9352' },
+  { payload: '#{1336*7}', expect: '9352' },
   { payload: "${'dmElTest'.toString()}", expect: 'dmElTest' },
 ];
 
@@ -78,6 +80,8 @@ export async function probeElInject(url, params, opts = {}) {
       // Fire ONLY on the evaluation differential: oracle result present,
       // literal payload absent, oracle absent from the control response.
       if (body.includes(expect) && !body.includes(payload) && !control.includes(expect)) {
+        const idx = body.indexOf(expect);
+        const window = body.slice(Math.max(0, idx - 60), idx + 60);
         findings.push({
           class: 'el_injection',
           id: `el-injection-${param}`,
@@ -87,7 +91,7 @@ export async function probeElInject(url, params, opts = {}) {
           parameter: param,
           evidence: {
             request: `GET ${withParam(url, param, payload)}`,
-            response: `payload evaluated to '${expect}' (literal '${payload}' absent; oracle absent in control)`,
+            response: `payload evaluated to '${expect}' (literal '${payload}' absent; oracle absent in control) — "...${window}..."`,
             impact_demo: `EL expression ${payload} executed server-side — input reaches an EL evaluator`,
             signalCorrelated: true,
           },

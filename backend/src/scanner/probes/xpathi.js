@@ -57,6 +57,9 @@ export async function probeXpathInjection(url, params, opts = {}) {
         continue;
       }
       if (XPATH_ERRORS.test(malicious.text) && !XPATH_ERRORS.test(benign.text)) {
+        const m = malicious.text.match(XPATH_ERRORS);
+        const idx = malicious.text.indexOf(m[0]);
+        const window = malicious.text.slice(Math.max(0, idx - 60), idx + 120);
         findings.push({
           class: 'xpath_injection',
           id: `xpathi-error-${param}`,
@@ -67,7 +70,7 @@ export async function probeXpathInjection(url, params, opts = {}) {
           parameter: param,
           evidence: {
             request: `GET ${withParam(url, param, payload)}`,
-            response: 'XPath engine error on breakout input; absent on benign input',
+            response: `XPath engine error on breakout input — "...${window}..." — absent on benign input`,
             impact_demo: 'input reached the XPath compiler — node-set logic is attacker-controlled',
             signalCorrelated: true,
           },

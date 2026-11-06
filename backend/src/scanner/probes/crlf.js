@@ -115,6 +115,7 @@ async function t1InjectedHeader(url, points, opts, rid) {
     const payHas = hasHeader(rPay.rawHeaders, hdrName);
     const ctrlHas = hasHeader(rCtrl.rawHeaders, hdrName);
     if (payHas && !ctrlHas) {
+      const injectedLine = rawHeaderLines(rPay.rawHeaders).find((l) => l.toLowerCase().startsWith(hdrName.toLowerCase())) || `${hdrName}: yes`;
       findings.push({
         class: 'crlf_injection',
         id: `crlf-hdr-${rand()}`,
@@ -124,7 +125,7 @@ async function t1InjectedHeader(url, points, opts, rid) {
         parameter: pt.param,
         evidence: ev(
           `GET ${url}?${pt.param}=v%0d%0a${hdrName}: yes (raw headers, pre-normalization)`,
-          `New header line "${hdrName}: yes" present in payload response, absent in control — byte-level raw-header differential.`,
+          `New header line present in payload response, absent in control — "${injectedLine}"`,
           'Response-header injection primitive: cache poisoning / XSS delivery / session fixation chains.'
         ),
       });
@@ -144,6 +145,7 @@ async function t2Splitting(url, points, opts, rid) {
     if (!r) continue;
     const idxCanary = r.body.indexOf(canary);
     if (idxCanary !== -1 && idxCanary < 2000) {
+      const window = r.body.slice(Math.max(0, idxCanary - 60), idxCanary + 60);
       findings.push({
         class: 'crlf_injection',
         id: `crlf-split-${rand()}`,
@@ -153,7 +155,7 @@ async function t2Splitting(url, points, opts, rid) {
         parameter: pt.param,
         evidence: ev(
           `GET ${url}?${pt.param}=v%0d%0a%0d%0a<html>${canary}`,
-          `Canary lands in the response BODY at offset ${idxCanary} — the server honored the injected blank line as a header terminator.`,
+          `Canary lands in the response BODY at offset ${idxCanary} — "...${window}..." — the server honored the injected blank line as a header terminator.`,
           'Response-splitting primitive (cacheable endpoint => cache-poisoning impact).'
         ),
       });
@@ -176,6 +178,7 @@ async function t3CookieFix(url, points, opts, rid) {
       (h, i) => i % 2 === 0 && /set-cookie/i.test(h) && String(rPay.rawHeaders[i + 1]).includes(`dmfix_${rid}`)
     );
     if (injected) {
+      const injectedLine = rawHeaderLines(rPay.rawHeaders).find((l) => /set-cookie/i.test(l) && l.includes(`dmfix_${rid}`)) || `Set-Cookie: dmfix_${rid}=1`;
       findings.push({
         class: 'crlf_injection',
         id: `crlf-cookie-${rand()}`,
@@ -185,7 +188,7 @@ async function t3CookieFix(url, points, opts, rid) {
         parameter: pt.param,
         evidence: ev(
           `GET ${url}?${pt.param}=x%0d%0aSet-Cookie: dmfix_${rid}=1`,
-          `Response carries an injected Set-Cookie for dmfix_${rid} — read-only observation on our own scan session.`,
+          `Response carries an injected Set-Cookie — "${injectedLine}" — read-only observation on our own scan session.`,
           'Session-fixation primitive via response-header injection.'
         ),
       });
@@ -212,6 +215,7 @@ async function t4Variants(url, points, opts, rid) {
       const rPay = await rawGet(u.toString(), opts);
       if (!rPay) continue;
       if (hasHeader(rPay.rawHeaders, hdrName)) {
+        const injectedLine = rawHeaderLines(rPay.rawHeaders).find((l) => l.toLowerCase().startsWith(hdrName.toLowerCase())) || hdrName;
         findings.push({
           class: 'crlf_injection',
           id: `crlf-var-${rand()}`,
@@ -221,7 +225,7 @@ async function t4Variants(url, points, opts, rid) {
           parameter: pt.param,
           evidence: ev(
             `GET ${u.toString().slice(0, 160)}`,
-            `Variant "${v.name}" produced a NEW header line ${hdrName} — filter bypass confirmed.`,
+            `Variant "${v.name}" produced a NEW header line — "${injectedLine}" — filter bypass confirmed.`,
             'Filter-evasion primitive for header injection.'
           ),
         });

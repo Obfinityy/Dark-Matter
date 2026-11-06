@@ -88,6 +88,17 @@ function authed(r, baselineCookies = '') {
   return (newCookie || dash) && !deny;
 }
 
+// Which auth signal fired: the new session-cookie name (truncated value)
+// or the dashboard Location — the discrete value that proves the session.
+function authSignal(r) {
+  if (r.setCookie) {
+    const m = r.setCookie.match(/^([^=;]+)=([^;]*)/);
+    if (m) return `Set-Cookie: ${m[1]}=${String(m[2]).slice(0, 12)}…`;
+  }
+  if (r.location) return `Location: ${r.location}`;
+  return 'authenticated response';
+}
+
 function ev(request, response, impact) {
   return { request, response, impact_demo: impact, signalCorrelated: true };
 }
@@ -129,7 +140,7 @@ async function t3Bypass(url, params, opts) {
         parameter: `${up},${pp}`,
         evidence: ev(
           `POST ${url} ${v.kind}: ${Object.keys(v.fields).join('&')} (redirects NOT followed)`,
-          `Plain wrong credentials (${wrongU}): NOT authenticated. Operator variant (${v.kind}): authenticated session granted (Set-Cookie delta / dashboard redirect). Differential holds — the bypass comes from operator parsing, not loose comparison.`,
+          `Plain wrong credentials (${wrongU}): NOT authenticated. Operator variant (${v.kind}): authenticated — ${authSignal(r)}. Differential holds — the bypass comes from operator parsing, not loose comparison.`,
           'Full authentication bypass: attacker logs in without valid credentials via MongoDB operator injection.'
         ),
       });
@@ -153,7 +164,7 @@ async function t3Bypass(url, params, opts) {
         parameter: `${up},${pp}`,
         evidence: ev(
           `POST ${url} Content-Type: application/json {"${up}":{"$ne":null},"${pp}":{"$ne":null}} (redirects NOT followed)`,
-          `Plain wrong credentials: NOT authenticated. JSON $ne variant: authenticated session granted. Differential holds.`,
+          `Plain wrong credentials: NOT authenticated. JSON $ne variant: authenticated — ${authSignal(rj)}. Differential holds.`,
           'Full authentication bypass via JSON operator smuggling.'
         ),
       });
@@ -232,6 +243,8 @@ async function t5Where(url, params, opts) {
   const diverged = sig(rTrue) !== sig(rFalse);
   const reflected = rCanary.text.includes(canary);
   if (diverged && reflected) {
+    const idx = rCanary.text.indexOf(canary);
+    const window = rCanary.text.slice(Math.max(0, idx - 60), idx + 120);
     findings.push({
       class: 'nosql_injection',
       id: `nosql-where-${rand()}`,
@@ -241,7 +254,7 @@ async function t5Where(url, params, opts) {
       parameter: '$where',
       evidence: ev(
         `POST ${url} JSON {"$where":"this.username==this.username"} vs {"$where":"1==2"} vs {"$where":"this.x=='${canary}'"}`,
-        `True/false legs diverge (${sig(rTrue)} vs ${sig(rFalse)}) AND the JS canary "${canary}" reflects in the response — proves arbitrary server-side JS execution, not query semantics.`,
+        `True/false legs diverge (${sig(rTrue)} vs ${sig(rFalse)}) AND the JS canary reflects — "...${window}..." — proves arbitrary server-side JS execution, not query semantics.`,
         'Arbitrary server-side JavaScript execution inside the database — RCE-adjacent primitive.'
       ),
     });

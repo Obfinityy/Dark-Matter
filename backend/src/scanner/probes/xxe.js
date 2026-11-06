@@ -25,6 +25,8 @@ export async function probeXxe(url, opts = {}) {
     return [];
   }
   if (!text.includes('DMXXE123')) return [];
+  const idx = text.indexOf('DMXXE123');
+  const window = text.slice(Math.max(0, idx - 60), idx + 80);
   return [
     {
       class: 'xxe',
@@ -34,7 +36,7 @@ export async function probeXxe(url, opts = {}) {
       url,
       evidence: {
         request: 'POST application/xml with <!ENTITY dmxxe "DMXXE123">',
-        response: 'entity expanded to DMXXE123 in the response',
+        response: `entity expanded in the response — "...${window}..."`,
         impact_demo: 'the XML parser resolves attacker-defined entities',
         signalCorrelated: true,
       },

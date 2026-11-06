@@ -3,7 +3,7 @@
 // Defensive purpose: detect Struts2 endpoints that evaluate OGNL in user
 // input, so the owner can remediate on authorized targets. Detection uses
 // benign math-evaluation oracles ONLY — the differential is
-// control-literal vs evaluated-49, identical in spirit to the SSTI/EL
+// control-literal vs evaluated-9352, identical in spirit to the SSTI/EL
 // probes.
 //
 // ⚠️ RCE-confirmation payloads (e.g.
@@ -54,8 +54,8 @@ const STRUTS_MARKER_RE = /struts|org\.apache\.struts/i;
 const STRUTS_BODY_RE = /Welcome to Struts2|struts\.tags|struts-tags|org\.apache\.struts|Struts Problem Report/i;
 
 const OGNL_PAYLOADS = [
-  { payload: '%{7*7}', expect: '49' },
-  { payload: '${7*7}', expect: '49' },
+  { payload: '%{1336*7}', expect: '9352' },
+  { payload: '${1336*7}', expect: '9352' },
 ];
 
 export async function probeOgnlInject(url, params, opts = {}) {
@@ -119,9 +119,11 @@ export async function probeOgnlInject(url, params, opts = {}) {
       } catch {
         continue;
       }
-      // Fire ONLY on the evaluation differential: 49 present, literal
-      // payload absent, 49 absent from the control response.
+      // Fire ONLY on the evaluation differential: 9352 present, literal
+      // payload absent, 9352 absent from the control response.
       if (r.text.includes(expect) && !r.text.includes(payload) && !control.text.includes(expect)) {
+        const idx = r.text.indexOf(expect);
+        const window = r.text.slice(Math.max(0, idx - 60), idx + 60);
         findings.push({
           class: 'ognl_injection',
           id: `ognl-injection-${param}`,
@@ -131,7 +133,7 @@ export async function probeOgnlInject(url, params, opts = {}) {
           parameter: param,
           evidence: {
             request: `GET ${withParam(url, param, payload)}`,
-            response: `payload evaluated to '49' (literal '${payload}' absent; oracle absent in control)`,
+            response: `payload evaluated to '9352' (literal '${payload}' absent; oracle absent in control) — "...${window}..."`,
             impact_demo: `OGNL expression ${payload} executed server-side — Struts2 OGNL evaluates user input; RCE-confirmation is manual-lab-only and was not attempted`,
             signalCorrelated: true,
           },

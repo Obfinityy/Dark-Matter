@@ -102,6 +102,9 @@ async function t1Oracle(url, params, opts) {
     // Baseline consumed A; duplicated consumed something else -> resolution proven.
     if (cBase === 'A' && (cDup === 'B' || cDup === 'both')) {
       const resolution = cDup === 'B' ? 'last-wins' : 'concat/array';
+      const consumed = cDup === 'B' ? B : A;
+      const idx = rDup.text.indexOf(consumed);
+      const window = idx >= 0 ? rDup.text.slice(Math.max(0, idx - 60), idx + 80) : rDup.text.slice(0, 120);
       findings.push({
         class: 'hpp',
         id: `hpp-oracle-${rand()}`,
@@ -111,7 +114,7 @@ async function t1Oracle(url, params, opts) {
         parameter: p,
         evidence: ev(
           `GET ${url}?${p}=${A} (baseline) vs ?${p}=${A}&${p}=${B} (duplicated)`,
-          `Baseline echoed/consumed _A. Duplicated request consumed _${cDup === 'B' ? 'B' : 'A+B'} — the framework resolves duplicates ${resolution}. Validators inspecting only one value can be bypassed.`,
+          `Baseline consumed _A; duplicated request consumed _${cDup === 'B' ? 'B' : 'A+B'} — "...${window}..." — the framework resolves duplicates ${resolution}.`,
           'Framework-level HPP resolution fingerprinted with security meaning: filter/validator differential primitive.'
         ),
       });
@@ -135,6 +138,9 @@ async function t4QueryBody(url, params, opts) {
     const c = consumedCanary(r.text, QA, BB);
     if (c === 'QA' || c === 'BB') {
       const winner = c === 'QA' ? 'query-string' : 'POST body';
+      const winCanary = c === 'QA' ? QA : BB;
+      const idx = r.text.indexOf(winCanary);
+      const window = idx >= 0 ? r.text.slice(Math.max(0, idx - 60), idx + 80) : r.text.slice(0, 120);
       findings.push({
         class: 'hpp',
         id: `hpp-qvb-${rand()}`,
@@ -144,7 +150,7 @@ async function t4QueryBody(url, params, opts) {
         parameter: p,
         evidence: ev(
           `POST ${target.toString()} with body ${p}=${BB}`,
-          `Effective value came from the ${winner} — validators reading only one layer can be bypassed.`,
+          `Effective value came from the ${winner} — "...${window}..."`,
           'Layer-precedence primitive for validator-bypass chains.'
         ),
       });
@@ -156,6 +162,9 @@ async function t4QueryBody(url, params, opts) {
 // ---- T5: delimiter variants ------------------------------------------------------
 async function t5Delimiters(url, params, opts) {
   const findings = [];
+  // No params → no HPP surface (the JSON-body block below is part of the
+  // same param-driven probe; a param-less page must stay silent).
+  if (!params || params.length === 0) return findings;
   const rid = rand();
   const A = `__hpp_dm_${rid}_A`;
   const B = `__hpp_dm_${rid}_B`;
@@ -167,6 +176,9 @@ async function t5Delimiters(url, params, opts) {
     if (!r) continue;
     const c = consumedCanary(r.text, A, B);
     if (c === 'B' || c === 'both') {
+      const winCanary = c === 'B' ? B : A;
+      const idx = r.text.indexOf(winCanary);
+      const window = idx >= 0 ? r.text.slice(Math.max(0, idx - 60), idx + 80) : r.text.slice(0, 120);
       findings.push({
         class: 'hpp',
         id: `hpp-semi-${rand()}`,
@@ -176,7 +188,7 @@ async function t5Delimiters(url, params, opts) {
         parameter: p,
         evidence: ev(
           `GET ${semi.toString()}`,
-          `;-separated duplicates parsed; effective value _${c === 'B' ? 'B' : 'A+B'} — parser-level quirk.`,
+          `;-separated duplicates parsed; effective value _${c === 'B' ? 'B' : 'A+B'} — "...${window}..."`,
           'Parser quirk inventory for HPP chains.'
         ),
       });
@@ -190,13 +202,33 @@ async function t5Delimiters(url, params, opts) {
     const res = await fetch(url, {
       method: 'POST', signal: ctrl.signal,
       headers: { 'User-Agent': UA, 'Content-Type': 'application/json' },
-      body: `{"__hpp_dm_${rid}":"A","__hpp_dm_${rid}":"B"}`,
+      body: `{"__hpp_dm_${rid}":"__hpp_dm_${rid}_A","__hpp_dm_${rid}":"__hpp_dm_${rid}_B"}`,
       redirect: 'manual',
     });
     const text = await res.text().catch(() => '');
     clearTimeout(t);
-    const c = consumedCanary(text, `__hpp_dm_${rid}`, `__hpp_dm_${rid}`);
-    void c;
+    // Distinct value canaries: identical key names cannot tell first-wins
+    // from last-wins — the VALUES must differ (bare "A"/"B" are too weak
+    // to match on, so the canary key is embedded in each value).
+    const c = consumedCanary(text, `__hpp_dm_${rid}_A`, `__hpp_dm_${rid}_B`);
+    if (c === 'B' || c === 'both') {
+      const win = `__hpp_dm_${rid}_B`;
+      const idx = text.indexOf(win);
+      const window = idx >= 0 ? text.slice(Math.max(0, idx - 40), idx + 80) : text.slice(0, 120);
+      findings.push({
+        class: 'hpp',
+        id: `hpp-json-${rand()}`,
+        title: 'HPP — duplicate JSON keys parsed, last value wins (INFO)',
+        severity: 'low',
+        url,
+        parameter: `__hpp_dm_${rid}`,
+        evidence: ev(
+          `POST ${url} with duplicate JSON key __hpp_dm_${rid}`,
+          `Duplicate JSON keys parsed; effective value is the LAST occurrence — "${window}"`,
+          'Parser quirk inventory for HPP chains.'
+        ),
+      });
+    }
   } catch {}
   return findings;
 }
@@ -216,6 +248,8 @@ async function t2WafBypass(url, params, opts) {
     dup.search = `?${p}=1&${p}=${encodeURIComponent(evil)}`;
     const rDup = await getText(dup.toString(), opts);
     if (rDup && rDup.status !== 403 && rDup.text.includes('__hpp_probe__')) {
+      const idx = rDup.text.indexOf('__hpp_probe__');
+      const window = idx >= 0 ? rDup.text.slice(Math.max(0, idx - 60), idx + 80) : rDup.text.slice(0, 120);
       findings.push({
         class: 'hpp',
         id: `hpp-waf-${rand()}`,
@@ -225,7 +259,7 @@ async function t2WafBypass(url, params, opts) {
         parameter: p,
         evidence: ev(
           `GET ?${p}=${evil} -> 403 (baseline). GET ?${p}=1&${p}=${evil} -> ${rDup.status}`,
-          `Filter saw the benign first value; the backend consumed the polluted value (canary reflected, filter bypassed).`,
+          `Filter saw the benign first value; the backend consumed the polluted value — "...${window}..."`,
           'WAF-bypass primitive via parameter pollution.'
         ),
       });

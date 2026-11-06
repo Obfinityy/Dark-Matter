@@ -67,6 +67,9 @@ export async function probeNoSqli(url, params, opts = {}) {
       const benignErr = MONGO_ERRORS.test(benign.text);
       const malErr = MONGO_ERRORS.test(malicious.text);
       if (malErr && !benignErr) {
+        const m = malicious.text.match(MONGO_ERRORS);
+        const idx = malicious.text.indexOf(m[0]);
+        const window = malicious.text.slice(Math.max(0, idx - 60), idx + 120);
         findings.push({
           class: 'nosql_injection',
           id: `nosqli-error-${param}`,
@@ -77,7 +80,7 @@ export async function probeNoSqli(url, params, opts = {}) {
           parameter: param,
           evidence: {
             request: `GET ${withParam(url, op, opValue)}`,
-            response: `MongoDB error text on operator input; absent on benign input`,
+            response: `MongoDB error text on operator input — "...${window}..." — absent on benign input`,
             impact_demo: 'operator reached the NoSQL query builder — $ne/$gt/$where are injectable',
             diverged: true,
           },

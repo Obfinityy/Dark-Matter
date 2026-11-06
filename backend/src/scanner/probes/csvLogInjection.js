@@ -82,7 +82,10 @@ async function csvHalf(url, params, opts, rid) {
     const fieldCanary = `__dm_csv_${rid}`;
     const bust = `${expUrl}${expUrl.includes('?') ? '&' : '?'}dmcb=${rid}`;
     const csv = await fetchFull(bust, opts);
-    if (!csv || !/csv|text\/plain|octet-stream/i.test(csv.ct) && csv.text.length < 10) continue;
+    // Gate on content-type ONLY: the old `&& length < 10` bound tighter
+    // than `||`, so a long HTML export page passed the gate and a formula
+    // reflected in an HTML attribute fired a csv_injection finding.
+    if (!csv || !/csv|text\/plain|octet-stream|excel|spreadsheet/i.test(csv.ct)) continue;
     // T1: formula payloads into params, re-download, check verbatim cell start.
     const formulas = [
       `=1+1${fieldCanary}`,
@@ -99,7 +102,10 @@ async function csvHalf(url, params, opts, rid) {
         if (!r) continue;
         // Verbatim at cell start: (^|[\n,"])payload — no leading ' or \t.
         const verbatim = new RegExp(`(^|[\\n,"])${f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
-        if (verbatim.test(r.text)) {
+        const vm = r.text.match(verbatim);
+        if (vm) {
+          const vIdx = r.text.indexOf(vm[0]);
+          const vWindow = r.text.slice(Math.max(0, vIdx - 40), vIdx + 120);
           findings.push({
             class: 'csv_injection',
             id: `csv-formula-${rand()}`,
@@ -109,7 +115,7 @@ async function csvHalf(url, params, opts, rid) {
             parameter: p,
             evidence: ev(
               `GET ${u.toString().slice(0, 160)} then re-download export`,
-              `Formula payload "${f.slice(0, 40)}..." lands VERBATIM at a cell start — no leading-quote/tab sanitizer. Evaluates on open in Excel/Calc.`,
+              `Formula payload "${f.slice(0, 40)}..." lands VERBATIM at a cell start — "...${vWindow}..."`,
               'Spreadsheet formula-execution primitive via CSV export.'
             ),
           });
@@ -119,7 +125,11 @@ async function csvHalf(url, params, opts, rid) {
           u2.searchParams.set(p, dde);
           u2.searchParams.set('dmcb', rid);
           const r2 = await fetchFull(u2.toString(), opts);
-          if (r2 && new RegExp(`(^|[\\n,"])${dde.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(r2.text)) {
+          const ddeRe = new RegExp(`(^|[\\n,"])${dde.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+          const dm = r2 && r2.text.match(ddeRe);
+          if (dm) {
+            const dIdx = r2.text.indexOf(dm[0]);
+            const dWindow = r2.text.slice(Math.max(0, dIdx - 40), dIdx + 120);
             findings.push({
               class: 'csv_injection',
               id: `csv-dde-${rand()}`,
@@ -129,7 +139,7 @@ async function csvHalf(url, params, opts, rid) {
               parameter: p,
               evidence: ev(
                 `GET export with ${p}=${dde.slice(0, 30)}...`,
-                `DDE payload lands verbatim — Windows-Excel-only impact (documented scoping).`,
+                `DDE payload lands verbatim — "...${dWindow}..." (Windows-Excel-only impact, documented scoping).`,
                 'DDE command-execution primitive (Windows Excel).'
               ),
             });
@@ -142,6 +152,18 @@ async function csvHalf(url, params, opts, rid) {
     if (findings.length) break;
   }
   return findings;
+}
+
+// Candidate log-viewer paths on the same origin. A stored log line is
+// only proven when the forged line appears in one of these surfaces —
+// the reflected response alone is not a log.
+function logViewerUrls(url) {
+  try {
+    const u = new URL(url);
+    return [`${u.origin}/logs`, `${u.origin}/admin/logs`, `${u.origin}/log`];
+  } catch {
+    return [];
+  }
 }
 
 // ---- LOG half ------------------------------------------------------------------------------
@@ -159,43 +181,70 @@ async function logHalf(url, params, opts, rid) {
     const r = await fetchFull(u.toString(), opts);
     if (!r) continue;
     // T4: forged line rendered as its own line on an observable surface.
-    const lines = r.text.split('\n');
-    const forged = lines.some(
-      (ln, i) => ln.includes(lfCanary) && (i === 0 || !lines[i - 1].includes('aaa'))
-    );
     // Simpler robust check: canary on its own line, split from the prefix.
     const splitLines = r.text.split('\n').filter((ln) => ln.includes(lfCanary));
     const ownLine = splitLines.some((ln) => !ln.includes('aaa'));
     if (ownLine) {
-      findings.push({
-        class: 'log_injection',
-        id: `log-forge-${rand()}`,
-        title: 'Log injection — forged log line on observable surface (HIGH)',
-        severity: 'high',
-        url: u.toString().slice(0, 160),
-        parameter: p,
-        evidence: ev(
-          `GET ${u.toString().slice(0, 120)} (LF canary)`,
-          `Canary renders on its OWN log line, split from the input prefix — log-line forgery confirmed on an observable surface.`,
-          'Log-forgery primitive: fake audit lines, log-viewer XSS, log-poisoning chains.'
-        ),
-      });
+      // A reflection splits the input onto its own line, but that is not
+      // a stored log line. HIGH requires the forged line in a STORED log
+      // surface; the reflection alone is honest INFO.
+      let storedLine = null;
+      for (const ls of logViewerUrls(url)) {
+        const lr = await fetchFull(ls, opts);
+        if (!lr) continue;
+        const llines = lr.text.split('\n');
+        const hit = llines.find((ln, i) => ln.includes(lfCanary) && (i === 0 || !llines[i - 1].includes('aaa')));
+        if (hit) { storedLine = hit; break; }
+      }
+      const ownWindow = splitLines.find((ln) => !ln.includes('aaa')) || splitLines[0] || '';
+      if (storedLine) {
+        findings.push({
+          class: 'log_injection',
+          id: `log-forge-${rand()}`,
+          title: 'Log injection — forged log line on observable surface (HIGH)',
+          severity: 'high',
+          url: u.toString().slice(0, 160),
+          parameter: p,
+          evidence: ev(
+            `GET ${u.toString().slice(0, 120)} (LF canary), then GET log-viewer surface`,
+            `Canary renders on its OWN stored log line — "...${storedLine.slice(0, 160)}..."`,
+            'Log-forgery primitive: fake audit lines, log-viewer XSS, log-poisoning chains.'
+          ),
+        });
+      } else {
+        findings.push({
+          class: 'log_injection',
+          id: `log-forge-${rand()}`,
+          title: 'Log injection — LF splits input onto its own line in the reflected response (INFO)',
+          severity: 'info',
+          url: u.toString().slice(0, 160),
+          parameter: p,
+          evidence: ev(
+            `GET ${u.toString().slice(0, 120)} (LF canary)`,
+            `Input splits onto its own line in the REFLECTED response only — "...${ownWindow.slice(0, 160)}..." — no stored log surface observed; forgery needs the input to reach a log.`,
+            'Log-forgery signal, unconfirmed: input reaches a reflection, not a proven log.'
+          ),
+        });
+      }
     }
-    // T5: log-viewer XSS bridge.
+    // T5: log-viewer XSS bridge. The verbatim check is real, but the title
+    // must not claim "stored" — a reflection is not storage.
     const u2 = new URL(url);
     u2.search = `?${p}=%0a<script>${lfCanary}x</script>`;
     const r2 = await fetchFull(u2.toString(), opts);
     if (r2 && r2.text.includes(`<script>${lfCanary}x</script>`)) {
+      const sIdx = r2.text.indexOf(`<script>${lfCanary}x</script>`);
+      const sWindow = r2.text.slice(Math.max(0, sIdx - 60), sIdx + 120);
       findings.push({
         class: 'log_injection',
         id: `log-xss-${rand()}`,
-        title: 'Log injection — stored script in log viewer (MEDIUM)',
+        title: 'Log injection — unescaped script in log-viewer surface (MEDIUM)',
         severity: 'medium',
         url: u2.toString().slice(0, 160),
         parameter: p,
         evidence: ev(
           `GET with %0a<script> canary`,
-          `Script canary renders UNESCAPED in an HTML log-viewer surface — log→XSS chain.`,
+          `Script canary renders UNESCAPED — "...${sWindow}..." — log→XSS chain if this surface is a stored log viewer.`,
           'Stored XSS via log injection.'
         ),
       });

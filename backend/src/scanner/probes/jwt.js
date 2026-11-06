@@ -124,7 +124,10 @@ export async function probeJwt(url, opts = {}) {
     }
     // Check for sensitive data in payload (base64 is not encryption)
     const payloadStr = JSON.stringify(payload).toLowerCase();
-    if (/password|ssn|credit|card/.test(payloadStr)) {
+    const sensMatch = payloadStr.match(/password|ssn|credit|card/);
+    if (sensMatch) {
+      // Quote the FIELD NAME only — the value is PII and stays redacted.
+      const fieldName = Object.keys(payload).find((k) => /password|ssn|credit|card/i.test(k)) || sensMatch[0];
       findings.push({
         class: 'jwt_claim_hygiene',
         id: `jwt-pii-${token.slice(0, 20)}`,
@@ -134,7 +137,7 @@ export async function probeJwt(url, opts = {}) {
         parameter: 'payload',
         evidence: {
           request: `GET ${url} (JWT capture)`,
-          response: `JWT payload contains sensitive field`,
+          response: `JWT payload contains sensitive field "${fieldName}" (value redacted — PII)`,
           impact_demo: 'Anyone with the token can read the payload — it is only base64-encoded',
           signalCorrelated: true,
         },

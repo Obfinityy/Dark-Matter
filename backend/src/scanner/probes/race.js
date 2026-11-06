@@ -268,6 +268,10 @@ async function t5TornWrite(forms, url, opts) {
     const hasA = page.includes(valA);
     const hasB = page.includes(valB);
     if (hasA && hasB) {
+      const idxA = page.indexOf(valA);
+      const idxB = page.indexOf(valB);
+      const idx = Math.min(idxA, idxB);
+      const window = page.slice(Math.max(0, idx - 60), Math.max(idxA, idxB) + 80);
       findings.push({
         class: 'race_condition',
         id: `race-torn-${rand()}`,
@@ -277,7 +281,7 @@ async function t5TornWrite(forms, url, opts) {
         parameter: names.join(','),
         evidence: ev(
           `POST ${action} concurrent updates canary-A vs canary-B`,
-          `Read-back shows BOTH canary values present — a torn write: no row-level locking on the update path.`,
+          `Read-back shows BOTH canary values present — "...${window}..." — a torn write: no row-level locking on the update path.`,
           'Weak-locking signal: feeds stored-XSS / IDOR lanes with an absent-locking indicator.'
         ),
       });

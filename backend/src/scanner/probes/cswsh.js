@@ -260,6 +260,8 @@ export async function probeCswsh(url, opts = {}) {
 
     // ---- T3: auth token in WebSocket URL (bundle-string check) ----
     if (TOKEN_IN_URL_RE.test(wsUrl)) {
+      const tokParam = (wsUrl.match(/[?&](token|access_token|auth|api[_-]?key)=/i) || [])[1] || 'token';
+      const redactedUrl = wsUrl.replace(/((?:token|access_token|auth|api[_-]?key)=)[^&]*/i, '$1<redacted>');
       findings.push({
         class: 'cswsh_token_in_url',
         id: `cswsh-tokenurl-${canary}`,
@@ -268,8 +270,8 @@ export async function probeCswsh(url, opts = {}) {
         url: wsUrl,
         parameter: 'query',
         evidence: {
-          request: `bundle/endpoint string: ${wsUrl}`,
-          response: 'endpoint upgrades (101) with token in query string',
+          request: `bundle/endpoint string: ${redactedUrl}`,
+          response: `endpoint upgrades (${rEvil.status || '?'}) with ${tokParam} in the query string — token value redacted`,
           impact_demo: 'Tokens in URLs leak via proxy logs, Referer headers, and browser history',
           signalCorrelated: true,
         },

@@ -54,6 +54,9 @@ export async function probeSsiInjection(url, params, opts = {}) {
     // The raw directive must not just echo back unprocessed.
     const directiveEchoed = malicious.text.includes('#echo');
     if (malDate && !benignDate && !directiveEchoed) {
+      const m = malicious.text.match(DATE_LIKE);
+      const idx = malicious.text.indexOf(m[0]);
+      const window = malicious.text.slice(Math.max(0, idx - 60), idx + 120);
       findings.push({
         class: 'ssi_injection',
         id: `ssi-${param}`,
@@ -64,7 +67,7 @@ export async function probeSsiInjection(url, params, opts = {}) {
         parameter: param,
         evidence: {
           request: `GET ${withParam(url, param, payload)}`,
-          response: 'SSI #echo directive executed — server rendered the date; benign input rendered inertly',
+          response: `SSI #echo directive executed — server rendered the date — "...${window}..." — benign input rendered inertly`,
           impact_demo: 'server-side directive executed from user input; #exec variant is remote code execution',
           signalCorrelated: true,
         },

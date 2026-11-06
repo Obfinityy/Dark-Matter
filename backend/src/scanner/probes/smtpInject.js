@@ -107,6 +107,9 @@ async function t1Passthrough(forms, opts, rid) {
     const splitShown = rPay.text.includes(`X-Dm-Smtp-${rid}`) && !rCtrl.text.includes(`X-Dm-Smtp-${rid}`);
     const reflected500 = rPay.status >= 500 && /X-Dm-Smtp/i.test(rPay.text);
     if (splitShown || reflected500) {
+      const marker = `X-Dm-Smtp-${rid}`;
+      const idx = rPay.text.indexOf(marker);
+      const window = idx >= 0 ? rPay.text.slice(Math.max(0, idx - 60), idx + 120) : rPay.text.slice(0, 200);
       findings.push({
         class: 'smtp_injection',
         id: `smtp-pass-${rand()}`,
@@ -116,7 +119,7 @@ async function t1Passthrough(forms, opts, rid) {
         parameter: nameField,
         evidence: ev(
           `POST ${action} ${nameField}=Test%0aX-Dm-Smtp-${rid}: yes (vs LF-free control)`,
-          `Raw LF survives into an observable context: ${splitShown ? 'injected header line reflected' : '500 body echoes the split'}. Honest ceiling: header-injection possible, impact unconfirmed without received-mail proof.`,
+          `Raw LF survives into an observable context — "...${window}..." — ${splitShown ? 'injected header line reflected' : '500 body echoes the split'}. Honest ceiling: header-injection possible, impact unconfirmed without received-mail proof.`,
           'Mail-header injection surface: Bcc relay / From-spoof primitive pending lab confirmation.'
         ),
       });
@@ -156,6 +159,8 @@ async function t2BccLab(forms, opts, rid) {
     // Received-mail check via the canary inbox hook.
     const received = await opts.smtpCanaryInbox.check(bccCanary).catch(() => null);
     if (received && /bcc/i.test(received.headers || '')) {
+      const bccLine = (received.headers || '').split('\n').find((l) => /bcc/i.test(l)) || `Bcc: ${bccCanary}`;
+      const msgId = (received.headers || '').split('\n').find((l) => /message-id/i.test(l)) || '';
       findings.push({
         class: 'smtp_injection',
         id: `smtp-bcc-${rand()}`,
@@ -165,7 +170,7 @@ async function t2BccLab(forms, opts, rid) {
         parameter: emailField,
         evidence: ev(
           `POST ${action} ${emailField}=v@example.invalid%0aBcc: ${bccCanary}`,
-          `Canary inbox RECEIVED the mail with the injected Bcc header present — full relay proof, lab-only, both sides ours.`,
+          `Canary inbox RECEIVED the mail — "${bccLine.trim().slice(0, 120)}"${msgId ? ` (${msgId.trim().slice(0, 80)})` : ''} — full relay proof, lab-only, both sides ours.`,
           'Mail-relay primitive: victim server sends spam/phish as trusted domain.'
         ),
       });

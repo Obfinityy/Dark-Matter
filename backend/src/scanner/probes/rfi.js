@@ -136,6 +136,8 @@ export async function probeRfi(url, params, opts = {}) {
       const blocked = r && /failed to open stream|URL file-access is disabled|allow_url_include/i.test(r.text);
       if (blocked && !contentProof && !fetchProof) continue; // negative — blocked
       if (contentProof || fetchProof) {
+        const cIdx = contentProof ? r.text.indexOf(canary) : -1;
+        const cWindow = cIdx >= 0 ? r.text.slice(Math.max(0, cIdx - 60), cIdx + 120) : '';
         findings.push({
           class: 'rfi',
           id: `rfi-fetch-${rand()}`,
@@ -146,7 +148,7 @@ export async function probeRfi(url, params, opts = {}) {
           evidence: ev(
             `GET ${url}?${p}=${canaryUrl}`,
             contentProof
-              ? `Response contains the literal canary "${canary}" — server fetched AND reflected our file.`
+              ? `Response contains the literal canary — "...${cWindow}..." — server fetched AND reflected our file.`
               : `Canary listener logged an inbound GET for /dm_rfi_${rid}.txt from the target — fetch proof even without reflection.`,
             'RFI primitive: include sink reaches attacker-controlled URLs.'
           ),
@@ -180,6 +182,9 @@ export async function probeRfi(url, params, opts = {}) {
           uw.searchParams.set(p, wrap);
           const rw = await getText(uw.toString(), opts);
           if (rw && (rw.text.includes(canary) || /RFBJX1JGSV9DQU5BUlk/.test(rw.text))) {
+            const marker = rw.text.includes(canary) ? canary : 'RFBJX1JGSV9DQU5BUlk';
+            const idx = rw.text.indexOf(marker);
+            const window = idx >= 0 ? rw.text.slice(Math.max(0, idx - 60), idx + 120) : rw.text.slice(0, 200);
             findings.push({
               class: 'rfi',
               id: `rfi-wrap-${rand()}`,
@@ -189,7 +194,7 @@ export async function probeRfi(url, params, opts = {}) {
               parameter: p,
               evidence: ev(
                 `GET ${url}?${p}=${wrap.slice(0, 60)}...`,
-                `Canary (or its base64) reflected via PHP wrapper — wrapper-based inclusion sink.`,
+                `Canary (or its base64) reflected via PHP wrapper — "...${window}..."`,
                 'Wrapper-based RFI primitive.'
               ),
             });

@@ -77,8 +77,12 @@ async function d1Surfaces(url, params, opts) {
   const r = await fetchFull(url, opts);
   if (r) {
     if (/application\/xml|text\/xml/i.test(r.ct)) surfaces.push({ kind: 'xml-body' });
-    if (/libxslt|saxon|XslCompiledTransform|XSLTProcessor|javax\.xml\.transform|stylesheet/i.test(r.text)) {
-      surfaces.push({ kind: 'error-smell' });
+    // Retain the matched processor string: D7 quotes it verbatim, and the
+    // raw response is discarded after this function returns.
+    const errMatch = r.text.match(/libxslt|saxon|XslCompiledTransform|XSLTProcessor|javax\.xml\.transform|stylesheet/i);
+    if (errMatch) {
+      const idx = r.text.indexOf(errMatch[0]);
+      surfaces.push({ kind: 'error-smell', sample: r.text.slice(Math.max(0, idx - 60), idx + 120) });
     }
   }
   void u;
@@ -102,7 +106,13 @@ async function d2Exec(url, surface, opts, rid) {
     const rPay = await fetchFull(url, opts, {
       method: 'POST', body, headers: { 'Content-Type': 'application/xml' },
     });
-    if (rPay && rPay.text.includes('9352')) return { surface, rPay };
+    // Baseline-gate like the param branch: a coincidental 9352 in the XML
+    // body (id, timestamp) must not fire the oracle.
+    const baseBody = `<?xml version="1.0"?><?xml-stylesheet type="text/xsl" href="data:text/xsl,${encodeURIComponent(baselineSheet(rid))}"?><root/>`;
+    const rBase = await fetchFull(url, opts, {
+      method: 'POST', body: baseBody, headers: { 'Content-Type': 'application/xml' },
+    });
+    if (rPay && rBase && rPay.text.includes('9352') && !rBase.text.includes('9352')) return { surface, rPay };
   }
   return null;
 }
@@ -114,6 +124,7 @@ export async function probeXslt(url, params, opts = {}) {
   const surfaces = await d1Surfaces(url, params, opts);
   // D7: error-oracle smell even without injectable surface.
   if (surfaces.some((s) => s.kind === 'error-smell') && !surfaces.some((s) => s.kind !== 'error-smell')) {
+    const smell = surfaces.find((s) => s.kind === 'error-smell');
     findings.push({
       class: 'xslt_injection',
       id: `xslt-err-${rand()}`,
@@ -123,7 +134,7 @@ export async function probeXslt(url, params, opts = {}) {
       parameter: 'response',
       evidence: ev(
         `GET ${url} (passive)`,
-        `Error text names an XSLT processor (libxslt/Saxon/XslCompiledTransform) — execution NOT claimed, disclosure only.`,
+        `Error text names an XSLT processor — execution NOT claimed, disclosure only: "${smell.sample}"`,
         'Processor fingerprint for XSLT attack surface.'
       ),
     });
@@ -134,6 +145,8 @@ export async function probeXslt(url, params, opts = {}) {
   for (const s of injectable.slice(0, 4)) {
     const exec = await d2Exec(url, s, opts, rid);
     if (!exec) continue;
+    const execIdx = exec.rPay.text.indexOf('9352');
+    const execWindow = exec.rPay.text.slice(Math.max(0, execIdx - 60), execIdx + 60);
     best = {
       class: 'xslt_injection',
       id: `xslt-exec-${rand()}`,
@@ -143,7 +156,7 @@ export async function probeXslt(url, params, opts = {}) {
       parameter: s.param || s.kind,
       evidence: ev(
         `Stylesheet <xsl:value-of select="1336*7"/> via ${s.kind}${s.param ? ` param ${s.param}` : ''}`,
-        `Response contains literal 9352 in transformed output; inert baseline did not — read-only arithmetic execution proof.`,
+        `Response contains literal 9352 in transformed output; inert baseline did not — "...${execWindow}..."`,
         'XSLT execution primitive: file-read / code-exec chains available.'
       ),
     };
@@ -154,6 +167,8 @@ export async function probeXslt(url, params, opts = {}) {
       u.searchParams.set(s.param, docSheet);
       const r3 = await fetchFull(u.toString(), opts);
       if (r3 && r3.text.includes('root:x:0:0')) {
+        const idx3 = r3.text.indexOf('root:x:0:0');
+        const window3 = r3.text.slice(Math.max(0, idx3 - 60), idx3 + 120);
         best = {
           class: 'xslt_injection',
           id: `xslt-doc-${rand()}`,
@@ -163,7 +178,7 @@ export async function probeXslt(url, params, opts = {}) {
           parameter: s.param,
           evidence: ev(
             `Stylesheet document('file:///etc/passwd') via param ${s.param}`,
-            `Verbatim root:x:0:0 in transformed output — server-side file disclosure.`,
+            `Verbatim root:x:0:0 in transformed output — "...${window3}..."`,
             'Arbitrary file read via XSLT document().'
           ),
         };
@@ -175,6 +190,8 @@ export async function probeXslt(url, params, opts = {}) {
         u5.searchParams.set(s.param, phpSheet);
         const r5 = await fetchFull(u5.toString(), opts);
         if (r5 && r5.text.includes(`DM_XSLTEXEC_${rid}`) && !r5.text.includes('php:function')) {
+          const idx5 = r5.text.indexOf(`DM_XSLTEXEC_${rid}`);
+          const window5 = r5.text.slice(Math.max(0, idx5 - 60), idx5 + 60);
           best = {
             class: 'xslt_injection',
             id: `xslt-php-${rand()}`,
@@ -184,7 +201,7 @@ export async function probeXslt(url, params, opts = {}) {
             parameter: s.param,
             evidence: ev(
               `Stylesheet php:function('system',...) via param ${s.param} (lab-only)`,
-              `Marker DM_XSLTEXEC_${rid} without php:function source — verbatim server-side code execution.`,
+              `Marker DM_XSLTEXEC_${rid} executed server-side (php:function source absent) — "...${window5}..."`,
               'Remote code execution via XSLT PHP functions.'
             ),
           };

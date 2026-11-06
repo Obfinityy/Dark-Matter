@@ -172,6 +172,9 @@ async function t2PlantedAdoption(form, opts, creds, rid) {
   const rAuth = await req(form.action || form.pageUrl, opts, { jar: jarA });
   const authed = rAuth && /logout|dashboard|welcome|profile/i.test(rAuth.text);
   if (kept && authed) {
+    const m = rAuth.text.match(/logout|dashboard|welcome|profile/i);
+    const idx = rAuth.text.indexOf(m[0]);
+    const window = rAuth.text.slice(Math.max(0, idx - 60), idx + 120);
     findings.push({
       class: 'session_fixation',
       id: `sf-planted-${rand()}`,
@@ -181,7 +184,7 @@ async function t2PlantedAdoption(form, opts, creds, rid) {
       parameter: targetName,
       evidence: ev(
         `Planted ${targetName}=${canary} -> canary login -> attacker jar replays planted ID`,
-        `Server kept the planted ID through login AND it reaches an authenticated page — full fixation chain, lab-only, both sides ours.`,
+        `Server kept the planted ID through login AND it reaches an authenticated page — "...${window}..." — full fixation chain, lab-only, both sides ours.`,
         'Full session-fixation primitive: no password needed with a planted ID.'
       ),
     });
@@ -223,6 +226,9 @@ async function t4Logout(form, opts, creds) {
   jar2.cookies.set(sessName, sVal);
   const rReplay = await req(form.action || form.pageUrl, opts, { jar: jar2 });
   if (rReplay && /logout|dashboard|welcome|profile/i.test(rReplay.text) && !/login/i.test(rReplay.text.slice(0, 2000))) {
+    const m = rReplay.text.match(/logout|dashboard|welcome|profile/i);
+    const idx = rReplay.text.indexOf(m[0]);
+    const window = rReplay.text.slice(Math.max(0, idx - 60), idx + 120);
     findings.push({
       class: 'session_fixation',
       id: `sf-logout-${rand()}`,
@@ -232,7 +238,7 @@ async function t4Logout(form, opts, creds) {
       parameter: sessName,
       evidence: ev(
         `Login (canary) -> logout -> replay old ${sessName}`,
-        `Old session still authenticates post-logout — server-side invalidation missing.`,
+        `Old session still authenticates post-logout — "...${window}..." — server-side invalidation missing.`,
         'Stale-session primitive: stolen IDs survive logout.'
       ),
     });

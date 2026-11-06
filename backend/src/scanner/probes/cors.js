@@ -56,7 +56,7 @@ export async function probeCors(url, opts = {}) {
       url,
       evidence: {
         request: `GET ${url} with Origin: ${evilOrigin}`,
-        response: 'Access-Control-Allow-Origin: * + Access-Control-Allow-Credentials: true',
+        response: `Access-Control-Allow-Origin: ${acao.trim()} + Access-Control-Allow-Credentials: ${acac}`,
         impact_demo: 'misconfigured CORS policy (browsers block this combo, but it signals a broken policy)',
         signalCorrelated: true,
       },

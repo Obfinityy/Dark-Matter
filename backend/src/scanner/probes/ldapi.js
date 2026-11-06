@@ -58,6 +58,9 @@ export async function probeLdapInjection(url, params, opts = {}) {
         continue;
       }
       if (LDAP_ERRORS.test(malicious.text) && !LDAP_ERRORS.test(benign.text)) {
+        const m = malicious.text.match(LDAP_ERRORS);
+        const idx = malicious.text.indexOf(m[0]);
+        const window = malicious.text.slice(Math.max(0, idx - 60), idx + 120);
         findings.push({
           class: 'ldap_injection',
           id: `ldapi-error-${param}`,
@@ -68,7 +71,7 @@ export async function probeLdapInjection(url, params, opts = {}) {
           parameter: param,
           evidence: {
             request: `GET ${withParam(url, param, payload)}`,
-            response: 'LDAP error text on filter-breakout input; absent on benign input',
+            response: `LDAP error text on filter-breakout input — "...${window}..." — absent on benign input`,
             impact_demo: 'input reached the LDAP filter compiler — filter logic is attacker-controlled',
             signalCorrelated: true,
           },

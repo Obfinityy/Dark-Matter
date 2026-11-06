@@ -686,9 +686,15 @@ describe('iter4 probe: fileUpload (lab-gated)', () => {
 
   it('confirms executable-extension upload on a lab target', async () => {
     const { probeFileUpload } = await import('./probes/fileUpload.js');
-    globalThis.fetch = async (url, { method = 'GET' } = {}) => {
+    globalThis.fetch = async (url, { method = 'GET', body } = {}) => {
       if (String(method).toUpperCase() === 'GET') return { text: async () => uploadPage };
-      return { text: async () => '<html>successfully uploaded! File: dmprobe_abc.phtml</html>' };
+      // Echo the ACTUAL uploaded filename, like a real server would.
+      let name = 'dmprobe_abc.phtml';
+      try {
+        const f = body && typeof body.get === 'function' ? body.get('upfile') : null;
+        if (f && f.name) name = f.name;
+      } catch { /* fall through with the default name */ }
+      return { status: 200, text: async () => `<html>successfully uploaded! File: ${name}</html>` };
     };
     try {
       const findings = await probeFileUpload('http://example.com/', { allowWrite: true, timeoutMs: 5000 });

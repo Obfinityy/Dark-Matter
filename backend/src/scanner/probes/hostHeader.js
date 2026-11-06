@@ -58,6 +58,8 @@ export async function probeHostHeader(url, opts = {}) {
     const reflectedBody = r.body.includes(canary) && !baseline.body.includes(canary);
     const reflectedLoc = r.location.includes(canary);
     if (!reflectedBody && !reflectedLoc) continue;
+    const bodyIdx = reflectedBody ? r.body.indexOf(canary) : -1;
+    const bodyWindow = bodyIdx >= 0 ? r.body.slice(Math.max(0, bodyIdx - 60), bodyIdx + 80) : '';
     findings.push({
       class: 'host_header_injection',
       id: `host-header-${headerName.toLowerCase().replace(/[^a-z-]/g, '')}`,
@@ -67,7 +69,7 @@ export async function probeHostHeader(url, opts = {}) {
       evidence: {
         request: `GET ${url} with ${headerName}: ${canary}`,
         response: reflectedBody
-          ? `canary host reflected verbatim in response body`
+          ? `canary host reflected verbatim in response body — "...${bodyWindow}..."`
           : `canary host reflected in Location: ${r.location}`,
         impact_demo: 'untrusted host value feeds password-reset links, cache keys and redirects',
         signalCorrelated: true,

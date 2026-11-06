@@ -45,7 +45,7 @@ export function probeHeaders({ url, headers = {} }) {
       evidence: {
         request: `GET ${url}`,
         response:
-          'Access-Control-Allow-Origin: * with Access-Control-Allow-Credentials: true',
+          `Access-Control-Allow-Origin: ${acao} with Access-Control-Allow-Credentials: ${h['access-control-allow-credentials']}`,
         signalCorrelated: true,
       },
     });

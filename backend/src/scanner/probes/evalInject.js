@@ -114,12 +114,20 @@ async function d4EL(url, surfaces, opts) {
   const out = [];
   for (const p of surfaces.slice(0, 3)) {
     if (p === '(path)') continue;
+    // Baseline first: 9352 must be ABSENT from the inert response, exactly
+    // like D2 (:78) — without it a coincidental 9352 (token, id, timestamp)
+    // fires a HIGH finding (same bare-oracle shape as the retracted EL 49).
+    const uBase = new URL(url);
+    uBase.searchParams.set(p, 'DMEVAL-BASELINE');
+    const rBase = await getText(uBase.toString(), opts);
+    if (!rBase) continue;
     for (const shape of ['${1336*7}', '%{1336*7}']) {
       const u = new URL(url);
       u.searchParams.set(p, shape);
       const r = await getText(u.toString(), opts);
-      if (r && r.text.includes('9352')) {
-        out.push({ param: p, kind: 'el', shape });
+      if (r && r.text.includes('9352') && !rBase.text.includes('9352')) {
+        const idx = r.text.indexOf('9352');
+        out.push({ param: p, kind: 'el', shape, window: r.text.slice(Math.max(0, idx - 60), idx + 60) });
         break;
       }
     }
@@ -143,7 +151,7 @@ export async function probeEvalInject(url, params, opts = {}) {
         parameter: hit.param,
         evidence: ev(
           `GET ${url}?${hit.param}=1336*7) (unbalanced)`,
-          `Language parse error surfaced — evaluation sink exposed; execution NOT claimed.`,
+          `Language parse error surfaced — "...${(hit.sample || '').slice(0, 200)}..." — evaluation sink exposed; execution NOT claimed.`,
           'Defensive finding: evaluation sink fingerprint for hardening.'
         ),
       });
@@ -194,8 +202,8 @@ export async function probeEvalInject(url, params, opts = {}) {
         url,
         parameter: hit.param,
         evidence: ev(
-          `GET ${url}?${hit.param}=${hit.shape}`,
-          `EL shape evaluated (9352 in output) — defensive detection.`,
+          `GET ${url}?${hit.param}=${hit.shape} vs inert baseline`,
+          `EL shape evaluated (9352 in output, absent in baseline) — "...${hit.window}..."`,
           'Defensive finding: EL evaluation sink.'
         ),
       });

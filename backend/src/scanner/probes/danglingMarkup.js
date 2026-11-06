@@ -125,7 +125,7 @@ async function d3Oracle(url, sinks, opts, rid) {
         parameter: sink.param,
         evidence: ev(
           `GET ${url}?${sink.param}=<img src='https://${canaryHost}/`,
-          `Verbatim injection; ${blob.length}-byte span swallowed with no secret inside — real primitive, no secret impact demonstrated.`,
+          `Verbatim injection; ${blob.length}-byte span swallowed with no secret inside — "...${blob.slice(0, 120)}..." — real primitive, no secret impact demonstrated.`,
           'Defensive finding: attribute-escape hardening needed.'
         ),
       });

@@ -137,7 +137,12 @@ function wsConnect(wsUrl, opts = {}, captureMs = 3000) {
       let buf = Buffer.alloc(0);
       socket.on('data', (d) => {
         buf = Buffer.concat([buf, d]);
-        for (const f of decodeFrames(buf)) frames.push(f);
+        // decodeFrames re-parses buf from the start on every chunk; only
+        // push frames beyond those already delivered, else a re-parse
+        // duplicates earlier frames into later snapshots (which broke the
+        // T1/T3 per-mutation slicing — a stale echo re-appeared as "new").
+        const decoded = decodeFrames(buf);
+        for (let i = frames.length; i < decoded.length; i++) frames.push(decoded[i]);
       });
       const api = {
         ok: true,
@@ -169,7 +174,28 @@ const WS_PATHS = [
 
 const TOPIC_WORDLIST = ['user:', 'admin/', 'private-', 'orders', 'notifications:', 'chat:'];
 
-// ---- D1: endpoint inventory ------------------------------------------------------
+// Value-shaped leak: a structured identifier field (user/account/order id,
+// email, token, session) with a typed value — not a bare keyword mention
+// inside a welcome message. The old keyword-only regex fired HIGH on a
+// plain greeting ("Your account was created... Check your order history").
+const VALUE_SHAPE_RES = /"(user_?id|account_?id|order_?id|email|auth_?token|session_?id)"\s*:\s*("[^"]+"|\d+(\.\d+)?)/i;
+
+// Deep-equality for parsed JSON: key order is irrelevant, so a
+// re-serialised echo (same object, keys re-ordered) is still an echo.
+function jsonEqual(a, b) {
+  if (a === b) return true;
+  if (typeof a !== typeof b) return false;
+  if (a && b && typeof a === 'object') {
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    if (Array.isArray(a)) {
+      return a.length === b.length && a.every((v, i) => jsonEqual(v, b[i]));
+    }
+    const ka = Object.keys(a);
+    const kb = Object.keys(b);
+    return ka.length === kb.length && ka.every((k) => Object.prototype.hasOwnProperty.call(b, k) && jsonEqual(a[k], b[k]));
+  }
+  return false;
+}
 async function d1Inventory(url, opts) {
   const u = new URL(url);
   const scheme = u.protocol === 'https:' ? 'wss' : 'ws';
@@ -200,15 +226,30 @@ async function t1Tamper(live, opts, rid) {
   for (const ep of live.slice(0, 2)) {
     const c = await wsConnect(ep.wsUrl, opts, 1500);
     if (!c.ok) continue;
-    for (const m of mutations.slice(0, 3)) {
+    // All five mutations are sent: the old slice(0, 3) never sent the
+    // privileged-role or undocumented-action shapes (dead mutations).
+    for (const m of mutations) {
       const frame = JSON.stringify({ type: 'update', ...m, canary, _dm: rid });
+      const sentObj = JSON.parse(frame);
+      // Snapshot: only frames arriving AFTER this send can answer it.
+      // Without this, a previous mutation's echo (which carries the
+      // canary) is misread as "acted" for the current mutation — the
+      // exact FP the second mutation hit before this fix.
+      const preCount = c.frames.length;
       c.sendText(frame);
       await new Promise((r) => setTimeout(r, 1200));
-      const post = c.frames.map((f) => f.text).join('\n');
-      // Echo-control: verbatim echo of our frame is NOT proof.
-      const isEcho = post.includes(frame);
-      const acted = post.includes(canary) && !isEcho;
-      if (acted) {
+      const newFrames = c.frames.slice(preCount);
+      // Echo-control, semantic: a frame is an echo when it is the sent
+      // frame verbatim (or wrapped verbatim) OR the same parsed JSON with
+      // keys re-ordered. A byte-exact check alone fires HIGH on a
+      // re-serialised echo. A canary-bearing frame that is neither is
+      // proof the server acted on the mutation.
+      const isEchoFrame = (f) => {
+        if (f.text.includes(frame)) return true;
+        try { return jsonEqual(JSON.parse(f.text), sentObj); } catch { return false; }
+      };
+      const actedFrame = newFrames.find((f) => f.text.includes(canary) && !isEchoFrame(f));
+      if (actedFrame) {
         findings.push({
           class: 'websocket_tampering',
           id: `ws-tamper-${rand()}`,
@@ -218,7 +259,7 @@ async function t1Tamper(live, opts, rid) {
           parameter: Object.keys(m).filter((k) => k !== 'note').join(','),
           evidence: ev(
             `WS text frame ${JSON.stringify({ ...m, canary })}`,
-            `Server frames show the canary in a NON-echo context — the mutated value took effect server-side (echo-control passed).`,
+            `Server acted on the mutated value — "${actedFrame.text.slice(0, 200)}" (echo-control passed: not a verbatim or re-serialised echo).`,
             'WS message-handler trust primitive: privileged actions via frame tampering.'
           ),
         });
@@ -236,15 +277,20 @@ async function t3Topics(live, opts, rid) {
   for (const ep of live.slice(0, 2)) {
     const c = await wsConnect(ep.wsUrl, opts, 1500);
     if (!c.ok) continue;
+    // Snapshot: frames captured during connect are pre-subscribe greetings
+    // and must never count toward the leak — only post-subscribe frames do.
+    const preCount = c.frames.length;
     for (const topic of TOPIC_WORDLIST.slice(0, 4)) {
       c.sendText(JSON.stringify({ action: 'subscribe', topic: `${topic}${rid}` }));
       c.sendText(JSON.stringify({ type: 'subscribe', channel: `${topic}${rid}` }));
     }
     await new Promise((r) => setTimeout(r, 2000));
-    const post = c.frames.map((f) => f.text).join('\n');
-    // Cross-user leak signal: frames referencing OTHER users/topics.
-    const leak = /(user|account|order)[^"']{0,30}(?!__ws_dm_)/i.test(post) && post.length > 50;
-    if (leak && !post.includes(`__ws_dm_${rid}`)) {
+    const postFrames = c.frames.slice(preCount);
+    const post = postFrames.map((f) => f.text).join('\n');
+    // Cross-user leak signal: a value-shaped identifier field in a
+    // post-subscribe frame that is not our own canary traffic.
+    const leakFrame = postFrames.find((f) => VALUE_SHAPE_RES.test(f.text) && !f.text.includes(`__ws_dm_${rid}`));
+    if (leakFrame && !post.includes(`__ws_dm_${rid}`)) {
       findings.push({
         class: 'websocket_tampering',
         id: `ws-topic-${rand()}`,
@@ -254,7 +300,7 @@ async function t3Topics(live, opts, rid) {
         parameter: 'topic/channel',
         evidence: ev(
           `WS subscribe frames for harvested topic names (no auth)`,
-          `Server streamed frames referencing other users/orders without authentication — cross-user data leak over WS.`,
+          `Server streamed a post-subscribe frame carrying another user's identifier — "${leakFrame.text.slice(0, 200)}"`,
           'WS authorization gap: topic subscription without auth.'
         ),
       });

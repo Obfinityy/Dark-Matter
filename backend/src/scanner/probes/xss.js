@@ -46,6 +46,8 @@ export async function probeXssReflected(url, params, opts = {}) {
     } catch {
       // ignore control failure
     }
+    const pIdx = body.indexOf(payload);
+    const pWindow = pIdx >= 0 ? body.slice(Math.max(0, pIdx - 60), pIdx + 120) : body.slice(0, 200);
     findings.push({
       class: 'xss_reflected',
       id: `xss-reflected-${param}`,
@@ -55,7 +57,7 @@ export async function probeXssReflected(url, params, opts = {}) {
       param,
       evidence: {
         request: `GET ${withParam(url, param, payload)}`,
-        response: `payload reflected unencoded (${payload.length} chars verbatim)`,
+        response: `payload reflected unencoded — "...${pWindow}..."`,
         impact_demo:
           body2.includes(encoded) && !body2.includes(payload)
             ? 'encoded variant neutralized — raw variant is the executable one'
