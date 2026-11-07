@@ -11,6 +11,10 @@ import {
   crossOriginHosts,
   SESSION_PARAM_NAMES,
 } from './sessionTokenInUrl.js';
+import {
+  TARGET_EMITTED_SOURCES,
+  isTargetEmittedTarget,
+} from './credentialDisclosure.js';
 import { verifyFindings } from '../verifier.js';
 
 const PAGE = 'http://lab.local/app/index.html';
@@ -209,5 +213,83 @@ describe('probeSessionTokenInUrl', () => {
     for (let i = 0; i < 6; i += 1) targets.push(`${ORIGIN}/p${i}?sid=${HEX32}`);
     const findings = probeSessionTokenInUrl(PAGE, targets, {});
     assert.equal(findings.length, 5);
+  });
+});
+
+describe('probeSessionTokenInUrl provenance (7 Nov 2026 latent fix)', () => {
+  // Same structural exposure as the #41 credential FP (DVWA proof
+  // h_d3c0deb50847): a scanner-synthesized URL must never fire — only
+  // URLs the target itself emits (links, GET form actions) can carry
+  // a real session identifier. Verified pre-fix: a bare-string
+  // synthesized URL carrying a token-like session value FIRED (query
+  // param and ;jsessionid= path param alike) — e.g. a POST form whose
+  // action URL itself carries the session id (Java EE URL rewriting).
+  // The dmprobe filler itself (12 chars) never passes the entropy
+  // gate, which is why this stayed latent rather than live.
+  const DM_FILLER = 'dmprobe' + '1_ab12';
+  it('(a) does not fire on a synthesized GET target from a POST login form', () => {
+    const target = {
+      url: `${ORIGIN}/login?PHPSESSID=${HEX32}&username=alice`,
+      source: 'post-form',
+    };
+    assert.deepEqual(probeSessionTokenInUrl(PAGE, [target], {}), []);
+  });
+  it('(d) does not fire on a DVWA-shape synthesized URL with a ;jsessionid= path param', () => {
+    const target = {
+      url: `${ORIGIN}/app;jsessionid=${HEX32}/home`,
+      source: 'post-form',
+    };
+    assert.deepEqual(probeSessionTokenInUrl(PAGE, [target], {}), []);
+  });
+  it('(b) fires on a real GET form action with a session param', () => {
+    const target = { url: `${ORIGIN}/search?PHPSESSID=${HEX32}`, source: 'get-form' };
+    const findings = probeSessionTokenInUrl(PAGE, [target], {});
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].parameter, 'PHPSESSID');
+    const { confirmed } = verifyFindings(findings);
+    assert.equal(confirmed.length, 1);
+  });
+  it('(c) fires on a link URL carrying a session param', () => {
+    const target = { url: `${ORIGIN}/reset?sid=${TOKEN26}`, source: 'link' };
+    const findings = probeSessionTokenInUrl(PAGE, [target], {});
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].parameter, 'sid');
+  });
+  it('(e) admits only page/link/get-form sources, excludes the rest', () => {
+    for (const source of ['page', 'link', 'get-form']) {
+      const target = { url: `${ORIGIN}/in-${source}?sid=${HEX32}`, source };
+      assert.equal(probeSessionTokenInUrl(PAGE, [target], {}).length, 1, source);
+    }
+    for (const source of ['post-form', 'standalone', 'openapi', 'js-routes', 'unknown', '']) {
+      const target = { url: `${ORIGIN}/out-${source || 'empty'}?sid=${HEX32}`, source };
+      assert.deepEqual(probeSessionTokenInUrl(PAGE, [target], {}), [], source);
+    }
+    assert.deepEqual(
+      probeSessionTokenInUrl(PAGE, [{ url: `${ORIGIN}/nosrc?sid=${HEX32}` }], {}),
+      []
+    );
+  });
+  it('(f) the dmprobe filler itself never passes the entropy gate', () => {
+    assert.equal(isTokenLike(DM_FILLER), false);
+    assert.deepEqual(
+      probeSessionTokenInUrl(PAGE, [`${ORIGIN}/login?PHPSESSID=${DM_FILLER}`], {}),
+      []
+    );
+  });
+  it('(g) bare-string targets still fire (backward compatibility)', () => {
+    const findings = probeSessionTokenInUrl(PAGE, [`${ORIGIN}/reset?sid=${HEX32}`], {});
+    assert.equal(findings.length, 1);
+  });
+  it('(h) isTargetEmittedTarget admits only page/link/get-form sources', () => {
+    assert.equal(isTargetEmittedTarget(`${ORIGIN}/x`), true);
+    for (const source of ['page', 'link', 'get-form']) {
+      assert.equal(isTargetEmittedTarget({ url: `${ORIGIN}/x`, source }), true, source);
+    }
+    for (const source of ['post-form', 'standalone', 'openapi', 'js-routes', 'unknown', '']) {
+      assert.equal(isTargetEmittedTarget({ url: `${ORIGIN}/x`, source }), false, source);
+    }
+    assert.equal(isTargetEmittedTarget({ url: `${ORIGIN}/x` }), false);
+    assert.equal(isTargetEmittedTarget(null), false);
+    assert.deepEqual([...TARGET_EMITTED_SOURCES].sort(), ['get-form', 'link', 'page']);
   });
 });

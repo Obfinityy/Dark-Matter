@@ -557,8 +557,9 @@ export async function runScan(
   // the 18th finding). Sources: 'link' (pasted page + crawled links),
   // 'get-form' (GET form actions), 'post-form' (POST form GET
   // conversions), 'standalone' (standalone-input targets), 'openapi',
-  // 'js-routes'. Only the credential-disclosure step reads this map;
-  // every other probe still receives the plain string array.
+  // 'js-routes'. Only the credential-disclosure and session-token-in-url
+  // steps read this map; every other probe still receives the plain
+  // string array.
   const scanTargetProvenance = new Map();
   const seen = new Set();
   const pushTarget = (u) => {
@@ -817,8 +818,18 @@ export async function runScan(
   // path — a token URL on a page loading cross-origin subresources
   // (or linking out) leaks the token in the Referer header. Zero
   // extra requests: pure URL inspection (see sessionTokenInUrl.js).
+  // Targets reach the probe as { url, source } provenance objects
+  // (7 Nov 2026 latent fix, mirrors the #41 credential FP fix):
+  // the probe fires ONLY on target-emitted URLs — a POST form whose
+  // action URL itself carries a token-like session value (Java EE
+  // `;jsessionid=` rewriting) would otherwise fire on that
+  // synthesized target.
   await step('session-token-in-url', () =>
-    probeSessionTokenInUrl(url, scanTargets, { ...opts, html: fp ? fp.body : '' })
+    probeSessionTokenInUrl(
+      url,
+      scanTargets.map((u) => ({ url: u, source: scanTargetProvenance.get(u) || 'unknown' })),
+      { ...opts, html: fp ? fp.body : '' }
+    )
   );
   // CREDENTIAL DISCLOSURE IN URL / LOGS (7 Nov 2026, row #41): a
   // credential value disclosed where it can be harvested — a

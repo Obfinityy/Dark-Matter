@@ -34,11 +34,28 @@
 // the fetchPage seam follows redirects and never exposes the chain
 // (recorded as an honest limit).
 //
+// PROVENANCE RULE (7 Nov 2026, latent fix — mirrors the #41
+// credential-disclosure FP fix): only URLs the TARGET itself emitted
+// can carry a real session identifier — the pasted page, a crawled
+// link, or a GET form action. A scanner-synthesized URL (a POST
+// form's GET conversion, a standalone-input target, an openapi /
+// js-routes synthesis) is never trusted: today a POST form whose
+// action URL itself carries a token-like session value (Java EE
+// `;jsessionid=` URL rewriting, or `?PHPSESSID=` in the action)
+// would fire on that synthesized target, and any future filler
+// lengthening would open the filler case too. index.js passes
+// { url, source } provenance objects; bare strings stay eligible
+// (backward compatibility); objects with any other source are
+// excluded fail-closed. See isTargetEmittedTarget (shared with
+// credentialDisclosure.js — one definition of target-emitted).
+//
 // SAFETY: read-only — pure URL inspection, ZERO extra requests (the
 // URLs are the scan's own targets; the page HTML is the fingerprint
 // step's fp.body, already fetched). The token value is never published
 // in full: evidence shows a masked form (first 4 + last 2 chars).
 // One finding per (URL, param), capped at 5.
+
+import { isTargetEmittedTarget } from './credentialDisclosure.js';
 
 const MAX_FINDINGS = 5;
 const MIN_TOKEN_LEN = 16;
@@ -164,11 +181,15 @@ export function extractSessionParams(urlString) {
 
 /**
  * Probe session token in URL (#265 + #321). @param {string} pageUrl —
- * the pasted page URL. @param {string[]} targetUrls — the scan's
- * target URLs (crawled links + form-derived GET targets). @param
- * {object} opts — { html }: the landing page HTML (fp.body) for the
- * #321 Referer-leak check; without it every finding is the #265
- * variant. @returns {object[]} findings (class
+ * the pasted page URL (always a candidate — the #321 Referer-leak
+ * path applies to the landing page itself). @param {(string |
+ * { url, source })[]} targetUrls — the scan's target URLs as bare
+ * strings (legacy — always eligible) or { url, source } provenance
+ * objects (what index.js passes since the 7 Nov 2026 latent fix):
+ * only target-emitted sources fire — see isTargetEmittedTarget.
+ * @param {object} opts — { html }: the landing page HTML (fp.body)
+ * for the #321 Referer-leak check; without it every finding is the
+ * #265 variant. @returns {object[]} findings (class
  * 'session_token_in_url', medium) — at most one per (URL, param),
  * capped at MAX_FINDINGS. Synchronous: pure URL inspection, no
  * network.
@@ -182,10 +203,16 @@ export function probeSessionTokenInUrl(pageUrl, targetUrls, opts = {}) {
     return [];
   }
   // Candidate URLs: the pasted page first, then the scan targets.
-  // Dedupe by URL without fragment.
+  // Dedupe by URL without fragment. A target entry is admitted only
+  // if the target itself emitted it (bare strings: legacy, always
+  // admitted; objects: only page/link/get-form — post-form GET
+  // conversions, standalone targets, openapi / js-routes syntheses
+  // and unknown sources are excluded fail-closed).
   const candidates = [];
   const seenUrls = new Set();
-  const pushCandidate = (u) => {
+  const pushCandidate = (entry) => {
+    if (!isTargetEmittedTarget(entry)) return;
+    const u = typeof entry === 'string' ? entry : entry.url;
     if (typeof u !== 'string' || !u) return;
     let norm;
     try {
