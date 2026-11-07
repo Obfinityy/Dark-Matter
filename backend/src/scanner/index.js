@@ -89,6 +89,7 @@ import { probeUntrustedJsInclusion } from './probes/untrustedJsInclusion.js';
 import { probeApiVersioning } from './probes/apiVersioning.js';
 import { probeSessionTokenInUrl } from './probes/sessionTokenInUrl.js';
 import { probeCredentialDisclosure } from './probes/credentialDisclosure.js';
+import { probeSensitiveCache } from './probes/sensitiveCache.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -175,6 +176,7 @@ export const DEFAULT_PHASES = [
   'api-versioning',
   'session-token-in-url',
   'credential-disclosure',
+  'sensitive-cache',
   'nuclei',
 ];
 
@@ -852,6 +854,20 @@ export async function runScan(
       scanTargets.map((u) => ({ url: u, source: scanTargetProvenance.get(u) || 'unknown' })),
       { ...opts, html: fp ? fp.body : '' }
     )
+  );
+  // SENSITIVE DATA CACHED BY BROWSER (7 Nov 2026, row #96): a sensitive
+  // landing page served without `Cache-Control: no-store` stays in the
+  // browser cache after logout / on a shared device (CWE-524, OWASP
+  // WSTG Browser Cache Weaknesses). Inspects the fingerprint step's own
+  // response (fp.headers + fp.body) — zero extra requests. GATE (strict,
+  // decided on OWASP grounds before any proof run): ONLY the `no-store`
+  // directive protects — `no-cache`/`must-revalidate`/`Pragma: no-cache`
+  // permit storage with revalidation, and `Expires: 0` is not accepted
+  // in v1. DVWA's login page carries exactly that weaker set (verified
+  // live 7 Nov ~21:05 IST), so the DVWA proof leg is expected to be 1
+  // real [Medium] finding, not a true negative (see sensitiveCache.js).
+  await step('sensitive-cache', () =>
+    probeSensitiveCache(url, fp ? fp.headers : {}, fp ? fp.body : '', opts)
   );
   // 35/63 FIX: track whether the param battery ran at all. If no scan
   // target carried a single parameter, the loop body below never executes
