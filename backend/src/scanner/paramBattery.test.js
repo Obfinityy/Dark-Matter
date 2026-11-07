@@ -48,6 +48,9 @@ describe('param battery skipped records (35/63 fix)', () => {
     for (const name of PARAM_BATTERY_PHASES) {
       assert.ok(DEFAULT_PHASES.includes(name), `${name} missing from DEFAULT_PHASES`);
     }
+    // 79 since 7 Nov 2026 (untrusted JS inclusion): 'untrusted-js-inclusion'
+    // joins as a standalone always-run phase (one record per scan —
+    // the pasted page is always a surface, so it never skips).
     // 78 since 7 Nov 2026 (XML injection): 'xml-injection'
     // joins the battery as a loop phase (one record per param
     // target — structure breakout + parser-error vectors).
@@ -90,7 +93,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 78);
+    assert.equal(DEFAULT_PHASES.length, 79);
   });
 
   it('zero param targets: all 29 param phases emit skipped records, rollup reports them', async () => {
@@ -322,8 +325,8 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
-  // 44/34 since 7 Nov 2026 (XML injection): the battery
-  // gained 'js-api-routes', so a bare page runs 44 non-param phases — and
+  // 45/34 since 7 Nov 2026 (XML injection + untrusted JS inclusion): the battery
+  // gained 'js-api-routes', so a bare page runs 45 non-param phases — and
   // 'verb-tampering' + 'method-override' add a 29th and 30th skipped
   // record ('no probe targets': no scan target carries a probe point
   // on a bare page, and no POST form exists), 'secrets-in-js' adds
@@ -335,15 +338,16 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // while 'fingerprint-banner' adds a 39th RUNNING
   // record, 'source-code-disclosure' a 40th, 'metadata-leakage'
   // a 41st, 'sensitive-data-in-logs' a 42nd,
-  // 'sensitive-info-disclosure' a 43rd and 'timing-side-channel'
-  // a 44th (the pasted page is always a surface — 0 findings on
+  // 'sensitive-info-disclosure' a 43rd, 'timing-side-channel'
+  // a 44th and 'untrusted-js-inclusion' a 45th (the pasted page
+  // is always a surface — 0 findings on
   // the bare stub), so the two skip reasons mix and the summary
   // renders a bare count. The spec fetch is stubbed to the bare page
   // (HTML, not JSON), so the pass records an honest no-op with 0
   // targets — the same seam discipline as domRenderer above.
   // (37/28 before js-api-routes; 43/33 before timing-side-channel;
-  // 44/33 before xml-injection.)
-  it('real runScan on a bare page renders the 44/34 line end to end', async () => {
+  // 44/33 before xml-injection and untrusted-js-inclusion.)
+  it('real runScan on a bare page renders the 45/34 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -355,15 +359,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 78,
-        ok: 44,
+        total: 79,
+        ok: 45,
         failed: 0,
         skipped: 34,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 44 ran ok, 34 skipped, 0 failed, 0 timed out.'
+        'Phases: 45 ran ok, 34 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

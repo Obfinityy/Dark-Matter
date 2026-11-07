@@ -84,6 +84,7 @@ import { probeSensitiveDataInLogs } from './probes/sensitiveDataInLogs.js';
 import { probeSensitiveInfoDisclosure } from './probes/sensitiveInfoDisclosure.js';
 import { probeTimingSideChannel } from './probes/timingSideChannel.js';
 import { probeXmlInjection } from './probes/xmlInjection.js';
+import { probeUntrustedJsInclusion } from './probes/untrustedJsInclusion.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -165,6 +166,7 @@ export const DEFAULT_PHASES = [
   'sensitive-info-disclosure',
   'timing-side-channel',
   'xml-injection',
+  'untrusted-js-inclusion',
   'nuclei',
 ];
 
@@ -768,6 +770,14 @@ export async function runScan(
   }
 
   await step('headers', () => (fp ? probeHeaders({ url, headers: fp.headers }) : []));
+  // UNTRUSTED JS INCLUSION (7 Nov 2026, row #98): the page loads
+  // executable JavaScript from a cross-origin host that is neither
+  // same-origin nor a trusted CDN, with no SRI hash pinning the code.
+  // Reuses the HTML the fingerprint step already fetched (fp.body) —
+  // zero extra requests, never fetches the script itself (see
+  // untrustedJsInclusion.js). Never re-fires the generic missing-SRI
+  // finding (headers phase owns that).
+  await step('untrusted-js-inclusion', () => (fp ? probeUntrustedJsInclusion({ url, html: fp.body }) : []));
   // 35/63 FIX: track whether the param battery ran at all. If no scan
   // target carried a single parameter, the loop body below never executes
   // and the 28 phases inside it would vanish in silence — record each of

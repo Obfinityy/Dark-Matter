@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 44/34 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 45/34 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -247,25 +247,26 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // 'no script targets' (7 Nov 2026), and fingerprint-banner +
       // source-code-disclosure + metadata-leakage +
       // sensitive-data-in-logs + sensitive-info-disclosure +
-      // timing-side-channel RUN (the pasted page is always a surface
+      // timing-side-channel +
+      // untrusted-js-inclusion RUN (the pasted page is always a surface
       // — 0 findings on the bare stub) instead of skipping.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 78,
-        ok: 44,
+        total: 79,
+        ok: 45,
         failed: 0,
         skipped: 34,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 44 ran ok, 34 skipped, 0 failed, 0 timed out.'
+        'Phases: 45 ran ok, 34 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 107/107/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 108/108/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -324,20 +325,21 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // error-disclosure + validation + fingerprint-banner +
       // source-code-disclosure + metadata-leakage +
       // sensitive-data-in-logs + sensitive-info-disclosure +
-      // timing-side-channel, 7 Nov 2026 — all eleven run here
+      // timing-side-channel + untrusted-js-inclusion, 7 Nov 2026 —
+      // all twelve run here
       // because param targets exist and the shell carries a script
       // bundle), and the two discovery phases now RUN instead of
-      // skipping — 107 total, 107 ok, 0 skipped.
+      // skipping — 108 total, 108 ok, 0 skipped.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 107,
-        ok: 107,
+        total: 108,
+        ok: 108,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 107 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 108 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -543,7 +545,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 78);
+      assert.equal(DEFAULT_PHASES.length, 79);
     } finally {
       teardown();
     }
