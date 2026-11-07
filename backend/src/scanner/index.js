@@ -76,6 +76,7 @@ import { probeOgnlInject } from './probes/ognlInject.js';
 import { probeVerbTampering } from './probes/verbTampering.js';
 import { probeMethodOverride } from './probes/methodOverride.js';
 import { probeSecretsInJs, extractSecretTargets } from './probes/secretsInJs.js';
+import { probeBrowserStorage } from './probes/browserStorage.js';
 import { probeErrorDisclosure } from './probes/errorDisclosure.js';
 import { probeValidation } from './probes/validation.js';
 import { probeFingerprintBanner } from './probes/fingerprintBanner.js';
@@ -177,6 +178,7 @@ export const DEFAULT_PHASES = [
   'session-token-in-url',
   'credential-disclosure',
   'sensitive-cache',
+  'browser-storage',
   'nuclei',
 ];
 
@@ -1057,6 +1059,30 @@ export async function runScan(
     );
   } else {
     skipPhase('secrets-in-js', 'no script targets');
+  }
+  // BROWSER STORAGE (7 Nov 2026, row #97): sensitive data written
+  // to localStorage / sessionStorage in the page's own JS bundles or
+  // inline scripts is readable by any script in the origin (ASVS V8,
+  // OWASP HTML5 Security Cheat Sheet). GATE (strict, decided on
+  // OWASP/ASVS grounds before any proof run): writes ONLY, static
+  // literal key, allowlist-only sensitive name — reads never fire,
+  // dynamic keys never fire, placeholder literal values never fire.
+  // Reuses secretTargets (same gate as secrets-in-js, so a
+  // script-less page records a skip instead of fetching). Juice
+  // Shop's main.js stores its login JWT with
+  // localStorage.setItem("token", …) (verified live 7 Nov ~22:10 IST),
+  // so the Juice proof leg is expected to be 1 real [Medium] finding;
+  // DVWA serves no storage writes, so its leg is expected to be a
+  // true negative (see browserStorage.js).
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step('browser-storage', () =>
+      probeBrowserStorage(url, secretTargets, {
+        ...opts,
+        ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+      })
+    );
+  } else {
+    skipPhase('browser-storage', 'no script targets');
   }
   // ERROR DISCLOSURE (7 Nov 2026, rows #175 + #176): trigger
   // errors with read-only GETs on the same GET probe targets as
