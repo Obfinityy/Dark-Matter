@@ -136,8 +136,18 @@ export function scoreExploitability(finding, confirmation = 'unconfirmed') {
 }
 
 // ---- Dedup -----------------------------------------------------------------
-// Dedup by (vuln-class + sink location + trigger), NOT by URL — stops 50
-// duplicate reports for the same underlying flaw.
+// Dedup by (vuln-class + sink location + trigger + title), NOT by URL —
+// stops 50 duplicate reports for the same underlying flaw.
+// The title segment is load-bearing (7 Nov 2026): without it, distinct
+// findings that share class + URL and carry no sink/parameter/trigger
+// collapse to one — probeHeaders' five missing-header checks (hsts/csp/
+// xfo/xcto/rp) all keyed identically, so only missing-hsts ever reached
+// the report, and two nuclei templates matching at the same URL lost one.
+// Title, NOT id: several probes use random-suffixed ids (arginj-<rand>,
+// crlf-hdr-<rand>, …), so keying on id would defeat dedup for them.
+// Appending a segment can only split, never merge — every finding that
+// survived before still survives; identical title + identical key still
+// collapses to one.
 
 export function dedupeFindings(findings) {
   const seen = new Map();
@@ -146,6 +156,7 @@ export function dedupeFindings(findings) {
       String(f.class || f.type || '').toLowerCase(),
       String(f.sink || f.parameter || f.url || '').toLowerCase(),
       String(f.trigger || f.payload || '').toLowerCase().slice(0, 80),
+      String(f.title || '').toLowerCase().slice(0, 80),
     ].join('|');
     if (!seen.has(key)) seen.set(key, f);
   }
