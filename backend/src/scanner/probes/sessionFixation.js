@@ -22,7 +22,9 @@
 // T4b additionally needs opts.apiRoutes (discovered route URLs, wired in
 // by runScan from scanTargets) — no login candidate or no check endpoint
 // means an honest [] (never fires on the SPA-root HTML alone).
-// Per-run canary __dm_sessfix_<runid>. $0, no new deps.
+// Per-run canary dmsessfix-<runid> — PHP session IDs allow only
+// [A-Za-z0-9,-], so the canary must too (re-proof fix, 8 Nov 2026).
+// $0, no new deps.
 //
 // Repairs (7 Nov 2026, #474 lane — the three T4 defects the #47 prep's
 // "already covered" claim missed):
@@ -97,6 +99,7 @@ async function req(url, opts = {}, { method = 'GET', jar = null, body = null, he
       setCookies,
       location: res.headers.get('location'),
       authorization: res.headers.get('authorization'),
+      contentType: res.headers.get('content-type'),
     };
   } catch {
     return null;
@@ -109,8 +112,27 @@ const SESSION_COOKIE_RES = /phpsessid|jsessionid|sessionid|connect\.sid|_session
 const AUTH_MARKER_RE = /logout|dashboard|welcome|profile/i;
 const LOGOUT_PATHS = ['/logout', '/logout.php', '/signout', '/auth/logout'];
 const LOGIN_PATH_RE = /login|signin|authenticate|auth\/token/i;
-const CHECK_PATH_RE = /whoami|\/me$|\/profile$|\/user\/whoami/i;
+// Check-endpoint routes for T4b. whoami STAYS a candidate — on apps
+// where it reflects auth it fires — but it is auth-indifferent on
+// live Juice (200 {"user":{}} with and without a token), so it can
+// never be THE check: T4b now tries up to 3 candidates (see
+// checkCandidates) and the live fire comes from /rest/2fa/status
+// (fixed path, 401 without a token, 200 + canary email with one —
+// surveyed live, 8 Nov 2026). /rest/basket/<id> is divergence-only
+// (no canary email); /api/Users/<id> needs the canary's id, so it is
+// a fallback candidate only.
+const CHECK_PATH_RE = /whoami|\/me$|\/profile$|\/user\/whoami|basket|2fa\/status|\/Users\//i;
 const TOKEN_FIELDS = ['token', 'accessToken', 'access_token', 'jwt'];
+
+// PHP-valid session-ID charset (re-proof diagnosis, 8 Nov 2026): the
+// old `__dm_sessfix_<rid>` canary was echoed by the server but the
+// authenticated session was never retrievable under it, so T2 never
+// fired live. The canary is built by this helper so tests can assert
+// the charset directly.
+export const SESSION_CANARY_RE = /^[A-Za-z0-9,-]+$/;
+export function sessionFixationCanary(rid) {
+  return `dmsessfix-${rid}`;
+}
 
 function sessionCookieNames(setCookies) {
   return (setCookies || [])
@@ -251,7 +273,7 @@ async function t2PlantedAdoption(form, opts, creds, rid) {
   // The old local isLab compared a bare hostname against port-bearing
   // entries, so this gate could never pass in production.
   if (!isLabTargetHost(form.action || form.pageUrl || '', opts.labTargets)) return findings;
-  const canary = `__dm_sessfix_${rid}`;
+  const canary = sessionFixationCanary(rid);
   // Attacker jar: plant the ID. Victim jar: same planted ID, then login.
   const jarV = new Jar();
   const rPre = await req(form.action || form.pageUrl, opts, { jar: jarV });
@@ -382,6 +404,80 @@ function extractBearerToken(res) {
   return null;
 }
 
+// All same-origin routes matching CHECK_PATH_RE, fixed (param-less)
+// paths first, deduplicated, stable otherwise. A literal endpoint is
+// a better replay oracle than a synthesised param target (e.g.
+// /rest/basket/dmprobe... is not the canary's basket, so it can never
+// return the canary's row).
+function checkCandidates(routes, origin) {
+  const out = [];
+  for (const r of routes || []) {
+    try {
+      const u = new URL(String(r));
+      if (u.origin !== origin || !CHECK_PATH_RE.test(u.pathname)) continue;
+      const s = u.toString();
+      if (!out.includes(s)) out.push(s);
+    } catch {
+      // ignore malformed route entries
+    }
+  }
+  const isFixed = (s) => {
+    try {
+      const u = new URL(s);
+      return !u.search && !/dmprobe/.test(u.pathname);
+    } catch {
+      return false;
+    }
+  };
+  return out.sort((a, b) => Number(isFixed(b)) - Number(isFixed(a)));
+}
+
+// True when url is an API route on this origin. A logout endpoint
+// under /rest|/api|/b2b/v2|/snippets is a server endpoint; a bare
+// /logout serving HTML is the SPA shell, not a logout endpoint.
+function isApiPath(url, origin) {
+  try {
+    const u = new URL(url);
+    return u.origin === origin && /^\/(rest|api|b2b\/v2|snippets)\//.test(u.pathname);
+  } catch {
+    return false;
+  }
+}
+
+// True when the response looks like JSON (content-type, or a body
+// that starts like JSON) — the shape a real API logout returns.
+function looksJson(r) {
+  if (!r) return false;
+  if (String(r.contentType || '').toLowerCase().includes('json')) return true;
+  const t = String(r.text || '').trim();
+  return t.startsWith('{') || t.startsWith('[');
+}
+
+// One T4b finding. `kind` is 'content' (the replay names the canary
+// account or carries an auth marker) or 'divergence' (no-token
+// 401/403 vs old-token 200).
+function t4bFinding(checkUrl, serverLogoutExists, kind, window, noAuthStatus) {
+  const logoutNote = serverLogoutExists
+    ? 'a server logout was attempted but the token was not invalidated'
+    : 'no server logout endpoint exists; logout is client-side only, the token stays valid until expiry';
+  const response = kind === 'content'
+    ? `Old bearer token still returns 200 with the canary account — "...${window}..." — ${logoutNote}.`
+    : `Old bearer token still returns 200 after logout (no-token ${noAuthStatus} vs old-token 200) — the token is still accepted, so logout did not invalidate it. Replay body head: "${window}"`;
+  return {
+    class: 'session_fixation',
+    id: `sf-logout-bearer-${rand()}`,
+    title: 'Session lifecycle — bearer token remains valid after logout (MEDIUM)',
+    severity: 'medium',
+    url: checkUrl,
+    parameter: 'Authorization',
+    evidence: ev(
+      `API login (canary) -> logout attempted -> replay old Bearer token to ${checkUrl}`,
+      response,
+      'Stale-token primitive: a stolen bearer token survives logout.'
+    ),
+  };
+}
+
 async function t4bBearer(url, opts, creds) {
   const findings = [];
   const routes = (opts.apiRoutes || []).map(String);
@@ -393,8 +489,11 @@ async function t4bBearer(url, opts, creds) {
   }
   const loginUrl = sameOriginRoute(routes, origin, LOGIN_PATH_RE);
   if (!loginUrl) return findings;
-  const checkUrl = sameOriginRoute(routes, origin, CHECK_PATH_RE);
-  if (!checkUrl) return findings;
+  // Up to 3 check candidates, fixed (param-less) paths first.
+  // whoami is tried but can never fire on Juice (dead oracle — 200
+  // {"user":{}} both ways); the live fire comes from /rest/2fa/status.
+  const checkUrls = checkCandidates(routes, origin).slice(0, 3);
+  if (!checkUrls.length) return findings;
   // API login: {email, password} first, then {username, password} on
   // 401/400. Cap: 2 login attempts, 1 endpoint per scan.
   let loginRes = null;
@@ -417,8 +516,10 @@ async function t4bBearer(url, opts, creds) {
   const token = extractBearerToken(loginRes);
   if (!token) return findings;
   // Logout attempt: the 4 common paths + any discovered logout op.
-  // Record whether a server logout endpoint exists at all (Juice: none
-  // — the finding text must say so, not imply a clearable session).
+  // Record whether a server logout endpoint exists at all — but ONLY
+  // an API-path or JSON response counts: an SPA route returning 200
+  // HTML (Juice /logout serves the app shell) is not a logout
+  // endpoint, and marking it so would misstate the finding.
   let serverLogoutExists = false;
   const logoutOps = routes.filter((r) => {
     try {
@@ -431,33 +532,40 @@ async function t4bBearer(url, opts, creds) {
   const logoutUrls = [...new Set([...LOGOUT_PATHS.map((p) => new URL(p, origin).toString()), ...logoutOps])];
   for (const lu of logoutUrls) {
     const r = await req(lu, opts, { headers: { Authorization: `Bearer ${token}` } });
-    if (r && r.status !== 404) serverLogoutExists = true;
+    if (r && r.status !== 404 && (isApiPath(lu, origin) || looksJson(r))) serverLogoutExists = true;
   }
-  // Replay the OLD token against the check endpoint.
-  const rReplay = await req(checkUrl, opts, { headers: { Authorization: `Bearer ${token}` } });
-  if (!rReplay || rReplay.status !== 200) return findings;
+  // Replay the OLD token against each check candidate. Two ways to
+  // confirm, in preference order: (1) the replay names the canary
+  // account or carries an auth marker AND the anchor is absent from
+  // the no-token body (a marker visible anonymously proves nothing);
+  // (2) status divergence — 401/403 without a token vs 200 with the
+  // old one — which proves the token is still accepted even when the
+  // endpoint never echoes the account. A bare 200 both ways never
+  // fires (that is the whoami dead oracle).
   const canary = String(creds.username).toLowerCase();
-  const bodyHasCanary = rReplay.text.toLowerCase().includes(canary);
-  const marker = rReplay.text.match(AUTH_MARKER_RE);
-  // A bare 200 (SPA HTML, generic JSON) is NOT enough — the replay must
-  // name the canary account or carry an authenticated-content marker.
-  if (!bodyHasCanary && !marker) return findings;
-  const anchor = bodyHasCanary ? canary : marker[0];
-  const idx = rReplay.text.toLowerCase().indexOf(String(anchor).toLowerCase());
-  const window = rReplay.text.slice(Math.max(0, idx - 60), idx + 120);
-  findings.push({
-    class: 'session_fixation',
-    id: `sf-logout-bearer-${rand()}`,
-    title: 'Session lifecycle — bearer token remains valid after logout (MEDIUM)',
-    severity: 'medium',
-    url: checkUrl,
-    parameter: 'Authorization',
-    evidence: ev(
-      `API login (canary) -> logout attempted -> replay old Bearer token to ${checkUrl}`,
-      `Old bearer token still returns 200 with the canary account — "...${window}..." — ${serverLogoutExists ? 'a server logout was attempted but the token was not invalidated' : 'no server logout endpoint exists; logout is client-side only, the token stays valid until expiry'}.`,
-      'Stale-token primitive: a stolen bearer token survives logout.'
-    ),
-  });
+  let divergence = null;
+  for (const checkUrl of checkUrls) {
+    const rNoAuth = await req(checkUrl, opts);
+    const rReplay = await req(checkUrl, opts, { headers: { Authorization: `Bearer ${token}` } });
+    if (!rReplay || rReplay.status !== 200) continue;
+    const bodyHasCanary = rReplay.text.toLowerCase().includes(canary);
+    const marker = rReplay.text.match(AUTH_MARKER_RE);
+    const anchor = bodyHasCanary ? canary : marker ? marker[0] : null;
+    const noAuthBody = rNoAuth ? rNoAuth.text.toLowerCase() : '';
+    const contentOk = Boolean(anchor) && !noAuthBody.includes(String(anchor).toLowerCase());
+    if (contentOk) {
+      const idx = rReplay.text.toLowerCase().indexOf(String(anchor).toLowerCase());
+      const window = rReplay.text.slice(Math.max(0, idx - 60), idx + 120);
+      findings.push(t4bFinding(checkUrl, serverLogoutExists, 'content', window, rNoAuth ? rNoAuth.status : null));
+      return findings;
+    }
+    if (!divergence && rNoAuth && (rNoAuth.status === 401 || rNoAuth.status === 403)) {
+      divergence = { checkUrl, noAuthStatus: rNoAuth.status, head: rReplay.text.slice(0, 180) };
+    }
+  }
+  if (divergence) {
+    findings.push(t4bFinding(divergence.checkUrl, serverLogoutExists, 'divergence', divergence.head, divergence.noAuthStatus));
+  }
   return findings;
 }
 
@@ -465,7 +573,17 @@ export async function probeSessionFixation(forms, url, opts = {}) {
   const findings = [];
   const creds = opts.labCreds;
   if (!creds || !creds.username) return findings; // graceful skip without canary creds
-  const lfs = loginForms(forms);
+  // The same login form can be discovered twice (crawl + DOM) — probe
+  // each action once, or one T1 becomes two identical findings that
+  // dedup collapses (re-proof: session-fixation findingsCount 2, one
+  // confirmed T1). Distinct actions still probe separately.
+  const seenActions = new Set();
+  const lfs = loginForms(forms).filter((f) => {
+    const key = String(f.action || f.pageUrl || url);
+    if (seenActions.has(key)) return false;
+    seenActions.add(key);
+    return true;
+  });
   const rid = rand();
   const depth = opts.depth || 'standard';
   if (!lfs.length) {

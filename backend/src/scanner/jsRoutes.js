@@ -29,6 +29,14 @@
 // the quoted-literal branches missed, stranding the Juice search
 // route (and its q param) as a param-less orphan outside the cap.
 //
+// (8 Nov 2026, hostServer+literal fix): the QUOTED hostServer form
+// http.post(this.hostServer+"/rest/user/login",e) is mined too
+// (branch (a2)) — it is the form live Juice actually uses, and
+// without it /rest/user/login and /rest/user/whoami never reached
+// apiRoutes. Login/check routes also sort first before the 20-cap
+// in both synthesisers, so the T4b oracle pair can never lose the
+// cap race to param-bearing list routes.
+//
 // MECHANISM: when the pasted page yielded zero param-bearing targets
 // (after static + DOM + form synthesis + openapi-targets), fetch the
 // page's same-origin <script> bundles (read-only GET, max 5) and mine
@@ -63,6 +71,13 @@ export const JS_ROUTES_MAX_BUNDLES = 5;
 // routing, not an API route.
 const ROUTE_PREFIXES = '(?:rest|api|b2b/v2|snippets)';
 const ROUTE_PATH_RE = new RegExp(`/(?:rest|api|b2b/v2|snippets)/[A-Za-z0-9_/$\\{\\}.?=&-]*`, 'g');
+
+// Login/check routes sort first before the 20-cap (re-proof fix,
+// 8 Nov 2026): a param-less /rest/user/login or /rest/2fa/status
+// must never lose the cap race to a param-bearing list route — the
+// session-fixation step needs both to test logout invalidation.
+// Mirrors the probe's LOGIN_PATH_RE + CHECK_PATH_RE (sessionFixation.js).
+const LOGIN_CHECK_PATH_RE = /login|signin|authenticate|auth\/token|whoami|\/me$|\/profile$|\/user\/whoami|basket|2fa\/status|\/Users\//i;
 
 /** Unique safe filler per param — same never-empty/never-equal rule as openapi.js. */
 function filler(n) {
@@ -238,6 +253,28 @@ export function extractJsRouteRecords(bundleText) {
       }
       continue;
     }
+    // (a2) <host-expr> + "literal" — the hostServer-prefixed call
+    // (re-proof fix, 8 Nov 2026): the REAL Juice main.js form is
+    // this.http.post(this.hostServer+"/rest/user/login",e) and
+    // this.http.get(this.hostServer+"/rest/user/whoami") — branch (a)
+    // needs a word boundary after `host` (hostServer has none), (b)
+    // needs a bare identifier (not `this.`), (b2) is template-only
+    // and (c) needs a leading quote, so both routes survived only as
+    // param-less orphans and never reached apiRoutes. The host
+    // expression is this.hostServer or any <ident>.hostServer
+    // (minified I.c.hostServer); the literal IS the route. `this.host`
+    // stays with branch (a): it is the service base, not the origin
+    // host, so its literal is a suffix on the nearest base.
+    const hostServerPlus =
+      /^\s*(?:this|[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.hostServer\s*\+\s*["'`](\/[^"'`]+)["'`]/.exec(trimmed);
+    if (hostServerPlus) {
+      const { path, queryNames } = splitRoute(hostServerPlus[1]);
+      const rec = ensure(path);
+      rec.methods.add(method);
+      for (const n of queryNames) rec.queryNames.add(n);
+      for (const n of queryNamesIn(arg)) rec.queryNames.add(n);
+      continue;
+    }
     // (b) <ident> + "literal" — the hostServer-prefixed call
     // (minified `Server + "/rest/..."`): the literal is the route.
     const hostPlus = /^\s*[A-Za-z_$][\w$]*\s*\+\s*["'`](\/[^"'`]+)["'`]/.exec(trimmed);
@@ -365,7 +402,10 @@ export function synthesiseJsTargets(records, baseUrl) {
   const hasParams = (r) =>
     (Array.isArray(r.queryNames) && r.queryNames.length > 0) ||
     (Array.isArray(r.pathDescriptors) && r.pathDescriptors.length > 0);
-  usable.sort((a, b) => Number(hasParams(b)) - Number(hasParams(a)));
+  // Login/check routes first (they decide the T4b oracle), then
+  // param-bearing routes — both before the cap.
+  const isLoginCheck = (r) => LOGIN_CHECK_PATH_RE.test(r.path);
+  usable.sort((a, b) => Number(isLoginCheck(b)) - Number(isLoginCheck(a)) || Number(hasParams(b)) - Number(hasParams(a)));
   let n = 0;
   for (const r of usable) {
     if (out.targets.length >= JS_ROUTES_MAX_TARGETS) break;
@@ -436,7 +476,11 @@ export function synthesiseJsWriteTargets(records, baseUrl) {
   }
   let n = 0;
   const seen = new Set();
-  for (const r of Array.isArray(records) ? records : []) {
+  // Login routes first (the T4b login candidate must survive the cap).
+  const sorted = [...(Array.isArray(records) ? records : [])].sort(
+    (a, b) => Number(LOGIN_CHECK_PATH_RE.test(b.path || '')) - Number(LOGIN_CHECK_PATH_RE.test(a.path || ''))
+  );
+  for (const r of sorted) {
     if (!r || typeof r.path !== 'string' || !r.path.startsWith('/')) continue;
     const methods = Array.isArray(r.methods) ? r.methods : [];
     // No method evidence (orphan) or any GET evidence: not write-only.

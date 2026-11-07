@@ -21,7 +21,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { probeSessionFixation } from './sessionFixation.js';
+import { probeSessionFixation, sessionFixationCanary, SESSION_CANARY_RE } from './sessionFixation.js';
 import { extractForms } from '../crawl.js';
 import { assessConfirmation } from '../../hunt-intel/differential.js';
 import { verifyFindings } from '../verifier.js';
@@ -55,11 +55,17 @@ function readBody(req) {
 
 const LOGOUT_PATHS = ['/logout', '/logout.php', '/signout', '/auth/logout'];
 
+// PHP session IDs allow only [A-Za-z0-9,-] (re-proof fix, 8 Nov 2026).
+const PHP_SESSION_ID_RE = /^[A-Za-z0-9,-]+$/;
+
 // Cookie-login fixture (DVWA-shaped). cfg: rotateOnLogin (default true),
 // invalidateOnLogout (false), logoutStatus (200), loginPageRedirectsAuthed
 // (false), issueCookie (true), adoptPlantedOnLogin (false — the login
 // POST adds the PRESENTED session ID to the valid set, modelling a
-// server that keeps a planted ID through login; T2's positive case).
+// server that keeps a planted ID through login; T2's positive case),
+// phpSessionValidation (false — when true the server mimics PHP: a
+// presented ID outside [A-Za-z0-9,-] is rejected and a fresh one issued,
+// so an underscore canary never reaches authenticated state).
 function startCookieFixture(cfg = {}) {
   const {
     rotateOnLogin = true,
@@ -68,6 +74,7 @@ function startCookieFixture(cfg = {}) {
     loginPageRedirectsAuthed = false,
     issueCookie = true,
     adoptPlantedOnLogin = false,
+    phpSessionValidation = false,
   } = cfg;
   const validSessions = new Set();
   let tokenSeq = 0;
@@ -96,7 +103,13 @@ function startCookieFixture(cfg = {}) {
       // none. Issuing unconditionally would clobber a planted ID on
       // the login page re-fetch and make T2 untestable (D2, #474
       // repair). A re-fetch that already carries an ID keeps it.
+      // phpSessionValidation: PHP REJECTS a presented ID outside
+      // [A-Za-z0-9,-] and issues a fresh one instead — an underscore
+      // canary is dropped here, before login ever sees it.
       if (issueCookie && !sess) headers['Set-Cookie'] = 'PHPSESSID=sess-anon-001; Path=/';
+      else if (phpSessionValidation && sess && !PHP_SESSION_ID_RE.test(sess)) {
+        headers['Set-Cookie'] = `PHPSESSID=sess-fresh-${++sessionSeq}; Path=/`;
+      }
       res.writeHead(200, headers);
       res.end(`<html><body><form action="/login.php" method="post">`
         + `<input type='hidden' name='user_token' value='${currentToken}'>`
@@ -116,7 +129,9 @@ function startCookieFixture(cfg = {}) {
       // as the authenticated session (the fixation primitive) instead
       // of issuing a fresh one. Only meaningful with rotateOnLogin
       // false — rotation defeats planting by construction.
-      if (adoptPlantedOnLogin && sess) validSessions.add(sess);
+      // phpSessionValidation: an invalid-charset presented ID is never
+      // adopted, even when adoption is on.
+      if (adoptPlantedOnLogin && sess && (!phpSessionValidation || PHP_SESSION_ID_RE.test(sess))) validSessions.add(sess);
       if (rotateOnLogin) {
         sessionSeq += 1;
         const id = `sess-login-${sessionSeq}`;
@@ -171,9 +186,16 @@ function startCookieFixture(cfg = {}) {
 
 // Bearer/API fixture (Juice-shaped). cfg: loginToken (default
 // 'fixture-jwt-token-001'; null => login returns no token field),
-// whoamiStatus (200; 401 => replay rejected).
+// whoamiStatus (200; 401 => replay rejected),
+// whoamiAuthIndifferent (false — when true whoami returns 200
+// {"user":{}} with and without a token: the live Juice dead oracle),
+// spaLogout200 (false — when true the 4 logout paths return 200
+// HTML, the SPA-shell case). GET /rest/2fa/status (401 without a
+// token, 200 + canary email with one: the live T4b check) and GET
+// /rest/basket/1 (401 without, 200 without the canary email:
+// divergence-only) are always served.
 function startApiFixture(cfg = {}) {
-  const { loginToken = 'fixture-jwt-token-001', whoamiStatus = 200 } = cfg;
+  const { loginToken = 'fixture-jwt-token-001', whoamiStatus = 200, whoamiAuthIndifferent = false, spaLogout200 = false } = cfg;
   const calls = [];
   const server = http.createServer(async (req, res) => {
     const u = new URL(req.url, 'http://127.0.0.1');
@@ -196,7 +218,40 @@ function startApiFixture(cfg = {}) {
       res.end(JSON.stringify({ authentication: { token: loginToken, bid: 1, umail: JUICE_USER } }));
       return;
     }
+    // Live Juice T4b check (surveyed 8 Nov 2026): fixed path, 401
+    // without a token, 200 + canary email with one.
+    if (req.method === 'GET' && u.pathname === '/rest/2fa/status') {
+      const auth = String(req.headers.authorization || '');
+      if (auth !== `Bearer ${loginToken}`) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Unauthorized' }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ setup: false, email: JUICE_USER }));
+      return;
+    }
+    // Divergence-only oracle: 401 without a token, 200 with one,
+    // but the body never names the canary account.
+    if (req.method === 'GET' && u.pathname === '/rest/basket/1') {
+      const auth = String(req.headers.authorization || '');
+      if (auth !== `Bearer ${loginToken}`) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Unauthorized' }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'success', data: { id: 1, UserId: 1, Products: [] } }));
+      return;
+    }
     if (req.method === 'GET' && u.pathname === '/rest/user/whoami') {
+      // Live Juice dead oracle: identical 200 {"user":{}} with and
+      // without a token — can never serve as the replay check.
+      if (whoamiAuthIndifferent) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ user: {} }));
+        return;
+      }
       const auth = String(req.headers.authorization || '');
       if (whoamiStatus !== 200 || auth !== `Bearer ${loginToken}`) {
         res.writeHead(401, { 'Content-Type': 'application/json' });
@@ -208,6 +263,13 @@ function startApiFixture(cfg = {}) {
       return;
     }
     if (req.method === 'GET' && LOGOUT_PATHS.includes(u.pathname)) {
+      // SPA shell: the logout path serves 200 HTML, not a server
+      // logout endpoint — it must not flip serverLogoutExists.
+      if (spaLogout200) {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end('<html><body>Logged out</body></html>');
+        return;
+      }
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ message: 'Not found' }));
       return;
@@ -541,5 +603,118 @@ describe('sessionFixation D1/D2 repair (#474)', () => {
       resolveLabCreds({ role: 'admin', target: 'http://172.17.0.1:3100/', labCreds: null, labTargets: lab }),
       null, 'no creds supplied -> null'
     );
+  });
+});
+
+describe('sessionFixation re-proof repair (8 Nov 2026)', () => {
+  it('(s) canary matches the PHP session-ID charset [A-Za-z0-9,-] — the old underscore form does not', () => {
+    assert.match(sessionFixationCanary('ab12cd34'), SESSION_CANARY_RE);
+    // rids are alphanumeric by construction (rand() is base-36); the
+    // dmsessfix- prefix keeps the whole canary PHP-valid.
+    for (const rid of ['a', 'Z9-8,7', 'x1y2z3']) {
+      assert.match(sessionFixationCanary(rid), SESSION_CANARY_RE, `canary(${rid}) must be PHP-valid`);
+    }
+    assert.equal(SESSION_CANARY_RE.test('__dm_sessfix_ab12cd34'), false, 'the old underscore canary is NOT PHP-valid');
+    assert.equal(SESSION_CANARY_RE.test('dmsessfix-ab12cd34'), true);
+  });
+
+  it('(t) PHP-validating stub: T2 fires with the hyphen canary (the re-proof failure, fixed)', async () => {
+    const fx = await startCookieFixture({ rotateOnLogin: false, invalidateOnLogout: true, adoptPlantedOnLogin: true, phpSessionValidation: true });
+    try {
+      const port = new URL(fx.base).port;
+      const opts = { ...cookieOpts, labTargets: `127.0.0.1:${port}` };
+      const findings = await probeSessionFixation([cookieForm(fx.base)], `${fx.base}/`, opts);
+      const t2 = findings.find((f) => /planted session ID/.test(f.title));
+      assert.ok(t2, `T2 HIGH must fire against a PHP-validating server; got: ${findings.map((f) => f.title).join(' | ')}`);
+      assert.equal(t2.severity, 'high');
+      assert.ok(findings.some((f) => f.title === T1_TITLE), 'T1 fires alongside (no rotation)');
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(u) PHP-validating stub that never adopts a planted ID: T2 stays silent, T1 still fires', async () => {
+    const fx = await startCookieFixture({ rotateOnLogin: false, invalidateOnLogout: true, adoptPlantedOnLogin: false, phpSessionValidation: true });
+    try {
+      const port = new URL(fx.base).port;
+      const opts = { ...cookieOpts, labTargets: `127.0.0.1:${port}` };
+      const findings = await probeSessionFixation([cookieForm(fx.base)], `${fx.base}/`, opts);
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].title, T1_TITLE);
+      assert.ok(!findings.some((f) => /planted session ID/.test(f.title)), 'T2 must not fire when the server never adopts');
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(v) two identical login forms: T1 fires once (dedupe by action)', async () => {
+    const fx = await startCookieFixture({ rotateOnLogin: false, invalidateOnLogout: true });
+    try {
+      const findings = await probeSessionFixation([cookieForm(fx.base), cookieForm(fx.base)], `${fx.base}/`, cookieOpts);
+      assert.equal(findings.length, 1, `expected exactly 1 finding; got: ${findings.map((f) => f.title).join(' | ')}`);
+      assert.equal(findings[0].title, T1_TITLE);
+      // One form probed, not two: T1 + T4 each POST once.
+      assert.equal(fx.calls.filter((c) => c === 'POST /login.php').length, 2, `calls: ${fx.calls.join(', ')}`);
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(w) T4b divergence-only: basket 401 without a token / 200 without the canary email -> fires on divergence', async () => {
+    const fx = await startApiFixture({});
+    try {
+      const opts = {
+        labCreds: { username: JUICE_USER, password: JUICE_PASS },
+        timeoutMs: 3000,
+        apiRoutes: [`${fx.base}/rest/user/login`, `${fx.base}/rest/basket/1`],
+      };
+      const findings = await probeSessionFixation([], `${fx.base}/`, opts);
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].title, T4B_TITLE);
+      assert.equal(findings[0].url, `${fx.base}/rest/basket/1`);
+      assert.match(findings[0].evidence.response, /no-token 401 vs old-token 200/);
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(x) T4b dead oracle: whoami 200 both ways with no canary -> never fires (live Juice behaviour)', async () => {
+    const fx = await startApiFixture({ whoamiAuthIndifferent: true });
+    try {
+      const findings = await probeSessionFixation([], `${fx.base}/`, apiOpts(fx.base));
+      assert.deepEqual(findings, []);
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(y) T4b multi-candidate: dead whoami skipped, live /rest/2fa/status fires (the Juice pair)', async () => {
+    const fx = await startApiFixture({ whoamiAuthIndifferent: true });
+    try {
+      const opts = {
+        labCreds: { username: JUICE_USER, password: JUICE_PASS },
+        timeoutMs: 3000,
+        apiRoutes: [`${fx.base}/rest/user/login`, `${fx.base}/rest/user/whoami`, `${fx.base}/rest/2fa/status`],
+      };
+      const findings = await probeSessionFixation([], `${fx.base}/`, opts);
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].title, T4B_TITLE);
+      assert.equal(findings[0].url, `${fx.base}/rest/2fa/status`);
+      assert.match(findings[0].evidence.response, /canary account/);
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(z) T4b SPA logout: logout paths returning 200 HTML do NOT count as a server logout endpoint', async () => {
+    const fx = await startApiFixture({ spaLogout200: true });
+    try {
+      const findings = await probeSessionFixation([], `${fx.base}/`, apiOpts(fx.base));
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].title, T4B_TITLE);
+      assert.match(findings[0].evidence.response, /no server logout endpoint exists/);
+    } finally {
+      await fx.close();
+    }
   });
 });
