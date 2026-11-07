@@ -15,7 +15,7 @@
 // no I/O, no network — so every rule here is unit-testable.
 //
 // A "known app" is only ever a LAB app with public defaults (DVWA,
-// Juice Shop). Nothing here fingerprints or special-cases a real,
+// Juice Shop, bWAPP). Nothing here fingerprints or special-cases a real,
 // arbitrary target: an unknown target gets exactly the old behaviour.
 export const KNOWN_APPS = {
   dvwa: {
@@ -42,6 +42,23 @@ export const KNOWN_APPS = {
     modulesPath: null,
     database: null,
   },
+  // bWAPP (7 Nov 2026 — fingerprinter lane): a bWAPP hunt was
+  // labelled DVWA with high confidence because BOTH apps log in at
+  // /login.php and the DVWA rule matched the bare path. bWAPP is a
+  // known lab app like DVWA/Juice Shop, so it gets its own identity:
+  // its bug pages live under /bugs/, login is /login.php, and it is
+  // MySQL-backed by definition (its lab DB is currently broken —
+  // repair needs the owner's word — but that changes nothing about
+  // what the app IS). No default credentials are recorded here:
+  // labLogin.js handles DVWA only and bWAPP login is out of scope.
+  bwapp: {
+    id: 'bwapp',
+    name: 'bWAPP',
+    loginPath: '/login.php',
+    securityPath: null,
+    modulesPath: '/bugs/',
+    database: 'mysql',
+  },
 };
 
 /** Endpoint patterns that belong to ANOTHER known app, not this one. */
@@ -50,6 +67,11 @@ export const WRONG_TARGET_PATTERNS = {
   dvwa: [/^\/rest\//i, /^\/api\//i, /^\/ftp\//i, /^\/b2b\//i, /^\/file-upload/i],
   // DVWA's PHP surface — none of these exist on Juice Shop.
   'juice-shop': [/^\/login\.php/i, /^\/vulnerabilities\//i, /^\/security\.php/i, /^\/setup\.php/i, /^\/instructions\.php/i],
+  // DVWA's PHP surface + Juice Shop's API surface — none of these
+  // exist on bWAPP. /login.php is deliberately NOT listed: it is
+  // bWAPP's own login page too (that shared path is what mislabelled
+  // bWAPP as DVWA — see detectKnownApp).
+  bwapp: [/^\/vulnerabilities\//i, /^\/security\.php/i, /^\/setup\.php/i, /^\/instructions\.php/i, /^\/rest\//i, /^\/api\//i, /^\/ftp\//i, /^\/b2b\//i, /^\/file-upload/i],
 };
 
 /** Path part of a URL or a bare path ('' when the input has no path). */
@@ -80,9 +102,26 @@ export function detectKnownApp({ url = '', html = '', headers = {} } = {}) {
   } catch {
     pathname = u.split('?')[0].toLowerCase();
   }
-  // DVWA: its own login page, or its own title on any served page.
-  if (pathname === '/login.php' || /Damn Vulnerable Web Application/i.test(body)) {
-    return { app: 'dvwa', confidence: 'high', markers: [pathname === '/login.php' ? 'login.php path' : 'DVWA title'] };
+  // bWAPP FIRST (7 Nov 2026 — fingerprinter lane): bWAPP's own brand
+  // is on every page it serves, including its login page. It must win
+  // over the /login.php path check below — bWAPP logs in at /login.php
+  // exactly like DVWA, and the bare path is what mislabelled a bWAPP
+  // hunt as DVWA with high confidence (h_ece75df668b2: the served
+  // page was only "Connection failed: Unknown database 'bWAPP'").
+  if (/bWAPP/i.test(body)) {
+    return { app: 'bwapp', confidence: 'high', markers: ['bWAPP title'] };
+  }
+  // DVWA: its own title on any served page, or its own login page
+  // WITH a DVWA marker in the body. The bare /login.php path alone
+  // is NOT evidence — bWAPP's login page lives at /login.php too —
+  // so a path match without a DVWA string in the body detects as
+  // no known app. DVWA's real login page always carries its title,
+  // so the tightened rule still fires for genuine DVWA.
+  if (/Damn Vulnerable Web Application/i.test(body)) {
+    return { app: 'dvwa', confidence: 'high', markers: ['DVWA title'] };
+  }
+  if (pathname === '/login.php' && /DVWA/i.test(body)) {
+    return { app: 'dvwa', confidence: 'high', markers: ['login.php path + DVWA marker'] };
   }
   if (/\/vulnerabilities\//i.test(body) && /DVWA/i.test(body)) {
     return { app: 'dvwa', confidence: 'high', markers: ['DVWA modules page'] };
@@ -178,6 +217,9 @@ export function knownAppSOMLines({ knownApp = null, auth = null } = {}) {
   }
   if (knownApp === 'juice-shop') {
     return ['TARGET IS OWASP Juice Shop — hunt its /rest/* API surface; DVWA paths (/login.php, /vulnerabilities/*) do not exist here.'];
+  }
+  if (knownApp === 'bwapp') {
+    return ['TARGET IS bWAPP — a deliberately vulnerable lab. Its bug pages live under /bugs/; the login page is /login.php. DVWA paths (/vulnerabilities/*, /security.php) and Juice Shop paths (/rest/*, /api/*) do not exist here.'];
   }
   return [];
 }
