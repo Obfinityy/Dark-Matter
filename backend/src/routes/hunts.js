@@ -56,6 +56,7 @@ import { understandTarget } from '../targetIntel.js';
 import { runAutonomousHunt, iterationPriceCents } from '../huntAgent.js';
 import { getBalanceCents } from '../billing/credits.js';
 import { hasActiveAccessById } from '../access.js';
+import { resolveLabCreds } from '../labCreds.js';
 import { teardownHuntContainer, huntDesktopScreenshot } from '../huntRunner.js';
 import { listBrainModels, getBrainState, setBrainModel, metaAvailable } from '../brainProvider.js';
 import { getBrainMode, setBrainMode, listBrainActions, outputByHash, deriveProcessState, executeBrainAction } from '../brainMode.js';
@@ -240,7 +241,7 @@ export function mapListHunt(m) {
 // target checks below. Everything else (chat, plugins, reports, health,
 // browsing) stays public.
 router.post('/', requireAuth, async (req, res) => {
-  const { target, scope, confirmedAuthorized, mode, forceNew, fresh } = req.body || {};
+  const { target, scope, confirmedAuthorized, mode, forceNew, fresh, labCreds } = req.body || {};
   // brainMode: 'ai' (default) or 'scanner' (rule-based automation, no AI).
   // scanDepth: 'quick' | 'standard' (default) | 'deep' — autonomous hunter
   // only; validated, anything else falls back to 'standard'.
@@ -527,7 +528,19 @@ router.post('/', requireAuth, async (req, res) => {
       // scanner battery (fingerprint → probes → verifier) and record
       // findings as hunt events. $0 AI spend, results in seconds/minutes.
       const { runScannerHunt } = await import('../scannerHunt.js');
-      runScannerHunt(huntId, target, { scope, userId: req.user.id, scanDepth: reqScanDepth }).catch((err) => {
+      // LAB-CANARY CREDS (#474): forwarded ONLY for an admin hunting a
+      // lab target — resolveLabCreds drops everything else silently
+      // (non-admin, non-lab target, or malformed creds -> no creds).
+      const gatedLabCreds = resolveLabCreds({
+        role: req.user.role,
+        target,
+        labCreds,
+        labTargets: process.env.LAB_TARGETS || '',
+      });
+      runScannerHunt(huntId, target, {
+        scope, userId: req.user.id, scanDepth: reqScanDepth,
+        ...(gatedLabCreds ? { labCreds: gatedLabCreds } : {}),
+      }).catch((err) => {
         appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
       });
     } else {

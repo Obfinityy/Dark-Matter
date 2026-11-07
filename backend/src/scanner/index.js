@@ -1218,7 +1218,10 @@ export async function runScan(
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));
   await step('smtp-injection', () => probeSmtpInject(forms, url, opts));
-  await step('session-fixation', () => probeSessionFixation(forms, url, opts));
+  // T4b (bearer/API login) needs the already-discovered route set —
+  // wired in here from scanTargets (crawl + openapi + jsRoutes-mined),
+  // no new discovery phase. T4b never fires on the SPA-root HTML alone.
+  await step('session-fixation', () => probeSessionFixation(forms, url, { ...opts, apiRoutes: scanTargets }));
   await step('user-enumeration', () => probeUserEnum(forms, url, opts));
   await step('mass-assignment', () => probeMassAssignment(forms, url, opts));
   await step('ws-messages', () => probeWsMessages(url, opts));

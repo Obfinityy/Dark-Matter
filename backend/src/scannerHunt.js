@@ -202,6 +202,10 @@ async function runScannerHuntInner(huntId, target, opts = {}) {
         // without this, the nuclei phase inherited 15s/30s and died silently
         // on every standard/deep scan before any template completed.
         nucleiTimeoutMs: NUCLEI_TIMEOUT_MS,
+        // LAB-CANARY CREDS (#474): forwarded ONLY from the hunt route's
+        // admin + lab-target gate (resolveLabCreds) — no other caller
+        // passes them, so runScan can never receive injected creds.
+        ...(opts.labCreds ? { labCreds: opts.labCreds } : {}),
         // PHASE VISIBILITY (5 Nov 2026): stream each phase into the hunt's
         // events.jsonl as it finishes, so a minutes-long nuclei phase does
         // not wait until scan end to appear. record() is best-effort (never throws)
