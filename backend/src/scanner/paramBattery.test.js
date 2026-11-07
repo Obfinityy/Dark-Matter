@@ -93,7 +93,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 79);
+    assert.equal(DEFAULT_PHASES.length, 80);
   });
 
   it('zero param targets: all 29 param phases emit skipped records, rollup reports them', async () => {
@@ -339,7 +339,8 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // record, 'source-code-disclosure' a 40th, 'metadata-leakage'
   // a 41st, 'sensitive-data-in-logs' a 42nd,
   // 'sensitive-info-disclosure' a 43rd, 'timing-side-channel'
-  // a 44th and 'untrusted-js-inclusion' a 45th (the pasted page
+  // a 44th, 'untrusted-js-inclusion' a 45th and 'api-versioning'
+  // a 46th (the pasted page
   // is always a surface — 0 findings on
   // the bare stub), so the two skip reasons mix and the summary
   // renders a bare count. The spec fetch is stubbed to the bare page
@@ -347,7 +348,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // targets — the same seam discipline as domRenderer above.
   // (37/28 before js-api-routes; 43/33 before timing-side-channel;
   // 44/33 before xml-injection and untrusted-js-inclusion.)
-  it('real runScan on a bare page renders the 45/34 line end to end', async () => {
+  it('real runScan on a bare page renders the 46/34 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -359,15 +360,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 79,
-        ok: 45,
+        total: 80,
+        ok: 46,
         failed: 0,
         skipped: 34,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 45 ran ok, 34 skipped, 0 failed, 0 timed out.'
+        'Phases: 46 ran ok, 34 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

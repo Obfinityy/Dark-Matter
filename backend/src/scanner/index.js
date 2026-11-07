@@ -85,6 +85,7 @@ import { probeSensitiveInfoDisclosure } from './probes/sensitiveInfoDisclosure.j
 import { probeTimingSideChannel } from './probes/timingSideChannel.js';
 import { probeXmlInjection } from './probes/xmlInjection.js';
 import { probeUntrustedJsInclusion } from './probes/untrustedJsInclusion.js';
+import { probeApiVersioning } from './probes/apiVersioning.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -167,6 +168,7 @@ export const DEFAULT_PHASES = [
   'timing-side-channel',
   'xml-injection',
   'untrusted-js-inclusion',
+  'api-versioning',
   'nuclei',
 ];
 
@@ -778,6 +780,15 @@ export async function runScan(
   // untrustedJsInclusion.js). Never re-fires the generic missing-SRI
   // finding (headers phase owns that).
   await step('untrusted-js-inclusion', () => (fp ? probeUntrustedJsInclusion({ url, html: fp.body }) : []));
+  // API VERSIONING (7 Nov 2026, row #343): an API version still live
+  // after it was superseded or explicitly deprecated (Deprecation /
+  // Sunset header, or two+ versions of one base responding) — old
+  // versions keep serving data without security fixes (OWASP
+  // API08:2023). Seeds its bases from the scan's target URLs
+  // (jsRoutes/openapi-mined /api and /rest paths); a single live
+  // version never fires, /api vs /rest are different surfaces, and
+  // a 410 is correctly retired (see apiVersioning.js).
+  await step('api-versioning', () => probeApiVersioning(url, scanTargets, opts));
   // 35/63 FIX: track whether the param battery ran at all. If no scan
   // target carried a single parameter, the loop body below never executes
   // and the 28 phases inside it would vanish in silence — record each of
