@@ -18,7 +18,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { runScan, PARAM_BATTERY_PHASES, DEFAULT_PHASES, buildPhaseRollup, buildPhaseSummaryLine } from './index.js';
+import { runScan, PARAM_BATTERY_PHASES, DEFAULT_PHASES, buildPhaseRollup, buildPhaseSummaryLine, hasOffPageParamTarget } from './index.js';
 
 const realFetch = globalThis.fetch;
 const teardown = () => {
@@ -261,7 +261,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes skip, rollup reads 95 ran ok + 2 skipped = 97', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 98/98/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -296,31 +296,37 @@ describe('gated discovery phases record a skip on the false branch', () => {
       );
       const dom = byName(result.phases)['dom-render'];
       assert.ok(dom && dom.ok && !dom.skipped, 'dom-render must run on the SPA shell, not skip');
+      // ERROR-DISCLOSURE COVERAGE FIX (7 Nov 2026): the DOM-discovered
+      // params live on the landing page itself (/?email=..., /?password=...)
+      // — under the old gate that satisfied "param targets already exist"
+      // and skipped both discovery phases, hiding /rest/* from the whole
+      // scan. Under hasOffPageParamTarget they do NOT satisfy the gate:
+      // both phases must FIRE (honest no-ops on this stub — no spec, no
+      // routes in the stub bundle) instead of skipping.
       for (const name of ['openapi-targets', 'js-api-routes']) {
         const ph = byName(result.phases)[name];
-        assert.ok(ph, `${name} must leave a skip record`);
-        assert.equal(ph.skipped, true, `${name} must be skipped`);
-        assert.equal(ph.skipReason, 'param targets already exist', `${name} reason`);
-        assert.equal(ph.ok, true);
+        assert.ok(ph, `${name} must leave a record when it fires`);
+        assert.equal(ph.ok, true, `${name} must be ok`);
+        assert.equal(ph.skipped, undefined, `${name} must not skip on landing-page-only params`);
+        assert.equal(ph.findingsCount, 0, `${name} finds nothing on this stub`);
       }
-      // The exact shape the Juice proof brief expected: the battery
-      // ran twice (two DOM targets, 56 records), 40 non-param phases
-      // ran ok (36 + verb-tampering + method-override + secrets-in-js
-      // + error-disclosure, 7 Nov 2026 — all four run here because
-      // param targets exist and the shell carries a script bundle),
-      // and the two
-      // gated-off discovery phases are visible as skipped instead of
-      // vanishing — 98 total, not 97.
+      // The exact shape the Juice proof brief expected, updated for the
+      // coverage fix: the battery ran twice (two DOM targets, 56
+      // records), 40 non-param phases ran ok (36 + verb-tampering +
+      // method-override + secrets-in-js + error-disclosure, 7 Nov 2026
+      // — all four run here because param targets exist and the shell
+      // carries a script bundle), and the two discovery phases now RUN
+      // instead of skipping — 98 total, 98 ok, 0 skipped.
       assert.deepEqual(buildPhaseRollup(result.phases), {
         total: 98,
-        ok: 96,
+        ok: 98,
         failed: 0,
-        skipped: 2,
+        skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 96 ran ok, 2 skipped (param targets already exist), 0 failed, 0 timed out.'
+        'Phases: 98 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -335,6 +341,177 @@ describe('gated discovery phases record a skip on the false branch', () => {
       await new Promise((r) => server.close(r));
     }
   });
+
+describe('hasOffPageParamTarget — discovery gate (error-disclosure coverage fix, 7 Nov 2026)', () => {
+  it('HG-1: a landing-page-only param target does NOT satisfy the gate', () => {
+    assert.equal(
+      hasOffPageParamTarget(['http://172.17.0.1:3000/?email=dmprobe_55a3'], 'http://172.17.0.1:3000/'),
+      false,
+      'the live Juice hunt had exactly this target and discovery still skipped'
+    );
+    assert.equal(
+      hasOffPageParamTarget(
+        ['http://172.17.0.1:3000/', 'http://172.17.0.1:3000/?email=dmprobe_55a3'],
+        'http://172.17.0.1:3000/'
+      ),
+      false
+    );
+  });
+
+  it('HG-2: an off-page param target satisfies the gate', () => {
+    assert.equal(
+      hasOffPageParamTarget(
+        ['http://172.17.0.1:3100/', 'http://172.17.0.1:3100/login.php?username=dmprobe_1&password=dmprobe_2&Login=1'],
+        'http://172.17.0.1:3100/'
+      ),
+      true,
+      'DVWA login.php keeps skipping discovery exactly as before'
+    );
+    assert.equal(
+      hasOffPageParamTarget(['http://example.com/search?q=x'], 'http://example.com/'),
+      true
+    );
+  });
+
+  it('HG-3: no param-bearing target does not satisfy the gate', () => {
+    assert.equal(hasOffPageParamTarget(['http://example.com/', 'http://example.com/about'], 'http://example.com/'), false);
+    assert.equal(hasOffPageParamTarget([], 'http://example.com/'), false);
+  });
+
+  it('HG-4: a param on the pasted page itself (non-root paste) does not satisfy the gate', () => {
+    assert.equal(
+      hasOffPageParamTarget(['http://example.com/app/?q=dmprobe_1'], 'http://example.com/app/'),
+      false,
+      'trailing-slash difference is the same page'
+    );
+    assert.equal(
+      hasOffPageParamTarget(['http://example.com/app/?q=dmprobe_1'], 'http://example.com/app'),
+      false,
+      'pasted URL without trailing slash is the same page'
+    );
+    assert.equal(
+      hasOffPageParamTarget(['http://example.com/app/other?q=dmprobe_1'], 'http://example.com/app/'),
+      true
+    );
+  });
+
+  it('HG-5: off-origin and malformed targets never satisfy the gate', () => {
+    assert.equal(
+      hasOffPageParamTarget(['http://other.example.com/?q=x'], 'http://example.com/'),
+      false
+    );
+    assert.equal(hasOffPageParamTarget(['not a url?x=1'], 'http://example.com/'), false);
+    assert.equal(hasOffPageParamTarget(['http://example.com/?q=x'], 'not a url'), false);
+    assert.equal(hasOffPageParamTarget(null, 'http://example.com/'), false);
+  });
+});
+
+describe('GS-7: Juice shape + mined API route — error-disclosure fires in-scan (error-disclosure coverage fix)', () => {
+  // Juice-like bundle: the search service calls /rest/products/search
+  // with a q param, plus a param-less list endpoint.
+  const GS7_BUNDLE = `// app bundle (stub)
+var searchService = {
+  search: function(e) { return http.get("/rest/products/search?q=" + e); },
+  list: function() { return http.get("/api/Products"); }
+};`;
+  // DOM root with one named standalone input — the live hunt's shape:
+  // the only param target is synthesised on the landing page itself.
+  const GS7_ROOT_DOM = `<html><body><app-root>
+<input id="email" name="email" type="text">
+</app-root></body></html>`;
+
+  it('GS-7: js-api-routes mines /rest/products/search and error-disclosure fires the SQLITE_ERROR in-scan', async () => {
+    const calls = [];
+    const server = http.createServer((req, res) => {
+      let raw = '';
+      req.on('data', (c) => {
+        raw += c;
+      });
+      req.on('end', () => {
+        calls.push({ method: req.method, url: req.url, body: raw });
+        const u = new URL(req.url, 'http://127.0.0.1');
+        if (u.pathname === '/') {
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(GS_SHELL);
+          return;
+        }
+        if (u.pathname === '/main.js') {
+          res.writeHead(200, { 'Content-Type': 'application/javascript' });
+          res.end(GS7_BUNDLE);
+          return;
+        }
+        if (
+          u.pathname === '/openapi.json' ||
+          u.pathname === '/swagger.json' ||
+          u.pathname === '/openapi.yaml' ||
+          u.pathname === '/swagger.yaml'
+        ) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'not found' }));
+          return;
+        }
+        if (u.pathname === '/rest/products/search') {
+          const q = u.searchParams.get('q') || '';
+          // Malformed / injection-shaped q (a quote, or overlong) trips
+          // the backend the way the real Juice search does; a clean
+          // filler q answers 200 — the differential's baseline.
+          if (q.includes("'") || q.length > 50) {
+            res.writeHead(500, { 'Content-Type': 'text/html' });
+            res.end(`<html><body><h1>Error</h1><pre>SQLITE_ERROR: near "'": syntax error</pre></body></html>`);
+            return;
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'ok', data: [] }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok' }));
+      });
+    });
+    const stub = await new Promise((resolve) => {
+      server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port }));
+    });
+    try {
+      const target = `http://127.0.0.1:${stub.port}/`;
+      const norm = (u) => String(u).replace(/\/$/, '');
+      const domRenderer = async (url) => {
+        if (norm(url) === norm(target)) return { ok: true, html: GS7_ROOT_DOM };
+        return { ok: false, html: '', error: 'stub: route not rendered' };
+      };
+      const result = await runScan(
+        { target, confirmedAuthorized: true, labTargets: '127.0.0.1' },
+        { timeoutMs: 15000, domRenderer, nucleiRunner: async () => ({ findings: [], ok: true, timedOut: false }) }
+      );
+      // The gate fix: openapi finds no spec (honest no-op) and js-routes
+      // mines the search route — neither phase skips on the
+      // landing-page-only /?email= target.
+      const oa = byName(result.phases)['openapi-targets'];
+      assert.ok(oa && oa.ok && !oa.skipped, 'openapi-targets must run, not skip');
+      assert.equal(oa.findingsCount, 0, 'no spec on this stub');
+      const js = byName(result.phases)['js-api-routes'];
+      assert.ok(js && js.ok && !js.skipped, 'js-api-routes must run, not skip');
+      assert.ok((js.jsRouteTargets || 0) >= 1, 'js-api-routes must mine at least the search route');
+      // The mined route reaches the battery AND error-disclosure: the
+      // malformed-q trigger 500s with SQLITE_ERROR against a clean 200
+      // baseline, so the phase fires in-scan — the exact miss the live
+      // Juice hunt exposed (0 findings, 0 rest/products mentions).
+      const ed = byName(result.phases)['error-disclosure'];
+      assert.ok(ed && ed.ok && !ed.skipped, 'error-disclosure must run');
+      assert.ok((ed.findingsCount || 0) >= 1, 'error-disclosure must fire on the mined search route');
+      const leak = (result.findings || []).find(
+        (f) => f.class === 'error_info_disclosure' && String(f.url || '').includes('/rest/products/search')
+      );
+      assert.ok(leak, 'expected an error_info_disclosure finding on /rest/products/search');
+      assert.ok(
+        String((leak.evidence && leak.evidence.response) || '').includes('SQLITE_ERROR'),
+        'evidence must cite the SQLITE_ERROR'
+      );
+      assert.equal(leak.severity, 'medium');
+    } finally {
+      await new Promise((r) => server.close(r));
+    }
+  });
+});
 
   it('GS-6: a phases allowlist without a discovery phase emits no record for it', async () => {
     stubPage(LOGIN_PAGE);

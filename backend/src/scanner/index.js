@@ -230,6 +230,39 @@ export function buildPhaseSummaryLine(phaseList) {
   return `Phases: ${rollup.ok} ran ok, ${skippedPart}, ${rollup.failed} failed, ${rollup.timedOut} timed out.`;
 }
 
+// DISCOVERY GATE (7 Nov 2026, error-disclosure coverage fix): a
+// param-bearing target satisfies this gate — "the battery is already
+// unlocked, no discovery needed" — only when it lives OFF the pasted
+// page. A param synthesised from a standalone input on the landing
+// page itself (Juice SPA root: /?email=dmprobe_...) proves nothing
+// about the site's API surface: it used to satisfy the gate and skip
+// both openapi-targets and js-api-routes, so /rest/* was never
+// discovered in-scan and error-disclosure never saw
+// /rest/products/search (live SQLITE_ERROR in the lane matrix, 0
+// mentions in the whole hunt). Off-page targets (a form on
+// /login.php, a crawled link with a query) still satisfy the gate
+// exactly as before. Pure — exported for unit tests.
+export function hasOffPageParamTarget(targets, baseUrl) {
+  let base;
+  try {
+    base = new URL(baseUrl);
+  } catch {
+    return false;
+  }
+  const normPath = (p) => (p.length > 1 ? p.replace(/\/$/, '') : p);
+  for (const t of Array.isArray(targets) ? targets : []) {
+    if (extractParams(t).length === 0) continue;
+    try {
+      const u = new URL(t);
+      if (u.origin !== base.origin) continue;
+      if (normPath(u.pathname) !== normPath(base.pathname)) return true;
+    } catch {
+      continue;
+    }
+  }
+  return false;
+}
+
 /**
  * Run the rule-based scan battery.
  *
@@ -617,14 +650,17 @@ export async function runScan(
   // GETs them, exactly as for form targets. An absent spec (or one
   // with no probeable GET params) is an honest no-op: the step records
   // ok:true with 0 targets and the battery's skipped records below
-  // still describe the gap. Where static/DOM targets already exist
-  // (DVWA, WebGoat, Juice Shop) the step never fires and a skipped
-  // record is emitted instead (7 Nov 2026, gated-skip fix), so their
-  // rollups gain 1 skipped record and nothing else changes.
+  // still describe the gap. Where off-page static/DOM targets already
+  // exist (DVWA, WebGoat) the step never fires and a skipped record is
+  // emitted instead (7 Nov 2026, gated-skip fix), so their rollups gain
+  // 1 skipped record and nothing else changes. A landing-page-only param
+  // target does NOT satisfy the gate (7 Nov 2026, error-disclosure
+  // coverage fix — see hasOffPageParamTarget): Juice Shop's /?email=...
+  // used to skip this step and hide /rest/* from the whole scan.
   // opts.openApiFetcher is the test seam: (url, opts) => fetchPage-shaped { url, status, headers, body }
   // replacing fetchPage; production callers never pass it.
   let openApiDiscovery = null;
-  const needsOpenApi = !scanTargets.some((u) => extractParams(u).length > 0);
+  const needsOpenApi = !hasOffPageParamTarget(scanTargets, url);
   if (needsOpenApi) {
     await step(
       'openapi-targets',
@@ -666,16 +702,17 @@ export async function runScan(
   // bundle contains every /rest/* + /api/* route the frontend calls
   // (50 distinct literals + 27 service bases in main.js, live).
   // When (and only when) the target builder AND openapi-targets both
-  // produced zero param-bearing targets, mine the page's same-origin
-  // <script> bundles for GET-usable routes (see jsRoutes.js) and
-  // synthesise GET targets from them. The gate is re-checked fresh
-  // here: if openapi-targets already unlocked the battery, this step
+  // produced zero OFF-PAGE param-bearing targets (see
+  // hasOffPageParamTarget — a landing-page-only param does not count),
+  // mine the page's same-origin <script> bundles for GET-usable routes
+  // (see jsRoutes.js) and synthesise GET targets from them. The gate is
+  // re-checked fresh here: if openapi-targets already unlocked the battery, this step
   // never fires — a skipped record is emitted instead (7 Nov 2026,
   // gated-skip fix), so VAmPI/DVWA/WebGoat rollups gain 1 skipped
   // record and nothing else changes.
   // opts.jsRoutesFetcher is the test seam, mirroring openApiFetcher.
   let jsRoutesDiscovery = null;
-  if (!scanTargets.some((u) => extractParams(u).length > 0)) {
+  if (!hasOffPageParamTarget(scanTargets, url)) {
     await step(
       'js-api-routes',
       async () => {
