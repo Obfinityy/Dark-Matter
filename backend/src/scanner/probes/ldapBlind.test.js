@@ -2,7 +2,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { probeLdapBlind } from './ldapBlind.js';
+import { probeLdapBlind, triple, visibleText } from './ldapBlind.js';
 
 describe('ldapBlind probe', () => {
   let server;
@@ -48,5 +48,105 @@ describe('ldapBlind probe', () => {
   it('handles unreachable host without throwing', async () => {
     const findings = await probeLdapBlind('http://127.0.0.1:1/login', ['user'], { timeoutMs: 2000 });
     assert.deepEqual(findings, []);
+  });
+});
+
+describe('ldapBlind token-noise + control-veto regression (7 Nov 2026)', () => {
+  // DVWA false positive, hunt h_fb007db4d145: login.php embeds a per-request
+  // random 32-hex-char CSRF token (hidden user_token). The baseline token
+  // happened to contain "bad" (a hex-compatible deny keyword) while the
+  // probe tokens did not, so the old whole-body triple() read baseline deny
+  // vs probes other and fired a spurious 2/3 oracle — on a page with no
+  // LDAP backend. These tests pin the two system-level fixes:
+  //   (1) signal matching reads visible text only (token values ignored);
+  //   (2) the nonsense wildcard zzz* is a REQUIRED control (veto, not vote).
+  let server;
+  let port;
+  let mode = 'token-noise';
+  const base = () => `http://127.0.0.1:${port}`;
+  // Both 32 hex chars, so every response lands in the same length bucket.
+  const BAD_TOKEN = 'bad' + '0123456789abcdef0123456789abc';
+  const CLEAN_TOKEN = '0123456789abcdef0123456789abcdef';
+  const FORM = (token) =>
+    `<html><body><form><input type='hidden' name='user_token' value='${token}' />` +
+    `<label>Username</label><input name='username' />` +
+    `<label>Password</label><input name='password' /></form></body></html>`;
+  const WELCOME = '<html>Welcome to the dashboard</html>';
+  const FAILED = '<html>Username and/or password incorrect.</html>';
+
+  function readBody(req) {
+    return new Promise((resolve) => {
+      let data = '';
+      req.on('data', (c) => { data += c; });
+      req.on('end', () => resolve(data));
+    });
+  }
+
+  before(async () => {
+    server = http.createServer(async (req, res) => {
+      const body = await readBody(req);
+      const user = new URLSearchParams(body).get('user') || '';
+      let page;
+      if (mode === 'token-noise') {
+        // DVWA shape: same login form every time, token differs per request.
+        // The baseline (wrong-user) request draws the "bad" token; probes do not.
+        page = FORM(user.startsWith('zz_no_such_') ? BAD_TOKEN : CLEAN_TOKEN);
+      } else if (mode === 'star-moves-all') {
+        // Any '*' in the input changes the outcome — NOT LDAP-specific.
+        page = user.includes('*') ? WELCOME : FAILED;
+      } else {
+        // True oracle: real wildcards move, the nonsense wildcard does not.
+        page = (user === '*' || user === 'admin*' || user === '*)(uid=*') ? WELCOME : FAILED;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(page);
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    port = server.address().port;
+  });
+
+  after(() => server.close());
+
+  it('token-noise: a baseline token containing "bad" does not fire', async () => {
+    mode = 'token-noise';
+    const findings = await probeLdapBlind(`${base()}/login`, ['user', 'pass'], { timeoutMs: 5000 });
+    assert.deepEqual(findings, []);
+  });
+
+  it('veto: zzz* moving the outcome blocks the finding even when star+paren move', async () => {
+    mode = 'star-moves-all';
+    const findings = await probeLdapBlind(`${base()}/login`, ['user', 'pass'], { timeoutMs: 5000 });
+    assert.deepEqual(findings, []);
+  });
+
+  it('positive control: a true oracle (wildcards move, zzz* stays) still fires', async () => {
+    mode = 'true-oracle';
+    const findings = await probeLdapBlind(`${base()}/login`, ['user', 'pass'], { timeoutMs: 5000 });
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].class, 'ldap_injection');
+    assert.equal(findings[0].title, 'LDAP injection — boolean oracle detected (filter logic responds to wildcards)');
+    assert.equal(findings[0].severity, 'medium');
+  });
+
+  it('triple: visible "incorrect" is deny, visible "Welcome" is allow', () => {
+    assert.match(triple({ status: 200, text: FAILED }), /^ok:deny:/);
+    assert.match(triple({ status: 200, text: WELCOME }), /^ok:allow:/);
+    assert.match(triple({ status: 200, text: '<html>login page</html>' }), /^ok:other:/);
+  });
+
+  it('triple: a token containing "bad" in a hidden input does not flip the signal', () => {
+    const page = FORM(BAD_TOKEN);
+    assert.equal(visibleText(page).toLowerCase().includes('bad'), false);
+    assert.match(triple({ status: 200, text: page }), /^ok:other:/);
+    // The token value itself is untouched in the raw body — only the
+    // signal reading ignores it.
+    assert.ok(page.includes(BAD_TOKEN));
+  });
+
+  it('visibleText: strips tags and attribute values, keeps text nodes', () => {
+    const out = visibleText('<div class="bad">Hello <b>World</b></div><input type="hidden" value="bad42" />');
+    assert.equal(out.includes('bad'), false);
+    assert.ok(out.includes('Hello'));
+    assert.ok(out.includes('World'));
   });
 });

@@ -13,6 +13,21 @@
 // class. Any delay must reproduce under a control filter before being cited;
 // otherwise it is a documented skip, never a finding.
 //
+// Token-noise guard (7 Nov 2026 — DVWA false positive, hunt h_fb007db4d145):
+//   DVWA login.php embeds a per-request random 32-hex-char CSRF token
+//   (hidden input user_token). triple() used to keyword-match the WHOLE
+//   response body, and "bad" is a hex-compatible deny keyword, so a baseline
+//   token containing "bad" flipped the baseline to deny while the probe
+//   tokens did not — a spurious 2/3 fire on a page with no LDAP backend.
+//   Signal matching now reads VISIBLE TEXT ONLY (visibleText strips markup,
+//   so hidden-input values, nonces and other attribute noise can never flip
+//   the signal). The length bucket still uses the raw body length.
+// Negative-control veto (same incident): the nonsense wildcard zzz* is a
+//   REQUIRED control — if it moves the outcome vs baseline, the oracle is
+//   not LDAP-specific and NO finding is filed, however star/paren behave.
+//   (In the DVWA incident zzz* moved too and the old 2/3 threshold fired
+//   anyway.)
+//
 // Depth gating: Quick = T1 only; Standard/Deep = T1 + T2 (T2 needs
 // opts.ldapCanary = { user, attr, value }; skipped gracefully when absent).
 // Every CONFIRMED verdict sits behind a differential oracle per the 100%
@@ -52,10 +67,22 @@ async function postForm(url, fields, opts = {}) {
   }
 }
 
+// Visible text only: strip markup (tags + attribute values) so the outcome
+// signal comes from human-readable words, never from per-request random
+// values hidden in the page (CSRF tokens, nonces, session ids). Tags are
+// replaced with a space so adjacent words do not fuse. Exported for tests.
+export function visibleText(text) {
+  return String(text || '').replace(/<[^>]*>/g, ' ');
+}
+
 // Response triple: status class + outcome keyword signal + length bucket.
 // Two responses "match" when their triples are equal — the differential oracle.
-function triple(r) {
-  const t = r.text.toLowerCase();
+// The signal is read from visibleText (see above); the length bucket uses
+// the RAW body length (tokens are fixed-length, so the bucket is stable).
+// Exported for tests (regression: a token containing "bad" must not flip
+// the signal to deny).
+export function triple(r) {
+  const t = visibleText(r.text).toLowerCase();
   const sig = /welcome|dashboard|successfully|logged in|log out|sign out/i.test(t)
     ? 'allow'
     : /invalid|wrong|incorrect|denied|fail|not found|unknown|does not exist|bad/i.test(t)
@@ -99,6 +126,10 @@ async function t1Oracle(url, params, opts) {
     };
     const matrix = { baseline_wrong_user: tBase };
     let consistent = 0;
+    let zzzMoved = false; // nonsense-wildcard control: MUST stay at baseline.
+    // If zzz* moves the outcome, the oracle is not LDAP-specific (any
+    // '*' in the input changes the response) and NO finding may fire,
+    // however star/paren behave. This is a veto, not a vote.
     let movedText = null; // response text of the first probe that moved the outcome
     for (const [k, v] of Object.entries(probes)) {
       const f = { ...base, [probePointName(up)]: v };
@@ -118,15 +149,19 @@ async function t1Oracle(url, params, opts) {
         if (t !== tBase) consistent++;
       } else if (k === 'zzzStar') {
         if (t === tBase) consistent++;
+        else zzzMoved = true;
       }
     }
     const matrixText = Object.entries(matrix)
       .map(([k, v]) => `${k}=${v}`)
       .join(' | ');
-    if (consistent >= 2) {
-      const m = movedText ? movedText.match(/welcome|dashboard|successfully|logged in|log out|sign out|invalid|wrong|incorrect|denied|fail|not found|unknown|does not exist|bad/i) : null;
-      const idx = m ? movedText.indexOf(m[0]) : -1;
-      const window = idx >= 0 ? movedText.slice(Math.max(0, idx - 60), idx + 120) : (movedText || '').slice(0, 200);
+    if (!zzzMoved && consistent >= 2) {
+      // Evidence window from VISIBLE text only, so the cited words are the
+      // ones that drove the verdict — never a token value.
+      const movedVisible = visibleText(movedText || '');
+      const m = movedVisible.match(/welcome|dashboard|successfully|logged in|log out|sign out|invalid|wrong|incorrect|denied|fail|not found|unknown|does not exist|bad/i);
+      const idx = m ? movedVisible.indexOf(m[0]) : -1;
+      const window = idx >= 0 ? movedVisible.slice(Math.max(0, idx - 60), idx + 120) : movedVisible.slice(0, 200);
       findings.push({
         class: 'ldap_injection',
         id: `ldap-oracle-${rand()}`,
@@ -136,7 +171,7 @@ async function t1Oracle(url, params, opts) {
         parameter: probePointParameter(up),
         evidence: ev(
           `POST ${url} ${probePointName(up)}=* / admin* / zzz* / *)(  (vs wrong-user baseline; redirects NOT followed)`,
-          `Baseline(wrong user): ${tBase}. Matrix: ${matrixText}. Wildcards moved the outcome in a filter-logic-consistent way (${consistent}/3 checks). The moved response reads: "...${window}..."`,
+          `Baseline(wrong user): ${tBase}. Matrix: ${matrixText}. Wildcards moved the outcome in a filter-logic-consistent way (${consistent}/3 checks); nonsense-wildcard control zzz* stayed at baseline. The moved response reads: "...${window.trim()}..."`,
           'Differential oracle established: LDAP filter syntax reaches the directory query. Enables boolean-blind extraction (T2).'
         ),
       });
