@@ -12,16 +12,30 @@
 //
 // A finding counts ONLY when a credential VALUE is present. Two
 // signals, and the finding text says which one fired:
-//   1. CREDENTIAL IN URL: a scan URL (pasted page, crawled link, or
-//      form-derived GET target; query params + `;name=value` path
-//      params, fragments ignored) carries a credential param with a
-//      non-empty value. Password params (password, passwd, pwd, pass)
-//      fire on ANY non-empty value — a password in a URL is a finding
-//      regardless of strength. Secret/key params (secret, api_key,
-//      apikey, access_key, access_token, private_key, client_secret)
-//      require a token-like value (>= 8 chars, token charset, no
-//      spaces) so placeholders like `secret=none` / `api_key=test`
-//      never fire.
+//   1. CREDENTIAL IN URL: a scan URL the TARGET itself emits (pasted
+//      page, crawled link, or GET form action — see the provenance rule
+//      below) carries a credential param with a non-empty value.
+//      Password params (password, passwd, pwd, pass) fire on ANY
+//      non-empty value — a password in a URL is a finding regardless
+//      of strength. Secret/key params (secret, api_key, apikey,
+//      access_key, access_token, private_key, client_secret) require
+//      a token-like value (>= 8 chars, token charset, no spaces) so
+//      placeholders like `secret=none` / `api_key=test` never fire.
+//
+// PROVENANCE RULE (7 Nov 2026 FP fix): the URL half fires ONLY on
+// URLs the target itself emits — `page` (the pasted page), `link`
+// (crawled links), `get-form` (a form action whose method is GET: the
+// target's own HTML directs the browser to put the credential in the
+// URL, so a GET form with a password field IS a real disclosure).
+// Scanner-synthesized URLs NEVER fire: a POST form's GET conversion,
+// a standalone-input target, an OpenAPI target, or a JS-routes target
+// can only ever carry scanner filler values, never a real disclosed
+// credential. The DVWA proof hunt h_d3c0deb50847 exposed this — the
+// scanner's own POST-login-form conversion
+// (login.php?username=dmprobe1_…&password=dmprobe2_…&Login=…) fired
+// as the 18th finding. The discriminator is provenance (the `source`
+// each target carries from index.js), never the filler value — probe
+// values are test data, not the signal. See isTargetEmittedTarget.
 //   2. CREDENTIAL IN SERVED BODY: the landing page HTML (fp.body)
 //      echoes a credential assignment in its visible text, outside
 //      form inputs — e.g. `password: hunter2` in a <pre> block or a
@@ -78,6 +92,36 @@ export const SECRET_PARAM_NAMES = new Set([
   'private_key',
   'client_secret',
 ]);
+
+// Target-emitted sources: the only URL provenances the URL half fires
+// on. `page` is the pasted page, `link` a crawled link, `get-form` a
+// form action whose method is GET. Every other source is a
+// scanner-synthesized URL (see the provenance rule above) and never
+// fires. Exported for unit tests and for index.js.
+export const TARGET_EMITTED_SOURCES = new Set(['page', 'link', 'get-form']);
+
+// Is this scan-target entry a URL the target itself emitted? Entries
+// are bare strings (legacy — treated as emitted, the pre-fix contract:
+// all existing callers and tests pass strings) or { url, source }
+// objects (what index.js passes since the 7 Nov 2026 FP fix). Objects
+// with any other source — post-form GET conversions, standalone-input
+// targets, openapi / js-routes syntheses, or no known source — are
+// NOT emitted and never fire (fail-closed). Exported for unit tests.
+export function isTargetEmittedTarget(entry) {
+  if (typeof entry === 'string') return true;
+  if (entry && typeof entry === 'object' && typeof entry.url === 'string') {
+    return TARGET_EMITTED_SOURCES.has(String(entry.source || ''));
+  }
+  return false;
+}
+
+// The URL string of a scan-target entry (string or { url, source }).
+// Returns null for anything unusable. Not exported — internal.
+function targetEntryUrl(entry) {
+  if (typeof entry === 'string') return entry;
+  if (entry && typeof entry === 'object' && typeof entry.url === 'string') return entry.url;
+  return null;
+}
 
 // The secret charset after percent-decoding: alphanumerics plus
 // `-_+=/.` (base64/base64url + dotted version-ish keys). A space,
@@ -200,10 +244,16 @@ export function extractBodyCredentials(html) {
 
 /**
  * Probe credential disclosure in URL / logs (#41). @param {string}
- * pageUrl — the pasted page URL. @param {string[]} targetUrls — the
- * scan's target URLs (crawled links + form-derived GET targets).
- * @param {object} opts — { html }: the landing page HTML (fp.body)
- * for the body half; without it every finding is the URL variant.
+ * pageUrl — the pasted page URL. @param {(string|{url:string,
+ * source:string})[]} targetUrls — the scan's target URLs. Entries are
+ * bare strings (legacy — treated as target-emitted) or { url, source }
+ * objects; only target-emitted sources (`page`, `link`, `get-form`)
+ * reach the URL half — scanner-synthesized entries (`post-form`,
+ * `standalone`, `openapi`, `js-routes`, unknown) are skipped, so a
+ * POST form's GET conversion can never fire (see the provenance rule
+ * above). @param {object} opts — { html }: the landing page HTML
+ * (fp.body) for the body half; without it every finding is the URL
+ * variant.
  * @returns {object[]} findings (class 'credential_disclosure',
  * high) — at most one per (URL, param), capped at
  * MAX_URL_FINDINGS, plus at most MAX_BODY_FINDINGS body findings.
@@ -217,7 +267,9 @@ export function probeCredentialDisclosure(pageUrl, targetUrls, opts = {}) {
   } catch {
     return [];
   }
-  // Candidate URLs: the pasted page first, then the scan targets.
+  // Candidate URLs: the pasted page first, then the TARGET-EMITTED
+  // scan targets only (provenance rule above — scanner-synthesized
+  // entries never become candidates, so they can never fire).
   // Dedupe by URL without fragment.
   const candidates = [];
   const seenUrls = new Set();
@@ -234,7 +286,10 @@ export function probeCredentialDisclosure(pageUrl, targetUrls, opts = {}) {
     candidates.push(norm);
   };
   pushCandidate(pageUrl);
-  for (const u of Array.isArray(targetUrls) ? targetUrls : []) pushCandidate(u);
+  for (const entry of Array.isArray(targetUrls) ? targetUrls : []) {
+    if (!isTargetEmittedTarget(entry)) continue;
+    pushCandidate(targetEntryUrl(entry));
+  }
   // Signal 1 — CREDENTIAL IN URL.
   const seen = new Set();
   let n = 0;

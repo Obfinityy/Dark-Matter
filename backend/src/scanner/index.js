@@ -546,6 +546,18 @@ export async function runScan(
   // reads this map to build probe points; a URL absent here simply
   // has no path params.
   const pathParamsByUrl = new Map();
+  // Provenance per scan target (7 Nov 2026, #41 FP fix): which URLs
+  // the TARGET itself emitted vs which the scanner synthesized. The
+  // credential-disclosure URL half fires ONLY on target-emitted URLs —
+  // a synthesized URL can only ever carry scanner filler values, never
+  // a real disclosed credential (DVWA proof h_d3c0deb50847: a POST
+  // login form's GET conversion carried dmprobe* fillers and fired as
+  // the 18th finding). Sources: 'link' (pasted page + crawled links),
+  // 'get-form' (GET form actions), 'post-form' (POST form GET
+  // conversions), 'standalone' (standalone-input targets), 'openapi',
+  // 'js-routes'. Only the credential-disclosure step reads this map;
+  // every other probe still receives the plain string array.
+  const scanTargetProvenance = new Map();
   const seen = new Set();
   const pushTarget = (u) => {
     try {
@@ -553,6 +565,7 @@ export async function runScan(
       if (!seen.has(norm) && scanTargets.length < maxUrls) {
         seen.add(norm);
         scanTargets.push(norm);
+        scanTargetProvenance.set(norm, 'link');
       }
     } catch {
       // ignore malformed URLs
@@ -563,12 +576,13 @@ export async function runScan(
   const forms = [...(crawled ? crawled.forms : []), ...domForms];
   // Form-derived GET URLs get a separate allowance beyond maxUrls — they
   // carry known inputs and are the highest-value probe targets.
-  const pushFormTarget = (u) => {
+  const pushFormTarget = (u, source) => {
     try {
       const norm = new URL(u).toString().split('#')[0];
       if (!seen.has(norm) && scanTargets.length < maxUrls + 20) {
         seen.add(norm);
         scanTargets.push(norm);
+        scanTargetProvenance.set(norm, source || 'unknown');
       }
     } catch {
       // ignore malformed URLs
@@ -623,7 +637,7 @@ export async function runScan(
   for (const f of uniqueForms) {
     if (String(f.method || 'get').toLowerCase() === 'get') {
       const fu = toFormUrl(f);
-      if (fu) pushFormTarget(fu);
+      if (fu) pushFormTarget(fu, 'get-form');
     }
   }
   // POST forms become GET probe targets too (5 Nov 2026, 35/63 fix): the
@@ -637,7 +651,7 @@ export async function runScan(
   for (const f of uniqueForms) {
     if (String(f.method || 'get').toLowerCase() === 'post') {
       const fu = toFormUrl(f);
-      if (fu) pushFormTarget(fu);
+      if (fu) pushFormTarget(fu, 'post-form');
     }
   }
   // Standalone inputs (outside any <form>) never reach the form battery —
@@ -654,7 +668,7 @@ export async function runScan(
         // static inputs carry no page and use the pasted URL as before.
         const u = new URL(inp.page || url);
         u.searchParams.set(inp.name, `dmprobe_${randomBytes(2).toString('hex')}`);
-        pushFormTarget(u.toString());
+        pushFormTarget(u.toString(), 'standalone');
       } catch {
         // ignore malformed URLs
       }
@@ -697,7 +711,7 @@ export async function runScan(
         if (!openApiDiscovery || !openApiDiscovery.targets || openApiDiscovery.targets.length === 0) {
           return openApiDiscovery;
         }
-        for (const t of openApiDiscovery.targets) pushFormTarget(t);
+        for (const t of openApiDiscovery.targets) pushFormTarget(t, 'openapi');
         if (openApiDiscovery.pathParams) {
           for (const [targetUrl, descriptors] of Object.entries(openApiDiscovery.pathParams)) {
             pathParamsByUrl.set(targetUrl, descriptors);
@@ -748,7 +762,7 @@ export async function runScan(
         if (!jsRoutesDiscovery || !jsRoutesDiscovery.targets || jsRoutesDiscovery.targets.length === 0) {
           return jsRoutesDiscovery;
         }
-        for (const t of jsRoutesDiscovery.targets) pushFormTarget(t);
+        for (const t of jsRoutesDiscovery.targets) pushFormTarget(t, 'js-routes');
         if (jsRoutesDiscovery.pathParams) {
           for (const [targetUrl, descriptors] of Object.entries(jsRoutesDiscovery.pathParams)) {
             pathParamsByUrl.set(targetUrl, descriptors);
@@ -813,9 +827,18 @@ export async function runScan(
   // and the landing page HTML (fp.body) for echoed credential
   // assignments. Zero extra requests: pure inspection (see
   // credentialDisclosure.js). Log-file landing pages are skipped
-  // for the body half — those are #180's surface.
+  // for the body half — those are #180's surface. Targets reach the
+  // probe as { url, source } provenance objects (7 Nov 2026 FP fix):
+  // the URL half fires ONLY on target-emitted URLs (links, GET form
+  // actions) — a POST form's GET conversion or any other synthesized
+  // target can only carry scanner filler values, never a real
+  // credential (DVWA proof h_d3c0deb50847 fired on exactly that).
   await step('credential-disclosure', () =>
-    probeCredentialDisclosure(url, scanTargets, { ...opts, html: fp ? fp.body : '' })
+    probeCredentialDisclosure(
+      url,
+      scanTargets.map((u) => ({ url: u, source: scanTargetProvenance.get(u) || 'unknown' })),
+      { ...opts, html: fp ? fp.body : '' }
+    )
   );
   // 35/63 FIX: track whether the param battery ran at all. If no scan
   // target carried a single parameter, the loop body below never executes

@@ -10,6 +10,8 @@ import {
   extractCredentialParams,
   isPlaceholder,
   extractBodyCredentials,
+  isTargetEmittedTarget,
+  TARGET_EMITTED_SOURCES,
   PASSWORD_PARAM_NAMES,
   SECRET_PARAM_NAMES,
 } from './credentialDisclosure.js';
@@ -24,6 +26,12 @@ const ORIGIN = 'http://lab.local';
 // synthetics (hunter2-style).
 const KEY20 = 'AKIA' + 'IOSFODNN7' + 'EXAMPLE';
 const TOK16 = 'a1b2c3d4' + 'e5f6a7b8';
+// Scanner filler values, built by concatenation like the other
+// fixtures — obvious synthetics, never real credentials.
+const DM_USER = 'dmprobe' + '1_ab12';
+const DM_PASS = 'dmprobe' + '2_cd34';
+const DM_LOGIN = 'dmprobe' + '3_ef56';
+const DM_TOKEN = 'dmprobe' + '4_7890';
 const HTML_CLEAN = '<html><head><script src="/app.js"></script></head><body></body></html>';
 const HTML_PRE =
   '<html><body><pre>2026-11-07 login failed\npassword: hunter2\nuser: admin</pre></body></html>';
@@ -237,5 +245,67 @@ describe('probeCredentialDisclosure', () => {
   });
   it('returns [] for an invalid page URL', () => {
     assert.deepEqual(probeCredentialDisclosure('not-a-url', [], {}), []);
+  });
+});
+
+describe('probeCredentialDisclosure provenance (7 Nov 2026 FP fix)', () => {
+  // The DVWA false positive: a POST login form's GET conversion carried
+  // scanner filler values and fired as the 18th finding on proof hunt
+  // h_d3c0deb50847. Synthesized URLs must never fire — only URLs the
+  // target itself emits (links, GET form actions) can carry a real
+  // disclosed credential.
+  it('(a) does not fire on a synthesized GET target from a POST login form', () => {
+    const target = {
+      url: `${ORIGIN}/login.php?username=${DM_USER}&password=${DM_PASS}&Login=${DM_LOGIN}`,
+      source: 'post-form',
+    };
+    assert.deepEqual(probeCredentialDisclosure(PAGE, [target], {}), []);
+  });
+  it('(d) does not fire on the DVWA-shape synthesized URL with scanner values', () => {
+    const target = {
+      url: `${ORIGIN}/login.php?username=${DM_USER}&password=${DM_PASS}&Login=${DM_LOGIN}&user_token=${DM_TOKEN}`,
+      source: 'post-form',
+    };
+    assert.deepEqual(probeCredentialDisclosure(PAGE, [target], {}), []);
+  });
+  it('(b) fires on a real GET form action with a password param', () => {
+    const target = { url: `${ORIGIN}/search?password=hunter2`, source: 'get-form' };
+    const findings = probeCredentialDisclosure(PAGE, [target], {});
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].parameter, 'password');
+    const { confirmed } = verifyFindings(findings);
+    assert.equal(confirmed.length, 1);
+  });
+  it('(c) fires on a link URL carrying a password param', () => {
+    const target = { url: `${ORIGIN}/reset?password=hunter2`, source: 'link' };
+    const findings = probeCredentialDisclosure(PAGE, [target], {});
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].parameter, 'password');
+  });
+  it('does not fire on synthesized openapi / js-routes / standalone targets', () => {
+    for (const source of ['openapi', 'js-routes', 'standalone', 'unknown']) {
+      const target = { url: `${ORIGIN}/api?password=hunter2`, source };
+      assert.deepEqual(probeCredentialDisclosure(PAGE, [target], {}), [], source);
+    }
+  });
+  it('does not fire on a secret param in a synthesized post-form target', () => {
+    const target = { url: `${ORIGIN}/login?api_key=${KEY20}`, source: 'post-form' };
+    assert.deepEqual(probeCredentialDisclosure(PAGE, [target], {}), []);
+  });
+  it('bare-string targets still fire (backward compatibility)', () => {
+    const findings = probeCredentialDisclosure(PAGE, [`${ORIGIN}/reset?password=hunter2`], {});
+    assert.equal(findings.length, 1);
+  });
+  it('isTargetEmittedTarget admits only page/link/get-form sources', () => {
+    assert.equal(isTargetEmittedTarget(`${ORIGIN}/x`), true);
+    for (const source of ['page', 'link', 'get-form']) {
+      assert.equal(isTargetEmittedTarget({ url: `${ORIGIN}/x`, source }), true, source);
+    }
+    for (const source of ['post-form', 'standalone', 'openapi', 'js-routes', 'unknown', '']) {
+      assert.equal(isTargetEmittedTarget({ url: `${ORIGIN}/x`, source }), false, source);
+    }
+    assert.equal(isTargetEmittedTarget({ url: `${ORIGIN}/x` }), false);
+    assert.equal(isTargetEmittedTarget(null), false);
+    assert.deepEqual([...TARGET_EMITTED_SOURCES].sort(), ['get-form', 'link', 'page']);
   });
 });
