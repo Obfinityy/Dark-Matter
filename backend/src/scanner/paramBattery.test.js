@@ -48,6 +48,9 @@ describe('param battery skipped records (35/63 fix)', () => {
     for (const name of PARAM_BATTERY_PHASES) {
       assert.ok(DEFAULT_PHASES.includes(name), `${name} missing from DEFAULT_PHASES`);
     }
+    // 86 since 7 Nov 2026 (missing auth): 'missing-auth'
+    // joins as a standalone always-run phase (one record per scan —
+    // the fixed candidate list is never empty, so it never skips).
     // 85 since 7 Nov 2026 (browser storage): 'browser-storage'
     // joins as a standalone gated phase (one record per scan, skipped
     // with 'no script targets' when the page carries no script).
@@ -99,7 +102,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 85);
+    assert.equal(DEFAULT_PHASES.length, 86);
   });
 
   it('zero param targets: all 29 param phases emit skipped records, rollup reports them', async () => {
@@ -331,6 +334,10 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
+  // 51/35 since 7 Nov 2026 (missing auth): 'missing-auth' adds a
+  // 51st ok record (always-run: the fixed candidate list is never
+  // empty, so it never skips), while the bare-page line still reads
+  // 35 skipped.
   // 50/35 since 7 Nov 2026 (browser storage): 'browser-storage' adds
   // a 35th skipped record ('no script targets': the bare page carries
   // no script), so the bare-page line reads 50 ran ok, 35 skipped.
@@ -371,15 +378,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 85,
-        ok: 50,
+        total: 86,
+        ok: 51,
         failed: 0,
         skipped: 35,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 50 ran ok, 35 skipped, 0 failed, 0 timed out.'
+        'Phases: 51 ran ok, 35 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

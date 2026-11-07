@@ -91,6 +91,7 @@ import { probeApiVersioning } from './probes/apiVersioning.js';
 import { probeSessionTokenInUrl } from './probes/sessionTokenInUrl.js';
 import { probeCredentialDisclosure } from './probes/credentialDisclosure.js';
 import { probeSensitiveCache } from './probes/sensitiveCache.js';
+import { probeMissingAuth } from './probes/missingAuth.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -115,6 +116,7 @@ export const DEFAULT_PHASES = [
   'csrf',
   'post-forms',
   'files',
+  'missing-auth',
   'xxe',
   'ssrf',
   'idor',
@@ -1230,6 +1232,13 @@ export async function runScan(
     )
   );
   await step('files', () => probeSensitiveFiles(url, opts));
+  // MISSING AUTH (7 Nov 2026, row #47 [Critical], CWE-306 / ASVS
+  // V4.1): a critical function (admin, management, setup, ...) that
+  // answers an unauthenticated GET with authenticated-only content.
+  // Always-run (the fixed candidate list is never empty); strict
+  // 4-conjunct gate in missingAuth.js — direct 200 only, not the SPA
+  // catch-all, auth markers with no login form, HTML/JSON only.
+  await step('missing-auth', () => probeMissingAuth(url, scanTargets, opts));
   // XXE OOB collaborator (6 Nov 2026): the xxe probe's blind-XXE variant
   // needs a callback base AND a waiter — same pattern as the saml block
   // below, one collaborator per OOB phase so each listener lives only for

@@ -251,19 +251,19 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // timing-side-channel +
       // untrusted-js-inclusion + api-versioning +
       // session-token-in-url + credential-disclosure + sqli-oob +
-      // sensitive-cache RUN (the pasted page is always a surface —
+      // sensitive-cache + missing-auth RUN (the pasted page is always a surface —
       // 0 findings on the bare stub)
       // instead of skipping.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 85,
-        ok: 50,
+        total: 86,
+        ok: 51,
         failed: 0,
         skipped: 35,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 50 ran ok, 35 skipped, 0 failed, 0 timed out.'
+        'Phases: 51 ran ok, 35 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
@@ -334,17 +334,17 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // credential-disclosure + sqli-oob + sensitive-cache, 7 Nov 2026 —
       // all eighteen run here because param targets exist and the shell
       // carries a script bundle), and the two discovery phases now RUN
-      // instead of skipping — 114 total, 114 ok, 0 skipped.
+      // instead of skipping — 115 total, 115 ok, 0 skipped.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 114,
-        ok: 114,
+        total: 115,
+        ok: 115,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 114 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 115 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -550,7 +550,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 85);
+      assert.equal(DEFAULT_PHASES.length, 86);
     } finally {
       teardown();
     }
