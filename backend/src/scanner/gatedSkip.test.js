@@ -244,17 +244,19 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // Bare page: all three fire (honest no-ops), battery skips 28,
       // verb-tampering + method-override + secrets-in-js +
       // error-disclosure + validation skip with 'no probe targets' /
-      // 'no script targets' (7 Nov 2026).
+      // 'no script targets' (7 Nov 2026), and fingerprint-banner
+      // RUNS (the pasted page is always a surface — 0 findings on
+      // the bare stub) instead of skipping.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 71,
-        ok: 38,
+        total: 72,
+        ok: 39,
         failed: 0,
         skipped: 33,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 38 ran ok, 33 skipped, 0 failed, 0 timed out.'
+        'Phases: 39 ran ok, 33 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
@@ -311,23 +313,23 @@ describe('gated discovery phases record a skip on the false branch', () => {
         assert.equal(ph.findingsCount, 0, `${name} finds nothing on this stub`);
       }
       // The exact shape the Juice proof brief expected, updated for the
-      // coverage fix + validation: the battery ran twice (two DOM
-      // targets, 56 records), 41 non-param phases ran ok (36 +
-      // verb-tampering + method-override + secrets-in-js +
-      // error-disclosure + validation, 7 Nov 2026 — all five run here
-      // because param targets exist and the shell carries a script
-      // bundle), and the two discovery phases now RUN instead of
-      // skipping — 99 total, 99 ok, 0 skipped.
+      // coverage fix + validation + fingerprint-banner: the battery ran
+      // twice (two DOM targets, 56 records), 42 non-param phases ran
+      // ok (36 + verb-tampering + method-override + secrets-in-js +
+      // error-disclosure + validation + fingerprint-banner, 7 Nov 2026
+      // — all six run here because param targets exist and the shell
+      // carries a script bundle), and the two discovery phases now RUN
+      // instead of skipping — 100 total, 100 ok, 0 skipped.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 99,
-        ok: 99,
+        total: 100,
+        ok: 100,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 99 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 100 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -533,7 +535,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 71);
+      assert.equal(DEFAULT_PHASES.length, 72);
     } finally {
       teardown();
     }

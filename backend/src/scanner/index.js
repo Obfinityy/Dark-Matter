@@ -77,6 +77,7 @@ import { probeMethodOverride } from './probes/methodOverride.js';
 import { probeSecretsInJs, extractSecretTargets } from './probes/secretsInJs.js';
 import { probeErrorDisclosure } from './probes/errorDisclosure.js';
 import { probeValidation } from './probes/validation.js';
+import { probeFingerprintBanner } from './probes/fingerprintBanner.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -151,6 +152,7 @@ export const DEFAULT_PHASES = [
   'secrets-in-js',
   'error-disclosure',
   'validation',
+  'fingerprint-banner',
   'nuclei',
 ];
 
@@ -906,6 +908,17 @@ export async function runScan(
   } else {
     skipPhase('validation', 'no probe targets');
   }
+  // FINGERPRINT / BANNER DISCLOSURE (7 Nov 2026, row #183): the
+  // pasted page's own response headers plus a 404 trigger per
+  // directory are scanned for server/framework version disclosure
+  // (Server, X-Powered-By, X-AspNet-Version, ...). A finding
+  // counts only when a version number is actually disclosed —
+  // bare header presence is not a leak — and error-page body
+  // matches count only when the baseline page does not carry the
+  // same string. Read-only GETs, no allowWrite gate. One phase
+  // record per scan; the pasted page is always a surface, so this
+  // phase never skips (unlike the gated probes above).
+  await step('fingerprint-banner', () => probeFingerprintBanner(url, verbTargets, opts));
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));
   await step('smtp-injection', () => probeSmtpInject(forms, url, opts));
