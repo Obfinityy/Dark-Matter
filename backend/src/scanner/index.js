@@ -86,6 +86,7 @@ import { probeTimingSideChannel } from './probes/timingSideChannel.js';
 import { probeXmlInjection } from './probes/xmlInjection.js';
 import { probeUntrustedJsInclusion } from './probes/untrustedJsInclusion.js';
 import { probeApiVersioning } from './probes/apiVersioning.js';
+import { probeSessionTokenInUrl } from './probes/sessionTokenInUrl.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -169,6 +170,7 @@ export const DEFAULT_PHASES = [
   'xml-injection',
   'untrusted-js-inclusion',
   'api-versioning',
+  'session-token-in-url',
   'nuclei',
 ];
 
@@ -789,6 +791,17 @@ export async function runScan(
   // version never fires, /api vs /rest are different surfaces, and
   // a 410 is correctly retired (see apiVersioning.js).
   await step('api-versioning', () => probeApiVersioning(url, scanTargets, opts));
+  // SESSION TOKEN IN URL (7 Nov 2026, rows #265/#321): a session
+  // identifier placed in a URL (CWE-598) leaks via Referer, logs,
+  // history, and shared links (CWE-359). Inspects the scan's URLs
+  // for session params carrying token-like values (entropy gate);
+  // the landing page's own HTML (fp.body) decides the #321 leak
+  // path — a token URL on a page loading cross-origin subresources
+  // (or linking out) leaks the token in the Referer header. Zero
+  // extra requests: pure URL inspection (see sessionTokenInUrl.js).
+  await step('session-token-in-url', () =>
+    probeSessionTokenInUrl(url, scanTargets, { ...opts, html: fp ? fp.body : '' })
+  );
   // 35/63 FIX: track whether the param battery ran at all. If no scan
   // target carried a single parameter, the loop body below never executes
   // and the 28 phases inside it would vanish in silence — record each of
