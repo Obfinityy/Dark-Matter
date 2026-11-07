@@ -26,21 +26,29 @@ function loadCompose() {
   return loadYaml(fs.readFileSync(composePath, 'utf8'));
 }
 
-// The five live labs, as observed on EC2 via `docker inspect` 7 Nov 2026.
+// The six live labs, as observed on EC2 via `docker inspect` 7 Nov 2026
+// (lab-xxe added the same day: built from source, no upstream image).
 const EXPECTED = {
   dvwa: { image: 'vulnerables/web-dvwa', container: 'lab-dvwa', hostPort: '3100', containerPort: '80' },
   'juice-shop': { image: 'bkimminich/juice-shop:v17.3.0', container: 'juice-shop-lab', hostPort: '3000', containerPort: '3000' },
   webgoat: { image: 'webgoat/webgoat', container: 'lab-webgoat', hostPort: '3200', containerPort: '8080' },
   bwapp: { image: 'raesene/bwapp', container: 'lab-bwapp', hostPort: '3300', containerPort: '80' },
   vampi: { image: 'erev0s/vampi', container: 'lab-vampi', hostPort: '3400', containerPort: '5000' },
+  'lab-xxe': { build: './lab-xxe', container: 'lab-xxe', hostPort: '3500', containerPort: '8000' },
 };
 
-test('LC-1 labs-compose.yml defines all five live labs exactly', () => {
+test('LC-1 labs-compose.yml defines all six live labs exactly', () => {
   const doc = loadCompose();
   assert.deepEqual(Object.keys(doc.services).sort(), Object.keys(EXPECTED).sort());
   for (const [name, want] of Object.entries(EXPECTED)) {
     const svc = doc.services[name];
-    assert.equal(svc.image, want.image, `${name} image`);
+    if (want.build) {
+      assert.equal(svc.image, undefined, `${name} is built from source, not an image`);
+      assert.equal(svc.build.context, want.build, `${name} build context`);
+      assert.equal(svc.build.dockerfile, 'Dockerfile', `${name} build dockerfile`);
+    } else {
+      assert.equal(svc.image, want.image, `${name} image`);
+    }
     assert.equal(svc.container_name, want.container, `${name} container_name`);
     assert.equal(svc.restart, 'unless-stopped', `${name} restart`);
     assert.equal(svc.network_mode, 'bridge', `${name} must stay on the default bridge (scanner targets 172.17.0.1)`);
@@ -64,7 +72,7 @@ test('LC-2 webgoat healthcheck uses only tools present in the image', () => {
   assert.match(cmd, /grep -q "200"/, 'probe requires a 200 status line');
 });
 
-test('LC-3 the other four labs carry no healthcheck (matches live state)', () => {
+test('LC-3 the other five labs carry no healthcheck (matches live state)', () => {
   const doc = loadCompose();
   for (const name of Object.keys(EXPECTED)) {
     if (name === 'webgoat') continue;
