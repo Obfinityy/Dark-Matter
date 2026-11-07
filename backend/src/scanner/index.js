@@ -72,6 +72,7 @@ import { probeTls } from './probes/tlsScan.js';
 import { probePasswordReset } from './probes/passwordReset.js';
 import { probeElInject } from './probes/elInject.js';
 import { probeOgnlInject } from './probes/ognlInject.js';
+import { probeVerbTampering } from './probes/verbTampering.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -141,6 +142,7 @@ export const DEFAULT_PHASES = [
   'saml',
   'tls',
   'password-reset',
+  'verb-tampering',
   'nuclei',
 ];
 
@@ -753,6 +755,35 @@ export async function runScan(
   // the audit trail (and the rollup) shows the gap instead of a clean pass.
   if (!paramBatteryRan) {
     for (const name of PARAM_BATTERY_PHASES) skipPhase(name, 'no param targets');
+  }
+  // VERB TAMPERING (7 Nov 2026, rows #167 + #35): replay each GET probe
+  // target with PUT/DELETE/PATCH/HEAD (empty bodies). The targets are
+  // the scan URLs that carry probe points — a URL with no points is not
+  // a GET probe target and is never tested. One phase record per scan
+  // (not per URL): the probe iterates the deduped target list itself
+  // and returns all findings. When no scan target carries a probe
+  // point, the phase records a skip instead of vanishing (gated-skip
+  // pattern, same as dom-render/openapi-targets/js-api-routes).
+  // allowWrite is the lab gate (the same value file-upload gets):
+  // write verbs never leave toward a non-lab host; HEAD runs anywhere.
+  const verbTargets = [];
+  const verbSeen = new Set();
+  for (const u of scanTargets) {
+    if (extractProbePoints(u, pathParamsByUrl.get(u)).length === 0) continue;
+    try {
+      const norm = new URL(u).toString().split('#')[0];
+      if (!verbSeen.has(norm)) {
+        verbSeen.add(norm);
+        verbTargets.push(norm);
+      }
+    } catch {
+      // ignore malformed URLs
+    }
+  }
+  if (verbTargets.length > 0) {
+    await step('verb-tampering', () => probeVerbTampering(verbTargets, { ...opts, allowWrite }));
+  } else {
+    skipPhase('verb-tampering', 'no probe targets');
   }
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));

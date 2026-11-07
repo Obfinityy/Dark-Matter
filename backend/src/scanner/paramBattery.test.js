@@ -48,10 +48,13 @@ describe('param battery skipped records (35/63 fix)', () => {
     for (const name of PARAM_BATTERY_PHASES) {
       assert.ok(DEFAULT_PHASES.includes(name), `${name} missing from DEFAULT_PHASES`);
     }
-    // 66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
+    // 67 since 7 Nov 2026 (verb tampering): 'verb-tampering' joins
+    // as a standalone gated phase (one record per scan, skipped with
+    // 'no probe targets' when no scan target carries a probe point).
+    // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 66);
+    assert.equal(DEFAULT_PHASES.length, 67);
   });
 
   it('zero param targets: all 28 param phases emit skipped records, rollup reports them', async () => {
@@ -283,12 +286,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
-  // 38/28 since 7 Nov 2026 (JS-bundle API routes): the battery gained
-  // 'js-api-routes', so a bare page runs 38 non-param phases. The
+  // 38/29 since 7 Nov 2026 (verb tampering): the battery gained
+  // 'js-api-routes', so a bare page runs 38 non-param phases — and
+  // 'verb-tampering' adds a 29th skipped record ('no probe targets':
+  // no scan target carries a probe point on a bare page), so the two
+  // skip reasons mix and the summary renders a bare count. The
   // spec fetch is stubbed to the bare page (HTML, not JSON), so the
   // pass records an honest no-op with 0 targets — the same seam
   // discipline as domRenderer above. (37/28 before js-api-routes.)
-  it('real runScan on a bare page renders the 38/28 line end to end', async () => {
+  it('real runScan on a bare page renders the 38/29 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -300,15 +306,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 66,
+        total: 67,
         ok: 38,
         failed: 0,
-        skipped: 28,
+        skipped: 29,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 38 ran ok, 28 skipped (no param targets), 0 failed, 0 timed out.'
+        'Phases: 38 ran ok, 29 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
