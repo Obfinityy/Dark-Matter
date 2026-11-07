@@ -84,12 +84,41 @@ test('WP-2: getPage refuses with the actual URL when no tab is on target', async
   assert.equal(page.url, 'about:blank');
 });
 
-test('WP-3: getPage accepts the SSO host and subdomains, rejects lookalikes', async () => {
+test('WP-3: getPage accepts the SSO host, refuses its subdomain and lookalikes', async () => {
   const sso = await runGetPage({ tabs: [tab('about:blank'), tab('https://login.infomaniak.com/en/login', 'Sign in')] });
   assert.equal(sso.url, 'https://login.infomaniak.com/en/login');
+  // A subdomain of a bare-listed host is NOT on target (1-Nov
+  // exact-host rule; scope-guard widening lane, 7 Nov 2026). The
+  // old test name claimed subdomains were accepted; that was the
+  // pre-1-Nov rule.
+  const sub = await runGetPage({ tabs: [tab('about:blank'), tab('https://sub.ksuite.infomaniak.com/x', 'sub')] });
+  assert.equal(sub.wrongPage, true);
   const lookalike = await runGetPage({ tabs: [tab('https://ksuite.infomaniak.com.evil.example/', 'trap'), tab('about:blank')] });
   assert.equal(lookalike.wrongPage, true);
   assert.equal(lookalike.url, 'https://ksuite.infomaniak.com.evil.example/');
+});
+
+test('WP-3b: getPage accepts a wildcard-authorized subdomain tab', async () => {
+  const page = await runGetPage({
+    tabs: [tab('about:blank'), tab('https://sub.ksuite.infomaniak.com/x', 'sub')],
+    params: { targetHosts: ['ksuite.infomaniak.com', '*.ksuite.infomaniak.com'] },
+  });
+  assert.equal(page.url, 'https://sub.ksuite.infomaniak.com/x');
+  assert.equal(page.wrongPage, undefined);
+  // ...but a `*.` entry alone does not authorize the base itself:
+  // with only the wildcard entry in the list, a tab on the base
+  // host is refused while a tab on its subdomain is picked.
+  const baseOnly = await runGetPage({
+    tabs: [tab('about:blank'), tab('https://ksuite.infomaniak.com/x', 'base')],
+    params: { targetHosts: ['*.ksuite.infomaniak.com'] },
+  });
+  assert.equal(baseOnly.wrongPage, true);
+  const subOnly = await runGetPage({
+    tabs: [tab('about:blank'), tab('https://sub.ksuite.infomaniak.com/x', 'sub')],
+    params: { targetHosts: ['*.ksuite.infomaniak.com'] },
+  });
+  assert.equal(subOnly.url, 'https://sub.ksuite.infomaniak.com/x');
+  assert.equal(subOnly.wrongPage, undefined);
 });
 
 test('WP-4: getPage for navigate reuses the tab on the requested host, else the first tab', async () => {

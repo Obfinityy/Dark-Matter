@@ -120,7 +120,11 @@ function proxyConnect(authority) {
 test('proxyAllows: unit validation against the scope', () => {
   const scope = scopeFor([{ port: BACKEND_PORT, proto: 'tcp' }]);
   assert.equal(proxyAllows(scope, { host: 'allowed.test', port: BACKEND_PORT }).ok, true);
-  assert.equal(proxyAllows(scope, { host: 'sub.allowed.test', port: BACKEND_PORT }).ok, true);
+  // 1-Nov exact-host rule (scope-guard widening lane, 7 Nov 2026):
+  // sub.allowed.test is NOT authorized by the bare allowed.test
+  // entry — it needs an explicit wildcard (below). Was asserted
+  // allowed under the pre-1-Nov subdomain rule.
+  assert.equal(proxyAllows(scope, { host: 'sub.allowed.test', port: BACKEND_PORT }).ok, false);
   const denied = proxyAllows(scope, { host: 'evil.test', port: BACKEND_PORT });
   assert.equal(denied.ok, false);
   assert.match(denied.reason, /not in the hunt scope/);
@@ -136,6 +140,11 @@ test('proxyAllows: unit validation against the scope', () => {
     false,
     'SNI/hostname mismatch blocked'
   );
+  // With an explicit wildcard the subdomain IS allowed — but the
+  // wildcard base itself stays blocked when it is only a wildcard.
+  const wildOnly = { ...scope, hosts: [], wildcardHosts: ['allowed.test'] };
+  assert.equal(proxyAllows(wildOnly, { host: 'sub.allowed.test', port: BACKEND_PORT }).ok, true);
+  assert.equal(proxyAllows(wildOnly, { host: 'allowed.test', port: BACKEND_PORT }).ok, false);
 });
 
 test('in-scope hostname through the proxy → 200 from the vhost', async () => {

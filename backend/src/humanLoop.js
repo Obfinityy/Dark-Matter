@@ -343,6 +343,22 @@ export function targetHostsFor(target, parsedScope) {
     const d = String(entry).toLowerCase();
     if (d && !hosts.includes(d)) hosts.push(d);
   }
+  // Structured lists (scopeParser, 1 Nov 2026): exact named assets
+  // are bare entries; wildcard bases are `*.base` entries. The
+  // matchers — hostOnTargetList here and onTargetHosts in the CDP
+  // driver (guiTools.js) — treat `*.` entries as subdomain-only,
+  // never the base itself (1-Nov exact-host rule). Without the
+  // structured lists, named assets were invisible to the CDP
+  // wrong-page guard and the agent could not drive a tab on them.
+  for (const entry of (parsedScope && parsedScope.inScopeExactHosts) || []) {
+    const d = String(entry).toLowerCase();
+    if (d && !hosts.includes(d)) hosts.push(d);
+  }
+  for (const entry of (parsedScope && parsedScope.inScopeWildcardHosts) || []) {
+    const d = String(entry).toLowerCase();
+    const w = d.startsWith('*.') ? d : '*.' + d;
+    if (d && !hosts.includes(w)) hosts.push(w);
+  }
   return hosts;
 }
 
@@ -351,7 +367,15 @@ function hostOnTargetList(host, hosts) {
   if (!h) return false;
   return (hosts || []).some((d) => {
     const dd = String(d).toLowerCase();
-    return h === dd || h.endsWith('.' + dd);
+    // `*.base` entries authorize subdomains of the base, never the
+    // base itself (1-Nov exact-host rule). Bare entries are exact:
+    // a subdomain of the target or of an exact asset is NOT on
+    // target unless a wildcard entry says so.
+    if (dd.startsWith('*.')) {
+      const base = dd.slice(2);
+      return !!base && h !== base && h.endsWith('.' + base);
+    }
+    return h === dd;
   });
 }
 
@@ -437,9 +461,10 @@ export function lastActionResultOfLeftOff(leftOff) {
 /**
  * Out-of-scope check for a URL string against the hunt's parsedScope.
  * Returns the offending URL, or null when allowed. Allows: the target
- * host itself, any host the programme lists in inScope (domain or
- * subdomain of it), anything isInScope() accepts, and known
- * tool-download hosts.
+ * host itself (EXACT — its subdomains need an explicit `*.target`
+ * wildcard, per the 1-Nov exact-host rule), any host the programme
+ * lists in inScope (exact, or subdomains of a `*.` entry), anything
+ * isInScope() accepts, and known tool-download hosts.
  */
 export function scopeViolation(url, target, parsedScope) {
   let host = '';
@@ -470,11 +495,25 @@ export function scopeViolation(url, target, parsedScope) {
     }
   }
   if (DOWNLOAD_HOSTS.has(host)) return null;
-  if (tHost && (host === tHost || host.endsWith('.' + tHost))) return null;
+  // 1-Nov exact-host rule (scope-guard widening lane, 7 Nov 2026):
+  // the target host authorizes ONLY itself — its subdomains need an
+  // explicit `*.target` wildcard in the programme scope (checked by
+  // isInScope() below). The old `host.endsWith('.' + tHost)` let any
+  // target subdomain past this gate.
+  if (tHost && host === tHost) return null;
   const inScope = parsedScope ? (parsedScope.inScope || []) : [];
   for (const entry of inScope) {
     const d = String(entry).toLowerCase();
-    if (host === d || host.endsWith('.' + d)) return null;
+    // Legacy inScope entries are named assets: exact-only. A `*.base`
+    // entry (never emitted by parseScope, but possible in a hand-built
+    // scope) authorizes subdomains of the base, never the base
+    // itself — the same rule isInScope() applies to wildcards.
+    if (d.startsWith('*.')) {
+      const base = d.slice(2);
+      if (base && host !== base && host.endsWith('.' + base)) return null;
+    } else if (host === d) {
+      return null;
+    }
   }
   // No parsed scope: only the target host (+ download hosts, above)
   // pass. A missing scope must not mean "everything is allowed".

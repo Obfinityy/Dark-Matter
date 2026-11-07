@@ -27,10 +27,12 @@ const ps = parseScope('https://open.ys7.com', EZZ);
 check('ezviz: target domain first in inScope', ps.inScope[0] === 'open.ys7.com');
 // Named assets live in the structured host lists (exact vs wildcard),
 // not in legacy inScope — inScope stays [target domain] by design:
-// scopeViolation and scopeGuard treat inScope entries as subdomain
-// bases, so populating it with exact hosts would let nested subdomains
-// past the gates (the 1-Nov rule forbids exactly that). The gate reads
-// the structured lists via isInScope (see the gate checks below).
+// the gates judge exact hosts exactly and wildcards as
+// subdomains-only under the 1-Nov rule (scope-guard widening lane,
+// 7 Nov 2026 — the old subdomain reading of inScope entries is
+// gone), so populating legacy inScope with exact hosts would be
+// redundant. The gate reads the structured lists via isInScope (see
+// the gate checks below).
 for (const h of ['www.ezviz.com', 'api.ezvizlife.com']) {
   check(`ezviz: inScopeExactHosts includes ${h}`, ps.inScopeExactHosts.includes(h));
 }
@@ -56,6 +58,9 @@ check('gate: named-out pb.ys7.com blocked despite wildcard', scopeViolation('htt
 check('gate: named-out ezcpcloudiot.eziot.com blocked despite *.eziot.com', scopeViolation('https://ezcpcloudiot.eziot.com/', T, ps) === 'https://ezcpcloudiot.eziot.com/');
 check('gate: subdomain of a named-out host blocked', scopeViolation('https://sub.test.ys7.com/', T, ps) === 'https://sub.test.ys7.com/');
 check('gate: foreign host still blocked', scopeViolation('https://evil.example.com/', T, ps) === 'https://evil.example.com/');
+// A wildcard authorizes subdomains of its base, never the base
+// itself (1-Nov exact-host rule; scope-guard widening lane).
+check('gate: wildcard base itself blocked', scopeViolation('https://ys7.com/', T, ps) === 'https://ys7.com/');
 
 // No explicit enumeration -> behaviour identical to the old parser.
 const plain = parseScope('https://example.org', 'Please hunt this site carefully, no DoS.');

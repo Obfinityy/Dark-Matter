@@ -78,6 +78,25 @@ export function buildScope({ target, scope = '', labTargets = '' }) {
   };
   if (targetHost && !IPV4_RE.test(targetHost)) pushHost(targetHost);
   for (const h of (parsed && parsed.inScope) || []) pushHost(h);
+  // Structured lists (scopeParser, 1 Nov 2026): named exact assets
+  // and wildcard bases. Exact assets also join `hosts` so the P2
+  // egress layer resolves them into the ipset — otherwise the shell
+  // guard would allow a command the network layer then drops.
+  // Wildcard bases do NOT join `hosts`: only their subdomains are
+  // authorized, and a base's IPs are not its subdomains' IPs
+  // (subdomains with distinct IPs stay network-blocked — fail-closed
+  // gap, see the lane report).
+  const exactHosts = [];
+  const wildcardHosts = [];
+  for (const h of (parsed && parsed.inScopeExactHosts) || []) {
+    const lh = String(h || '').toLowerCase().trim();
+    if (lh && !exactHosts.includes(lh)) exactHosts.push(lh);
+  }
+  for (const h of (parsed && parsed.inScopeWildcardHosts) || []) {
+    const lh = String(h || '').toLowerCase().trim();
+    if (lh && !wildcardHosts.includes(lh)) wildcardHosts.push(lh);
+  }
+  for (const h of exactHosts) pushHost(h);
   const outHosts = [];
   for (const h of (parsed && parsed.outOfScopeHosts) || []) {
     const lh = String(h).toLowerCase().trim();
@@ -117,6 +136,8 @@ export function buildScope({ target, scope = '', labTargets = '' }) {
     version: 1,
     target: targetStr,
     hosts: Object.freeze([...hosts]),
+    exactHosts: Object.freeze([...exactHosts]),
+    wildcardHosts: Object.freeze([...wildcardHosts]),
     outHosts: Object.freeze([...outHosts]),
     ips: Object.freeze([...ips]),
     labIps: Object.freeze([...labIps]),
@@ -244,11 +265,27 @@ function validateOne(d, scope) {
     }
   } else {
     if (!HOSTNAME_RE.test(host)) return block(`malformed hostname: ${d.host}`, d);
-    // Explicit exclusions win over inclusions.
+    // Explicit exclusions win over inclusions. Exclusions keep
+    // subdomain semantics: excluding a host excludes its subtree.
     if (matchesAny(host, scope.outHosts)) return block(`hostname ${host} is explicitly out of scope`, d);
     // Shared-IP rule: the HOSTNAME decides. An out-of-scope hostname is
     // blocked even if it shares an IP with an in-scope one.
-    if (!matchesAny(host, scope.hosts)) return block(`hostname ${host} is not in the hunt scope`, d);
+    //
+    // 1-Nov exact-host rule (scope-guard widening lane, 7 Nov 2026):
+    // `hosts` / `exactHosts` authorize ONLY the listed host itself;
+    // `wildcardHosts` authorize subdomains of the base, never the
+    // base itself. The old matchesAny() subdomain rule on `hosts`
+    // let any target subdomain past the shell guard (and the egress
+    // proxy, which reuses this function). Scopes persisted before
+    // this lane lack exactHosts/wildcardHosts — they default to []
+    // and the tightening still applies via `hosts`.
+    const exactOk = (scope.hosts || []).some((e) => host === String(e).toLowerCase()) ||
+      (scope.exactHosts || []).some((e) => host === String(e).toLowerCase());
+    const wildcardOk = (scope.wildcardHosts || []).some((e) => {
+      const base = String(e).toLowerCase().replace(/^\*\./, '');
+      return !!base && host !== base && host.endsWith('.' + base);
+    });
+    if (!exactOk && !wildcardOk) return block(`hostname ${host} is not in the hunt scope`, d);
     // TLS SNI must match the validated hostname when present.
     if (d.sni && String(d.sni).toLowerCase().trim() !== host) {
       return block(`TLS SNI ${d.sni} does not match hostname ${host}`, d);

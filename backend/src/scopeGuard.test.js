@@ -33,6 +33,8 @@ describe('buildScope', () => {
     const s = dvwaScope();
     assert.ok(Object.isFrozen(s));
     assert.ok(Object.isFrozen(s.hosts));
+    assert.ok(Object.isFrozen(s.exactHosts));
+    assert.ok(Object.isFrozen(s.wildcardHosts));
     assert.ok(Object.isFrozen(s.ports));
   });
 
@@ -50,6 +52,98 @@ describe('buildScope', () => {
     assert.equal(fromMeta, persisted);
     const built = scopeFromMeta({ target: 'http://172.17.0.1:3100' }, 'http://172.17.0.1:3100', LAB);
     assert.ok(built.labIps.includes('172.17.0.1'));
+  });
+});
+
+describe('structured scope lists (scope-guard widening lane)', () => {
+  const ezvizScope = () =>
+    buildScope({
+      target: 'https://open.ys7.com',
+      scope: 'In scope: www.ezviz.com, api.ezvizlife.com, *.ys7.com. Out of scope: test.ys7.com.',
+      labTargets: '',
+    });
+
+  it('buildScope exposes exact + wildcard lists; exact assets join hosts, wildcard bases do not', () => {
+    const s = ezvizScope();
+    assert.deepEqual(s.exactHosts, ['www.ezviz.com', 'api.ezvizlife.com']);
+    assert.deepEqual(s.wildcardHosts, ['ys7.com']);
+    assert.ok(s.hosts.includes('www.ezviz.com'));
+    assert.ok(s.hosts.includes('api.ezvizlife.com'));
+    assert.ok(!s.hosts.includes('ys7.com'));
+    assert.ok(Object.isFrozen(s.exactHosts));
+    assert.ok(Object.isFrozen(s.wildcardHosts));
+  });
+
+  it('exact named asset allowed; its subdomain blocked', () => {
+    const s = ezvizScope();
+    const ok = guardCommand({
+      command: 'x',
+      destinations: [{ host: 'api.ezvizlife.com', port: 443, protocol: 'tcp' }],
+      scope: s,
+    });
+    assert.equal(ok.allowed, true);
+    const sub = guardCommand({
+      command: 'x',
+      destinations: [{ host: 'nested.api.ezvizlife.com', port: 443, protocol: 'tcp' }],
+      scope: s,
+    });
+    assert.equal(sub.allowed, false);
+  });
+
+  it('wildcard subdomain allowed; wildcard base itself blocked', () => {
+    const s = ezvizScope();
+    const ok = guardCommand({
+      command: 'x',
+      destinations: [{ host: 'console.ys7.com', port: 443, protocol: 'tcp' }],
+      scope: s,
+    });
+    assert.equal(ok.allowed, true);
+    const base = guardCommand({
+      command: 'x',
+      destinations: [{ host: 'ys7.com', port: 443, protocol: 'tcp' }],
+      scope: s,
+    });
+    assert.equal(base.allowed, false);
+  });
+
+  it('named-out host blocked despite wildcard; its subdomain blocked too', () => {
+    const s = ezvizScope();
+    const out = guardCommand({
+      command: 'x',
+      destinations: [{ host: 'test.ys7.com', port: 443, protocol: 'tcp' }],
+      scope: s,
+    });
+    assert.equal(out.allowed, false);
+    assert.match(out.reason, /out of scope/);
+    const outSub = guardCommand({
+      command: 'x',
+      destinations: [{ host: 'sub.test.ys7.com', port: 443, protocol: 'tcp' }],
+      scope: s,
+    });
+    assert.equal(outSub.allowed, false);
+  });
+
+  it('scopes persisted before this lane (no exact/wildcard fields) still validate', () => {
+    const old = {
+      version: 1,
+      hosts: ['example.com'],
+      outHosts: [],
+      ips: [],
+      labIps: [],
+      ports: [{ port: 443, proto: 'tcp' }],
+    };
+    const ok = guardCommand({
+      command: 'x',
+      destinations: [{ host: 'example.com', port: 443, protocol: 'tcp' }],
+      scope: old,
+    });
+    assert.equal(ok.allowed, true);
+    const sub = guardCommand({
+      command: 'x',
+      destinations: [{ host: 'app.example.com', port: 443, protocol: 'tcp' }],
+      scope: old,
+    });
+    assert.equal(sub.allowed, false);
   });
 });
 
@@ -201,10 +295,36 @@ describe('shared-IP / hostname isolation', () => {
     assert.match(g.reason, /evil\.example/);
   });
 
-  it('subdomain of in-scope host allowed; explicit exclusion wins', () => {
+  it('subdomain of the target host blocked (1-Nov exact-host rule); explicit exclusion wins', () => {
+    // Was 'subdomain of in-scope host allowed' — the 1-Nov
+    // exact-host rule (scope-guard widening lane, 7 Nov 2026) says
+    // the target host authorizes only itself; app.example.com needs
+    // an explicit `*.example.com` wildcard (next test).
     const s = buildScope({
       target: 'https://example.com',
       scope: 'In scope: example.com\nOut of scope: secret.example.com',
+      labTargets: '',
+    });
+    const blockedSub = guardCommand({
+      command: 'x',
+      destinations: [{ host: 'app.example.com', port: 443, protocol: 'tcp' }],
+      scope: s,
+    });
+    assert.equal(blockedSub.allowed, false);
+    assert.match(blockedSub.reason, /example\.com/);
+    const blocked = guardCommand({
+      command: 'x',
+      destinations: [{ host: 'secret.example.com', port: 443, protocol: 'tcp' }],
+      scope: s,
+    });
+    assert.equal(blocked.allowed, false);
+    assert.match(blocked.reason, /out of scope/);
+  });
+
+  it('explicit *.example.com wildcard authorizes subdomains, not the base itself', () => {
+    const s = buildScope({
+      target: 'https://example.com',
+      scope: 'In scope: *.example.com\nOut of scope: secret.example.com',
       labTargets: '',
     });
     const okSub = guardCommand({
@@ -213,6 +333,14 @@ describe('shared-IP / hostname isolation', () => {
       scope: s,
     });
     assert.equal(okSub.allowed, true);
+    // The target host itself stays authorized exactly (it is the
+    // hunt's target); the wildcard does not remove that.
+    const targetItself = guardCommand({
+      command: 'x',
+      destinations: [{ host: 'example.com', port: 443, protocol: 'tcp' }],
+      scope: s,
+    });
+    assert.equal(targetItself.allowed, true);
     const blocked = guardCommand({
       command: 'x',
       destinations: [{ host: 'secret.example.com', port: 443, protocol: 'tcp' }],

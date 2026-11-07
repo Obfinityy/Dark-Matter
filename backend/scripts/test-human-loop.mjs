@@ -53,7 +53,12 @@ check('parse: braces inside strings survive', parseHumanAction('{"action":"write
 // ---------------------------------------------------------------------------
 const PS = { domain: 'target.test', inScope: ['target.test'], outOfScope: [], rules: { noDoS: true, noHeavyScan: true, maxRequestsPerMin: 2 } };
 check('scope: target allowed', scopeViolation('http://target.test/login', 'http://target.test', PS) === null);
-check('scope: target subdomain allowed', scopeViolation('http://api.target.test/v1', 'http://target.test', PS) === null);
+// 1-Nov exact-host rule (scope-guard widening lane, 7 Nov 2026):
+// the target host authorizes ONLY itself — api.target.test is out of
+// scope unless the programme names `*.target.test` explicitly (see
+// PSW below). The old 'target subdomain allowed' expectation pinned
+// the pre-1-Nov subdomain rule.
+check('scope: target subdomain blocked (1-Nov exact-host rule)', scopeViolation('http://api.target.test/v1', 'http://target.test', PS) === 'http://api.target.test/v1');
 check('scope: foreign host blocked', scopeViolation('http://evil.example.com/x', 'http://target.test', PS) === 'http://evil.example.com/x');
 check('scope: tool download host allowed', scopeViolation('https://github.com/ffuf/ffuf/releases', 'http://target.test', PS) === null);
 // No parsed scope fails CLOSED (fix #317, e209682a): a missing scope must
@@ -62,6 +67,24 @@ check('scope: tool download host allowed', scopeViolation('https://github.com/ff
 // structured gates (scopeParser.isInScope, scopeIntel.isInScope) also
 // return false for a null scope, so all three gates agree.
 check('scope: no parsedScope -> blocked (fail closed)', scopeViolation('http://anything.example/x', 'http://target.test', null) === 'http://anything.example/x');
+
+// Structured scope lists (scopeParser, 1 Nov 2026): exact named
+// assets and wildcard bases, judged with the same rule as
+// isInScope() — exact hosts match exactly, wildcards match
+// subdomains only, never the base itself.
+const PSW = { domain: 'target.test', inScope: ['target.test'], inScopeExactHosts: ['api.ezvizlife.com'], inScopeWildcardHosts: ['target.test', 'cdn.example.com'], outOfScopeHosts: [], outOfScope: [], rules: { noDoS: true, noHeavyScan: true, maxRequestsPerMin: 2 } };
+check('scope: wildcard *.target.test authorizes a target subdomain', scopeViolation('http://api.target.test/v1', 'http://target.test', PSW) === null);
+check('scope: target itself still allowed with a wildcard present', scopeViolation('http://target.test/login', 'http://target.test', PSW) === null);
+check('scope: exact named asset allowed', scopeViolation('http://api.ezvizlife.com/v3', 'http://target.test', PSW) === null);
+check('scope: subdomain of an exact asset blocked', scopeViolation('http://nested.api.ezvizlife.com/v3', 'http://target.test', PSW) === 'http://nested.api.ezvizlife.com/v3');
+check('scope: wildcard subdomain allowed', scopeViolation('http://x.cdn.example.com/y', 'http://target.test', PSW) === null);
+check('scope: wildcard base itself blocked', scopeViolation('http://cdn.example.com/y', 'http://target.test', PSW) === 'http://cdn.example.com/y');
+// Legacy-shape scope (pre-1-Nov parseScope populated inScope with
+// named assets): the assets stay reachable exactly, their subdomains
+// do not.
+const PSL = { domain: 'target.test', inScope: ['target.test', 'api.ezvizlife.com'], outOfScopeHosts: [], outOfScope: [], rules: { noDoS: true, noHeavyScan: true, maxRequestsPerMin: 2 } };
+check('scope: legacy inScope asset allowed exactly', scopeViolation('http://api.ezvizlife.com/v3', 'http://target.test', PSL) === null);
+check('scope: legacy inScope asset subdomain blocked', scopeViolation('http://nested.api.ezvizlife.com/v3', 'http://target.test', PSL) === 'http://nested.api.ezvizlife.com/v3');
 
 // ---------------------------------------------------------------------------
 // Full scripted session with fakes

@@ -246,9 +246,10 @@ async function getPage() {
   // never on whatever tab happens to be first (about:blank on a
   // fresh container, the owner's own frontend left open in the hunt
   // browser). A tab is "on target" by the same host rule as the
-  // scope gate (target host or a programme-listed host, subdomains
-  // included). No target tab: refuse with the actual URL so the
-  // caller can name it and navigate back.
+  // scope gate: the target host or a programme-listed host, exact —
+  // subdomains only under an explicit '*.base' entry. No target tab:
+  // refuse with the actual URL so the caller can name it and
+  // navigate back.
   const targetPage = pages.find((t) => onTargetHosts(t.url, hosts));
   if (targetPage) return targetPage;
   const first = pages[0];
@@ -262,7 +263,20 @@ function hostOf(u) { try { return new URL(u).hostname.toLowerCase(); } catch { r
 function onTargetHosts(url, hosts) {
   const h = hostOf(url);
   if (!h) return false;
-  return (hosts || []).some((d) => { d = String(d || '').toLowerCase(); return h === d || h.endsWith('.' + d); });
+  // Mirror of hostOnTargetList (humanLoop.js) — the loop-side half
+  // of this guard. Keep the two in sync (sync test in
+  // humanLoop.wrongPage.test.js): '*.base' entries authorize
+  // subdomains of the base, never the base itself; bare entries are
+  // exact (1-Nov exact-host rule). A subdomain of the target or of
+  // an exact asset is NOT on target unless a wildcard entry says so.
+  return (hosts || []).some((d) => {
+    d = String(d || '').toLowerCase();
+    if (d.indexOf('*.') === 0) {
+      const base = d.slice(2);
+      return !!base && h !== base && h.endsWith('.' + base);
+    }
+    return h === d;
+  });
 }
 const page = await getPage();
 const ws = page.wrongPage ? null : new WebSocket(page.webSocketDebuggerUrl);

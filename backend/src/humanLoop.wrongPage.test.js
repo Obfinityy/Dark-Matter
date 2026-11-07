@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
 // DATA_DIR isolation (fixture-pollution fix, 6 Nov 2026): humanIteration
@@ -49,16 +50,78 @@ test('HL-1: targetHostsFor is the target host plus inScope, deduped', () => {
   assert.deepEqual(targetHostsFor(TARGET, SCOPE), ['ksuite.infomaniak.com', 'login.infomaniak.com']);
   assert.deepEqual(targetHostsFor(TARGET, null), ['ksuite.infomaniak.com']);
   assert.deepEqual(targetHostsFor('not a url', null), []);
+  // Structured lists (scope-guard widening lane): exact assets are
+  // bare entries, wildcard bases are `*.base` entries.
+  assert.deepEqual(
+    targetHostsFor(TARGET, { ...SCOPE, inScopeExactHosts: ['api.infomaniak.com'], inScopeWildcardHosts: ['ksuite.infomaniak.com'] }),
+    ['ksuite.infomaniak.com', 'login.infomaniak.com', 'api.infomaniak.com', '*.ksuite.infomaniak.com'],
+  );
 });
 
-test('HL-2: isOnTargetHosts uses the scope host rule (subdomains in, lookalikes out)', () => {
+test('HL-2: isOnTargetHosts uses the 1-Nov exact-host rule (bare exact, `*.` subdomains only)', () => {
   assert.equal(isOnTargetHosts(LOGIN_URL, TARGET, SCOPE), true);
   assert.equal(isOnTargetHosts('https://login.infomaniak.com/en/login', TARGET, SCOPE), true);
-  assert.equal(isOnTargetHosts('https://sub.ksuite.infomaniak.com/x', TARGET, SCOPE), true);
+  // A subdomain of the target is NOT on target without an explicit
+  // `*.ksuite.infomaniak.com` wildcard (1-Nov exact-host rule;
+  // scope-guard widening lane, 7 Nov 2026). Was asserted true under
+  // the pre-1-Nov subdomain rule.
+  assert.equal(isOnTargetHosts('https://sub.ksuite.infomaniak.com/x', TARGET, SCOPE), false);
   assert.equal(isOnTargetHosts('https://hack.thebhavesh.online/', TARGET, SCOPE), false);
   assert.equal(isOnTargetHosts('about:blank', TARGET, SCOPE), false);
   assert.equal(isOnTargetHosts('https://ksuite.infomaniak.com.evil.example/', TARGET, SCOPE), false);
   assert.equal(isOnTargetHosts('', TARGET, SCOPE), false);
+  // With the wildcard, the subdomain IS on target — and the target
+  // itself stays on target via its bare entry, not via the `*.`.
+  const WSCOPE = { ...SCOPE, inScopeWildcardHosts: ['ksuite.infomaniak.com'] };
+  assert.equal(isOnTargetHosts('https://sub.ksuite.infomaniak.com/x', TARGET, WSCOPE), true);
+  assert.equal(isOnTargetHosts(LOGIN_URL, TARGET, WSCOPE), true);
+  assert.equal(isOnTargetHosts('https://sub.login.infomaniak.com/x', TARGET, WSCOPE), false);
+});
+
+// Mirror sync (AK-9 pattern from the script-harness lane): the CDP
+// driver's onTargetHosts (guiTools.js CDP_SCRIPT, runs inside the
+// hunt container) must agree with the loop-side isOnTargetHosts on
+// every case — the two copies decide the same question in two
+// places, and a drift would let the driver type into a page the
+// loop considers off-target (or refuse one it considers on-target).
+test('HL-2sync: CDP onTargetHosts agrees with loop isOnTargetHosts', async () => {
+  const { CDP_SCRIPT } = await import('./guiTools.js');
+  const start = CDP_SCRIPT.indexOf('function hostOf(u)');
+  const end = CDP_SCRIPT.indexOf('const page = await getPage();');
+  assert.ok(start >= 0 && end > start, 'hostOf + onTargetHosts must be present in CDP_SCRIPT');
+  const code = CDP_SCRIPT.slice(start, end);
+  const sandbox = { URL };
+  vm.createContext(sandbox);
+  const cdpOnTarget = vm.runInContext(`${code}; onTargetHosts;`, sandbox, { timeout: 1000 });
+  assert.equal(typeof cdpOnTarget, 'function');
+  const scopes = [
+    SCOPE,
+    { ...SCOPE, inScopeWildcardHosts: ['ksuite.infomaniak.com'] },
+    { ...SCOPE, inScopeExactHosts: ['api.infomaniak.com'], inScopeWildcardHosts: ['ksuite.infomaniak.com'] },
+  ];
+  const urls = [
+    LOGIN_URL,
+    'https://login.infomaniak.com/en/login',
+    'https://sub.ksuite.infomaniak.com/x',
+    'https://ksuite.infomaniak.com/',
+    'https://api.infomaniak.com/v1',
+    'https://sub.api.infomaniak.com/v1',
+    'https://sub.login.infomaniak.com/x',
+    'https://hack.thebhavesh.online/',
+    'https://ksuite.infomaniak.com.evil.example/',
+    'about:blank',
+    '',
+  ];
+  for (const scope of scopes) {
+    const hosts = targetHostsFor(TARGET, scope);
+    for (const url of urls) {
+      assert.equal(
+        cdpOnTarget(url, hosts),
+        isOnTargetHosts(url, TARGET, scope),
+        `CDP vs loop mismatch for ${url} under ${JSON.stringify(hosts)}`,
+      );
+    }
+  }
 });
 
 test('HL-3: isReturnToTarget fires only for a target open while provably off-target', () => {
