@@ -76,6 +76,7 @@ import { probeVerbTampering } from './probes/verbTampering.js';
 import { probeMethodOverride } from './probes/methodOverride.js';
 import { probeSecretsInJs, extractSecretTargets } from './probes/secretsInJs.js';
 import { probeErrorDisclosure } from './probes/errorDisclosure.js';
+import { probeValidation } from './probes/validation.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -149,6 +150,7 @@ export const DEFAULT_PHASES = [
   'method-override',
   'secrets-in-js',
   'error-disclosure',
+  'validation',
   'nuclei',
 ];
 
@@ -880,6 +882,29 @@ export async function runScan(
     await step('error-disclosure', () => probeErrorDisclosure(verbTargets, opts));
   } else {
     skipPhase('error-disclosure', 'no probe targets');
+  }
+  // INPUT VALIDATION (7 Nov 2026, rows #436–#440): crafted values
+  // on the same GET probe targets as verb-tampering (integer
+  // overflow past 32/64-bit, array-vs-scalar type juggling,
+  // null-byte truncation, fullwidth unicode) plus the scan's forms
+  // for the hidden-field vector. A finding counts only on the
+  // probe's own differential (acceptance + garbage control, wrapped
+  // echo, or tampered-value substitution — see validation.js).
+  // GET vectors are read-only; POST-form submits run only behind
+  // the allowWrite lab gate. One phase record per scan; when no
+  // scan target carries a probe point and no form exists the phase
+  // records a skip instead of vanishing (gated-skip pattern).
+  if (verbTargets.length > 0 || forms.length > 0) {
+    await step('validation', () =>
+      probeValidation(verbTargets, forms, {
+        ...opts,
+        allowWrite,
+        pathParamsByUrl,
+        pageUrl: url,
+      })
+    );
+  } else {
+    skipPhase('validation', 'no probe targets');
   }
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));
