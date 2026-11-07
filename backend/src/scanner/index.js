@@ -78,6 +78,7 @@ import { probeSecretsInJs, extractSecretTargets } from './probes/secretsInJs.js'
 import { probeErrorDisclosure } from './probes/errorDisclosure.js';
 import { probeValidation } from './probes/validation.js';
 import { probeFingerprintBanner } from './probes/fingerprintBanner.js';
+import { probeSourceCodeDisclosure } from './probes/sourceCodeDisclosure.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -153,6 +154,7 @@ export const DEFAULT_PHASES = [
   'error-disclosure',
   'validation',
   'fingerprint-banner',
+  'source-code-disclosure',
   'nuclei',
 ];
 
@@ -919,6 +921,19 @@ export async function runScan(
   // record per scan; the pasted page is always a surface, so this
   // phase never skips (unlike the gated probes above).
   await step('fingerprint-banner', () => probeFingerprintBanner(url, verbTargets, opts));
+  // SOURCE CODE DISCLOSURE (7 Nov 2026, row #184): backup copies of
+  // discovered server-side files, .git/config and JS source maps
+  // are fetched for actual source content (see
+  // sourceCodeDisclosure.js). A finding counts only when the body
+  // reads as source for the claimed language — a 200, a 404 or an
+  // HTML shell is never a finding — and the matched snippet must
+  // not already appear on the baseline page. Read-only GETs, no
+  // allowWrite gate. One phase record per scan; the pasted page is
+  // always a surface, so this phase never skips (like
+  // fingerprint-banner above). It never re-fires on files the
+  // 'files' phase already covers (.git/HEAD, .env, .DS_Store,
+  // phpinfo.php) or on JS bundle contents (secrets-in-js).
+  await step('source-code-disclosure', () => probeSourceCodeDisclosure(url, verbTargets, opts));
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));
   await step('smtp-injection', () => probeSmtpInject(forms, url, opts));

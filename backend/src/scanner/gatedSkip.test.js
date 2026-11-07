@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 38/33 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 40/33 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -244,26 +244,26 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // Bare page: all three fire (honest no-ops), battery skips 28,
       // verb-tampering + method-override + secrets-in-js +
       // error-disclosure + validation skip with 'no probe targets' /
-      // 'no script targets' (7 Nov 2026), and fingerprint-banner
-      // RUNS (the pasted page is always a surface — 0 findings on
-      // the bare stub) instead of skipping.
+      // 'no script targets' (7 Nov 2026), and fingerprint-banner +
+      // source-code-disclosure RUN (the pasted page is always a
+      // surface — 0 findings on the bare stub) instead of skipping.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 72,
-        ok: 39,
+        total: 73,
+        ok: 40,
         failed: 0,
         skipped: 33,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 39 ran ok, 33 skipped, 0 failed, 0 timed out.'
+        'Phases: 40 ran ok, 33 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 99/99/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 101/101/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -313,23 +313,24 @@ describe('gated discovery phases record a skip on the false branch', () => {
         assert.equal(ph.findingsCount, 0, `${name} finds nothing on this stub`);
       }
       // The exact shape the Juice proof brief expected, updated for the
-      // coverage fix + validation + fingerprint-banner: the battery ran
-      // twice (two DOM targets, 56 records), 42 non-param phases ran
-      // ok (36 + verb-tampering + method-override + secrets-in-js +
-      // error-disclosure + validation + fingerprint-banner, 7 Nov 2026
-      // — all six run here because param targets exist and the shell
+      // coverage fix + validation + fingerprint-banner +
+      // source-code-disclosure: the battery ran twice (two DOM targets,
+      // 56 records), 43 non-param phases ran ok (36 + verb-tampering +
+      // method-override + secrets-in-js + error-disclosure + validation
+      // + fingerprint-banner + source-code-disclosure, 7 Nov 2026 —
+      // all seven run here because param targets exist and the shell
       // carries a script bundle), and the two discovery phases now RUN
-      // instead of skipping — 100 total, 100 ok, 0 skipped.
+      // instead of skipping — 101 total, 101 ok, 0 skipped.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 100,
-        ok: 100,
+        total: 101,
+        ok: 101,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 100 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 101 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -535,7 +536,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 72);
+      assert.equal(DEFAULT_PHASES.length, 73);
     } finally {
       teardown();
     }
