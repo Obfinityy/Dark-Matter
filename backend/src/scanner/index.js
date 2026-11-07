@@ -81,6 +81,7 @@ import { probeFingerprintBanner } from './probes/fingerprintBanner.js';
 import { probeSourceCodeDisclosure } from './probes/sourceCodeDisclosure.js';
 import { probeMetadataLeakage } from './probes/metadataLeakage.js';
 import { probeSensitiveDataInLogs } from './probes/sensitiveDataInLogs.js';
+import { probeSensitiveInfoDisclosure } from './probes/sensitiveInfoDisclosure.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -159,6 +160,7 @@ export const DEFAULT_PHASES = [
   'source-code-disclosure',
   'metadata-leakage',
   'sensitive-data-in-logs',
+  'sensitive-info-disclosure',
   'nuclei',
 ];
 
@@ -969,6 +971,27 @@ export async function runScan(
   // or attacker data reflected into logs (csv-log-injection — the
   // opposite direction). HTML log-viewer pages are out of scope.
   await step('sensitive-data-in-logs', () => probeSensitiveDataInLogs(url, verbTargets, opts));
+  // SENSITIVE INFORMATION DISCLOSURE (GENERAL) (7 Nov 2026, row
+  // #181): the scanner's already-selected response bodies are
+  // examined for the application's own internal infrastructure —
+  // RFC1918 private IP addresses and internal hostnames
+  // (*.internal/*.intranet/*.corp/*.lan/*.local/*.private) (see
+  // sensitiveInfoDisclosure.js). A finding counts only for a
+  // genuinely internal address that is not the target's own host/IP,
+  // is not already printed on the baseline page, and whose body is
+  // not the catch-all control. Read-only GETs, no allowWrite gate.
+  // One phase record per scan; the pasted page is the baseline, so
+  // this phase never skips (like fingerprint-banner,
+  // source-code-disclosure, metadata-leakage and
+  // sensitive-data-in-logs above). It never re-fires on error
+  // responses (error-disclosure), JS bundle contents (secrets-in-js),
+  // served log files (sensitive-data-in-logs), headers
+  // (fingerprint-banner), backup/source files (source-code-disclosure
+  // / files) or image/document metadata (metadata-leakage), and it
+  // never probes diagnostic endpoints (/actuator, /metrics,
+  // /openapi.json, /swagger.json — nuclei and openapi-targets own
+  // those). IPv6 internal addresses are out of scope.
+  await step('sensitive-info-disclosure', () => probeSensitiveInfoDisclosure(url, verbTargets, opts));
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));
   await step('smtp-injection', () => probeSmtpInject(forms, url, opts));
