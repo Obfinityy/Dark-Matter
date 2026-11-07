@@ -73,6 +73,7 @@ import { probePasswordReset } from './probes/passwordReset.js';
 import { probeElInject } from './probes/elInject.js';
 import { probeOgnlInject } from './probes/ognlInject.js';
 import { probeVerbTampering } from './probes/verbTampering.js';
+import { probeMethodOverride } from './probes/methodOverride.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -143,6 +144,7 @@ export const DEFAULT_PHASES = [
   'tls',
   'password-reset',
   'verb-tampering',
+  'method-override',
   'nuclei',
 ];
 
@@ -784,6 +786,21 @@ export async function runScan(
     await step('verb-tampering', () => probeVerbTampering(verbTargets, { ...opts, allowWrite }));
   } else {
     skipPhase('verb-tampering', 'no probe targets');
+  }
+  // METHOD OVERRIDE + CONTENT-TYPE CONFUSION (7 Nov 2026, rows #387
+  // + #388): same GET probe targets as verb-tampering (reused —
+  // the override needs the direct-verb reference, which the probe
+  // fetches itself), plus the scan's POST forms for the JSON-vs-form
+  // vector. One phase record per scan. When no scan target carries
+  // a probe point AND no POST form exists, the phase records a skip
+  // instead of vanishing (gated-skip pattern). allowWrite is the lab
+  // gate: without it the probe sends nothing at all.
+  if (verbTargets.length > 0 || postForms.length > 0) {
+    await step('method-override', () =>
+      probeMethodOverride(verbTargets, postForms, { ...opts, allowWrite })
+    );
+  } else {
+    skipPhase('method-override', 'no probe targets');
   }
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));

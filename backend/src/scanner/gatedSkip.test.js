@@ -242,24 +242,25 @@ describe('gated discovery phases record a skip on the false branch', () => {
         assert.equal(ph.skipped, undefined, `${name} must not skip when it fires`);
       }
       // Bare page: all three fire (honest no-ops), battery skips 28,
-      // verb-tampering skips with 'no probe targets' (7 Nov 2026).
+      // verb-tampering + method-override skip with 'no probe targets'
+      // (7 Nov 2026).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 67,
+        total: 68,
         ok: 38,
         failed: 0,
-        skipped: 29,
+        skipped: 30,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 38 ran ok, 29 skipped, 0 failed, 0 timed out.'
+        'Phases: 38 ran ok, 30 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes skip, rollup reads 93 ran ok + 2 skipped = 95', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes skip, rollup reads 94 ran ok + 2 skipped = 96', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -302,21 +303,21 @@ describe('gated discovery phases record a skip on the false branch', () => {
         assert.equal(ph.ok, true);
       }
       // The exact shape the Juice proof brief expected: the battery
-      // ran twice (two DOM targets, 56 records), 37 non-param phases
-      // ran ok (36 + verb-tampering, 7 Nov 2026 — it runs here
-      // because param targets exist), and the two gated-off discovery
-      // phases are visible as skipped instead of vanishing — 95
-      // total, not 94.
+      // ran twice (two DOM targets, 56 records), 38 non-param phases
+      // ran ok (36 + verb-tampering + method-override, 7 Nov 2026 —
+      // both run here because param targets exist), and the two
+      // gated-off discovery phases are visible as skipped instead of
+      // vanishing — 96 total, not 95.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 95,
-        ok: 93,
+        total: 96,
+        ok: 94,
         failed: 0,
         skipped: 2,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 93 ran ok, 2 skipped (param targets already exist), 0 failed, 0 timed out.'
+        'Phases: 94 ran ok, 2 skipped (param targets already exist), 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -351,7 +352,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 67);
+      assert.equal(DEFAULT_PHASES.length, 68);
     } finally {
       teardown();
     }
