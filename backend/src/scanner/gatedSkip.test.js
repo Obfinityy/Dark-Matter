@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 48/34 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 49/34 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -249,25 +249,26 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // sensitive-data-in-logs + sensitive-info-disclosure +
       // timing-side-channel +
       // untrusted-js-inclusion + api-versioning +
-      // session-token-in-url + credential-disclosure RUN (the pasted page is always a surface
-      // — 0 findings on the bare stub) instead of skipping.
+      // session-token-in-url + credential-disclosure + sqli-oob RUN (the
+      // pasted page is always a surface — 0 findings on the bare stub)
+      // instead of skipping.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 82,
-        ok: 48,
+        total: 83,
+        ok: 49,
         failed: 0,
         skipped: 34,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 48 ran ok, 34 skipped, 0 failed, 0 timed out.'
+        'Phases: 49 ran ok, 34 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 111/111/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 112/112/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -321,27 +322,27 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // source-code-disclosure + metadata-leakage +
       // sensitive-data-in-logs + sensitive-info-disclosure +
       // timing-side-channel + xml-injection: the battery ran twice
-      // (two DOM targets, 58 records), 50 non-param phases ran ok (36 +
+      // (two DOM targets, 58 records), 51 non-param phases ran ok (36 +
       // verb-tampering + method-override + secrets-in-js +
       // error-disclosure + validation + fingerprint-banner +
       // source-code-disclosure + metadata-leakage +
       // sensitive-data-in-logs + sensitive-info-disclosure +
       // timing-side-channel + untrusted-js-inclusion +
       // api-versioning + session-token-in-url +
-      // credential-disclosure, 7 Nov 2026 — all fifteen run here
+      // credential-disclosure + sqli-oob, 7 Nov 2026 — all sixteen run here
       // because param targets exist and the shell carries a script
       // bundle), and the two discovery phases now RUN instead of
-      // skipping — 110 total, 110 ok, 0 skipped.
+      // skipping — 112 total, 112 ok, 0 skipped.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 111,
-        ok: 111,
+        total: 112,
+        ok: 112,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 111 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 112 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -547,7 +548,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 82);
+      assert.equal(DEFAULT_PHASES.length, 83);
     } finally {
       teardown();
     }

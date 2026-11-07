@@ -12,6 +12,7 @@ import { analyzePage, planForPage } from './pageAnalyze.js';
 import { probeHeaders } from './probes/headers.js';
 import { probeSqliError } from './probes/sqliError.js';
 import { probeBlindSqli } from './probes/sqliBlind.js';
+import { probeSqliOob } from './probes/sqliOob.js';
 import { probeXssReflected } from './probes/xss.js';
 import { probeCmdiTime } from './probes/cmdi.js';
 import { probeTraversal } from './probes/traversal.js';
@@ -101,6 +102,7 @@ export const DEFAULT_PHASES = [
   'headers',
   'sqli-error',
   'sqli-blind',
+  'sqli-oob',
   'xss',
   'cmdi',
   'traversal',
@@ -922,6 +924,69 @@ export async function runScan(
       }
     } catch {
       // ignore malformed URLs
+    }
+  }
+  // SQLI OOB (7 Nov 2026, row #280, CWE-89): the blind-SQLi family
+  // taken out-of-band — a payload that makes the DATABASE itself issue
+  // an HTTP request to a canary URL the scanner controls. A collaborator
+  // hit for the payload's token CONFIRMS the injection in-scan (see
+  // sqliOob.js); no hit means no finding. One phase record per scan
+  // (not per URL): the probe is expensive — each payload waits up to
+  // 8s on the collaborator — so the step caps the whole phase at 2
+  // probe points across all verb targets (~32s worst case). The step
+  // always RUNS (the pasted page's params are the surface, like
+  // credential-disclosure above): with no param targets it returns []
+  // instead of skipping, so the bare-page rollup counts it as ok.
+  // LAB-GATED (allowWrite, the same host check as file-upload): the
+  // collaborator starts only for lab-gated scans, and the probe itself
+  // re-checks opts.labTargets before sending anything — a non-lab
+  // target never receives a callback URL. The collaborator is always
+  // stopped afterwards (finally), so no listener outlives the scan.
+  // Callback-host default is the docker bridge gateway (172.17.0.1) —
+  // the IP lab containers use to reach the host; override with
+  // opts.oobCallbackHost / DM_OOB_CALLBACK_HOST.
+  let sqliOob = null;
+  if (phases.includes('sqli-oob') && allowWrite) {
+    try {
+      sqliOob = createOobCollaborator({
+        listenHost: opts.oobListenHost || process.env.DM_OOB_LISTEN_HOST || '0.0.0.0',
+        listenPort: opts.oobListenPort || (process.env.DM_OOB_PORT ? Number(process.env.DM_OOB_PORT) : 0),
+        callbackHost: opts.oobCallbackHost || process.env.DM_OOB_CALLBACK_HOST || '172.17.0.1',
+      });
+      await sqliOob.start();
+    } catch (e) {
+      errors.push(`oob-collaborator: ${e && e.message ? e.message : String(e)}`);
+      sqliOob = null;
+    }
+  }
+  try {
+    await step('sqli-oob', async () => {
+      const findings = [];
+      const pairs = [];
+      for (const u of verbTargets) {
+        for (const p of extractProbePoints(u, pathParamsByUrl.get(u))) {
+          pairs.push([u, p]);
+          if (pairs.length >= 2) break;
+        }
+        if (pairs.length >= 2) break;
+      }
+      for (const [u, p] of pairs) {
+        findings.push(
+          ...(await probeSqliOob([p], u, {
+            ...opts,
+            dbHint: fp?.dbHint,
+            labTargets,
+            ...(sqliOob
+              ? { oobCallback: sqliOob.baseUrl(), oobWaitFor: (token, ms) => sqliOob.waitFor(token, ms) }
+              : {}),
+          }))
+        );
+      }
+      return findings;
+    });
+  } finally {
+    if (sqliOob) {
+      try { await sqliOob.stop(); } catch { /* stop is best-effort */ }
     }
   }
   if (verbTargets.length > 0) {

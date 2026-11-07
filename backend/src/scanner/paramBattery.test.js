@@ -93,7 +93,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 82);
+    assert.equal(DEFAULT_PHASES.length, 83);
   });
 
   it('zero param targets: all 29 param phases emit skipped records, rollup reports them', async () => {
@@ -348,8 +348,9 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // targets — the same seam discipline as domRenderer above.
   // (37/28 before js-api-routes; 43/33 before timing-side-channel;
   // 44/33 before xml-injection and untrusted-js-inclusion;
-  // 46/34 before session-token-in-url; 47/34 before credential-disclosure.)
-  it('real runScan on a bare page renders the 48/34 line end to end', async () => {
+  // 46/34 before session-token-in-url; 47/34 before credential-disclosure;
+  // 48/34 before sqli-oob.)
+  it('real runScan on a bare page renders the 49/34 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -361,15 +362,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 82,
-        ok: 48,
+        total: 83,
+        ok: 49,
         failed: 0,
         skipped: 34,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 48 ran ok, 34 skipped, 0 failed, 0 timed out.'
+        'Phases: 49 ran ok, 34 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

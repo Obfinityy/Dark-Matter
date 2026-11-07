@@ -36,6 +36,18 @@ describe('assessConfirmation OOB protocol', () => {
     assert.equal(assessConfirmation({ class: 'ssrf', evidence: { oobHit: true } }).verdict, 'confirmed');
     assert.equal(assessConfirmation({ class: 'ssrf', evidence: { oobHit: false } }).verdict, 'rejected');
   });
+
+  it('confirms sqli_oob on oobHit — the OOB guard must precede the sqli family branch', () => {
+    // 7 Nov 2026 (#280): 'sqli_oob' contains 'sqli', so the family
+    // branch used to claim it for the boolean protocol (judged on
+    // `diverged`, which an OOB finding never carries) and a
+    // collaborator-confirmed hit came out 'unconfirmed'. The OOB guard
+    // now runs first, so the hit judges on oobHit like every other
+    // _oob class.
+    assert.equal(assessConfirmation({ class: 'sqli_oob', evidence: { oobHit: true } }).verdict, 'confirmed');
+    assert.equal(assessConfirmation({ class: 'sqli_oob', evidence: { oobHit: false } }).verdict, 'rejected');
+    assert.equal(assessConfirmation({ class: 'sqli_oob', evidence: {} }).verdict, 'unconfirmed');
+  });
 });
 
 // dedupeFindings title segment (7 Nov 2026): the key is

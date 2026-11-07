@@ -57,6 +57,16 @@ export const CONFIRMATION_PROTOCOLS = {
 
 function protocolFor(finding) {
   const cls = String(finding.class || finding.type || '').toLowerCase().replace(/[^a-z]/g, '');
+  // OOB-confirmed findings FIRST (e.g. saml_xxe_oob, sqli_oob): the
+  // control is a collaborator hit, judged on oobHit — same protocol as
+  // SSRF. This must precede the family branches below: 'sqli_oob'
+  // contains 'sqli' and would otherwise be claimed by the sqli branch
+  // for the boolean protocol (judged on `diverged`, which an OOB
+  // finding never carries), leaving a collaborator-confirmed hit
+  // 'unconfirmed'. The endsWith guard keeps the '_sent' dispatch
+  // record (saml_xxe_oob_sent) on the default protocol, where
+  // signalCorrelated still judges it.
+  if (cls.endsWith('oob')) return CONFIRMATION_PROTOCOLS.ssrf;
   // Generic class -> most common protocol for that family.
   if (cls.includes('sqli') || cls.includes('sqlinjection')) {
     return cls.includes('time') || cls.includes('blind')
@@ -68,11 +78,6 @@ function protocolFor(finding) {
   if (cls.includes('xss')) return CONFIRMATION_PROTOCOLS.xss_reflected;
   if (cls.includes('idor') || cls.includes('bola')) return CONFIRMATION_PROTOCOLS.idor;
   if (cls.includes('ssrf')) return CONFIRMATION_PROTOCOLS.ssrf;
-  // OOB-confirmed findings (e.g. saml_xxe_oob): the control is a
-  // collaborator hit, judged on oobHit — same protocol as SSRF. The
-  // endsWith guard keeps the '_sent' dispatch record (saml_xxe_oob_sent)
-  // on the default protocol, where signalCorrelated still judges it.
-  if (cls.endsWith('oob')) return CONFIRMATION_PROTOCOLS.ssrf;
   if (cls.includes('authbypass') || cls.includes('bypass')) return CONFIRMATION_PROTOCOLS.auth_bypass;
   for (const [key, proto] of Object.entries(CONFIRMATION_PROTOCOLS)) {
     if (key !== 'default' && cls.includes(key.replace(/_/g, ''))) return proto;
