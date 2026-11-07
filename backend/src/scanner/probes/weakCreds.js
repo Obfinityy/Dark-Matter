@@ -33,7 +33,9 @@ const DEFAULT_CREDS = [
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function isLoginForm(f) {
-  const names = (f.inputs || []).map((n) => String(n));
+  // Inputs are { name, type, value } objects (D1, #474 repair) —
+  // the name heuristics read .name, never the object itself.
+  const names = (f.inputs || []).map((i) => String(i.name || ''));
   const hasPass = names.some((n) => /passw|passwd|\bpwd\b/i.test(n));
   const hasUser = names.some((n) => /user(name)?|login|email|account/i.test(n));
   if (hasPass && hasUser) return true;
@@ -42,7 +44,7 @@ function isLoginForm(f) {
 }
 
 function fieldNames(f) {
-  const names = (f.inputs || []).map((n) => String(n));
+  const names = (f.inputs || []).map((i) => String(i.name || ''));
   const user = names.find((n) => /user(name)?|login|email|account/i.test(n)) || names[0];
   const pass = names.find((n) => /passw|passwd|\bpwd\b/i.test(n)) || names[1];
   return { user, pass };
@@ -85,10 +87,12 @@ async function tryLogin(form, username, password, hidden, opts = {}) {
   for (const [k, v] of Object.entries(hidden)) params.set(k, v);
   let n = 0;
   for (const inp of form.inputs || []) {
-    if (inp === user) params.set(inp, username);
-    else if (inp === pass) params.set(inp, password);
-    else if (/^(submit|button)$/i.test(String(inp))) params.set(inp, 'Login');
-    else if (!(inp in hidden)) params.set(inp, `dmprobe${++n}_${randomBytes(2).toString('hex')}`);
+    const name = inp.name;
+    if (!name) continue;
+    if (name === user) params.set(name, username);
+    else if (name === pass) params.set(name, password);
+    else if (/^(submit|button)$/i.test(name)) params.set(name, 'Login');
+    else if (!(name in hidden)) params.set(name, `dmprobe${++n}_${randomBytes(2).toString('hex')}`);
   }
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), opts.timeoutMs || 15000);

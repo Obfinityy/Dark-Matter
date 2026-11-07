@@ -514,12 +514,14 @@ export async function runScan(
         // Crawl-shape forms for the form battery (csrf / post-forms /
         // race / ...): every named control on the form — inputs plus
         // textareas/selects, which the static extractor misses.
+        // Inputs stay { name, type, value } objects (D1, #474 repair):
+        // the old .map(x => x.name) flattened them to bare strings,
+        // which broke every consumer testing i.type === 'password'.
         domForms = (dom.forms || []).map((f) => ({
           action: f.action,
           method: f.method,
           inputs: [...(f.inputs || []), ...(f.textareas || []), ...(f.selects || [])]
-            .map((x) => x.name)
-            .filter(Boolean),
+            .filter((x) => x && x.name),
         }));
         return dom;
       },
@@ -617,7 +619,7 @@ export async function runScan(
   // inputs) still get their own target.
   const uniqueForms = [...new Map(
     forms.map((f) => [
-      `${String(f.method || 'get').toLowerCase()}|${f.action}|${(f.inputs || []).join(',')}`,
+      `${String(f.method || 'get').toLowerCase()}|${f.action}|${(f.inputs || []).map((i) => i.name).join(',')}`,
       f,
     ])
   ).values()];
@@ -632,10 +634,12 @@ export async function runScan(
       const u = new URL(form.action);
       let n = 0;
       for (const inp of form.inputs || []) {
-        if (/^submit$/i.test(inp)) {
-          if (!u.searchParams.has(inp)) u.searchParams.set(inp, '1');
-        } else if (!u.searchParams.has(inp)) {
-          u.searchParams.set(inp, `dmprobe${++n}_${randomBytes(2).toString('hex')}`);
+        const name = inp.name;
+        if (!name) continue;
+        if (/^submit$/i.test(name)) {
+          if (!u.searchParams.has(name)) u.searchParams.set(name, '1');
+        } else if (!u.searchParams.has(name)) {
+          u.searchParams.set(name, `dmprobe${++n}_${randomBytes(2).toString('hex')}`);
         }
       }
       return u.toString();
@@ -760,6 +764,11 @@ export async function runScan(
   // record and nothing else changes.
   // opts.jsRoutesFetcher is the test seam, mirroring openApiFetcher.
   let jsRoutesDiscovery = null;
+  // POST-only mined routes (D3, #474 repair, 8 Nov 2026): write
+  // endpoints the miner recovers for API-login candidates (T4b).
+  // NEVER added to scanTargets — the GET-only mining contract
+  // stands; they feed only the session-fixation step's apiRoutes.
+  let jsWriteTargets = [];
   if (!hasOffPageParamTarget(scanTargets, url)) {
     await step(
       'js-api-routes',
@@ -769,9 +778,11 @@ export async function runScan(
           ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
         });
         if (!jsRoutesDiscovery || !jsRoutesDiscovery.targets || jsRoutesDiscovery.targets.length === 0) {
+          jsWriteTargets = (jsRoutesDiscovery && jsRoutesDiscovery.writeTargets) || [];
           return jsRoutesDiscovery;
         }
         for (const t of jsRoutesDiscovery.targets) pushFormTarget(t, 'js-routes');
+        jsWriteTargets = jsRoutesDiscovery.writeTargets || [];
         if (jsRoutesDiscovery.pathParams) {
           for (const [targetUrl, descriptors] of Object.entries(jsRoutesDiscovery.pathParams)) {
             pathParamsByUrl.set(targetUrl, descriptors);
@@ -785,6 +796,7 @@ export async function runScan(
               findingsCount: (jsRoutesDiscovery.targets || []).length,
               jsRoutesFound: (jsRoutesDiscovery.targets || []).length,
               jsRouteTargets: (jsRoutesDiscovery.targets || []).length,
+              jsWriteTargets: (jsRoutesDiscovery.writeTargets || []).length,
               jsBundles: jsRoutesDiscovery.bundlesFetched || 0,
             }
           : {}
@@ -1221,7 +1233,11 @@ export async function runScan(
   // T4b (bearer/API login) needs the already-discovered route set —
   // wired in here from scanTargets (crawl + openapi + jsRoutes-mined),
   // no new discovery phase. T4b never fires on the SPA-root HTML alone.
-  await step('session-fixation', () => probeSessionFixation(forms, url, { ...opts, apiRoutes: scanTargets }));
+  // D2 (#474 repair): labTargets is passed explicitly — the probe's
+  // isLab reads opts.labTargets, and runScan's spec field never
+  // reached opts before. D3: the POST-only mined routes ride along
+  // as API-login candidates (never as GET probe targets).
+  await step('session-fixation', () => probeSessionFixation(forms, url, { ...opts, apiRoutes: [...scanTargets, ...jsWriteTargets], labTargets }));
   await step('user-enumeration', () => probeUserEnum(forms, url, opts));
   await step('mass-assignment', () => probeMassAssignment(forms, url, opts));
   await step('ws-messages', () => probeWsMessages(url, opts));
@@ -1231,7 +1247,9 @@ export async function runScan(
       forms,
       url,
       [...new Set(forms.flatMap((f) => (f.inputs || []).map((i) => i.name).filter(Boolean)))],
-      opts
+      // D2 (#474 repair): same labTargets defect as session-fixation —
+      // the probe's isLab read opts.labTargets, which runScan never set.
+      { ...opts, labTargets }
     )
   );
   await step('files', () => probeSensitiveFiles(url, opts));

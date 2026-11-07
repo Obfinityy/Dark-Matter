@@ -10,16 +10,20 @@ const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 async function postForm(form, inputName, payload, opts = {}) {
   const params = new URLSearchParams();
   let n = 0;
+  // Inputs are { name, type, value } objects (D1, #474 repair) —
+  // every set/test here reads .name; inputName is a name string.
   for (const inp of form.inputs || []) {
+    const name = inp.name;
+    if (!name) continue;
     // SAFETY: non-target inputs get UNIQUE filler values (never equal).
     // A state-changing POST form (e.g. password-change) triggers when its
     // inputs "match" — identical fillers would fire it.
-    if (inp === inputName) {
-      params.set(inp, payload);
-    } else if (/^submit$/i.test(inp)) {
-      params.set(inp, '1');
+    if (name === inputName) {
+      params.set(name, payload);
+    } else if (/^submit$/i.test(name)) {
+      params.set(name, '1');
     } else {
-      params.set(inp, `dmprobe${++n}_${randomBytes(2).toString('hex')}`);
+      params.set(name, `dmprobe${++n}_${randomBytes(2).toString('hex')}`);
     }
   }
   const ctrl = new AbortController();
@@ -83,9 +87,10 @@ export async function probePostForms(forms, opts = {}) {
   for (const form of postForms.slice(0, 10)) {
     // Skip submit buttons — injecting them is pointless and doubles runtime.
     const fields = (form.inputs || [])
-      .filter((i) => !/^submit$/i.test(i))
+      .filter((i) => i.name && !/^submit$/i.test(i.name))
       .slice(0, 8);
-    for (const input of fields) {
+    for (const field of fields) {
+      const input = field.name;
       // --- error-based SQLi: benign vs quote ---
       try {
         const benign = await postForm(form, input, '1', opts);

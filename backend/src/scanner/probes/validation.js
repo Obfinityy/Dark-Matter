@@ -367,7 +367,7 @@ async function defaultSubmit(form, values, opts = {}) {
 /**
  * Probe input validation (#436–#440).
  * @param {string[]} urls — distinct GET probe target URLs.
- * @param {object[]} forms — scan forms { action, method, inputs: [names] }.
+ * @param {object[]} forms — scan forms { action, method, inputs: [{ name, type, value }] }.
  * @param {object} opts — { timeoutMs, headers, fetchPage, submitForm,
  *   allowWrite, pathParamsByUrl, pageUrl }.
  *   fetchPage is the GET seam (defaults to fingerprint.fetchPage);
@@ -550,7 +550,11 @@ export async function probeValidation(urls, forms, opts = {}) {
       const tampered = /^-?\d+$/.test(original) ? (original === '0' ? '-1' : '0') : TAMPERED_MARKER;
       const valuesFor = (override) => {
         const values = {};
-        for (const name of form.inputs || []) {
+        // Inputs are { name, type, value } objects (D1, #474 repair) —
+        // the value map is keyed by NAME, never by the object itself.
+        for (const inp of form.inputs || []) {
+          const name = inp.name;
+          if (!name) continue;
           const h = hidden.find((x) => x.name === name);
           if (h) {
             values[name] = override && h.name === target.name ? tampered : String(h.value ?? '');

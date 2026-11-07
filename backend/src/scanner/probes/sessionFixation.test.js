@@ -22,6 +22,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { probeSessionFixation } from './sessionFixation.js';
+import { extractForms } from '../crawl.js';
 import { assessConfirmation } from '../../hunt-intel/differential.js';
 import { verifyFindings } from '../verifier.js';
 import { resolveLabCreds } from '../../labCreds.js';
@@ -56,7 +57,9 @@ const LOGOUT_PATHS = ['/logout', '/logout.php', '/signout', '/auth/logout'];
 
 // Cookie-login fixture (DVWA-shaped). cfg: rotateOnLogin (default true),
 // invalidateOnLogout (false), logoutStatus (200), loginPageRedirectsAuthed
-// (false), issueCookie (true).
+// (false), issueCookie (true), adoptPlantedOnLogin (false — the login
+// POST adds the PRESENTED session ID to the valid set, modelling a
+// server that keeps a planted ID through login; T2's positive case).
 function startCookieFixture(cfg = {}) {
   const {
     rotateOnLogin = true,
@@ -64,6 +67,7 @@ function startCookieFixture(cfg = {}) {
     logoutStatus = 200,
     loginPageRedirectsAuthed = false,
     issueCookie = true,
+    adoptPlantedOnLogin = false,
   } = cfg;
   const validSessions = new Set();
   let tokenSeq = 0;
@@ -87,7 +91,12 @@ function startCookieFixture(cfg = {}) {
       tokenSeq += 1;
       currentToken = `tok-${tokenSeq}`;
       const headers = { 'Content-Type': 'text/html' };
-      if (issueCookie) headers['Set-Cookie'] = 'PHPSESSID=sess-anon-001; Path=/';
+      // The server ACCEPTS a presented session ID (PHP session_start
+      // behaviour): a fresh ID is issued only when the client presents
+      // none. Issuing unconditionally would clobber a planted ID on
+      // the login page re-fetch and make T2 untestable (D2, #474
+      // repair). A re-fetch that already carries an ID keeps it.
+      if (issueCookie && !sess) headers['Set-Cookie'] = 'PHPSESSID=sess-anon-001; Path=/';
       res.writeHead(200, headers);
       res.end(`<html><body><form action="/login.php" method="post">`
         + `<input type='hidden' name='user_token' value='${currentToken}'>`
@@ -103,6 +112,11 @@ function startCookieFixture(cfg = {}) {
         res.end();
         return;
       }
+      // adoptPlantedOnLogin: the server keeps the PRESENTED session ID
+      // as the authenticated session (the fixation primitive) instead
+      // of issuing a fresh one. Only meaningful with rotateOnLogin
+      // false — rotation defeats planting by construction.
+      if (adoptPlantedOnLogin && sess) validSessions.add(sess);
       if (rotateOnLogin) {
         sessionSeq += 1;
         const id = `sess-login-${sessionSeq}`;
@@ -439,6 +453,67 @@ describe('sessionFixation confirmation + plumbing', () => {
     }
   });
 
+describe('sessionFixation D1/D2 repair (#474)', () => {
+  it('(o) D1: REAL extractForms output from a DVWA login page drives T4 — the test that would have caught the shape bug', async () => {
+    const fx = await startCookieFixture({ rotateOnLogin: true, invalidateOnLogout: false });
+    try {
+      // The DVWA login page exactly as served: single-quoted hidden
+      // token, untyped username, password input. extractForms must
+      // yield { name, type, value } objects — with the old bare-string
+      // shape loginForms never matched and the probe returned [].
+      const html = `<html><body><form action="/login.php" method="post">`
+        + `<input type='hidden' name='user_token' value='stale-token-0'>`
+        + `<input name="username"><input type="password" name="password">`
+        + `<button>Login</button></form></body></html>`;
+      const forms = extractForms(html, `${fx.base}/login.php`);
+      assert.equal(forms.length, 1);
+      assert.ok(forms[0].inputs.some((i) => i.type === 'password'), 'extracted inputs must carry the password type');
+      const findings = await probeSessionFixation(forms, `${fx.base}/`, cookieOpts);
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].title, T4_TITLE);
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(p) D2: T2 planted-ID adoption fires with PORT-BEARING labTargets (the production shape)', async () => {
+    const fx = await startCookieFixture({ rotateOnLogin: false, invalidateOnLogout: true, adoptPlantedOnLogin: true });
+    try {
+      const port = new URL(fx.base).port;
+      const opts = { ...cookieOpts, labTargets: `127.0.0.1:${port}` };
+      const findings = await probeSessionFixation([cookieForm(fx.base)], `${fx.base}/`, opts);
+      const t2 = findings.find((f) => f.severity === 'high' && /planted session ID/.test(f.title));
+      assert.ok(t2, `T2 HIGH must fire with port-bearing labTargets; got: ${findings.map((f) => f.title).join(' | ')}`);
+      assert.equal(t2.class, 'session_fixation');
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(q) D2: T2 stays silent without labTargets (T1 still fires — the gate is lab-only, not the oracle)', async () => {
+    const fx = await startCookieFixture({ rotateOnLogin: false, invalidateOnLogout: true, adoptPlantedOnLogin: true });
+    try {
+      const findings = await probeSessionFixation([cookieForm(fx.base)], `${fx.base}/`, cookieOpts);
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].title, T1_TITLE);
+      assert.ok(!findings.some((f) => /planted session ID/.test(f.title)), 'T2 must not fire without labTargets');
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(r) D2: T2 fires with labTargets as an ARRAY (the isLabTargetHost shape)', async () => {
+    const fx = await startCookieFixture({ rotateOnLogin: false, invalidateOnLogout: true, adoptPlantedOnLogin: true });
+    try {
+      const port = new URL(fx.base).port;
+      const opts = { ...cookieOpts, labTargets: [`127.0.0.1:${port}`] };
+      const findings = await probeSessionFixation([cookieForm(fx.base)], `${fx.base}/`, opts);
+      assert.ok(findings.some((f) => /planted session ID/.test(f.title)), 'T2 must fire with array labTargets');
+    } finally {
+      await fx.close();
+    }
+  });
+});
   it('(n) labCreds forwarded ONLY for admin + lab-target hunts', () => {
     const creds = { username: LAB_USER, password: LAB_PASS };
     const lab = '172.17.0.1:3100';

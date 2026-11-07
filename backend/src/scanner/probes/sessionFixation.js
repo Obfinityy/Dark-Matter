@@ -32,23 +32,25 @@
 //      fetch the pasted pageUrl and follow same-origin redirects (≤2).
 //   3. T4 POSTed the DISCOVERED form's (stale) hidden token — the login
 //      is now posted with a freshly re-fetched token (loginWithFreshToken).
+//
+// Repairs (8 Nov 2026, #474 repair lane — the three defects the live
+// proof exposed, parent-diagnosed):
+//   D1. extractForms returned bare name strings, so loginForms'
+//      i.type === 'password' never matched in production — the producer
+//      now emits { name, type, value } objects (see crawl.js).
+//   D2. isLab compared hostname (no port) against port-bearing
+//      LAB_TARGETS entries AND read opts.labTargets, which runScan
+//      never set — the probe now uses canonical isLabTargetHost
+//      (labCreds.js) and runScan passes labTargets explicitly.
+//   D3. Juice's POST-only /rest/user/login never reached apiRoutes —
+//      runScan now also passes the miner's write targets (jsRoutes.js).
+
+import { isLabTargetHost } from '../../labCreds.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 function rand() {
   return Math.random().toString(36).slice(2, 10);
-}
-
-function isLab(url, opts) {
-  try {
-    const host = new URL(url).hostname;
-    return String(opts.labTargets || '')
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .some((h) => host === h || host.endsWith('.' + h));
-  } catch {
-    return false;
-  }
 }
 
 function ev(request, response, impact) {
@@ -244,7 +246,11 @@ async function t1NoRegen(form, opts, creds) {
 // ---- T2: planted-ID adoption (lab-only) ------------------------------------------------
 async function t2PlantedAdoption(form, opts, creds, rid) {
   const findings = [];
-  if (!isLab(form.action || form.pageUrl || '', opts)) return findings;
+  // D2 (#474 repair): the lab gate uses the canonical host comparison
+  // (isLabTargetHost — port-insensitive, string-or-array labTargets).
+  // The old local isLab compared a bare hostname against port-bearing
+  // entries, so this gate could never pass in production.
+  if (!isLabTargetHost(form.action || form.pageUrl || '', opts.labTargets)) return findings;
   const canary = `__dm_sessfix_${rid}`;
   // Attacker jar: plant the ID. Victim jar: same planted ID, then login.
   const jarV = new Jar();

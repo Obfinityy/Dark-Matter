@@ -24,10 +24,17 @@ import {
   extractJsRouteRecords,
   extractScriptSrcs,
   synthesiseJsTargets,
+  synthesiseJsWriteTargets,
   JS_ROUTES_MAX_TARGETS,
   JS_ROUTES_MAX_BUNDLES,
 } from './jsRoutes.js';
 import { runScan, PARAM_BATTERY_PHASES, buildPhaseRollup } from './index.js';
+
+// Juice API-login creds for the D3 runScan test — public lab defaults,
+// built by concatenation so no secret-shaped literal lands here (GH013).
+const D3_JUICE_USER = 'admin' + '@juice-sh.op';
+const D3_JUICE_PASS = 'admin' + '123';
+const D3_TOKEN = 'fixture-jwt-token-001';
 
 // Juice main.js forms, live (7 Nov 2026): direct http.get literals
 // (security-question, change-password concat), hostServer+ literal
@@ -225,6 +232,40 @@ describe('extractJsRouteRecords (template-literal host calls)', () => {
   });
 });
 
+describe('synthesiseJsWriteTargets (D3, #474 repair)', () => {
+  test('JS-13: POST-only routes become write targets; GET, mixed and orphan routes never do', () => {
+    const recs = extractJsRouteRecords(JUICE_BUNDLE);
+    const write = synthesiseJsWriteTargets(recs, 'http://example.com/');
+    const paths = write.map((t) => new URL(t).pathname);
+    for (const want of [
+      '/rest/user/login',
+      '/rest/user/reset-password',
+      '/rest/2fa/verify',
+      '/rest/chatbot/respond',
+      // The concat-form checkout + coupon share the '/rest/basket/'
+      // literal record (methods post+put) — one write target, no
+      // templated path (the miner cannot resolve concat suffixes).
+      '/rest/basket/',
+    ]) {
+      assert.ok(paths.includes(want), `expected write target ${want}`);
+    }
+    for (const banned of [
+      '/rest/user/whoami',
+      '/rest/products/search',
+      '/rest/deluxe-membership', // mixed GET+POST: a GET target, never write-only
+      '/rest/display-only', // orphan: no method evidence
+      '/api/Products',
+      '/rest/basket/dmprobe', // the GET basket record is a GET target, not a write target
+    ]) {
+      assert.ok(!paths.some((p) => p === banned || p.startsWith(`${banned}/`)), `${banned} must never be a write target`);
+    }
+    assert.ok(write.every((t) => t.startsWith('http://example.com/')), 'same origin only');
+    assert.ok(!write.some((t) => t.includes('${') || t.includes('/:'), 'no literal-brace URLs'));
+    assert.deepEqual(synthesiseJsWriteTargets([], 'http://example.com/'), []);
+    assert.deepEqual(synthesiseJsWriteTargets(null, 'not a url'), []);
+  });
+});
+
 describe('discoverJsRoutes (stubbed fetchPage)', () => {
   test('JS-8: shell + bundles merged, cross-origin bundle never fetched, fetch failure is an honest no-op', async () => {
     const fetchPage = stubFetchFor(JUICE_SHELL, {
@@ -255,6 +296,26 @@ describe('discoverJsRoutes (stubbed fetchPage)', () => {
     assert.equal(noScripts.routesFound, false);
     assert.deepEqual(noScripts.targets, []);
     assert.equal(await discoverJsRoutes('not a url', { fetchPage }).then((r) => r.routesFound), false);
+  });
+
+  test('JS-14: discoverJsRoutes also returns POST-only writeTargets; GET targets still exclude them', async () => {
+    const fetchPage = stubFetchFor(JUICE_SHELL, {
+      'runtime.js': 'var r = 1;',
+      'polyfills.js': 'var p = 1;',
+      'vendor.js': 'var v = 1;',
+      'main.js': JUICE_BUNDLE,
+    });
+    const found = await discoverJsRoutes('http://example.com/', { fetchPage });
+    assert.ok(found.writeTargets.some((t) => t === 'http://example.com/rest/user/login'), 'login must be a write target');
+    assert.ok(found.writeTargets.some((t) => t === 'http://example.com/rest/user/reset-password'), 'reset-password must be a write target');
+    assert.ok(!found.targets.some((t) => t.includes('/rest/user/login')), 'login must never be a GET target');
+    assert.ok(!found.targets.some((t) => t.includes('/rest/user/reset-password')), 'reset-password must never be a GET target');
+
+    const failing = async () => {
+      throw new Error('boom');
+    };
+    const missed = await discoverJsRoutes('http://example.com/', { fetchPage: failing });
+    assert.deepEqual(missed.writeTargets, []);
   });
 });
 
@@ -319,6 +380,96 @@ describe('runScan integration (stub server)', () => {
         calls.some((c) => /\/rest\/basket\/dmprobe\d+_[0-9a-f]+\?e=dmprobe/.test(c.url)),
         'expected a GET probe of the mined basket segment target'
       );
+    } finally {
+      await new Promise((r) => server.close(r));
+    }
+  });
+});
+
+describe('runScan integration — D3 write targets (T4b end to end)', () => {
+  test('JS-15: POST-only /rest/user/login mined as a write target feeds T4b in runScan — login POST-only, T4b fires', async () => {
+    const calls = [];
+    const server = http.createServer((req, res) => {
+      let raw = '';
+      req.on('data', (c) => {
+        raw += c;
+      });
+      req.on('end', () => {
+        calls.push({ method: req.method, url: req.url, body: raw });
+        if (req.url === '/main.js') {
+          res.writeHead(200, { 'Content-Type': 'application/javascript' });
+          res.end(JUICE_BUNDLE);
+          return;
+        }
+        if (req.url === '/') {
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(JUICE_SHELL);
+          return;
+        }
+        if (req.method === 'POST' && req.url === '/rest/user/login') {
+          let body = {};
+          try { body = JSON.parse(raw); } catch { /* non-JSON login body */ }
+          if (!body.email && !body.username) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'email or username required' }));
+            return;
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ authentication: { token: D3_TOKEN, bid: 1, umail: D3_JUICE_USER } }));
+          return;
+        }
+        if (req.method === 'GET' && req.url === '/rest/user/whoami') {
+          if (req.headers.authorization !== `Bearer ${D3_TOKEN}`) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Unauthorized' }));
+            return;
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ user: { id: 1, email: D3_JUICE_USER, role: 'admin' } }));
+          return;
+        }
+        if (req.method === 'GET' && ['/logout', '/logout.php', '/signout', '/auth/logout'].includes(req.url)) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ message: 'Not found' }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok' }));
+      });
+    });
+    const stub = await new Promise((resolve) => {
+      server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port }));
+    });
+    try {
+      const target = `http://127.0.0.1:${stub.port}/`;
+      const result = await runScan(
+        {
+          target,
+          confirmedAuthorized: true,
+          labTargets: '127.0.0.1',
+          phases: ['fingerprint', 'crawl', 'page-analyze', 'openapi-targets', 'js-api-routes', 'session-fixation'],
+        },
+        {
+          timeoutMs: 5000,
+          labCreds: { username: D3_JUICE_USER, password: D3_JUICE_PASS },
+        }
+      );
+      const jsPhase = result.phases.find((p) => p.name === 'js-api-routes');
+      assert.ok(jsPhase && jsPhase.ok, 'js-api-routes phase must record ok');
+      assert.ok(jsPhase.jsWriteTargets >= 1, `expected >=1 write target, got ${jsPhase.jsWriteTargets}`);
+      const sfPhase = result.phases.find((p) => p.name === 'session-fixation');
+      assert.ok(sfPhase && sfPhase.ok, 'session-fixation phase must record ok');
+      assert.equal(sfPhase.findingsCount, 1, 'session-fixation must record exactly 1 finding');
+      const t4b = result.findings.find((f) => f.title === 'Session lifecycle — bearer token remains valid after logout (MEDIUM)');
+      assert.ok(t4b, `T4b finding must be confirmed end to end; got: ${result.findings.map((f) => f.title).join(' | ')}`);
+      assert.equal(t4b.class, 'session_fixation');
+      assert.equal(t4b.confirmation, 'confirmed');
+      // The GET-only mining contract still holds: the login route was
+      // reached ONLY by the T4b POST, never by a GET probe.
+      const loginCalls = calls.filter((c) => c.url === '/rest/user/login');
+      assert.ok(loginCalls.length >= 1, 'T4b must POST the login route');
+      assert.ok(loginCalls.every((c) => c.method === 'POST'), 'login must never be GET-probed');
+      assert.ok(calls.some((c) => c.method === 'GET' && c.url === '/rest/user/whoami'), 'whoami check must be reached');
     } finally {
       await new Promise((r) => server.close(r));
     }

@@ -340,7 +340,7 @@ describe('validation probe — hidden fields (#440)', () => {
       <input name="qty" value="1">
       <input name="Buy" type="submit" value="Buy">
     </form></body></html>`;
-  const FORM = { action: 'http://lab.local/buy', method: 'post', inputs: ['price', 'csrf_token', 'qty', 'Buy'] };
+  const FORM = { action: 'http://lab.local/buy', method: 'post', inputs: [{ name: 'price', type: 'hidden', value: '10' }, { name: 'csrf_token', type: 'hidden', value: 'tok123' }, { name: 'qty', type: 'text', value: '1' }, { name: 'Buy', type: 'submit', value: 'Buy' }] };
 
   function runForms({ allowWrite, controlStatus = 200, tamperedBody }) {
     const submits = [];
@@ -415,7 +415,7 @@ describe('validation probe — hidden fields (#440)', () => {
       return { status: 200, body: `<html><body><p>lang en applied ok here</p><p>${pad}</p></body></html>` };
     };
     const TAMPERED = 'dm-validation-tampered';
-    const getForm = { action: 'http://lab.local/search', method: 'get', inputs: ['lang', 'q'] };
+    const getForm = { action: 'http://lab.local/search', method: 'get', inputs: [{ name: 'lang', type: 'hidden', value: 'en' }, { name: 'q', type: 'text', value: '' }] };
     const getPage = `<html><body><form action="/search" method="get">
       <input type="hidden" name="lang" value="en"><input name="q"></form></body></html>`;
     const fetchPage = fetchPageFor({
@@ -440,7 +440,7 @@ describe('validation probe — hidden fields (#440)', () => {
     });
     const findings = await probeValidation(
       [],
-      [{ action: 'http://lab.local/x', method: 'post', inputs: ['q'] }],
+      [{ action: 'http://lab.local/x', method: 'post', inputs: [{ name: 'q', type: 'text', value: '' }] }],
       { fetchPage, submitForm, allowWrite: true, pageUrl: PAGE }
     );
     assert.deepEqual(findings, []);

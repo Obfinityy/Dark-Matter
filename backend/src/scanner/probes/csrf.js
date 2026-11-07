@@ -7,7 +7,10 @@ export function probeCsrf(forms, url) {
   const findings = [];
   for (const form of forms || []) {
     if (String(form.method || 'get').toLowerCase() !== 'post') continue;
-    const hasToken = (form.inputs || []).some((n) => TOKEN_NAME_RE.test(n));
+    // Inputs are { name, type, value } objects (D1, #474 repair) —
+    // the token test reads the NAME, never the object itself.
+    const names = (form.inputs || []).map((i) => i.name).filter(Boolean);
+    const hasToken = names.some((n) => TOKEN_NAME_RE.test(n));
     if (hasToken) continue;
     const path = (() => {
       try {
@@ -23,7 +26,7 @@ export function probeCsrf(forms, url) {
       severity: 'medium',
       url: form.action,
       evidence: {
-        request: `POST ${form.action} (inputs: ${(form.inputs || []).join(', ') || 'none'})`,
+        request: `POST ${form.action} (inputs: ${names.join(', ') || 'none'})`,
         response: 'no anti-CSRF token field in the form',
         impact_demo: 'missing csrf/xsrf/_token/authenticity/nonce field',
         signalCorrelated: true,

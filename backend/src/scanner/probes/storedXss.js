@@ -60,10 +60,14 @@ function isSubmittish(name) {
 function fillParams(inputs, targetName, payload) {
   const params = new URLSearchParams();
   let n = 0;
+  // Inputs are { name, type, value } objects (D1, #474 repair) —
+  // targetName is a NAME string; every set/test reads .name.
   for (const inp of inputs || []) {
-    if (isSubmittish(inp)) continue;
-    if (inp === targetName) params.set(inp, payload);
-    else params.set(inp, `dmprobe${++n}_${randomBytes(2).toString('hex')}`);
+    const name = inp.name;
+    if (!name) continue;
+    if (isSubmittish(name)) continue;
+    if (name === targetName) params.set(name, payload);
+    else params.set(name, `dmprobe${++n}_${randomBytes(2).toString('hex')}`);
   }
   // DVWA-style forms require Submit to be set (isset gate).
   params.set('Submit', '1');
@@ -83,8 +87,9 @@ export async function probeStoredXss(forms, url, opts = {}) {
   const findings = [];
   const root = siteRoot(url);
   for (const form of (forms || []).slice(0, 5)) {
-    const targets = (form.inputs || []).filter((i) => !isSubmittish(i)).slice(0, 3);
+    const targets = (form.inputs || []).filter((i) => i.name && !isSubmittish(i.name)).slice(0, 3);
     for (const input of targets) {
+      const inputName = input.name;
       const rand = randomBytes(8).toString('hex');
       const canary = `dmxss${rand}`;
       let baseline = '';
@@ -94,7 +99,7 @@ export async function probeStoredXss(forms, url, opts = {}) {
         continue;
       }
       if (baseline.includes(canary)) continue; // sanity: fresh canary must be absent
-      const params = fillParams(form.inputs, input, canary);
+      const params = fillParams(form.inputs, inputName, canary);
       try {
         if (String(form.method || 'get').toLowerCase() === 'post') {
           await post(form.action, params, opts);
@@ -126,14 +131,14 @@ export async function probeStoredXss(forms, url, opts = {}) {
       if (!stored) continue;
       findings.push({
         class: 'xss_stored',
-        id: `xss-stored-${form.action}-${input}`.slice(0, 120),
-        title: `Stored XSS via form input '${input}'`,
+        id: `xss-stored-${form.action}-${inputName}`.slice(0, 120),
+        title: `Stored XSS via form input '${inputName}'`,
         severity: 'high',
         url: form.action,
-        param: input,
-        parameter: input, // dedup key: one finding per sink input, not per page
+        param: inputName,
+        parameter: inputName, // dedup key: one finding per sink input, not per page
         evidence: {
-          request: `${String(form.method || 'get').toUpperCase()} ${form.action} (${input}=${canary})`,
+          request: `${String(form.method || 'get').toUpperCase()} ${form.action} (${inputName}=${canary})`,
           response: `canary re-rendered verbatim on ${storedAt} after submit — "...${storedWindow}..." — absent in pre-submit baseline`,
           impact_demo: 'attacker-controlled value persisted server-side and rendered into HTML — executes for every later visitor',
           canaryReflected: true,

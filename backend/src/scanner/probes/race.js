@@ -23,6 +23,8 @@
 // scanner, not a load test.
 // Depth: Quick = T1 only; Standard = T1+T2+T4; Deep = full battery.
 
+import { isLabTargetHost } from '../../labCreds.js';
+
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 const BURST_N = 8;
 
@@ -30,16 +32,13 @@ function rand() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+// D2 (#474 repair, 8 Nov 2026): the lab gate delegates to the
+// canonical isLabTargetHost (labCreds.js) — the old local copy
+// compared a bare hostname against port-bearing LAB_TARGETS entries,
+// so the gate could never pass in production. runScan passes
+// labTargets explicitly (see the race step in index.js).
 function isLab(url, opts) {
-  try {
-    const host = new URL(url).hostname;
-    return String(opts.labTargets || '')
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .some((h) => host === h || host.endsWith('.' + h));
-  } catch {
-    return false;
-  }
+  return isLabTargetHost(url, opts.labTargets);
 }
 
 async function postForm(url, fields, opts = {}, timeoutMs = 8000) {

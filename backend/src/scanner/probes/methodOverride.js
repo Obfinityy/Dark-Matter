@@ -134,9 +134,13 @@ function is2xx(r) {
 function formFillers(form) {
   const values = {};
   let n = 0;
+  // Inputs are { name, type, value } objects (D1, #474 repair) —
+  // the filler map is keyed by NAME, never by the object itself.
   for (const inp of form.inputs || []) {
-    if (/^submit$/i.test(inp)) values[inp] = '1';
-    else values[inp] = `dmprobe${++n}_${Math.random().toString(16).slice(2, 6)}`;
+    const name = inp.name;
+    if (!name) continue;
+    if (/^submit$/i.test(name)) values[name] = '1';
+    else values[name] = `dmprobe${++n}_${Math.random().toString(16).slice(2, 6)}`;
   }
   return values;
 }
@@ -325,7 +329,7 @@ export async function probeMethodOverride(urls, postForms = [], opts = {}) {
   const formSeen = new Set();
   for (const f of Array.isArray(postForms) ? postForms : []) {
     if (!f || !f.action) continue;
-    const key = `${String(f.method || 'post').toLowerCase()}|${f.action}|${(f.inputs || []).join(',')}`;
+    const key = `${String(f.method || 'post').toLowerCase()}|${f.action}|${(f.inputs || []).map((i) => i.name).join(',')}`;
     if (formSeen.has(key)) continue;
     formSeen.add(key);
     forms.push(f);

@@ -79,7 +79,7 @@ async function withFetch(fetch, fn) {
 }
 
 const TARGET_URL = 'http://lab.local/page?id=1';
-const FORM = { method: 'post', action: 'http://lab.local/login', inputs: ['username', 'password'] };
+const FORM = { method: 'post', action: 'http://lab.local/login', inputs: [{ name: 'username', type: 'text', value: '' }, { name: 'password', type: 'password', value: '' }] };
 
 describe('methodOverride probe — #387 method override', () => {
   it('override honoured (confusion): override GET matches direct PUT, differs from GET = finding', async () => {

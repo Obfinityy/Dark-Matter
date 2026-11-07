@@ -415,10 +415,69 @@ export function synthesiseJsTargets(records, baseUrl) {
 }
 
 /**
+ * Synthesise WRITE targets from mined route records (D3, #474 repair,
+ * 8 Nov 2026). Pure — exported for unit tests. The complement of
+ * synthesiseJsTargets: a record is a write target when it carries
+ * ONLY non-GET method evidence (POST/PUT/DELETE/PATCH) — a write
+ * endpoint that must never become a GET probe target. Returns bare
+ * absolute URLs (no query fillers — these are API-login candidates
+ * for the session-fixation T4b path, not probe points): path-template
+ * vars (${name}, :name) are replaced with safe fillers so no
+ * literal-brace URL is ever handed out. Same-origin only,
+ * deduplicated, capped at JS_ROUTES_MAX_TARGETS. Never throws.
+ */
+export function synthesiseJsWriteTargets(records, baseUrl) {
+  const out = [];
+  let base;
+  try {
+    base = new URL(baseUrl);
+  } catch {
+    return out;
+  }
+  let n = 0;
+  const seen = new Set();
+  for (const r of Array.isArray(records) ? records : []) {
+    if (!r || typeof r.path !== 'string' || !r.path.startsWith('/')) continue;
+    const methods = Array.isArray(r.methods) ? r.methods : [];
+    // No method evidence (orphan) or any GET evidence: not write-only.
+    if (methods.length === 0 || methods.includes('get')) continue;
+    // Template path params with safe fillers (same rule as
+    // synthesiseJsTargets — never hand out a literal-brace URL).
+    let templated = r.path;
+    for (const d of Array.isArray(r.pathDescriptors) ? r.pathDescriptors : []) {
+      const segment = Number(d.segment);
+      const parts = templated.split('/');
+      if (!Number.isInteger(segment) || segment < 0 || segment >= parts.length) continue;
+      const part = parts[segment];
+      if (part !== `\${${d.name}}` && part !== `:${d.name}`) continue;
+      parts[segment] = filler(++n);
+      templated = parts.join('/');
+    }
+    templated = templated.replace(/\$\{[^/{}]+\}/g, () => filler(++n));
+    templated = templated.replace(/\/:[A-Za-z_$][\w$]*/g, () => `/${filler(++n)}`);
+    let u;
+    try {
+      u = new URL(templated.split('?')[0], base);
+    } catch {
+      continue;
+    }
+    if (u.protocol !== base.protocol || u.host !== base.host) continue;
+    const url = u.toString().split('#')[0];
+    if (seen.has(url)) continue;
+    seen.add(url);
+    out.push(url);
+    if (out.length >= JS_ROUTES_MAX_TARGETS) break;
+  }
+  return out;
+}
+
+/**
  * Extract probeable GET targets from one bundle's text. Pure —
  * exported for unit tests. Convenience wrapper: records + synthesis.
- * Returns { targets, routes, params, pathParams } — routes is the
- * count of usable records before the cap.
+ * Returns { targets, routes, params, pathParams, writeTargets } —
+ * routes is the count of usable records before the cap; writeTargets
+ * are the POST-only routes (D3) for API-login candidates, never GET
+ * probe targets.
  */
 export function extractJsRoutes(bundleText, baseUrl) {
   const records = extractJsRouteRecords(bundleText);
@@ -427,7 +486,7 @@ export function extractJsRoutes(bundleText, baseUrl) {
     return methods.length === 0 || methods.includes('get');
   });
   const { targets, params, pathParams } = synthesiseJsTargets(records, baseUrl);
-  return { targets, routes: usable.length, params, pathParams };
+  return { targets, routes: usable.length, params, pathParams, writeTargets: synthesiseJsWriteTargets(records, baseUrl) };
 }
 
 /**
@@ -451,6 +510,7 @@ export async function discoverJsRoutes(baseUrl, opts = {}) {
     targets: [],
     params: 0,
     pathParams: {},
+    writeTargets: [],
     errors: [...errors, ...extraErrors],
   });
   let base;
@@ -514,6 +574,9 @@ export async function discoverJsRoutes(baseUrl, opts = {}) {
     targets,
     params,
     pathParams,
+    // D3 (#474 repair): POST-only routes for API-login candidates
+    // (T4b) — returned alongside, never merged into targets.
+    writeTargets: synthesiseJsWriteTargets(records, base.toString()),
     errors,
   };
 }

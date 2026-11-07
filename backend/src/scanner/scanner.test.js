@@ -90,14 +90,34 @@ describe('crawl', () => {
     );
     assert.deepEqual(links, ['https://example.com/a']);
   });
-  it('extracts forms with inputs', () => {
+  it('extracts forms with inputs as { name, type, value } objects (D1, #474 repair)', () => {
     const forms = extractForms(
       '<form action="/login" method="post"><input name="u"><input name="p"></form>',
       'https://example.com/'
     );
     assert.equal(forms.length, 1);
     assert.equal(forms[0].action, 'https://example.com/login');
-    assert.deepEqual(forms[0].inputs, ['u', 'p']);
+    assert.deepEqual(forms[0].inputs, [
+      { name: 'u', type: 'text', value: '' },
+      { name: 'p', type: 'text', value: '' },
+    ]);
+  });
+  it('extractForms parses type/value quote-agnostically; nameless inputs skipped', () => {
+    const forms = extractForms(
+      `<form action="/login.php" method="post">`
+        + `<input type='hidden' name='user_token' value='tok-1'>`
+        + `<input type="password" name="password">`
+        + `<input name=username value=alice>`
+        + `<input type="submit" value="Login">`
+        + `</form>`,
+      'https://example.com/'
+    );
+    assert.equal(forms.length, 1);
+    assert.deepEqual(forms[0].inputs, [
+      { name: 'user_token', type: 'hidden', value: 'tok-1' },
+      { name: 'password', type: 'password', value: '' },
+      { name: 'username', type: 'text', value: 'alice' },
+    ]);
   });
   it('extracts query params', () => {
     assert.deepEqual(extractParams('https://example.com/?a=1&b=2'), ['a', 'b']);
@@ -136,7 +156,7 @@ describe('probeHeaders', () => {
 describe('probeCsrf', () => {
   it('flags POST forms without a token field', () => {
     const findings = probeCsrf(
-      [{ action: 'https://example.com/change', method: 'post', inputs: ['email'] }],
+      [{ action: 'https://example.com/change', method: 'post', inputs: [{ name: 'email', type: 'text', value: '' }] }],
       'https://example.com/'
     );
     assert.equal(findings.length, 1);
@@ -145,14 +165,14 @@ describe('probeCsrf', () => {
   });
   it('passes forms that carry a token', () => {
     const findings = probeCsrf(
-      [{ action: 'https://example.com/change', method: 'post', inputs: ['email', 'csrf_token'] }],
+      [{ action: 'https://example.com/change', method: 'post', inputs: [{ name: 'email', type: 'text', value: '' }, { name: 'csrf_token', type: 'hidden', value: 'tok' }] }],
       'https://example.com/'
     );
     assert.equal(findings.length, 0);
   });
   it('ignores GET forms', () => {
     const findings = probeCsrf(
-      [{ action: 'https://example.com/search', method: 'get', inputs: ['q'] }],
+      [{ action: 'https://example.com/search', method: 'get', inputs: [{ name: 'q', type: 'text', value: '' }] }],
       'https://example.com/'
     );
     assert.equal(findings.length, 0);
@@ -219,7 +239,7 @@ describe('probePostForms', () => {
   const form = {
     action: 'http://example.com/submit',
     method: 'post',
-    inputs: ['q'],
+    inputs: [{ name: 'q', type: 'text', value: '' }],
   };
   const teardown = () => {
     globalThis.fetch = realFetch;
@@ -398,7 +418,7 @@ describe('iter2 probes: storedXss, weakCreds, hostHeader, csp', () => {
       return { text: async () => `<html>guestbook: ${stored.join(' | ')}</html>` };
     };
     try {
-      const forms = [{ action: 'http://example.com/guestbook', method: 'post', inputs: ['name', 'message'] }];
+      const forms = [{ action: 'http://example.com/guestbook', method: 'post', inputs: [{ name: 'name', type: 'text', value: '' }, { name: 'message', type: 'text', value: '' }] }];
       const findings = await probeStoredXss(forms, 'http://example.com/', { timeoutMs: 5000 });
       const sx = findings.filter((f) => f.class === 'xss_stored');
       // both text inputs are injection points → one finding each
@@ -416,7 +436,7 @@ describe('iter2 probes: storedXss, weakCreds, hostHeader, csp', () => {
     const { probeStoredXss } = await import('./probes/storedXss.js');
     globalThis.fetch = async () => ({ text: async () => '<html>static page</html>' });
     try {
-      const forms = [{ action: 'http://example.com/guestbook', method: 'post', inputs: ['name'] }];
+      const forms = [{ action: 'http://example.com/guestbook', method: 'post', inputs: [{ name: 'name', type: 'text', value: '' }] }];
       const findings = await probeStoredXss(forms, 'http://example.com/', { timeoutMs: 5000 });
       assert.equal(findings.length, 0);
     } finally {
@@ -436,7 +456,7 @@ describe('iter2 probes: storedXss, weakCreds, hostHeader, csp', () => {
       };
     };
     try {
-      const forms = [{ action: 'http://example.com/login', method: 'post', inputs: ['username', 'password', 'Login'] }];
+      const forms = [{ action: 'http://example.com/login', method: 'post', inputs: [{ name: 'username', type: 'text', value: '' }, { name: 'password', type: 'password', value: '' }, { name: 'Login', type: 'submit', value: 'Login' }] }];
       const findings = await probeWeakCreds(forms, { timeoutMs: 5000 });
       const wc = findings.filter((f) => f.class === 'weak_credentials');
       assert.equal(wc.length, 1);
@@ -457,7 +477,7 @@ describe('iter2 probes: storedXss, weakCreds, hostHeader, csp', () => {
       return { text: async () => '', headers: { get: () => null } };
     };
     try {
-      const forms = [{ action: 'http://example.com/search', method: 'post', inputs: ['q'] }];
+      const forms = [{ action: 'http://example.com/search', method: 'post', inputs: [{ name: 'q', type: 'text', value: '' }] }];
       const findings = await probeWeakCreds(forms, { timeoutMs: 5000 });
       assert.equal(findings.length, 0);
       assert.equal(calls, 0);
