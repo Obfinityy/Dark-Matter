@@ -80,6 +80,7 @@ import { probeValidation } from './probes/validation.js';
 import { probeFingerprintBanner } from './probes/fingerprintBanner.js';
 import { probeSourceCodeDisclosure } from './probes/sourceCodeDisclosure.js';
 import { probeMetadataLeakage } from './probes/metadataLeakage.js';
+import { probeSensitiveDataInLogs } from './probes/sensitiveDataInLogs.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -157,6 +158,7 @@ export const DEFAULT_PHASES = [
   'fingerprint-banner',
   'source-code-disclosure',
   'metadata-leakage',
+  'sensitive-data-in-logs',
   'nuclei',
 ];
 
@@ -951,6 +953,22 @@ export async function runScan(
   // or headers (fingerprint-banner). PDF/DOCX metadata is out of
   // scope (no parser dependency).
   await step('metadata-leakage', () => probeMetadataLeakage(url, verbTargets, opts));
+  // SENSITIVE DATA IN LOGS (7 Nov 2026, row #180): log files and
+  // log-viewer paths served over HTTP are fetched for the app's own
+  // secrets — credential assignments, Authorization tokens, AWS keys,
+  // private keys, Luhn-valid card numbers (see
+  // sensitiveDataInLogs.js). A finding counts only for a genuinely
+  // sensitive value (8+ chars with a digit, a symbol, or 12+
+  // characters; placeholders never fire) that is not already
+  // printed on the baseline page and whose body is not the catch-all
+  // control. Read-only GETs, no allowWrite gate. One phase record
+  // per scan; the pasted page is always a surface, so this phase
+  // never skips (like fingerprint-banner, source-code-disclosure
+  // and metadata-leakage above). It never re-fires on error
+  // responses (error-disclosure), JS bundle contents (secrets-in-js)
+  // or attacker data reflected into logs (csv-log-injection — the
+  // opposite direction). HTML log-viewer pages are out of scope.
+  await step('sensitive-data-in-logs', () => probeSensitiveDataInLogs(url, verbTargets, opts));
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));
   await step('smtp-injection', () => probeSmtpInject(forms, url, opts));

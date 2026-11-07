@@ -48,6 +48,9 @@ describe('param battery skipped records (35/63 fix)', () => {
     for (const name of PARAM_BATTERY_PHASES) {
       assert.ok(DEFAULT_PHASES.includes(name), `${name} missing from DEFAULT_PHASES`);
     }
+    // 75 since 7 Nov 2026 (sensitive data in logs): 'sensitive-data-in-logs'
+    // joins as a standalone always-run phase (one record per scan —
+    // the pasted page is always a surface, so it never skips).
     // 74 since 7 Nov 2026 (metadata leakage): 'metadata-leakage'
     // joins as a standalone always-run phase (one record per scan —
     // the pasted page is always a surface, so it never skips).
@@ -78,7 +81,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 74);
+    assert.equal(DEFAULT_PHASES.length, 75);
   });
 
   it('zero param targets: all 28 param phases emit skipped records, rollup reports them', async () => {
@@ -338,15 +341,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 74,
-        ok: 41,
+        total: 75,
+        ok: 42,
         failed: 0,
         skipped: 33,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 41 ran ok, 33 skipped, 0 failed, 0 timed out.'
+        'Phases: 42 ran ok, 33 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
