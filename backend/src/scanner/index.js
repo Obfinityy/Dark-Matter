@@ -79,6 +79,7 @@ import { probeErrorDisclosure } from './probes/errorDisclosure.js';
 import { probeValidation } from './probes/validation.js';
 import { probeFingerprintBanner } from './probes/fingerprintBanner.js';
 import { probeSourceCodeDisclosure } from './probes/sourceCodeDisclosure.js';
+import { probeMetadataLeakage } from './probes/metadataLeakage.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -155,6 +156,7 @@ export const DEFAULT_PHASES = [
   'validation',
   'fingerprint-banner',
   'source-code-disclosure',
+  'metadata-leakage',
   'nuclei',
 ];
 
@@ -934,6 +936,21 @@ export async function runScan(
   // 'files' phase already covers (.git/HEAD, .env, .DS_Store,
   // phpinfo.php) or on JS bundle contents (secrets-in-js).
   await step('source-code-disclosure', () => probeSourceCodeDisclosure(url, verbTargets, opts));
+  // METADATA LEAKAGE (7 Nov 2026, row #178): images served with
+  // embedded EXIF/document metadata (GPS coordinates, camera serial,
+  // author, software strings carrying internal user paths) are
+  // fetched as raw bytes and parsed (see metadataLeakage.js). A
+  // finding counts only for a genuinely sensitive field — benign
+  // metadata (dimensions, make/model alone, a plain software name)
+  // never fires — and the value must not already be printed on the
+  // baseline page. Read-only GETs, no allowWrite gate. One phase
+  // record per scan; the pasted page is always a surface, so this
+  // phase never skips (like fingerprint-banner and
+  // source-code-disclosure above). It never re-fires on JS bundle
+  // contents (secrets-in-js), error responses (error-disclosure)
+  // or headers (fingerprint-banner). PDF/DOCX metadata is out of
+  // scope (no parser dependency).
+  await step('metadata-leakage', () => probeMetadataLeakage(url, verbTargets, opts));
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));
   await step('smtp-injection', () => probeSmtpInject(forms, url, opts));
