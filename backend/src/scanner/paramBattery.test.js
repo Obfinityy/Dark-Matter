@@ -42,12 +42,21 @@ function stubPage(html) {
 }
 
 describe('param battery skipped records (35/63 fix)', () => {
-  it('PARAM_BATTERY_PHASES is exactly the 28 loop phases, all in DEFAULT_PHASES', () => {
-    assert.equal(PARAM_BATTERY_PHASES.length, 28);
-    assert.equal(new Set(PARAM_BATTERY_PHASES).size, 28);
+  it('PARAM_BATTERY_PHASES is exactly the 29 loop phases, all in DEFAULT_PHASES', () => {
+    assert.equal(PARAM_BATTERY_PHASES.length, 29);
+    assert.equal(new Set(PARAM_BATTERY_PHASES).size, 29);
     for (const name of PARAM_BATTERY_PHASES) {
       assert.ok(DEFAULT_PHASES.includes(name), `${name} missing from DEFAULT_PHASES`);
     }
+    // 78 since 7 Nov 2026 (XML injection): 'xml-injection'
+    // joins the battery as a loop phase (one record per param
+    // target — structure breakout + parser-error vectors).
+    // 77 since 7 Nov 2026 (timing side-channel): 'timing-side-channel'
+    // joins as a standalone always-run phase (one record per scan —
+    // the pasted page is always a surface, so it never skips).
+    // 76 since 7 Nov 2026 (sensitive information disclosure): 'sensitive-info-disclosure'
+    // joins as a standalone always-run phase (one record per scan —
+    // the pasted page is the baseline, so it never skips).
     // 75 since 7 Nov 2026 (sensitive data in logs): 'sensitive-data-in-logs'
     // joins as a standalone always-run phase (one record per scan —
     // the pasted page is always a surface, so it never skips).
@@ -81,10 +90,10 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 77);
+    assert.equal(DEFAULT_PHASES.length, 78);
   });
 
-  it('zero param targets: all 28 param phases emit skipped records, rollup reports them', async () => {
+  it('zero param targets: all 29 param phases emit skipped records, rollup reports them', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -95,7 +104,7 @@ describe('param battery skipped records (35/63 fix)', () => {
         },
         { timeoutMs: 5000 }
       );
-      assert.equal(result.phases.length, 28);
+      assert.equal(result.phases.length, 29);
       assert.deepEqual(
         result.phases.map((p) => p.name),
         PARAM_BATTERY_PHASES
@@ -108,12 +117,12 @@ describe('param battery skipped records (35/63 fix)', () => {
         assert.equal(p.findingsCount, 0);
         assert.equal(p.durationMs, 0);
       }
-      // The rollup must NOT read this as a pass: 0 ok, 28 skipped.
+      // The rollup must NOT read this as a pass: 0 ok, 29 skipped.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 28,
+        total: 29,
         ok: 0,
         failed: 0,
-        skipped: 28,
+        skipped: 29,
         timedOut: 0,
       });
     } finally {
@@ -302,18 +311,18 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     })),
   ];
 
-  it('35/28 case renders the split with the shared skip reason — never 63/63 ok', () => {
+  it('35/29 case renders the split with the shared skip reason — never 64/64 ok', () => {
     const phases = skippedBattery();
     // Skipped records still carry ok:true by design (see skipPhase) — the
     // line must read the rollup's skipped count, never ok:true.
     assert.ok(phases.filter((p) => p.skipped).every((p) => p.ok === true));
     assert.equal(
       buildPhaseSummaryLine(phases),
-      'Phases: 35 ran ok, 28 skipped (no param targets), 0 failed, 0 timed out.'
+      'Phases: 35 ran ok, 29 skipped (no param targets), 0 failed, 0 timed out.'
     );
   });
 
-  // 44/33 since 7 Nov 2026 (timing side-channel): the battery
+  // 44/34 since 7 Nov 2026 (XML injection): the battery
   // gained 'js-api-routes', so a bare page runs 44 non-param phases — and
   // 'verb-tampering' + 'method-override' add a 29th and 30th skipped
   // record ('no probe targets': no scan target carries a probe point
@@ -321,7 +330,9 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // a 31st ('no script targets': the bare page carries no script),
   // 'error-disclosure' adds a 32nd ('no probe targets'), and
   // 'validation' adds a 33rd ('no probe targets': no probe point
-  // and no form), while 'fingerprint-banner' adds a 39th RUNNING
+  // and no form), while 'xml-injection' adds a 34th (the battery
+  // gained a 29th loop phase — see PARAM_BATTERY_PHASES above),
+  // while 'fingerprint-banner' adds a 39th RUNNING
   // record, 'source-code-disclosure' a 40th, 'metadata-leakage'
   // a 41st, 'sensitive-data-in-logs' a 42nd,
   // 'sensitive-info-disclosure' a 43rd and 'timing-side-channel'
@@ -330,8 +341,9 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // renders a bare count. The spec fetch is stubbed to the bare page
   // (HTML, not JSON), so the pass records an honest no-op with 0
   // targets — the same seam discipline as domRenderer above.
-  // (37/28 before js-api-routes; 43/33 before timing-side-channel.)
-  it('real runScan on a bare page renders the 44/33 line end to end', async () => {
+  // (37/28 before js-api-routes; 43/33 before timing-side-channel;
+  // 44/33 before xml-injection.)
+  it('real runScan on a bare page renders the 44/34 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -343,15 +355,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 77,
+        total: 78,
         ok: 44,
         failed: 0,
-        skipped: 33,
+        skipped: 34,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 44 ran ok, 33 skipped, 0 failed, 0 timed out.'
+        'Phases: 44 ran ok, 34 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

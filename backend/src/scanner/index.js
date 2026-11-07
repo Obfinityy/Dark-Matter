@@ -83,6 +83,7 @@ import { probeMetadataLeakage } from './probes/metadataLeakage.js';
 import { probeSensitiveDataInLogs } from './probes/sensitiveDataInLogs.js';
 import { probeSensitiveInfoDisclosure } from './probes/sensitiveInfoDisclosure.js';
 import { probeTimingSideChannel } from './probes/timingSideChannel.js';
+import { probeXmlInjection } from './probes/xmlInjection.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -163,6 +164,7 @@ export const DEFAULT_PHASES = [
   'sensitive-data-in-logs',
   'sensitive-info-disclosure',
   'timing-side-channel',
+  'xml-injection',
   'nuclei',
 ];
 
@@ -184,6 +186,7 @@ export const PARAM_BATTERY_PHASES = [
   'ldapi',
   'ldap-blind',
   'xpathi',
+  'xml-injection',
   'ssi',
   'cmdi',
   'traversal',
@@ -790,6 +793,16 @@ export async function runScan(
     await step('ldapi', () => probeLdapInjection(u, points, opts));
     await step('ldap-blind', () => probeLdapBlind(u, points, opts));
     await step('xpathi', () => probeXpathInjection(u, points, opts));
+    // XML INJECTION (7 Nov 2026, row #214): a parameter spliced
+    // raw into an XML document lets the attacker break out of the
+    // element it sits in (structure breakout with a unique marker
+    // element) or break parsing outright (malformed XML → parser
+    // error). A finding counts only on the benign differential —
+    // marker element in an XML-context response, or a parser error
+    // signature absent from the benign response (see
+    // xmlInjection.js). No DOCTYPE/entity payloads (xxe owns
+    // those), no entity-expansion bombs (DoS-class, excluded).
+    await step('xml-injection', () => probeXmlInjection(u, points, opts));
     await step('ssi', () => probeSsiInjection(u, points, opts));
     await step('cmdi', () => probeCmdiTime(u, points, opts));
     await step('traversal', () => probeTraversal(u, points, opts));

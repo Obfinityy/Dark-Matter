@@ -246,7 +246,7 @@ describe('discoverDomForms (render + route merge, stubbed renderer)', () => {
 describe('runScan DOM integration (Juice-shaped stub server, stubbed renderer)', () => {
   const BATTERY_PHASES = ['fingerprint', 'crawl', 'page-analyze', 'dom-render', ...PARAM_BATTERY_PHASES, 'headers', 'csrf', 'post-forms'];
 
-  test('DOM-INT-1: SPA root unlocks the battery — all 28 phases run, login params probed, GET only', async () => {
+  test('DOM-INT-1: SPA root unlocks the battery — all 29 phases run, login params probed, GET only', async () => {
     const stub = await startStub(STATIC_SHELL);
     try {
       const target = `http://127.0.0.1:${stub.port}/`;
@@ -264,11 +264,11 @@ describe('runScan DOM integration (Juice-shaped stub server, stubbed renderer)',
       );
       // The battery RAN: zero skipped records (before this lane the
       // same paste read 35 ok / 28 skipped). Two DOM targets (email,
-      // password) mean the 28 phases record twice — 7 non-param + 56.
+      // password) mean the 29 phases record twice — 7 non-param + 58.
       assert.equal(result.phases.filter((p) => p.skipped).length, 0);
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 63,
-        ok: 63,
+        total: 65,
+        ok: 65,
         failed: 0,
         skipped: 0,
         timedOut: 0,
@@ -354,7 +354,7 @@ describe('runScan DOM integration (Juice-shaped stub server, stubbed renderer)',
       assert.ok(domPhase && !domPhase.ok, 'dom-render must record ok:false on render failure');
       assert.match(domPhase.error || '', /docker unavailable/);
       const rollup = buildPhaseRollup(result.phases);
-      assert.equal(rollup.skipped, 28, 'all 28 param phases skip when the DOM pass fails');
+      assert.equal(rollup.skipped, 29, 'all 29 param phases skip when the DOM pass fails');
       assert.equal(rollup.total, BATTERY_PHASES.length);
       assert.ok(result.phases.filter((p) => p.skipped).every((p) => p.skipReason === 'no param targets'));
     } finally {
