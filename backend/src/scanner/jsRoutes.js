@@ -23,6 +23,12 @@
 // 400, /rest/basket/1 401, /rest/2fa/status 401, /snippets/fixes/1
 // 404, /rest/country-mapping 500.
 //
+// (7 Nov 2026, template-literal fix): host-prefixed template
+// literals are mined too — http.get(`${this.hostServer}/rest/...`)
+// and the service-relative http.get(`${this.host}/${e}`) — which
+// the quoted-literal branches missed, stranding the Juice search
+// route (and its q param) as a param-less orphan outside the cap.
+//
 // MECHANISM: when the pasted page yielded zero param-bearing targets
 // (after static + DOM + form synthesis + openapi-targets), fetch the
 // page's same-origin <script> bundles (read-only GET, max 5) and mine
@@ -240,6 +246,58 @@ export function extractJsRouteRecords(bundleText) {
       const rec = ensure(path);
       rec.methods.add(method);
       for (const n of queryNames) rec.queryNames.add(n);
+      continue;
+    }
+    // (b2) template literal first arg starting with ${host} — the
+    // hostServer/host-prefixed template call (Juice search, 7 Nov
+    // 2026): http.get(`${this.hostServer}/rest/products/search?q=${e}`)
+    // or the service-relative form http.get(`${this.host}/${e}`).
+    // Before this, only templates starting with '/' (branch (c))
+    // were mined, so a host-prefixed template fell through to (d)
+    // and its route survived only as a param-less orphan (the live
+    // /rest/products/search record had methods [] and queryNames [],
+    // lost the 20-target cap race, and error-disclosure never saw
+    // the SQLITE_ERROR trigger in-scan). The interpolation must be
+    // a plain identifier path (this.hostServer, this.host,
+    // I.c.hostServer, a minified bare Server); the remainder must
+    // start with '/' or be empty. A remainder that IS a full API
+    // path is the route (the interpolation is the origin); anything
+    // else is a suffix on the nearest preceding service base
+    // (branch (a) rule — `${this.host}` alone is the base itself).
+    const templateHost =
+      /^\s*`(?:\$\{\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*\})([\s\S]*)`\s*$/.exec(trimmed);
+    if (templateHost) {
+      const rest = templateHost[2];
+      const { path: restPath, queryNames: restQuery } = splitRoute(rest);
+      if (/^\/(?:rest|api|b2b\/v2|snippets)\//.test(restPath)) {
+        const rec = ensure(restPath);
+        rec.methods.add(method);
+        for (const n of restQuery) rec.queryNames.add(n);
+        for (const n of queryNamesIn(arg)) rec.queryNames.add(n);
+        for (const d of pathDescriptorsFor(restPath)) {
+          if (!rec.pathDescriptors.some((x) => x.name === d.name && x.segment === d.segment)) {
+            rec.pathDescriptors.push(d);
+          }
+        }
+      } else {
+        let base = null;
+        for (const b of basePositions) {
+          if (b.pos < callMatch.index) base = b;
+          else break;
+        }
+        if (base) {
+          const { path, queryNames } = splitRoute(base.path + rest);
+          const rec = ensure(path);
+          rec.methods.add(method);
+          for (const n of queryNames) rec.queryNames.add(n);
+          for (const n of queryNamesIn(arg)) rec.queryNames.add(n);
+          for (const d of pathDescriptorsFor(path)) {
+            if (!rec.pathDescriptors.some((x) => x.name === d.name && x.segment === d.segment)) {
+              rec.pathDescriptors.push(d);
+            }
+          }
+        }
+      }
       continue;
     }
     // (c) direct string/template literal first arg starting with '/'.

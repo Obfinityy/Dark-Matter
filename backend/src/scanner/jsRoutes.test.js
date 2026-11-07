@@ -30,20 +30,27 @@ import {
 import { runScan, PARAM_BATTERY_PHASES, buildPhaseRollup } from './index.js';
 
 // Juice main.js forms, live (7 Nov 2026): direct http.get literals
-// (search, security-question, change-password concat), hostServer+
-// literal calls (whoami), service bases with this.host calls
-// (Products bare GET, captcha GET /, admin GET /application-version,
-// chatbot GET /status, snippets/fixes GET /${id}), POST-only routes
+// (security-question, change-password concat), hostServer+ literal
+// calls (whoami), service bases with this.host calls (Products bare
+// GET, captcha GET /, admin GET /application-version, chatbot GET
+// /status, snippets/fixes GET /${id}), template-literal calls — the
+// REAL search form is a hostServer template (the quoted .concat form
+// in the old fixture masked the mining gap; a .concat route is kept
+// separately as concat-case), host-template suffix calls
+// (`${this.host}/${e}`, `${this.host}/${e}?d=${x}`), a dotted-alias
+// hostServer template (I.c.hostServer, 2fa/status), POST-only routes
 // (login, reset-password, 2fa/verify, basket checkout + coupon),
-// and a mixed GET+POST route (deluxe-membership).
+// and a mixed GET+POST route (deluxe-membership). A display-only
+// template (label) models a non-http template string.
 const JUICE_BUNDLE = `
-let A=(()=>{class n{http;hostServer=et.c.hostServer;host=this.hostServer+"/api/Products";constructor(e){this.http=e}getAll(){return this.http.get(this.host)}}})();
+let A=(()=>{class n{http;hostServer=et.c.hostServer;host=this.hostServer+"/api/Products";constructor(e){this.http=e}getAll(){return this.http.get(this.host)}getOne(e){return this.http.get(\`\${this.host}/\${e}\`)}getDated(e,x){return this.http.get(\`\${this.host}/\${e}?d=\${x}\`)}}})();
 let B=(()=>{class n{http;hostServer=et.c.hostServer;host=this.hostServer+"/rest/captcha";constructor(e){this.http=e}get(){return this.http.get(this.host+"/")}}})();
 let C=(()=>{class n{http;hostServer=et.c.hostServer;host=this.hostServer+"/rest/admin";constructor(e){this.http=e}version(){return this.http.get(this.host+"/application-version")}}} )();
 let D=(()=>{class n{http;hostServer=et.c.hostServer;host=this.hostServer+"/rest/chatbot";constructor(e){this.http=e}status(){return this.http.get(this.host+"/status")}respond(t){return this.http.post(this.host+"/respond",t)}}} )();
 let E=(()=>{class n{http;hostServer=et.c.hostServer;host=this.hostServer+"/snippets/fixes";constructor(e){this.http=e}get(t){return this.http.get(this.host+\`/\${t}\`)}}} )();
 let F=(()=>{class n{http;hostServer=et.c.hostServer;host=this.hostServer+"/rest/user";constructor(e){this.http=e}
-search(q){return this.http.get("/rest/products/search?q=".concat(q))}
+search(q){return this.http.get(\`\${this.hostServer}/rest/products/search?q=\${q}\`)}
+concatCase(q){return this.http.get("/rest/concat-case?q=".concat(q))}
 securityQuestion(e){return this.http.get("/rest/user/security-question?email="+e)}
 changePassword(e){return this.http.get("/rest/user/change-password?current="+e.current+"&new="+e.new+"&repeat="+e.repeat)}
 whoami(){return this.http.get(Server+"/rest/user/whoami")}
@@ -57,7 +64,9 @@ coupon(e,o){return this.http.put("/rest/basket/"+e+"/coupon/"+o,{})}
 deluxe(){return this.http.get("/rest/deluxe-membership")}
 deluxeBuy(t){return this.http.post("/rest/deluxe-membership",t)}
 continueCode(){return this.http.get("/rest/continue-code")}
-languages(){return this.http.get("/rest/languages")}
+twofa(){return this.http.get(\`\${I.c.hostServer}/rest/2fa/status\`)}
+label(){return \`See /rest/display-only?q=\${q} for details\`}
+languages(){return this.http.get(\`\${this.hostServer}/rest/languages\`)}
 }})();
 `;
 
@@ -95,7 +104,7 @@ describe('extractScriptSrcs', () => {
 });
 
 describe('extractJsRouteRecords (Juice bundle fixture)', () => {
-  test('JS-2: direct GET literals yield query params — search q, security-question email, change-password 3 params', () => {
+  test('JS-2: GET literals + hostServer template yield query params — search q (template), security-question email, change-password 3 params', () => {
     const recs = extractJsRouteRecords(JUICE_BUNDLE);
     const byPath = new Map(recs.map((r) => [r.path, r]));
     assert.deepEqual(byPath.get('/rest/products/search').queryNames, ['q']);
@@ -170,6 +179,49 @@ describe('extractJsRouteRecords (Juice bundle fixture)', () => {
       targets.every((t) => new URL(t).searchParams.has('q')),
       'all 20 capped targets must be param-bearing'
     );
+  });
+});
+
+describe('extractJsRouteRecords (template-literal host calls)', () => {
+  test('JS-10: hostServer template mines search with q — plus languages and dotted-alias 2fa', () => {
+    const recs = extractJsRouteRecords(JUICE_BUNDLE);
+    const byPath = new Map(recs.map((r) => [r.path, r]));
+    assert.deepEqual(byPath.get('/rest/products/search').queryNames, ['q']);
+    assert.deepEqual(byPath.get('/rest/products/search').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/languages').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/languages').queryNames, []);
+    assert.deepEqual(byPath.get('/rest/2fa/status').methods, ['get']);
+    const { targets } = extractJsRoutes(JUICE_BUNDLE, 'http://example.com/');
+    assert.ok(targets.some((t) => t.includes('/rest/products/search?q=dmprobe')));
+  });
+
+  test('JS-11: host-template suffix resolves via nearest base — Products /${e} + ?d=', () => {
+    const recs = extractJsRouteRecords(JUICE_BUNDLE);
+    const byPath = new Map(recs.map((r) => [r.path, r]));
+    const one = byPath.get('/api/Products/${e}');
+    assert.ok(one, 'Products /${e} record must exist');
+    assert.deepEqual(one.methods, ['get']);
+    assert.deepEqual(one.queryNames, ['d']);
+    assert.deepEqual(one.pathDescriptors, [{ name: 'e', segment: 3 }]);
+    const { targets, pathParams } = extractJsRoutes(JUICE_BUNDLE, 'http://example.com/');
+    const t = targets.find((x) => x.includes('/api/Products/dmprobe'));
+    assert.ok(t, 'Products /:id target must exist');
+    assert.deepEqual(pathParams[t], [{ name: 'e', segment: 3 }]);
+    assert.match(t, /\/api\/Products\/dmprobe\d+_[0-9a-f]+\?d=dmprobe\d+_[0-9a-f]+&e=dmprobe\d+_[0-9a-f]+/);
+  });
+
+  test('JS-12: display-only template contributes no method/param evidence; .concat form still mined', () => {
+    const recs = extractJsRouteRecords(JUICE_BUNDLE);
+    const byPath = new Map(recs.map((r) => [r.path, r]));
+    const display = byPath.get('/rest/display-only');
+    assert.ok(display, 'orphan literal still records the path (pre-existing rule)');
+    assert.deepEqual(display.methods, []);
+    assert.deepEqual(display.queryNames, []);
+    const { targets } = extractJsRoutes(JUICE_BUNDLE, 'http://example.com/');
+    const dt = targets.find((x) => x.includes('/rest/display-only'));
+    assert.ok(!dt || !new URL(dt).searchParams.has('q'), 'display-only target must carry no q param');
+    assert.deepEqual(byPath.get('/rest/concat-case').queryNames, ['q']);
+    assert.deepEqual(byPath.get('/rest/concat-case').methods, ['get']);
   });
 });
 
