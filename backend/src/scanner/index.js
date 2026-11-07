@@ -74,6 +74,7 @@ import { probeElInject } from './probes/elInject.js';
 import { probeOgnlInject } from './probes/ognlInject.js';
 import { probeVerbTampering } from './probes/verbTampering.js';
 import { probeMethodOverride } from './probes/methodOverride.js';
+import { probeSecretsInJs, extractSecretTargets } from './probes/secretsInJs.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -145,6 +146,7 @@ export const DEFAULT_PHASES = [
   'password-reset',
   'verb-tampering',
   'method-override',
+  'secrets-in-js',
   'nuclei',
 ];
 
@@ -367,6 +369,7 @@ export async function runScan(
   // targets with UNIQUE filler values (same safety rule as form targets:
   // never empty, never equal — keeps every probe read-only).
   let pageAnalysis = null;
+  let pageBody = null;
   await step('page-analyze', async () => {
     let body = crawled && crawled.body ? crawled.body : null;
     if (!body) {
@@ -377,6 +380,7 @@ export async function runScan(
       }
     }
     if (!body) return null;
+    pageBody = body;
     pageAnalysis = analyzePage(body, url);
     return pageAnalysis;
   });
@@ -801,6 +805,28 @@ export async function runScan(
     );
   } else {
     skipPhase('method-override', 'no probe targets');
+  }
+  // SECRETS IN CLIENT-SIDE JS (7 Nov 2026, row #179): scan the
+  // page's same-origin script bundles + inline <script> blocks for
+  // high-confidence secret formats (known-format keys/tokens, JWTs,
+  // PEM blocks, DB URIs, high-entropy assignments). Read-only GETs
+  // of the page's own bundles — no allowWrite gate. The targets come
+  // from the page body page-analyze already fetched, so a script-less
+  // page records a skip instead of fetching (gated-skip pattern).
+  // opts.jsRoutesFetcher is the test seam, mirroring js-api-routes.
+  const secretTargets =
+    pageBody && typeof pageBody === 'string'
+      ? extractSecretTargets(pageBody, url)
+      : { bundles: [], inline: [] };
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step('secrets-in-js', () =>
+      probeSecretsInJs(url, secretTargets, {
+        ...opts,
+        ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+      })
+    );
+  } else {
+    skipPhase('secrets-in-js', 'no script targets');
   }
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));

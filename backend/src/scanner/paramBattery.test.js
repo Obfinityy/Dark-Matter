@@ -48,7 +48,10 @@ describe('param battery skipped records (35/63 fix)', () => {
     for (const name of PARAM_BATTERY_PHASES) {
       assert.ok(DEFAULT_PHASES.includes(name), `${name} missing from DEFAULT_PHASES`);
     }
-    // 68 since 7 Nov 2026 (method override): 'method-override'
+    // 69 since 7 Nov 2026 (secrets in JS): 'secrets-in-js'
+    // joins as a standalone gated phase (one record per scan, skipped
+    // with 'no script targets' when the page carries no script).
+    // (68 since 7 Nov 2026 (method override): 'method-override'
     // joins as a standalone gated phase (one record per scan, skipped
     // with 'no probe targets' when no scan target carries a probe
     // point and no POST form exists).
@@ -58,7 +61,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 68);
+    assert.equal(DEFAULT_PHASES.length, 69);
   });
 
   it('zero param targets: all 28 param phases emit skipped records, rollup reports them', async () => {
@@ -290,16 +293,18 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
-  // 38/30 since 7 Nov 2026 (method override): the battery gained
+  // 38/31 since 7 Nov 2026 (secrets in JS): the battery gained
   // 'js-api-routes', so a bare page runs 38 non-param phases — and
   // 'verb-tampering' + 'method-override' add a 29th and 30th skipped
   // record ('no probe targets': no scan target carries a probe point
-  // on a bare page, and no POST form exists), so the two skip
-  // reasons mix and the summary renders a bare count. The
+  // on a bare page, and no POST form exists), and 'secrets-in-js'
+  // adds a 31st ('no script targets': the bare page carries no
+  // script), so the two skip reasons mix and the summary renders a
+  // bare count. The
   // spec fetch is stubbed to the bare page (HTML, not JSON), so the
   // pass records an honest no-op with 0 targets — the same seam
   // discipline as domRenderer above. (37/28 before js-api-routes.)
-  it('real runScan on a bare page renders the 38/30 line end to end', async () => {
+  it('real runScan on a bare page renders the 38/31 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -311,15 +316,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 68,
+        total: 69,
         ok: 38,
         failed: 0,
-        skipped: 30,
+        skipped: 31,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 38 ran ok, 30 skipped, 0 failed, 0 timed out.'
+        'Phases: 38 ran ok, 31 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
