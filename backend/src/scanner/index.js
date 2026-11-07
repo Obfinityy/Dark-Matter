@@ -87,6 +87,7 @@ import { probeXmlInjection } from './probes/xmlInjection.js';
 import { probeUntrustedJsInclusion } from './probes/untrustedJsInclusion.js';
 import { probeApiVersioning } from './probes/apiVersioning.js';
 import { probeSessionTokenInUrl } from './probes/sessionTokenInUrl.js';
+import { probeCredentialDisclosure } from './probes/credentialDisclosure.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -171,6 +172,7 @@ export const DEFAULT_PHASES = [
   'untrusted-js-inclusion',
   'api-versioning',
   'session-token-in-url',
+  'credential-disclosure',
   'nuclei',
 ];
 
@@ -801,6 +803,19 @@ export async function runScan(
   // extra requests: pure URL inspection (see sessionTokenInUrl.js).
   await step('session-token-in-url', () =>
     probeSessionTokenInUrl(url, scanTargets, { ...opts, html: fp ? fp.body : '' })
+  );
+  // CREDENTIAL DISCLOSURE IN URL / LOGS (7 Nov 2026, row #41): a
+  // credential value disclosed where it can be harvested — a
+  // password / secret / API key in a scan URL (CWE-359), or echoed
+  // in the landing page's visible text outside form inputs. Inspects
+  // the scan's URLs for credential params (password params fire on
+  // any non-empty value; secret/key params need a token-like value)
+  // and the landing page HTML (fp.body) for echoed credential
+  // assignments. Zero extra requests: pure inspection (see
+  // credentialDisclosure.js). Log-file landing pages are skipped
+  // for the body half — those are #180's surface.
+  await step('credential-disclosure', () =>
+    probeCredentialDisclosure(url, scanTargets, { ...opts, html: fp ? fp.body : '' })
   );
   // 35/63 FIX: track whether the param battery ran at all. If no scan
   // target carried a single parameter, the loop body below never executes
