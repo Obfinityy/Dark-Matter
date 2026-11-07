@@ -46,6 +46,20 @@
 //      (labCreds.js) and runScan passes labTargets explicitly.
 //   D3. Juice's POST-only /rest/user/login never reached apiRoutes —
 //      runScan now also passes the miner's write targets (jsRoutes.js).
+//
+// Repairs (8 Nov 2026, #474 re-proof #2 repair — the two defects the
+// second live proof exposed, parent-diagnosed):
+//   R1. T4b picked the FIRST substring match for LOGIN_PATH_RE, so
+//      /rest/saveLoginIp (a GET helper containing "login") was tried
+//      as the login endpoint and its error page aborted T4b before
+//      /rest/user/login was ever tried — login candidates are now
+//      tried in preference order (exact /login first) with a shared
+//      4-POST budget (loginCandidates + tryApiLogin).
+//   R2. (errorDisclosure.js) the 10-trigger cap was spent in target
+//      order, so the miner's login-check promotion pushed
+//      /rest/products/search?q= past the cap and its SQLite leak
+//      vanished — malformed-query triggers are now built before
+//      nonexistent-path triggers.
 
 import { isLabTargetHost } from '../../labCreds.js';
 
@@ -112,6 +126,18 @@ const SESSION_COOKIE_RES = /phpsessid|jsessionid|sessionid|connect\.sid|_session
 const AUTH_MARKER_RE = /logout|dashboard|welcome|profile/i;
 const LOGOUT_PATHS = ['/logout', '/logout.php', '/signout', '/auth/logout'];
 const LOGIN_PATH_RE = /login|signin|authenticate|auth\/token/i;
+// End-anchored login paths (re-proof #2 fix, 8 Nov 2026): a route
+// whose LAST segment is the login action is a real login endpoint.
+// A substring match alone is not — /rest/saveLoginIp contains
+// "login" but is a GET helper, and the old first-substring-match
+// picked it as the login URL, so T4b POSTed creds to an error page
+// and never tried the real /rest/user/login.
+const LOGIN_EXACT_RE = /\/(login|signin|authenticate|auth\/token)$/i;
+// T4b login-attempt budget (re-proof #2 fix): at most 3 login
+// candidates, at most 4 login POSTs total across them — inside the
+// probe's ≤5-logins-per-surface safety bound.
+const MAX_LOGIN_CANDIDATES = 3;
+const MAX_T4B_LOGIN_POSTS = 4;
 // Check-endpoint routes for T4b. whoami STAYS a candidate — on apps
 // where it reflects auth it fires — but it is auth-indifferent on
 // live Juice (200 {"user":{}} with and without a token), so it can
@@ -361,16 +387,53 @@ async function t4Logout(form, opts, creds) {
 // labCreds are present. Login + check endpoints come from the
 // already-discovered route set (opts.apiRoutes, wired in by runScan) —
 // no new discovery phase, and never a fire on the SPA-root HTML alone.
-function sameOriginRoute(routes, origin, re) {
+// Login selection (re-proof #2 fix, 8 Nov 2026): every login-like
+// route is a candidate, exact /login endpoints first — a decoy such
+// as /rest/saveLoginIp must not consume the only login attempt.
+export function loginCandidates(routes, origin) {
+  const exact = [];
+  const fallback = [];
   for (const r of routes || []) {
     try {
       const u = new URL(String(r));
-      if (u.origin === origin && re.test(u.pathname)) return u.toString();
+      if (u.origin !== origin || !LOGIN_PATH_RE.test(u.pathname)) continue;
+      const s = u.toString();
+      if (exact.includes(s) || fallback.includes(s)) continue;
+      (LOGIN_EXACT_RE.test(u.pathname) ? exact : fallback).push(s);
     } catch {
       // ignore malformed route entries
     }
   }
-  return null;
+  return [...exact, ...fallback].slice(0, MAX_LOGIN_CANDIDATES);
+}
+
+// One API login attempt against a single candidate: {email, password}
+// first, then {username, password} on 401/400. Always returns
+// { ok, res, token, spent } — spent counts the POSTs made, so the
+// caller can share one budget across candidates. A non-2xx
+// non-401/400 answer (an error page, a 404) proves this candidate is
+// NOT a login endpoint at all: ok:false after one POST.
+async function tryApiLogin(loginUrl, opts, creds, budget) {
+  let spent = 0;
+  for (const body of [
+    { email: creds.username, password: creds.password },
+    { username: creds.username, password: creds.password },
+  ]) {
+    if (spent >= budget) return { ok: false, spent };
+    const r = await req(loginUrl, opts, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    spent += 1;
+    if (!r) return { ok: false, spent };
+    if (r.status === 401 || r.status === 400) continue;
+    if (r.status < 200 || r.status >= 300) return { ok: false, spent };
+    const token = extractBearerToken(r);
+    if (!token) return { ok: false, spent };
+    return { ok: true, res: r, token, spent };
+  }
+  return { ok: false, spent };
 }
 
 // Shallow-recursive token hunt (depth ≤ 3): Juice nests the token under
@@ -487,34 +550,35 @@ async function t4bBearer(url, opts, creds) {
   } catch {
     return findings;
   }
-  const loginUrl = sameOriginRoute(routes, origin, LOGIN_PATH_RE);
-  if (!loginUrl) return findings;
+  // Login candidates, exact /login endpoints first (see
+  // loginCandidates): a decoy route that merely contains "login"
+  // (live: /rest/saveLoginIp, an error page on POST) is tried and
+  // skipped, never the end of the attempt.
+  const loginUrls = loginCandidates(routes, origin);
+  if (!loginUrls.length) return findings;
   // Up to 3 check candidates, fixed (param-less) paths first.
   // whoami is tried but can never fire on Juice (dead oracle — 200
   // {"user":{}} both ways); the live fire comes from /rest/2fa/status.
   const checkUrls = checkCandidates(routes, origin).slice(0, 3);
   if (!checkUrls.length) return findings;
-  // API login: {email, password} first, then {username, password} on
-  // 401/400. Cap: 2 login attempts, 1 endpoint per scan.
+  // API login across candidates until one returns a token. Budget:
+  // at most MAX_T4B_LOGIN_POSTS login POSTs in total (the ≤5-logins
+  // safety bound), shared across candidates — a decoy that errors
+  // spends one POST and the next candidate is tried.
   let loginRes = null;
-  for (const body of [
-    { email: creds.username, password: creds.password },
-    { username: creds.username, password: creds.password },
-  ]) {
-    const r = await req(loginUrl, opts, {
-      method: 'POST',
-      body: JSON.stringify(body),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    if (!r) return findings;
-    if (r.status === 401 || r.status === 400) continue;
-    if (r.status < 200 || r.status >= 300) return findings;
-    loginRes = r;
-    break;
+  let token = null;
+  let postsLeft = MAX_T4B_LOGIN_POSTS;
+  for (const candidate of loginUrls) {
+    if (postsLeft <= 0) break;
+    const got = await tryApiLogin(candidate, opts, creds, postsLeft);
+    postsLeft -= got.spent;
+    if (got.ok) {
+      loginRes = got.res;
+      token = got.token;
+      break;
+    }
   }
-  if (!loginRes) return findings;
-  const token = extractBearerToken(loginRes);
-  if (!token) return findings;
+  if (!loginRes || !token) return findings;
   // Logout attempt: the 4 common paths + any discovered logout op.
   // Record whether a server logout endpoint exists at all — but ONLY
   // an API-path or JSON response counts: an SPA route returning 200

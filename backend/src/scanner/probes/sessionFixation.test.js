@@ -21,7 +21,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { probeSessionFixation, sessionFixationCanary, SESSION_CANARY_RE } from './sessionFixation.js';
+import { probeSessionFixation, sessionFixationCanary, SESSION_CANARY_RE, loginCandidates } from './sessionFixation.js';
 import { extractForms } from '../crawl.js';
 import { assessConfirmation } from '../../hunt-intel/differential.js';
 import { verifyFindings } from '../verifier.js';
@@ -716,5 +716,98 @@ describe('sessionFixation re-proof repair (8 Nov 2026)', () => {
     } finally {
       await fx.close();
     }
+  });
+});
+
+describe('sessionFixation re-proof #2 repair (8 Nov 2026)', () => {
+  it('(aa) T4b decoy: a login-like GET route (/rest/saveLoginIp) sorting ahead of the real login does NOT block T4b', async () => {
+    const fx = await startApiFixture({ whoamiAuthIndifferent: true });
+    try {
+      // Live scan order: GET targets (incl. the decoy) come before
+      // the write targets (incl. the real login) in apiRoutes. The
+      // OLD code took the first substring match — the decoy — POSTed
+      // creds to its error page and returned [] without ever trying
+      // /rest/user/login. Exact /login endpoints sort first now.
+      const opts = {
+        labCreds: { username: JUICE_USER, password: JUICE_PASS },
+        timeoutMs: 3000,
+        apiRoutes: [
+          `${fx.base}/rest/saveLoginIp`,
+          `${fx.base}/rest/user/whoami`,
+          `${fx.base}/rest/2fa/status`,
+          `${fx.base}/rest/user/login`,
+        ],
+      };
+      const findings = await probeSessionFixation([], `${fx.base}/`, opts);
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].title, T4B_TITLE);
+      assert.equal(findings[0].url, `${fx.base}/rest/2fa/status`);
+      assert.match(findings[0].evidence.response, /canary account/);
+      assert.ok(fx.calls.includes('POST /rest/user/login'), `real login must be tried; calls: ${fx.calls.join(', ')}`);
+      assert.ok(!fx.calls.includes('POST /rest/saveLoginIp'), `exact /login sorts first, the decoy is never tried; calls: ${fx.calls.join(', ')}`);
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(bb) T4b decoy alone: only the login-like route, no real login -> 0 findings (the decoy is tried, then skipped)', async () => {
+    const fx = await startApiFixture({});
+    try {
+      const opts = {
+        labCreds: { username: JUICE_USER, password: JUICE_PASS },
+        timeoutMs: 3000,
+        apiRoutes: [`${fx.base}/rest/saveLoginIp`, `${fx.base}/rest/user/whoami`, `${fx.base}/rest/2fa/status`],
+      };
+      const findings = await probeSessionFixation([], `${fx.base}/`, opts);
+      assert.deepEqual(findings, []);
+      // The fallback tier IS attempted when it is the only candidate
+      // — it answers 404 (not a login endpoint) and T4b ends honestly.
+      assert.ok(fx.calls.includes('POST /rest/saveLoginIp'), `decoy must be attempted as the only candidate; calls: ${fx.calls.join(', ')}`);
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(cc) T4b exact login answers 2xx with no token -> the next candidate is tried, still 0 findings', async () => {
+    const fx = await startApiFixture({ loginToken: null, whoamiAuthIndifferent: true });
+    try {
+      const opts = {
+        labCreds: { username: JUICE_USER, password: JUICE_PASS },
+        timeoutMs: 3000,
+        apiRoutes: [
+          `${fx.base}/rest/user/login`,
+          `${fx.base}/rest/saveLoginIp`,
+          `${fx.base}/rest/user/whoami`,
+          `${fx.base}/rest/2fa/status`,
+        ],
+      };
+      const findings = await probeSessionFixation([], `${fx.base}/`, opts);
+      assert.deepEqual(findings, []);
+      assert.ok(fx.calls.includes('POST /rest/user/login'), `exact login must be tried; calls: ${fx.calls.join(', ')}`);
+      assert.ok(fx.calls.includes('POST /rest/saveLoginIp'), `fallback must be tried after the exact login yields no token; calls: ${fx.calls.join(', ')}`);
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(ad) loginCandidates: exact /login endpoints sort before substring decoys, deduplicated, capped at 3', () => {
+    const routes = [
+      'http://h/rest/saveLoginIp',
+      'http://h/rest/user/login',
+      'http://h/other/login',
+      'http://h/rest/signin',
+      'http://h/auth/token',
+      'http://h/rest/user/login', // duplicate — must not appear twice
+    ];
+    assert.deepEqual(loginCandidates(routes, 'http://h'), [
+      'http://h/rest/user/login',
+      'http://h/other/login',
+      'http://h/rest/signin',
+    ]);
+    // A substring-only route is still a candidate when nothing exact exists.
+    assert.deepEqual(loginCandidates(['http://h/rest/saveLoginIp'], 'http://h'), ['http://h/rest/saveLoginIp']);
+    // Cross-origin routes never qualify.
+    assert.deepEqual(loginCandidates(['http://other/rest/user/login'], 'http://h'), []);
+    assert.deepEqual(loginCandidates([], 'http://h'), []);
   });
 });

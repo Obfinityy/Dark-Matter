@@ -117,6 +117,17 @@ function snippetAround(body, matchIndex, matchLen) {
  * trigger from the first target when every target was param-bearing
  * (so both trigger shapes are exercised whenever possible).
  * Capped at MAX_ERROR_REQUESTS.
+ *
+ * Order (re-proof #2 fix, 8 Nov 2026): malformed-query triggers
+ * are built FIRST, nonexistent-path triggers second — the trigger
+ * budget must not depend on the mined-target sort order. The miner
+ * promotes login/check routes ahead of param-bearing API routes, so
+ * a single in-order pass let param-less routes spend the whole cap
+ * and dropped the malformed trigger for /rest/products/search?q=
+ * (the live SQLite leak, re-proof #2). Malformed triggers carry
+ * the error-detail signal (#176); nonexistent-path triggers carry
+ * the path signal (#175) — both shapes are still built and the cap
+ * is unchanged.
  */
 export function buildErrorTriggers(urls) {
   const list = Array.isArray(urls) ? urls.filter(Boolean) : [];
@@ -130,39 +141,50 @@ export function buildErrorTriggers(urls) {
     seenUrls.add(trigger.url);
     triggers.push(trigger);
   };
-  let sawNonexistent = false;
+  // Pass 1 — malformed-query triggers for every param-bearing
+  // target, in list order. Pass 2 — nonexistent-path triggers for
+  // the param-less targets. The cap is shared and checked in push
+  // order, so the malformed class can never be starved by the
+  // target sort again.
+  const parsed = [];
   for (const raw of list) {
-    if (triggers.length >= MAX_ERROR_REQUESTS) break;
     let u;
     try {
       u = new URL(raw);
     } catch {
       continue;
     }
+    parsed.push({ raw, u });
+  }
+  let sawNonexistent = false;
+  for (const { raw, u } of parsed) {
+    if (triggers.length >= MAX_ERROR_REQUESTS) break;
     const firstParam = [...u.searchParams.keys()][0];
-    if (firstParam) {
-      const bad = new URL(u);
-      bad.searchParams.set(firstParam, MALFORMED_VALUE);
-      push({
-        url: bad.toString(),
-        baselineUrl: raw,
-        kind: 'malformed-query',
-        parameter: firstParam,
-      });
-    } else {
-      const dir = u.pathname.slice(0, u.pathname.lastIndexOf('/') + 1) || '/';
-      const bad = new URL(u);
-      bad.pathname = `${dir}${NONEXISTENT_LEAF}`;
-      bad.search = '';
-      bad.hash = '';
-      push({
-        url: bad.toString(),
-        baselineUrl: raw,
-        kind: 'nonexistent-path',
-        parameter: null,
-      });
-      sawNonexistent = true;
-    }
+    if (!firstParam) continue;
+    const bad = new URL(u);
+    bad.searchParams.set(firstParam, MALFORMED_VALUE);
+    push({
+      url: bad.toString(),
+      baselineUrl: raw,
+      kind: 'malformed-query',
+      parameter: firstParam,
+    });
+  }
+  for (const { raw, u } of parsed) {
+    if (triggers.length >= MAX_ERROR_REQUESTS) break;
+    if ([...u.searchParams.keys()].length > 0) continue;
+    const dir = u.pathname.slice(0, u.pathname.lastIndexOf('/') + 1) || '/';
+    const bad = new URL(u);
+    bad.pathname = `${dir}${NONEXISTENT_LEAF}`;
+    bad.search = '';
+    bad.hash = '';
+    push({
+      url: bad.toString(),
+      baselineUrl: raw,
+      kind: 'nonexistent-path',
+      parameter: null,
+    });
+    sawNonexistent = true;
   }
   if (!sawNonexistent && list.length > 0 && triggers.length < MAX_ERROR_REQUESTS) {
     try {

@@ -75,6 +75,34 @@ describe('buildErrorTriggers', () => {
     assert.equal(t.length, 1);
     assert.equal(t[0].kind, 'nonexistent-path');
   });
+
+  it('malformed-query triggers sort before nonexistent-path triggers', () => {
+    const t = buildErrorTriggers([
+      'http://lab.local/a/page',
+      'http://lab.local/search?q=x',
+      'http://lab.local/b/page',
+    ]);
+    assert.deepEqual(
+      t.map((x) => x.kind),
+      ['malformed-query', 'nonexistent-path', 'nonexistent-path']
+    );
+  });
+
+  it('a param-bearing target past position 10 still gets a malformed trigger when param-less targets sort ahead (re-proof #2)', () => {
+    // Live shape (8 Nov 2026): the miner promotes param-less
+    // login/check routes ahead of /rest/products/search?q=, so a
+    // single in-order pass spent the 10-trigger cap before reaching
+    // it and the SQLite leak vanished. Malformed triggers are built
+    // first now, so the param class can never be starved by the sort.
+    const plain = Array.from({ length: 12 }, (_, i) => `http://lab.local/dir${i}/page`);
+    const search = 'http://lab.local/rest/products/search?q=hello';
+    const t = buildErrorTriggers([...plain, search]);
+    assert.equal(t.length, 10, 'the cap is unchanged');
+    const malformed = t.find((x) => x.kind === 'malformed-query' && x.baselineUrl === search);
+    assert.ok(malformed, `the late param target must keep its malformed trigger; kinds: ${t.map((x) => x.kind).join(',')}`);
+    assert.equal(malformed.parameter, 'q');
+    assert.ok(t.some((x) => x.kind === 'nonexistent-path'), 'the nonexistent-path shape is still exercised');
+  });
 });
 
 describe('errorDisclosure probe — path disclosure (#175)', () => {
