@@ -75,6 +75,7 @@ import { probeOgnlInject } from './probes/ognlInject.js';
 import { probeVerbTampering } from './probes/verbTampering.js';
 import { probeMethodOverride } from './probes/methodOverride.js';
 import { probeSecretsInJs, extractSecretTargets } from './probes/secretsInJs.js';
+import { probeErrorDisclosure } from './probes/errorDisclosure.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -147,6 +148,7 @@ export const DEFAULT_PHASES = [
   'verb-tampering',
   'method-override',
   'secrets-in-js',
+  'error-disclosure',
   'nuclei',
 ];
 
@@ -827,6 +829,20 @@ export async function runScan(
     );
   } else {
     skipPhase('secrets-in-js', 'no script targets');
+  }
+  // ERROR DISCLOSURE (7 Nov 2026, rows #175 + #176): trigger
+  // errors with read-only GETs on the same GET probe targets as
+  // verb-tampering (non-existent paths + malformed query values)
+  // and scan 4xx/5xx responses for filesystem paths (#175, Low)
+  // and error details (#176, Medium) — a leak counts only when
+  // the baseline GET of the same target does not carry it. No
+  // writes, no allowWrite gate. One phase record per scan; when no
+  // scan target carries a probe point the phase records a skip
+  // instead of vanishing (gated-skip pattern).
+  if (verbTargets.length > 0) {
+    await step('error-disclosure', () => probeErrorDisclosure(verbTargets, opts));
+  } else {
+    skipPhase('error-disclosure', 'no probe targets');
   }
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));
