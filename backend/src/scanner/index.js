@@ -82,6 +82,7 @@ import { probeSourceCodeDisclosure } from './probes/sourceCodeDisclosure.js';
 import { probeMetadataLeakage } from './probes/metadataLeakage.js';
 import { probeSensitiveDataInLogs } from './probes/sensitiveDataInLogs.js';
 import { probeSensitiveInfoDisclosure } from './probes/sensitiveInfoDisclosure.js';
+import { probeTimingSideChannel } from './probes/timingSideChannel.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
 
@@ -161,6 +162,7 @@ export const DEFAULT_PHASES = [
   'metadata-leakage',
   'sensitive-data-in-logs',
   'sensitive-info-disclosure',
+  'timing-side-channel',
   'nuclei',
 ];
 
@@ -992,6 +994,22 @@ export async function runScan(
   // /openapi.json, /swagger.json — nuclei and openapi-targets own
   // those). IPv6 internal addresses are out of scope.
   await step('sensitive-info-disclosure', () => probeSensitiveInfoDisclosure(url, verbTargets, opts));
+  // TIMING SIDE-CHANNEL DISCLOSURE (7 Nov 2026, row #185, CWE-208):
+  // a login endpoint that returns the SAME generic error for a valid
+  // and an invalid username but takes measurably longer for the
+  // valid one leaks account existence through response time alone
+  // (see timingSideChannel.js). A finding counts only when the
+  // content is indistinguishable (otherwise user-enumeration owns
+  // the surface), the median gap is >= 100ms, the same side wins
+  // >= 4/5 rounds (>= 6/8 after re-verification), and a same-user
+  // control shows noise smaller than half the gap. Needs a
+  // known-valid anchor (opts.labCreds.username); without one it
+  // degrades honestly to []. Read-only POSTs, at most 20 requests.
+  // One phase record per scan; the pasted page is the baseline, so
+  // this phase never skips (like sensitive-info-disclosure above).
+  // Register/reset forms, password-length oracles and cryptographic
+  // timing attacks are out of scope.
+  await step('timing-side-channel', () => probeTimingSideChannel(forms, url, opts));
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));
   await step('smtp-injection', () => probeSmtpInject(forms, url, opts));

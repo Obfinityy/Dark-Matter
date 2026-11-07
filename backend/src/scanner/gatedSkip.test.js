@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 43/33 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 44/33 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -246,26 +246,26 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // error-disclosure + validation skip with 'no probe targets' /
       // 'no script targets' (7 Nov 2026), and fingerprint-banner +
       // source-code-disclosure + metadata-leakage +
-      // sensitive-data-in-logs + sensitive-info-disclosure RUN (the
-      // pasted page is always a surface — 0 findings on the bare
-      // stub) instead of skipping.
+      // sensitive-data-in-logs + sensitive-info-disclosure +
+      // timing-side-channel RUN (the pasted page is always a surface
+      // — 0 findings on the bare stub) instead of skipping.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 76,
-        ok: 43,
+        total: 77,
+        ok: 44,
         failed: 0,
         skipped: 33,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 43 ran ok, 33 skipped, 0 failed, 0 timed out.'
+        'Phases: 44 ran ok, 33 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 104/104/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 105/105/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -317,26 +317,27 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // The exact shape the Juice proof brief expected, updated for the
       // coverage fix + validation + fingerprint-banner +
       // source-code-disclosure + metadata-leakage +
-      // sensitive-data-in-logs + sensitive-info-disclosure: the
-      // battery ran twice (two DOM targets, 56 records), 46
-      // non-param phases ran ok (36 + verb-tampering +
-      // method-override + secrets-in-js + error-disclosure +
-      // validation + fingerprint-banner + source-code-disclosure +
-      // metadata-leakage + sensitive-data-in-logs +
-      // sensitive-info-disclosure, 7 Nov 2026 —
-      // all ten run here because param targets exist and the shell
-      // carries a script bundle), and the two discovery phases now RUN
-      // instead of skipping — 104 total, 104 ok, 0 skipped.
+      // sensitive-data-in-logs + sensitive-info-disclosure +
+      // timing-side-channel: the battery ran twice (two DOM targets,
+      // 56 records), 47 non-param phases ran ok (36 +
+      // verb-tampering + method-override + secrets-in-js +
+      // error-disclosure + validation + fingerprint-banner +
+      // source-code-disclosure + metadata-leakage +
+      // sensitive-data-in-logs + sensitive-info-disclosure +
+      // timing-side-channel, 7 Nov 2026 — all eleven run here
+      // because param targets exist and the shell carries a script
+      // bundle), and the two discovery phases now RUN instead of
+      // skipping — 105 total, 105 ok, 0 skipped.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 104,
-        ok: 104,
+        total: 105,
+        ok: 105,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 104 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 105 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -542,7 +543,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 76);
+      assert.equal(DEFAULT_PHASES.length, 77);
     } finally {
       teardown();
     }
