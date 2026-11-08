@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 51/36 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 52/36 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -253,25 +253,26 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // untrusted-js-inclusion + api-versioning +
       // session-token-in-url + credential-disclosure + sqli-oob +
       // sensitive-cache + missing-auth RUN (the pasted page is always a surface —
-      // 0 findings on the bare stub)
-      // instead of skipping.
+      // 0 findings on the bare stub), and basket-logic RUNS as an
+      // honest no-op (no basket routes on a bare page — 8 Nov 2026,
+      // 88th phase) instead of skipping.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 87,
-        ok: 51,
+        total: 88,
+        ok: 52,
         failed: 0,
         skipped: 36,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 51 ran ok, 36 skipped, 0 failed, 0 timed out.'
+        'Phases: 52 ran ok, 36 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 116/116/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 117/117/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -335,17 +336,19 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // credential-disclosure + sqli-oob + sensitive-cache, 7 Nov 2026 —
       // all nineteen run here because param targets exist and the shell
       // carries a script bundle), and the two discovery phases now RUN
-      // instead of skipping — 116 total, 116 ok, 0 skipped.
+      // instead of skipping — 117 total, 117 ok, 0 skipped
+      // (basket-logic, the 88th phase, runs as an honest no-op here:
+      // the Juice-shape stub carries no basket routes).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 116,
-        ok: 116,
+        total: 117,
+        ok: 117,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 116 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 117 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -551,7 +554,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 87);
+      assert.equal(DEFAULT_PHASES.length, 88);
     } finally {
       teardown();
     }

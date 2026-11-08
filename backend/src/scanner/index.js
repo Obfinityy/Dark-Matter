@@ -46,6 +46,7 @@ import { probeCrlf } from './probes/crlf.js';
 import { probeCsvLog } from './probes/csvLogInjection.js';
 import { probeSmtpInject } from './probes/smtpInject.js';
 import { probeSessionFixation } from './probes/sessionFixation.js';
+import { probeBasketLogic } from './probes/basketLogic.js';
 import { probeUserEnum } from './probes/userEnum.js';
 import { probeRfi } from './probes/rfi.js';
 import { probeXslt } from './probes/xslt.js';
@@ -146,6 +147,7 @@ export const DEFAULT_PHASES = [
   'csv-log-injection',
   'smtp-injection',
   'session-fixation',
+  'basket-logic',
   'user-enumeration',
   'rfi',
   'xslt',
@@ -1396,6 +1398,33 @@ export async function runScan(
   // reached opts before. D3: the POST-only mined routes ride along
   // as API-login candidates (never as GET probe targets).
   await step('session-fixation', () => probeSessionFixation(forms, url, { ...opts, apiRoutes: [...scanTargets, ...jsWriteTargets], labTargets }));
+  // BASKET LOGIC (8 Nov 2026, rows #82/#370, variants #374/#80/#83):
+  // negative-quantity / price / overflow manipulation of a shop
+  // basket, confirmed by a pure-arithmetic total differential with
+  // a +1 control (see basketLogic.js). Same apiRoutes wiring as
+  // session-fixation (T4b) — the mined basket endpoints reach the
+  // probe only through the discovered route set, never invented.
+  // Diagnostics ride the phase extras (basketRoutes, basketId,
+  // controlOk, mutations) so a live proof can tell "no surface"
+  // from "oracle uncalibrated" without re-running the scan.
+  const blDiag = {};
+  await step(
+    'basket-logic',
+    () =>
+      probeBasketLogic(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: blDiag,
+      }),
+    () => ({
+      basketRoutes: blDiag.basketRoutes || 0,
+      basketId: Boolean(blDiag.basketId),
+      controlOk: Boolean(blDiag.controlOk),
+      mutations: blDiag.mutations || 0,
+    })
+  );
   await step('user-enumeration', () => probeUserEnum(forms, url, opts));
   await step('mass-assignment', () => probeMassAssignment(forms, url, { ...opts, labTargets }));
   await step('ws-messages', () => probeWsMessages(url, { ...opts, labTargets }));
