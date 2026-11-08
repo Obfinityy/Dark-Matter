@@ -2,6 +2,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import net from 'node:net';
 import zlib from 'node:zlib';
 import { normalizeTarget, authorizeTarget, assertInScope } from './target.js';
 import { parseJsonl } from './runner.js';
@@ -1108,6 +1109,175 @@ describe('runScan password-reset wiring', () => {
       assert.ok(!classes.includes('pwdreset_token_in_response'), `unexpected pwdreset finding in ${classes}`);
       assert.equal(stub.posts(), 0, 'off-lab the probe must never POST');
     } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+});
+
+// runScan SMTP canary-inbox wiring (8 Nov 2026, smtp-canary lane):
+// proves the full path — runScan starts the local SMTP sink for a
+// lab-gated scan, passes the {domain, check, waitFor} hook to the
+// smtp-injection step, and the probe's T2 confirms by received mail.
+// Probe-level tests pass the hook directly and cannot catch a missing
+// call-site wire-up or a sink that never starts.
+describe('runScan SMTP canary-inbox wiring', () => {
+  // Minimal SMTP client for the fixture's relay (EHLO, MAIL, RCPT,
+  // DATA, QUIT — the sink's subset).
+  function smtpClient(port) {
+    const sock = net.connect(port, '127.0.0.1');
+    let buf = '';
+    const queue = [];
+    const pending = [];
+    sock.on('data', (c) => {
+      buf += c.toString('utf8');
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).replace(/\r$/, '');
+        buf = buf.slice(i + 1);
+        if (pending.length) pending.shift()(line);
+        else queue.push(line);
+      }
+    });
+    const readLine = () =>
+      queue.length ? Promise.resolve(queue.shift()) : new Promise((r) => pending.push(r));
+    const send = (s) =>
+      new Promise((resolve, reject) => sock.write(s, (e) => (e ? reject(e) : resolve())));
+    return { sock, readLine, send };
+  }
+
+  async function relayMail(port, addr) {
+    const c = smtpClient(port);
+    try {
+      await c.readLine();
+      await c.send('EHLO fixture.test\r\n');
+      let line;
+      do {
+        line = await c.readLine();
+      } while (!/^250 /.test(line));
+      await c.send('MAIL FROM:<noreply@fixture.test>\r\n');
+      await c.readLine();
+      await c.send(`RCPT TO:<${addr}>\r\n`);
+      await c.readLine();
+      await c.send('DATA\r\n');
+      await c.readLine();
+      await c.send(
+        `From: noreply@fixture.test\r\nTo: v@example.invalid\r\nBcc: ${addr}\r\nSubject: contact form\r\nMessage-ID: <relay-${Date.now()}@fixture.test>\r\n\r\nhello from the contact form\r\n.\r\n`
+      );
+      await c.readLine();
+      await c.send('QUIT\r\n');
+      await c.readLine();
+    } finally {
+      c.sock.destroy();
+    }
+  }
+
+  // Vulnerable fixture: serves a contact form on / and relays an
+  // injected Bcc line to the sink runScan started (port via
+  // DM_SMTP_PORT, which runScan also reads for the sink's listen port).
+  // It never reflects input, so T1 stays silent.
+  function startSmtpFixture() {
+    let relayCount = 0;
+    const server = http.createServer((req, res) => {
+      if (req.method === 'POST' && req.url === '/contact') {
+        let raw = '';
+        req.on('data', (c) => { raw += c; });
+        req.on('end', async () => {
+          const params = new URLSearchParams(raw);
+          const emails = params.getAll('email');
+          const email = emails.length ? emails[emails.length - 1] : '';
+          const bccLine = email.split(/\r?\n/).find((l) => /^bcc:\s*\S+/i.test(l));
+          const sinkPort = Number(process.env.DM_SMTP_PORT || 0);
+          if (bccLine && sinkPort) {
+            const addr = bccLine.replace(/^bcc:\s*/i, '').trim();
+            try {
+              await relayMail(sinkPort, addr);
+              relayCount += 1;
+            } catch { /* relay failure must not break the HTTP response */ }
+          }
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end('<html>thanks, mail queued</html>');
+        });
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html><body><form action="/contact" method="post"><input name="name" type="text"><input name="email" type="email"><input type="submit"></form></body></html>');
+    });
+    return new Promise((resolve) => {
+      server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port, relays: () => relayCount }));
+    });
+  }
+
+  function freePort() {
+    return new Promise((resolve) => {
+      const s = net.createServer();
+      s.listen(0, '127.0.0.1', () => {
+        const port = s.address().port;
+        s.close(() => resolve(port));
+      });
+    });
+  }
+
+  it('CONFIRMS Bcc-relay CRITICAL end-to-end on a lab-gated target', async () => {
+    const stub = await startSmtpFixture();
+    const smtpPort = await freePort();
+    const prevPort = process.env.DM_SMTP_PORT;
+    process.env.DM_SMTP_PORT = String(smtpPort);
+    try {
+      const result = await runScan(
+        {
+          target: `http://127.0.0.1:${stub.port}/`,
+          labTargets: '127.0.0.1',
+          phases: ['fingerprint', 'crawl', 'smtp-injection'],
+          confirmedAuthorized: true,
+        },
+        { timeoutMs: 3000 }
+      );
+      const f = (result.findings || []).find((x) => x.class === 'smtp_injection' && /Bcc relay/.test(x.title));
+      assert.ok(f, `expected confirmed Bcc-relay finding, got ${JSON.stringify((result.findings || []).map((x) => x.class + ':' + x.title))}`);
+      assert.equal(f.confirmation, 'confirmed');
+      assert.equal(f.severity, 'critical');
+      assert.match(f.evidence.response, /Bcc:/i, 'evidence must quote the received Bcc line');
+      assert.equal(
+        (result.findings || []).filter((x) => x.class === 'smtp_injection' && /Bcc relay/.test(x.title)).length,
+        1,
+        'the verifier dedups the two identical T2 confirmations to one finding'
+      );
+      // Two relays, not one: runScan's forms list holds the same contact
+      // form twice (crawl + scan-target fetch — the same duplicate the
+      // password-reset wiring test documents as posts() === 2), and the
+      // probe tries the first two email forms. Same canary address both
+      // times, so the sink holds two copies of one confirmation.
+      assert.equal(stub.relays(), 2, 'one relay per duplicate form entry');
+      const phase = (result.phases || []).find((p) => p.name === 'smtp-injection');
+      assert.ok(phase && phase.ok, 'smtp-injection phase must record ok');
+    } finally {
+      if (prevPort === undefined) delete process.env.DM_SMTP_PORT;
+      else process.env.DM_SMTP_PORT = prevPort;
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('NEGATIVE: no relay and no finding when the target is not lab-gated', async () => {
+    const stub = await startSmtpFixture();
+    const smtpPort = await freePort();
+    const prevPort = process.env.DM_SMTP_PORT;
+    process.env.DM_SMTP_PORT = String(smtpPort);
+    try {
+      const result = await runScan(
+        {
+          target: `http://127.0.0.1:${stub.port}/`,
+          labTargets: '',
+          phases: ['fingerprint', 'crawl', 'smtp-injection'],
+          confirmedAuthorized: true,
+        },
+        { timeoutMs: 3000 }
+      );
+      const classes = [...(result.findings || []), ...(result.unconfirmed || [])].map((x) => x.class);
+      assert.ok(!classes.includes('smtp_injection'), `unexpected smtp finding in ${classes}`);
+      assert.equal(stub.relays(), 0, 'off-lab the probe must never send a Bcc payload');
+    } finally {
+      if (prevPort === undefined) delete process.env.DM_SMTP_PORT;
+      else process.env.DM_SMTP_PORT = prevPort;
       await new Promise((r) => stub.server.close(r));
     }
   });

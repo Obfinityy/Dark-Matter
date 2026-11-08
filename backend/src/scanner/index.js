@@ -67,6 +67,7 @@ import { probeCswsh } from './probes/cswsh.js';
 import { probeOauth } from './probes/oauth.js';
 import { probeSaml } from './probes/saml.js';
 import { createOobCollaborator } from './oobCollaborator.js';
+import { createSmtpCanaryInbox } from './smtpCanaryInbox.js';
 import { discoverDomForms } from './domRender.js';
 import { discoverOpenApiTargets } from './openapi.js';
 import { discoverJsRoutes } from './jsRoutes.js';
@@ -1228,7 +1229,57 @@ export async function runScan(
   await step('timing-side-channel', () => probeTimingSideChannel(forms, url, opts));
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));
-  await step('smtp-injection', () => probeSmtpInject(forms, url, { ...opts, labTargets }));
+  // SMTP CANARY INBOX (8 Nov 2026, row #43 T2): the smtp-injection
+  // probe's Bcc-relay variant confirms ONLY by received mail at OUR
+  // canary inbox — a local SMTP sink started here for the duration of
+  // this phase, same pattern as the OOB collaborators. Only when the
+  // target is lab-gated (allowWrite, the same host check as the
+  // file-upload gate); the probe itself re-checks opts.labTargets
+  // before sending anything, so a non-lab target never receives a
+  // canary address. Start is best-effort: a bind failure is recorded
+  // in errors and the scan continues with T2 skipped, exactly as
+  // before this lane. The sink is always stopped afterwards
+  // (finally), so no listener outlives the scan. The canary domain
+  // defaults to the reserved .invalid domain (RFC 2606 — never
+  // resolves, so no mail can ever escape to a real mailbox);
+  // override with opts.smtpCanaryDomain / DM_SMTP_CANARY_DOMAIN.
+  // Listen host/port: opts.smtpListenHost / opts.smtpListenPort or
+  // DM_SMTP_LISTEN_HOST / DM_SMTP_PORT (0 = ephemeral).
+  let smtpInbox = null;
+  if (phases.includes('smtp-injection') && allowWrite) {
+    try {
+      smtpInbox = createSmtpCanaryInbox({
+        listenHost: opts.smtpListenHost || process.env.DM_SMTP_LISTEN_HOST || '0.0.0.0',
+        listenPort: opts.smtpListenPort || (process.env.DM_SMTP_PORT ? Number(process.env.DM_SMTP_PORT) : 0),
+        domain: opts.smtpCanaryDomain || process.env.DM_SMTP_CANARY_DOMAIN || 'dm-canary.invalid',
+      });
+      await smtpInbox.start();
+    } catch (e) {
+      errors.push(`smtp-canary-inbox: ${e && e.message ? e.message : String(e)}`);
+      smtpInbox = null;
+    }
+  }
+  try {
+    await step('smtp-injection', () =>
+      probeSmtpInject(forms, url, {
+        ...opts,
+        labTargets,
+        ...(smtpInbox
+          ? {
+              smtpCanaryInbox: {
+                domain: smtpInbox.domain,
+                check: (addr) => smtpInbox.check(addr),
+                waitFor: (addr, ms) => smtpInbox.waitFor(addr, ms),
+              },
+            }
+          : {}),
+      })
+    );
+  } finally {
+    if (smtpInbox) {
+      try { await smtpInbox.stop(); } catch { /* stop is best-effort */ }
+    }
+  }
   // T4b (bearer/API login) needs the already-discovered route set —
   // wired in here from scanTargets (crawl + openapi + jsRoutes-mined),
   // no new discovery phase. T4b never fires on the SPA-root HTML alone.

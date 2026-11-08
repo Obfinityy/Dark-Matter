@@ -8,11 +8,16 @@
 //   T1. Newline passthrough — MEDIUM: LF survives into an observable
 //       context (reflected error/bounce shows the split line).
 //   T2. Bcc injection — CRITICAL (LAB-GATED): confirmed ONLY by received
-//       mail at OUR canary inbox with the Bcc header present.
+//       mail at OUR canary inbox with the Bcc header present. The inbox
+//       is smtpCanaryInbox.js — a local SMTP sink runScan starts for
+//       lab-gated scans and passes in as opts.smtpCanaryInbox
+//       ({domain, check, waitFor}); without it the probe skips silently.
 //   T3. From spoof + Content-Type flip — HIGH (LAB-GATED): canary inbox
-//       receives spoofed-From or rendered HTML.
+//       receives spoofed-From or rendered HTML. (Not yet implemented —
+//       the oracle it needs now exists; payload + verification is a
+//       follow-up probe lane.)
 //   T4. MIME separator abuse — MEDIUM (LAB-GATED): multipart structure
-//       in canary inbox vs control.
+//       in canary inbox vs control. (Same: oracle ready, probe pending.)
 //
 // Honest black-box ceiling: on real targets only T1 runs (payloads carry
 // no deliverable third-party address — syntactically invalid recipients).
@@ -146,8 +151,14 @@ async function t2BccLab(forms, opts, rid) {
     } finally {
       clearTimeout(t);
     }
-    // Received-mail check via the canary inbox hook.
-    const received = await opts.smtpCanaryInbox.check(bccCanary).catch(() => null);
+    // Received-mail check via the canary inbox hook. The real sink
+    // offers waitFor (resolves the moment the relayed mail lands, so a
+    // slow async relay still confirms); a minimal stub inbox offers
+    // only check, which is a single synchronous lookup.
+    const inbox = opts.smtpCanaryInbox;
+    const received = typeof inbox.waitFor === 'function'
+      ? await inbox.waitFor(bccCanary, opts.smtpCanaryWaitMs || 8000).catch(() => null)
+      : await inbox.check(bccCanary).catch(() => null);
     if (received && /bcc/i.test(received.headers || '')) {
       const bccLine = (received.headers || '').split('\n').find((l) => /bcc/i.test(l)) || `Bcc: ${bccCanary}`;
       const msgId = (received.headers || '').split('\n').find((l) => /message-id/i.test(l)) || '';
