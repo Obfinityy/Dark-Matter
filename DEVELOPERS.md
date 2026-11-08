@@ -38,10 +38,10 @@
 
 **Dark Matter** is an **autonomous bug bounty agent** — an AI system that hunts for security vulnerabilities in web applications the way an elite human bug bounty hunter would.
 
-**The user experience is dead simple:**
-1. User pastes a URL (target website)
+**The operator experience is straightforward:**
+1. The operator submits a URL (target website)
 2. Presses Enter
-3. The agent opens the target in its own controlled operating system
+3. The agent opens the target in Obfinity's controlled hunt environment
 4. It hunts the entire website autonomously — recon, exploitation, verification
 5. Verified vulnerabilities appear on the frontend with proof
 
@@ -102,7 +102,7 @@ Brain + Memory + OS = Complete Human Hunter
 2. **100% truth rule**: Only verifier-confirmed findings count. No false positives on the frontend.
 3. **Per-hunt isolation**: Each target gets its own memory. Never mix contexts.
 4. **Non-stop operation**: Hunt runs until force-stopped or budget exhausted.
-5. **Proof over claims**: "Ban gaya" (it's done) is only said with evidence.
+5. **Proof over claims**: Completion is claimed only with evidence.
 
 ---
 
@@ -617,8 +617,8 @@ node --test 'src/**/*.test.js'
 3. **Container**: `docker ps --filter name=dm-hunt-<id>`
 4. **Frontend**: Open hack.thebhavesh.online in browser, verify visually
 
-### The "Ban Gaya" Bar
-Never say "it's done" without:
+### The Completion Bar
+Never claim completion without:
 1. Root cause identified (not just symptom fixed)
 2. Verified in the live browser (not just API check)
 3. Exact reproducible numbers (not vague "it works")
@@ -634,10 +634,10 @@ The owner ordered: "brain's reply carries current task + goal + progress; NOTHIN
 Different targets have different contexts. Mixing them causes confusion and false positives. Each hunt is a clean slate with its own lessons.
 
 ### Why a separate auto-filer?
-The Meta model is good at hunting but bad at filing (won't transcribe hashes). Instead of fighting the model, we built a system that files for it. "The brain hunts; the filer files. Together they are the complete human."
+The Meta model is good at hunting but does not transcribe hashes reliably. Instead of working around the model, we built a system that files for it. "The brain hunts; the filer files. Together they are the complete human."
 
 ### Why OCR instead of asking the model to transcribe?
-We tried (prompt instruction, commit 2a1a963). The model still wouldn't do it. OCR bypasses the model entirely — a permanent system-level fix.
+A prompt instruction (commit 2a1a963) did not change this behaviour. OCR bypasses the model entirely — a permanent system-level fix.
 
 ### Why Docker + Xvfb instead of real KVM?
 Real KVM is impossible on the EC2 box (no /dev/kvm, 2 vCPU, ~154MB RAM free). Docker + Xvfb provides a full GUI desktop that the agent can control.
@@ -670,7 +670,7 @@ Resource constraints (2 vCPU, 8GB RAM) and focus. One elite hunter does one targ
 **The blocker:** Meta muse-spark-1.3 will not transcribe 32-char hashes or take screenshot actions. System bypasses are built but not yet firing successfully.
 
 **Next milestones:**
-1. **Prove end-to-end**: First auto-filed claim verified on DVWA → say "Done Boss"
+1. **Prove end-to-end**: First auto-filed claim verified on DVWA
 2. **Juice Shop**: Next training ground after DVWA
 3. **Meta Hackathon**: Video demo → submit by 5 Nov 07:30 IST
 4. **Public bug bounty**: HackerOne/Bugcrowd/YesWeHack → earn → scale
@@ -700,6 +700,20 @@ Resource constraints (2 vCPU, 8GB RAM) and focus. One elite hunter does one targ
 ---
 
 ## Appendix: Quick Reference
+
+### Quick start (local development)
+
+```bash
+# Backend (API + orchestrator)
+cd backend && npm install && npm start        # → http://localhost:4000
+
+# Frontend
+cd frontend && npm install && npm run dev     # → http://localhost:5173
+```
+
+**Deploy:** frontend auto-deploys on push to `main`. Backend runs on AWS EC2 via systemd (`darkmatter-backend.service`).
+
+**Env (backend):** `JWT_SECRET`, `ALLOWED_TARGETS` (comma-separated, required for hunts), `CORS_ORIGINS`, `DATA_DIR`, `OLLAMA_MODEL`, `OLLAMA_NUM_CTX`, `OLLAMA_TIMEOUT_MS`.
 
 ### SSH to EC2
 ```bash

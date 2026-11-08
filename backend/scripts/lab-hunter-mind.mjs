@@ -1,4 +1,4 @@
-// HUNTER-MIND lab (26 Oct 2026, owner order: "tu khud test kar de").
+// HUNTER-MIND lab (26 Oct 2026, owner order: "test it yourself").
 //
 // A LIVE test of the lane — not a unit test: the REAL brain
 // (Ollama dm-hunter on the EC2 host, http://localhost:11434) drives a

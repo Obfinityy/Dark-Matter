@@ -4,9 +4,9 @@
 // provides a real LLM backend. The provider is chosen by LLM_PROVIDER:
 //
 //   LLM_PROVIDER=bedrock (default) — AWS Bedrock (credentials from env).
-//   LLM_PROVIDER=ollama            — self-hosted Ollama on the same box,
+//   LLM_PROVIDER=ollama            — locally hosted Ollama on the same host,
 //                                    e.g. dolphin-mistral:7b (uncensored).
-//                                    $0 marginal token cost; the box itself
+//                                    $0 marginal token cost; the host itself
 //                                    is the only cost.
 //   LLM_PROVIDER=sagemaker         — AWS SageMaker async inference endpoint.
 //                                    For larger models (32B+) that don't fit
@@ -521,7 +521,7 @@ async function chatWithOllamaInner(messages, system, ctx, opts = {}) {
     clearHeartbeat();
   }
   const text = String(result.text || '').trim();
-  // Self-hosted = $0 marginal cost; still ledger the burn event for the UI.
+  // Locally hosted = $0 marginal cost; still ledger the burn event for the UI.
   try {
     recordCost({
       userId: ctx && ctx.userId,

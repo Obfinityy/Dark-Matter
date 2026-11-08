@@ -2,7 +2,7 @@
 
 > **Hire an elite bug-bounty hunter. Give it a link. It does the rest.**
 
-Dark Matter by **Obfinity** is an autonomous AI security researcher that thinks and works like an elite human bug-bounty hunter — not a vulnerability scanner. You hand it a target you are authorized to test, and it takes it from there: understanding the application, following its curiosity, testing its own hypotheses, verifying what it finds, and writing you a professional report.
+Dark Matter by **Obfinity** is an autonomous AI security researcher that thinks and works like an elite human bug-bounty hunter — not a vulnerability scanner. An Obfinity operator hands it an authorized target, and it takes it from there: understanding the application, following its curiosity, testing its own hypotheses, verifying what it finds, and writing a professional report.
 
 ---
 
@@ -10,11 +10,11 @@ Dark Matter by **Obfinity** is an autonomous AI security researcher that thinks 
 
 Most security tools run a checklist: test for SQL injection, then XSS, then move on. Dark Matter doesn't work that way. It works the way a hired expert works:
 
-1. **You give it a link** — a target you own or are authorized to test.
-2. **It gets its own machine** — a dedicated cloud environment where it runs every test in isolated containers. Your infrastructure is never touched.
+1. **An operator submits a link** — a target Obfinity is authorized to test.
+2. **It runs in a dedicated cloud environment** — every test executes in an isolated container. Operator infrastructure is never touched.
 3. **It understands the app first** — before testing anything, it builds a mental model: *What does this app do? Where does money flow? Where does trust flow? Who controls this number?*
 4. **It follows curiosity, not a checklist** — like a human, it notices things that look odd and wonders "what if I…". A price it can see, an ID that looks guessable, a step in a checkout that could be skipped — it pulls those threads.
-5. **It verifies before it reports** — every finding goes through confirmation probes. Unreproducible results are discarded, not reported. Only verified vulnerabilities reach you.
+5. **It verifies before it reports** — every finding goes through confirmation probes. Unreproducible results are discarded, not reported. Only verified vulnerabilities reach the operator.
 6. **It remembers** — everything it learns is saved to its persistent memory, so each hunt makes it sharper.
 
 The brain is an **uncensored AI model running on our own infrastructure** — no third-party API, no data leaving our servers, no rate limits deciding when it can think.
@@ -36,7 +36,7 @@ The brain is an **uncensored AI model running on our own infrastructure** — no
 ## How it works
 
 ```
-You paste a target link (authorized)
+An operator submits an authorized target link
         │
         ▼
 ┌─────────────────────────────┐
@@ -62,7 +62,7 @@ You paste a target link (authorized)
 └─────────────────────────────┘
         │
         ▼
-You get a report with verified findings
+The operator receives a report with verified findings
 ```
 
 **Topology:** frontend (`hack.thebhavesh.online`) + backend API (`api.thebhavesh.online`) + hunt engine + AI brain — all on dedicated AWS infrastructure. Hunts run in per-hunt Docker containers that are destroyed when the hunt ends.
@@ -79,19 +79,9 @@ What's being hardened: model reliability under sustained load, reasoning-memory 
 
 ---
 
-## Quick start (developers)
+## Development
 
-```bash
-# Backend (API + orchestrator)
-cd backend && npm install && npm start        # → http://localhost:4000
-
-# Frontend
-cd frontend && npm install && npm run dev     # → http://localhost:5173
-```
-
-**Deploy:** frontend auto-deploys on push to `main`. Backend runs on AWS EC2 via systemd (`darkmatter-backend.service`).
-
-**Env (backend):** `JWT_SECRET`, `ALLOWED_TARGETS` (comma-separated, required for hunts), `CORS_ORIGINS`, `DATA_DIR`, `OLLAMA_MODEL`, `OLLAMA_NUM_CTX`, `OLLAMA_TIMEOUT_MS`.
+Dark Matter is developed and operated by Obfinity; it is not distributed for external use. Internal development setup, deployment, and configuration are documented in `DEVELOPERS.md`.
 
 ---
 
@@ -100,7 +90,7 @@ cd frontend && npm install && npm run dev     # → http://localhost:5173
 - **Authorized targets only.** Every hunt requires an explicitly named target plus `confirmedAuthorized: true`, enforced against an `ALLOWED_TARGETS` allowlist.
 - **Non-destructive testing.** The agent never runs denial-of-service, brute-force, or destructive payloads.
 - **Isolated execution.** Every hunt runs in its own Docker container with no access to host infrastructure. Containers are destroyed on hunt end.
-- **Human review before submission.** Reports are for your review. The agent never submits to a bounty program on its own.
+- **Human review before submission.** Reports are for human review. The agent never submits to a bounty program on its own.
 
 ---
 

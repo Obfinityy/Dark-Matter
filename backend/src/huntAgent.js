@@ -791,8 +791,8 @@ async function agentIteration(huntId, target, recon, findings, iteration, playbo
 
   // MID-HUNT CHAT (27 Oct 2026, chat-gate fix): the owner's queued
   // questions used to be answered ONLY by the human loop — in normal
-  // mode they sat pending forever (the 21:16 IST "abhi kya kr rha
-  // hai bhai" question waited 11 minutes through normal iterations).
+  // mode they sat pending forever (the 21:16 IST question asking what
+  // the hunt was doing waited 11 minutes through normal iterations).
   // Read them here, same best-effort pattern as the steering drain,
   // and put them on the screen so the brain answers them this
   // iteration; delivery happens after the reply is parsed, below.
@@ -2312,7 +2312,7 @@ export async function assessResult(huntId, target, plan, result) {
   );
   if (isWorthInvestigating({ status: 200, bodyLength: output.length, timeMs: 1000, body: output }, { status: 200, bodyLength: 2000, timeMs: 500 })) {
     think(huntId, `Weird response (score ${weird.score}): ${weird.signals.join(', ')} — investigating.`);
-    // CURIOSITY: a human hunter doesn't shrug at anomalies — they poke harder.
+    // CURIOSITY: a human hunter does not dismiss anomalies — they investigate further.
     // Ask the brain for one targeted follow-up probe into this weirdness.
     try {
       const followUp = await callBrain(

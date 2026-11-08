@@ -328,7 +328,7 @@ wssTerm.on('connection', async (ws, req, huntId, ticket) => {
 // ---- WebSocket: WS /api/v1/hunts/:id/control?ticket=... --------------------
 // Take Control of This Machine: the owner drives the hunt container's
 // Kali desktop (full mouse + keyboard) through the noVNC client in the
-// frontend. The backend is a dumb byte pipe: browser WS frames (raw RFB
+// frontend. The backend is a transparent byte pipe: browser WS frames (raw RFB
 // bytes) <-> `docker exec -i` stdio of the python forwarder that talks
 // to the interactive VNC on the container loopback (see
 // machineControl.spawnControlTunnel). No TCP port to the container is

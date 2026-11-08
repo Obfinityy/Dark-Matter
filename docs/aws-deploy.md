@@ -1,17 +1,14 @@
 # Dark Matter — AWS Deployment Guide
 
-Everything runs on AWS: frontend, backend, and the hunt engine. No Vercel, no Render, no database — file-based storage only.
+Internal Obfinity deployment runbook. Dark Matter is deployed and operated by Obfinity; this document is for the Obfinity operations team. The backend and hunt engine run on AWS EC2; storage is file-based only (no database).
 
 ## Architecture
 
 ```
                     ┌─────────────────────────────┐
-                    │  CloudFront (CDN)           │
-                    │  darkmatter.yourdomain.com  │
-                    └──────────────┬──────────────┘
-                                   │
-                    ┌──────────────▼──────────────┐
-                    │  S3 (frontend static build) │
+                    │  Frontend (Cloudflare Pages)│
+                    │  hack.thebhavesh.online     │
+                    │  (auto-deploys on push)     │
                     └─────────────────────────────┘
 
 ┌──────────────────────────────────────────────────┐
@@ -26,8 +23,8 @@ Everything runs on AWS: frontend, backend, and the hunt engine. No Vercel, no Re
 
 ## Prerequisites
 
-- AWS account with billing enabled
-- A domain (optional — CloudFront gives you one)
+- Obfinity AWS account with billing enabled
+- An Obfinity-managed domain
 - `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `ADMIN_PASSWORD_SALT` (generate via `node scripts/make-admin-hash.js`)
 - `JWT_SECRET` (32+ chars, random)
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` (for Bedrock — same account or separate IAM user)
@@ -51,16 +48,9 @@ Everything runs on AWS: frontend, backend, and the hunt engine. No Vercel, no Re
    sudo certbot --nginx -d api.yourdomain.com
    ```
 
-## Step 2 — Frontend on S3 + CloudFront
+## Step 2 — Frontend
 
-```bash
-cd frontend
-npm ci && npm run build
-aws s3 sync dist/ s3://darkmatter-frontend --delete
-aws cloudfront create-invalidation --distribution-id <ID> --paths '/*'
-```
-
-Set `VITE_BACKEND_URL=https://api.yourdomain.com` in `frontend/.env.production` before building.
+The frontend deploys automatically on push to `main` via Cloudflare Pages. No manual step is required; verify the deployment at https://hack.thebhavesh.online.
 
 ## Step 3 — Environment variables (backend/.env)
 
@@ -88,4 +78,4 @@ CORS_ORIGINS=https://darkmatter.yourdomain.com
 | Bedrock (heavy) | ~$50–80 |
 | **Total** | **~$85–115** |
 
-Stop the EC2 instance when not hunting — compute drops to $0.
+Stop the EC2 instance when not hunting to reduce compute cost to $0.

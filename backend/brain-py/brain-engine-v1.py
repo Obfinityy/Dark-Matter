@@ -77,7 +77,8 @@ class BrainEngine:
 
     def get_hunt_state(self):
         """Fetch current hunt memory and process from backend."""
-        # TODO: Implement based on actual backend API
+        # NOTE: Not yet implemented — returns an empty state until it is
+        # wired to the backend hunt-state API.
         # For now, return empty state (fresh hunt)
         return {"memory": [], "process": None, "iteration": 0}
 

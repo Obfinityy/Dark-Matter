@@ -79,7 +79,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends tmux \
 `docker/hunt-runner/run.sh` additions (at startup, after the existing emits):
 
 ```bash
-# Start the agent's persistent shell inside tmux (the "screen" users watch).
+# Start the agent's persistent shell inside tmux (the "screen" operators watch).
 tmux new-session -d -s huntshell -x 120 -y 32
 # Serve it read-only over WebSocket on loopback only. Port from env.
 TTYD_PORT="${DM_TTYD_PORT:-17681}"
@@ -175,7 +175,7 @@ src/components/HuntPiP.jsx
   - xterm.js Terminal with the fit addon; connects via useHuntTerminal(huntId).
   - Header: red "● LIVE" dot, hunt target (truncated), expand + close buttons.
   - Auto-scroll locked to bottom; shows "reconnecting…" on drop.
-  - Only rendered when the hunt is active (running/paused) and the user owns it.
+  - Only rendered when the hunt is active (running/paused) and the operator owns it.
 
 src/components/HuntTerminalModal.jsx   (expanded view)
   - Larger terminal + tabs: [ Terminal | Browser ] (Browser tab = Phase 2).
@@ -255,7 +255,7 @@ is noise next to it.
 2. `docker exec <c> tmux ls` shows `huntshell`.
 3. Run a hunt command → appears in `tmux capture-pane` AND returns correct
    `{stdout, stderr, code}` via `execInHuntContainer`.
-4. Ticket without auth → 401; ticket for another user's hunt → 403.
+4. Ticket without auth → 401; ticket for another operator's hunt → 403.
 5. WS with expired ticket → rejected at upgrade.
 6. PiP shows live `nmap` output during a real hunt; expand works; close works.
 7. Kill container mid-view → frontend shows "hunt ended", WS closes cleanly.
@@ -271,4 +271,4 @@ is noise next to it.
 2. Should paused hunts keep the terminal attached (frozen frame) or show
    "paused"? (Recommendation: keep attached, stream idles — cheapest.)
 3. xterm.js vs plain `<pre>` + SSE fallback for very old browsers?
-   (Recommendation: xterm.js; the user base is modern browsers.)
+   (Recommendation: xterm.js; the operator base uses modern browsers.)

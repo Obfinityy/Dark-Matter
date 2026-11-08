@@ -1,4 +1,4 @@
-# Hunt Engine — Docker stack (user's Linux machine)
+# Hunt Engine — Docker stack (Obfinity hunt infrastructure)
 
 Runs the Dark Matter hunt engine: the **PentAGI Go backend** (multi-agent
 pentest orchestrator — orchestrator / researcher / developer / executor agents,

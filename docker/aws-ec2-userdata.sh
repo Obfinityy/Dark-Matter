@@ -13,7 +13,7 @@
 #
 # After boot:
 #   1. SSH in and create /opt/Dark-Matter/backend/.env from backend/.env.example:
-#      - LLM_PROVIDER=ollama  (uncensored self-hosted; or keep bedrock)
+#      - LLM_PROVIDER=ollama  (uncensored, locally hosted; or keep bedrock)
 #      - JWT_SECRET, ADMIN_USERNAME + hash via node scripts/make-admin-hash.js
 #      - ENGINE_URL=http://127.0.0.1:8080, CORS_ORIGINS
 #   2. sudo systemctl start dark-matter-backend   (service is enabled, not started)

@@ -1,8 +1,8 @@
 // Dark Matter hunt-intel — anomaly detector.
 // Solves problem #5: "blind to weird signals."
 //
-// Elite hunters pursue responses that DON'T fit any checklist — the gut
-// feeling that something is off. This scorer quantifies "weirdness" so the
+// Elite hunters pursue responses that DON'T fit any checklist — the sense
+// that something is off. This scorer quantifies "weirdness" so the
 // agent can do the same: every tool response gets a weirdness score, and
 // high-scoring responses trigger deep investigation even when no known
 // vulnerability signature fired.

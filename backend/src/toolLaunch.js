@@ -22,7 +22,7 @@
 //       (dedupe-gated, Take-Control-paused, recorded in the ledger).
 //   (b) `list_controls` — the AT-SPI control list of a window as
 //       clickable map lines (the screenMap.js "second builder" the
-//       OCR lane left as a TODO). The desktop_click_control prompt
+//       OCR lane left unimplemented). The desktop_click_control prompt
 //       already claimed the brain could list controls — no such
 //       action existed; this is it. OCR-click stays the fallback.
 //   (c) `download_tool` — install a MISSING tool from an allow-list

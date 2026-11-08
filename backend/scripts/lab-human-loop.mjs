@@ -1,4 +1,4 @@
-// HUMAN-LOOP lab (26 Oct 2026, owner order: "tu khud test kar de").
+// HUMAN-LOOP lab (26 Oct 2026, owner order: "test it yourself").
 //
 // A LIVE test of the continuous loop lane — not a unit test: the REAL
 // driver (runHumanLoop) drives a REAL scratch hunt container against

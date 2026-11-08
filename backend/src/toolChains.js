@@ -1,6 +1,6 @@
 // Dark Matter — Intelligent Tool Chaining
 //
-// Inspired by kali-gpt's ToolChainBuilder (MIT-style open source).
+// Inspired by kali-gpt's ToolChainBuilder.
 // Core principle: THINK FIRST, then act. Never try SQL injection on
 // a MongoDB target. Never try WordPress scans on a React SPA.
 //

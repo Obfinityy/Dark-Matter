@@ -193,4 +193,4 @@ gracefully (e.g. browser `speechSynthesis` fallback) — a refused connection to
 - **Port already in use**: change `STT_PORT`/`TTS_PORT` and point the backend
   at the new ports.
 - **Services die on logout**: run them under systemd user units or tmux on
-  the user's machine; they are local-only daemons.
+  Obfinity infrastructure; they are local-only daemons.
