@@ -33,6 +33,7 @@ import {
 } from '../engine.js';
 import {
   appendHuntEvent,
+  readHuntBehaviour,
   readHuntEvents,
   writeHuntMeta,
   writeHuntMetaCheckpoint,
@@ -994,6 +995,49 @@ router.post('/:id/agent-chat', requireAuth, async (req, res) => {
     return res.json({ ok: true, reply: r.text, costUsd: r.costUsd });
   } catch (err) {
     return res.status(500).json({ ok: false, error: 'agent_error' });
+  }
+});
+
+// ---- AI behaviour analysis (owner idea, 8 Nov 2026) ----------------------
+// GET  /api/v1/hunts/:id/behaviour   — the hunt's behaviour bundle
+// POST /api/v1/hunts/:id/ai-analysis — ONE Meta AI call over that
+//   bundle, proposing NEW candidate vulnerabilities beyond the ones the
+//   predefined battery found. IDEMPOTENT: once aiAnalysis.json exists
+//   it is returned as-is and the provider is never called again.
+//   Suggestions are LEADS (verified:false) — never merged into
+//   scannerSummary confirmed counts or the findings list. While the
+//   Meta Model API key is dead (401 since 4 Nov 2026) the live path
+//   returns status 'ai-unavailable'. Auth: JWT + hunt ownership,
+//   same as GET the hunt.
+router.get('/:id/behaviour', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  try {
+    const bundle = readHuntBehaviour(req.params.id);
+    if (!bundle) {
+      return res.status(404).json({ ok: false, error: 'no behaviour bundle yet' });
+    }
+    return res.json({ ok: true, behaviour: bundle });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: 'behaviour_error' });
+  }
+});
+
+router.post('/:id/ai-analysis', requireAuth, async (req, res) => {
+  const meta = requireHuntOwner(req, res);
+  if (!meta) return;
+  try {
+    const { runAiAnalysis } = await import('../scanner/aiAnalysis.js');
+    const r = await runAiAnalysis(req.params.id);
+    if (!r.ok) {
+      if (r.error === 'no behaviour bundle yet') {
+        return res.status(404).json({ ok: false, error: 'no behaviour bundle yet' });
+      }
+      return res.status(500).json({ ok: false, error: r.error });
+    }
+    return res.json({ ok: true, stored: r.stored, analysis: r.analysis });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: 'ai_analysis_error' });
   }
 });
 

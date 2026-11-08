@@ -127,6 +127,30 @@ export function readHuntMeta(huntId) {
   return readJson(path.join(config.dataDir, 'hunts', String(huntId), 'meta.json'), null);
 }
 
+// ---- AI behaviour analysis (owner idea, 8 Nov 2026) ------------------------
+// One behaviour bundle per finished scanner hunt (behaviour.json) and
+// one idempotent AI-analysis result (aiAnalysis.json), both next to
+// meta.json/events.jsonl. Reads return null when the file is absent;
+// writes go through writeJsonAtomic (never throws on a missing dir —
+// huntDir exists by finish time, and the finish path is try/catch
+// wrapped anyway so a bundle failure can never fail a hunt).
+
+export function readHuntBehaviour(huntId) {
+  return readJson(path.join(config.dataDir, 'hunts', String(huntId), 'behaviour.json'), null);
+}
+
+export function writeHuntBehaviour(huntId, bundle) {
+  writeJsonAtomic(path.join(huntDir(huntId), 'behaviour.json'), bundle);
+}
+
+export function readHuntAiAnalysis(huntId) {
+  return readJson(path.join(config.dataDir, 'hunts', String(huntId), 'aiAnalysis.json'), null);
+}
+
+export function writeHuntAiAnalysis(huntId, doc) {
+  writeJsonAtomic(path.join(huntDir(huntId), 'aiAnalysis.json'), doc);
+}
+
 // ---- Guarded checkpoint writes --------------------------------------------
 // FIX (21 Oct 2026, lane B): the pause checkpoint-race. writeHuntMeta
 // REPLACES meta.json wholesale, and the hunt loop's writers used it in two

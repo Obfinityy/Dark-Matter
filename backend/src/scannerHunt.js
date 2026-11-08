@@ -3,8 +3,9 @@
 // vulnerability scanner (no AI, no API spend) and records findings as hunt
 // events, instead of launching the AI agent loop.
 import { runScan, buildPhaseRollup, buildPhaseSummaryLine } from './scanner/index.js';
+import { buildBehaviourBundleFromScan } from './scanner/behaviourBundle.js';
 import { NUCLEI_TIMEOUT_MS } from './scanner/nuclei.js';
-import { appendHuntEvent, readHuntEvents, readHuntMeta, writeHuntMeta } from './store.js';
+import { appendHuntEvent, readHuntEvents, readHuntMeta, writeHuntBehaviour, writeHuntMeta } from './store.js';
 import { notifyFinding } from './notifications.js';
 
 function record(huntId, event) {
@@ -292,6 +293,24 @@ async function runScannerHuntInner(huntId, target, opts = {}) {
       });
     } catch {
       // best-effort
+    }
+
+    // AI BEHAVIOUR ANALYSIS (owner idea, 8 Nov 2026): persist ONE
+    // behaviour bundle per finished scanner hunt — every finding's full
+    // behaviour (probe/trigger/evidence/request sequence) — so Meta AI
+    // can look for NEW vulnerabilities beyond the predefined battery.
+    // Try/catch: a bundle failure must NEVER fail the hunt.
+    try {
+      const bundle = buildBehaviourBundleFromScan({
+        huntId,
+        target,
+        scanDepth,
+        finishedAt: new Date().toISOString(),
+        result,
+      });
+      writeHuntBehaviour(huntId, bundle);
+    } catch {
+      // best-effort — the hunt already finished successfully
     }
 
     // Container cleanup: the scan is done and findings + meta are

@@ -2,8 +2,9 @@
 // Status line ("Hunting <target>…"), expandable event feed, findings stream,
 // and Pause/Resume/Stop pill buttons. All stream/control logic unchanged.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { pauseHunt, resumeHunt, stopHunt, getHuntCost, setHuntBudget, getHuntEvents, steerHunt, listHunts, getHuntBrain, setHuntBrain, getHuntProcess, setBrainMode, agentChat } from '../lib/api';
+import { pauseHunt, resumeHunt, stopHunt, getHuntCost, setHuntBudget, getHuntEvents, steerHunt, listHunts, getHuntBrain, setHuntBrain, getHuntProcess, setBrainMode, agentChat, requestAiAnalysis } from '../lib/api';
 import { HuntStreamClient, createSimulatedStream, isDemoMode } from '../lib/huntStream';
+import { normalizeAiAnalysis, shouldAutoAnalyze } from '../lib/aiAnalysis';
 import { toast } from '../lib/toast';
 import { processSummary } from '../lib/brainActions';
 
@@ -408,6 +409,12 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   const [agentChatMsgs, setAgentChatMsgs] = useState([]);
   const [agentChatInput, setAgentChatInput] = useState('');
   const [agentChatBusy, setAgentChatBusy] = useState(false);
+  // AI BEHAVIOUR ANALYSIS (8 Nov 2026, owner idea): when a scanner hunt
+  // finishes, the card fires ONE POST /ai-analysis automatically. The
+  // backend is idempotent; the ref guard makes it one attempt per
+  // huntId per session — never loop on failure.
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const aiAnalysisAttemptedRef = useRef(new Set());
   const logEndRef = useRef(null);
 
   // Elapsed-time ticker: shows how long the hunt has been running
@@ -675,6 +682,30 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   // hidden for scanner hunts. Hunt ID, agent activity, chat, report and
   // terminal controls stay visible.
   const isScanner = brainMode === 'scanner' || (!brainMode && hunt.brainMode === 'scanner');
+
+  // AI BEHAVIOUR ANALYSIS (8 Nov 2026, owner idea): fire the one
+  // automatic POST /ai-analysis the moment a scanner hunt reaches
+  // finished/done. Skipped in demo mode (no backend). The result —
+  // suggestions are LEADS, never confirmed findings — renders in the
+  // "AI analysis" section below.
+  useEffect(() => {
+    if (isDemoMode()) return;
+    if (!shouldAutoAnalyze({ isScanner, status, huntId: hunt.huntId, attemptedHuntIds: aiAnalysisAttemptedRef.current })) return;
+    aiAnalysisAttemptedRef.current.add(hunt.huntId);
+    let cancelled = false;
+    setAiAnalysis({ state: 'loading', suggestions: [], error: null, note: null });
+    requestAiAnalysis(hunt.huntId)
+      .then((r) => {
+        if (cancelled) return;
+        if (r && r.ok) setAiAnalysis(normalizeAiAnalysis(r));
+        else setAiAnalysis({ state: 'error', suggestions: [], error: 'AI analysis ka jawab nahi mila.', note: null });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAiAnalysis({ state: 'error', suggestions: [], error: 'AI analysis ka jawab nahi mila.', note: null });
+      });
+    return () => { cancelled = true; };
+  }, [isScanner, status, hunt.huntId]);
 
   // AGENT CHAT: send one message to the scan agent, append the scoped reply.
   async function sendAgentChatMsg() {
@@ -1083,6 +1114,44 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
               {agentChatBusy ? '…' : 'Send'}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* AI BEHAVIOUR ANALYSIS (8 Nov 2026, owner idea): Meta AI read
+          the hunt's full behaviour and proposes NEW vulnerabilities the
+          predefined battery may have missed. Suggestions are LEADS —
+          labelled "AI-suggested lead — unverified" — never confirmed
+          findings, and never counted in the findings totals above. */}
+      {isScanner && aiAnalysis && (
+        <div className="hunt-agent-chat">
+          <div className="hunt-agent-chat-title">🤖 AI analysis — behaviour se nayi leads</div>
+          {aiAnalysis.state === 'loading' && (
+            <div className="hunt-agent-chat-empty">AI analysis chal rahi hai…</div>
+          )}
+          {aiAnalysis.state === 'ready' && aiAnalysis.suggestions.length === 0 && (
+            <div className="hunt-agent-chat-empty">AI ko behaviour se koi nayi lead nahi mili.</div>
+          )}
+          {aiAnalysis.state === 'ready' && aiAnalysis.suggestions.length > 0 && (
+            <div className="hunt-agent-chat-feed">
+              {aiAnalysis.suggestions.map((s, idx) => (
+                <div key={idx} className="hunt-agent-chat-line agent">
+                  <span className="hunt-agent-chat-who">Lead</span>
+                  <span>
+                    <strong>{s.title}</strong> [{s.severity}]
+                    <br />AI-suggested lead — unverified
+                    {s.reasoning ? (<><br />{s.reasoning}</>) : null}
+                    {s.verification ? (<><br />Verify: {s.verification}</>) : null}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {aiAnalysis.state === 'unavailable' && (
+            <div className="hunt-agent-chat-empty">Meta AI abhi available nahi hai{aiAnalysis.error ? ` (${aiAnalysis.error})` : ''}.</div>
+          )}
+          {aiAnalysis.state === 'error' && (
+            <div className="hunt-agent-chat-empty">{aiAnalysis.error || 'AI analysis ka jawab nahi mila.'}</div>
+          )}
         </div>
       )}
 

@@ -169,6 +169,18 @@ export async function agentChat(huntId, message) {
   return post(`/api/v1/hunts/${encodeURIComponent(huntId)}/agent-chat`, { message });
 }
 
+// AI BEHAVIOUR ANALYSIS (8 Nov 2026, owner idea): one Meta AI call over
+// the hunt's behaviour bundle, proposing NEW vulnerabilities beyond the
+// predefined battery. Backend is idempotent — a stored result is
+// returned and the provider is never called twice for one hunt.
+export async function requestAiAnalysis(huntId) {
+  return post(`/api/v1/hunts/${encodeURIComponent(huntId)}/ai-analysis`, {});
+}
+
+export async function getHuntBehaviour(huntId) {
+  return get(`/api/v1/hunts/${encodeURIComponent(huntId)}/behaviour`);
+}
+
 export async function sendChat(message, huntId, history, opts) {
   const body = { message, ...(huntId ? { huntId } : {}) };
   // REAL-HUMAN (26 Oct 2026): the chatId tells the backend WHICH
