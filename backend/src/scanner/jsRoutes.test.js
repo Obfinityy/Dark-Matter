@@ -922,3 +922,143 @@ describe('discoverJsRoutes (chained-concat bases end to end)', () => {
     }
   });
 });
+
+// Call-arg chained-concat bases (8 Nov 2026). CALLARG_CHAIN_BUNDLE
+// models every chain form INSIDE a call argument: hostServer + two
+// segments (http.get), variable base + two segments (fetch, empty
+// binding), template base + a literal segment, this.host + two
+// segments on a chained base, a POST-only chained call (write
+// target, never a GET target), a bound non-empty variable base, a
+// single-quoted chain, a backtick chain, and an unbound ident
+// (existing branch (b) rule: the ident is the origin host).
+const CALLARG_CHAIN_BUNDLE = `
+const API_BASE = "";
+const API2 = "/api";
+let CA = (() => { class n { http; hostServer = et.c.hostServer;
+  constructor(e) { this.http = e; }
+  admin() { return this.http.get(this.hostServer + "/rest" + "/admin"); }
+} })();
+let CB = (() => { class n { http; hostServer = et.c.hostServer;
+  constructor(e) { this.http = e; }
+  users() { return fetch(API_BASE + "/rest" + "/users"); }
+} })();
+let CC = (() => { class n { http; hostServer = et.c.hostServer;
+  constructor(e) { this.http = e; }
+  deep() { return this.http.get(\`\${this.hostServer}/rest\` + "/deep"); }
+} })();
+let CD = (() => { class n { http; hostServer = et.c.hostServer;
+  host = this.hostServer + "/rest/svc";
+  constructor(e) { this.http = e; }
+  sub() { return this.http.get(this.host + "/a" + "/b"); }
+} })();
+let CE = (() => { class n { http; hostServer = et.c.hostServer;
+  constructor(e) { this.http = e; }
+  login(t) { return this.http.post(this.hostServer + "/rest" + "/login", t); }
+} })();
+let CF = (() => { class n { http; hostServer = et.c.hostServer;
+  constructor(e) { this.http = e; }
+  v1() { return fetch(API2 + "/v1" + "/users"); }
+} })();
+let CG = (() => { class n { http; hostServer = et.c.hostServer;
+  constructor(e) { this.http = e; }
+  sq() { return this.http.get(this.hostServer + '/rest' + '/sq'); }
+  bt() { return this.http.get(this.hostServer + \`/rest\` + \`/bt\`); }
+} })();
+let CH = (() => { class n { http; hostServer = et.c.hostServer;
+  constructor(e) { this.http = e; }
+  open() { return fetch(UNKNOWN_HOST + "/rest" + "/open"); }
+} })();
+`;
+
+// CALLARG_DISCIPLINE_BUNDLE models call-arg chains that must NEVER
+// resolve: a variable segment, an interpolated segment, a
+// non-'/'-starting literal, a valid segment followed by a variable
+// (the whole chain breaks — not even the prefix before it), an
+// escaped segment, a non-'/' query-concat segment after a valid
+// segment, and a variable base bound to a non-'/' value.
+const CALLARG_DISCIPLINE_BUNDLE = `
+const API_BASE = "";
+const BAD = "api";
+let CU = (() => { class n { http; hostServer = et.c.hostServer;
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.hostServer + "/rest" + dynSeg); }
+} })();
+let CV = (() => { class n { http; hostServer = et.c.hostServer;
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.hostServer + "/rest" + \`/seg\${x}\`); }
+} })();
+let CW = (() => { class n { http; hostServer = et.c.hostServer;
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.hostServer + "/rest" + "noslash"); }
+} })();
+let CX = (() => { class n { http; hostServer = et.c.hostServer;
+  constructor(e) { this.http = e; }
+  go() { return fetch(API_BASE + "/rest" + "/ok" + other); }
+} })();
+let CY = (() => { class n { http; hostServer = et.c.hostServer;
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.hostServer + "/rest" + "/a\\/b"); }
+} })();
+let CZ = (() => { class n { http; hostServer = et.c.hostServer;
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.hostServer + "/rest" + "/ok" + "?q=" + v); }
+} })();
+let CW2 = (() => { class n { http; hostServer = et.c.hostServer;
+  constructor(e) { this.http = e; }
+  go() { return fetch(BAD + "/rest" + "/x"); }
+} })();
+`;
+
+describe('extractJsRouteRecords (call-arg chained-concat bases)', () => {
+  test('JS-26: call-arg chained concats resolve — hostServer + 2 segments, fetch variable base, template base + segment, this.host + chain', () => {
+    const recs = extractJsRouteRecords(CALLARG_CHAIN_BUNDLE);
+    const byPath = new Map(recs.map((r) => [r.path, r]));
+    assert.deepEqual(byPath.get('/rest/admin').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/users').methods, []);
+    assert.deepEqual(byPath.get('/rest/deep').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/svc/a/b').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/login').methods, ['post']);
+    assert.deepEqual(byPath.get('/api/v1/users').methods, []);
+    assert.deepEqual(byPath.get('/rest/sq').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/bt').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/open').methods, []);
+    const { targets, writeTargets } = extractJsRoutes(CALLARG_CHAIN_BUNDLE, 'http://example.com/');
+    for (const want of ['/rest/admin', '/rest/users', '/rest/deep', '/rest/svc/a/b', '/api/v1/users', '/rest/sq', '/rest/bt', '/rest/open']) {
+      assert.ok(targets.some((t) => new URL(t).pathname === want), `expected mined target ${want}`);
+    }
+    assert.ok(!targets.some((t) => new URL(t).pathname === '/rest/login'), 'POST-only chained login must never be a GET target');
+    assert.ok(writeTargets.includes('http://example.com/rest/login'), 'POST-only chained login must be a write target');
+  });
+
+  test('JS-27: call-arg chain discipline — variable, interpolated, non-slash, late-break, escaped, query-concat and non-slash-bound segments all leave the call unmined', () => {
+    const recs = extractJsRouteRecords(CALLARG_DISCIPLINE_BUNDLE);
+    const byPath = new Map(recs.map((r) => [r.path, r]));
+    for (const banned of ['/rest', '/rest/ok', '/rest/a/b', '/rest/x']) {
+      assert.ok(!byPath.has(banned), `broken-chain call ${banned} must stay unmined`);
+    }
+    const { targets } = extractJsRoutes(CALLARG_DISCIPLINE_BUNDLE, 'http://example.com/');
+    const paths = targets.map((t) => new URL(t).pathname);
+    for (const banned of ['/rest', '/rest/ok', '/rest/a/b', '/rest/x']) {
+      assert.ok(!paths.includes(banned), `broken-chain target ${banned} must never be mined`);
+    }
+  });
+});
+
+describe('discoverJsRoutes (call-arg chained-concat end to end)', () => {
+  test('JS-28: call-arg chained concats mine end to end through discoverJsRoutes', async () => {
+    const fetchPage = stubFetchFor(JUICE_SHELL, {
+      'runtime.js': 'var r = 1;',
+      'polyfills.js': 'var p = 1;',
+      'vendor.js': 'var v = 1;',
+      'main.js': CALLARG_CHAIN_BUNDLE,
+    });
+    const found = await discoverJsRoutes('http://example.com/', { fetchPage });
+    assert.equal(found.routesFound, true);
+    assert.equal(found.bundlesFetched, 4);
+    for (const want of ['/rest/admin', '/rest/users', '/rest/deep', '/rest/svc/a/b', '/api/v1/users', '/rest/sq', '/rest/bt', '/rest/open']) {
+      assert.ok(found.targets.some((t) => new URL(t).pathname === want), `expected mined target ${want}`);
+    }
+    assert.ok(!found.targets.some((t) => new URL(t).pathname === '/rest/login'), 'POST-only chained login must never be a GET target');
+    assert.ok(found.writeTargets.includes('http://example.com/rest/login'), 'POST-only chained login must be a write target');
+  });
+});

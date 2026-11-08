@@ -62,6 +62,18 @@
 // break. Existing branches, caps, and sort-first rules are
 // untouched.
 //
+// (8 Nov 2026, call-arg chained-concat bases): the same chain rule
+// applies INSIDE call arguments — http.get(this.hostServer +
+// "/rest" + "/admin") and fetch(API_BASE + "/rest" + "/admin")
+// resolve to the full route (branches (a)/(a2)/(b)/(b2) below). A
+// chain that starts but breaks leaves the whole call unmined —
+// never the prefix. fetch( calls are mined too, with no method
+// evidence (the method lives in the options object, which the
+// miner does not parse): their records keep methods [] and are
+// GET-usable exactly like orphans, never write targets. The
+// direct-literal branch (c) is untouched, so its trailing
+// query-concat forms keep working exactly as before.
+//
 // MECHANISM: when the pasted page yielded zero param-bearing targets
 // (after static + DOM + form synthesis + openapi-targets), fetch the
 // page's same-origin <script> bundles (read-only GET, max 5) and mine
@@ -437,11 +449,18 @@ export function extractJsRouteRecords(bundleText) {
     ensure(path);
   }
 
-  // Every http.<method>( call: attribute its route by first-arg shape.
+  // Every http.<method>( / fetch( call: attribute its route by
+  // first-arg shape. A fetch call carries no method evidence (the
+  // method lives in its options object, which the miner does not
+  // parse) — its records keep methods [] and are GET-usable exactly
+  // like orphans, never write targets.
   let callMatch;
-  const callPattern = /http\.(get|post|put|delete|patch)\s*\(/g;
+  const callPattern = /\b(?:http\.(get|post|put|delete|patch)|fetch)\s*\(/g;
   while ((callMatch = callPattern.exec(src)) !== null) {
-    const method = callMatch[1];
+    const method = callMatch[1] ?? null;
+    const addMethod = (rec) => {
+      if (method) rec.methods.add(method);
+    };
     const { arg } = firstArg(src, callPattern.lastIndex);
     const trimmed = arg.trim();
     // (a) this.host — bare, + "suffix", or + `suffix`: resolve via
@@ -453,11 +472,19 @@ export function extractJsRouteRecords(bundleText) {
         else break;
       }
       if (base) {
-        const suffixMatch = /^\s*this\.host\s*\+\s*["'`]([^"'`]*)/.exec(trimmed);
-        const suffix = suffixMatch ? suffixMatch[1] : '';
+        const suffixMatch = /^\s*this\.host\s*\+\s*["'`]([^"'`]*)["'`]/.exec(trimmed);
+        let suffix = suffixMatch ? suffixMatch[1] : '';
+        if (suffixMatch) {
+          // Chained-concat suffix: this.host + "/a" + "/b" resolves
+          // to base + "/a/b" only when the whole chain is clean; a
+          // broken chain leaves the call unmined (never the prefix).
+          const chain = concatChainTail(trimmed, suffixMatch.index + suffixMatch[0].length);
+          if (chain.broke) continue;
+          suffix += chain.extra;
+        }
         const { path, queryNames } = splitRoute(base.path + suffix, bindings);
         const rec = ensure(path);
-        rec.methods.add(method);
+        addMethod(rec);
         for (const n of queryNames) rec.queryNames.add(n);
         // A suffix may itself carry template vars (e.g. `/${id}`).
         for (const d of pathDescriptorsFor(path)) {
@@ -483,20 +510,39 @@ export function extractJsRouteRecords(bundleText) {
     const hostServerPlus =
       /^\s*(?:this|[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.hostServer\s*\+\s*["'`](\/[^"'`]+)["'`]/.exec(trimmed);
     if (hostServerPlus) {
-      const { path, queryNames } = splitRoute(hostServerPlus[1], bindings);
+      // Chained-concat call arg: this.hostServer + "/rest" +
+      // "/admin" resolves to "/rest/admin" only when the whole chain
+      // is clean; a broken chain leaves the call unmined.
+      const chain = concatChainTail(trimmed, hostServerPlus.index + hostServerPlus[0].length);
+      if (chain.broke) continue;
+      const { path, queryNames } = splitRoute(hostServerPlus[1] + chain.extra, bindings);
       const rec = ensure(path);
-      rec.methods.add(method);
+      addMethod(rec);
       for (const n of queryNames) rec.queryNames.add(n);
       for (const n of queryNamesIn(arg, bindings)) rec.queryNames.add(n);
       continue;
     }
     // (b) <ident> + "literal" — the hostServer-prefixed call
     // (minified `Server + "/rest/..."`): the literal is the route.
-    const hostPlus = /^\s*[A-Za-z_$][\w$]*\s*\+\s*["'`](\/[^"'`]+)["'`]/.exec(trimmed);
+    // A chained-concat tail (`+ "/admin"`) resolves onto it, and a
+    // BOUND ident resolves via literal bindings exactly like a base
+    // assignment (branch (a5)): a value of '' or '/'-prefixed joins
+    // the literal, any other bound value leaves the call unmined.
+    // An UNBOUND ident keeps the existing (b) rule — it is the
+    // origin host, so the literal (+ chain) is the route.
+    const hostPlus = /^\s*([A-Za-z_$][\w$]*)\s*\+\s*["'`](\/[^"'`]+)["'`]/.exec(trimmed);
     if (hostPlus) {
-      const { path, queryNames } = splitRoute(hostPlus[1], bindings);
+      const chain = concatChainTail(trimmed, hostPlus.index + hostPlus[0].length);
+      if (chain.broke) continue;
+      const bound = bindings.get(hostPlus[1]);
+      let full = hostPlus[2] + chain.extra;
+      if (bound !== undefined) {
+        if (bound !== '' && !bound.startsWith('/')) continue;
+        full = bound + hostPlus[2] + chain.extra;
+      }
+      const { path, queryNames } = splitRoute(full, bindings);
       const rec = ensure(path);
-      rec.methods.add(method);
+      addMethod(rec);
       for (const n of queryNames) rec.queryNames.add(n);
       continue;
     }
@@ -517,13 +563,19 @@ export function extractJsRouteRecords(bundleText) {
     // else is a suffix on the nearest preceding service base
     // (branch (a) rule — `${this.host}` alone is the base itself).
     const templateHost =
-      /^\s*`(?:\$\{\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*\})([\s\S]*)`\s*$/.exec(trimmed);
+      /^\s*`(?:\$\{\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*\})([^`]*?)`/.exec(trimmed);
     if (templateHost) {
-      const rest = templateHost[2];
+      // Chained-concat call arg: `${EXPR}/rest` + "/seg" resolves
+      // onto the template rest only when the whole chain is clean;
+      // a broken chain leaves the call unmined. A template with no
+      // trailing chain behaves exactly as before.
+      const chain = concatChainTail(trimmed, templateHost.index + templateHost[0].length);
+      if (chain.broke) continue;
+      const rest = templateHost[2] + chain.extra;
       const { path: restPath, queryNames: restQuery } = splitRoute(rest, bindings);
       if (/^\/(?:rest|api|b2b\/v2|snippets)\//.test(restPath)) {
         const rec = ensure(restPath);
-        rec.methods.add(method);
+        addMethod(rec);
         for (const n of restQuery) rec.queryNames.add(n);
         for (const n of queryNamesIn(arg, bindings)) rec.queryNames.add(n);
         for (const d of pathDescriptorsFor(restPath)) {
@@ -540,7 +592,7 @@ export function extractJsRouteRecords(bundleText) {
         if (base) {
           const { path, queryNames } = splitRoute(base.path + rest, bindings);
           const rec = ensure(path);
-          rec.methods.add(method);
+          addMethod(rec);
           for (const n of queryNames) rec.queryNames.add(n);
           for (const n of queryNamesIn(arg, bindings)) rec.queryNames.add(n);
           for (const d of pathDescriptorsFor(path)) {
@@ -557,7 +609,7 @@ export function extractJsRouteRecords(bundleText) {
     if (literal) {
       const { path, queryNames } = splitRoute(literal[1], bindings);
       const rec = ensure(path);
-      rec.methods.add(method);
+      addMethod(rec);
       for (const n of queryNames) rec.queryNames.add(n);
       // Concat args carry extra query params as separate literals
       // ("?current=" + e.current + "&new=" + ...) — harvest them
