@@ -218,6 +218,40 @@ describe('probeSqliOob', () => {
     });
   });
 
+  // isLab follow-up (8 Nov 2026): the old substring gate matched a lab
+  // entry that is a PREFIX of the target host (127.0.0.1 vs
+  // 127.0.0.10:41001) — fail-open. The canonical helper compares exact
+  // canonical hostnames, port-insensitive.
+  it('fires with PORT-BEARING labTargets (the production shape)', async () => {
+    const calls = [];
+    await withCollab(async (collab, base) => {
+      globalThis.fetch = vulnDbStub(realFetch, calls);
+      try {
+        const findings = await probeSqliOob(['id'], TARGET, oobOpts(collab, base, { labTargets: '127.0.0.1:41001' }));
+        assert.equal(findings.length, 1);
+        assert.equal(findings[0].class, 'sqli_oob');
+        assert.equal(findings[0].severity, 'high');
+      } finally {
+        teardown();
+      }
+    });
+  });
+
+  it('near-miss host: no requests at all when the lab entry is a prefix of the target host', async () => {
+    const calls = [];
+    await withCollab(async (collab, base) => {
+      globalThis.fetch = vulnDbStub(realFetch, calls);
+      try {
+        const findings = await probeSqliOob(['id'], 'http://127.0.0.10:41001/app?id=1', oobOpts(collab, base, { labTargets: '127.0.0.1' }));
+        assert.deepEqual(findings, []);
+        assert.equal(calls.length, 0, 'a near-miss host never receives a callback URL');
+        assert.equal(collab.hits.length, 0);
+      } finally {
+        teardown();
+      }
+    });
+  });
+
   it('returns [] with no oobCallback and sends nothing', async () => {
     const calls = [];
     globalThis.fetch = vulnDbStub(realFetch, calls);

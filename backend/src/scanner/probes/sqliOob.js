@@ -34,6 +34,7 @@
 // collaborator speaks HTTP only. That stays GAP.
 import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 
+import { isLabTargetHost } from '../../labCreds.js';
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 const MAX_PARAMS = 2;
 const MAX_PAYLOADS_PER_PARAM = 2;
@@ -44,14 +45,7 @@ function rand() {
 }
 
 // LAB GATE: the OOB variant runs only when the authorized host is listed
-// in opts.labTargets (same split pattern as xxe.js / saml.js / index.js).
-function isLabHost(url, opts) {
-  let host = '';
-  try { host = new URL(url).host; } catch { return false; }
-  return String(opts.labTargets || '')
-    .split(/[,\s]+/)
-    .some((t) => t && (host.includes(t) || t.includes(host)));
-}
+// in opts.labTargets (canonical isLabTargetHost, labCreds.js).
 
 // Normalize the fingerprint dbHint to the dialect the OOB payloads are
 // built for. detectDbFamily returns 'postgres' (not 'pgsql'); accept
@@ -117,7 +111,7 @@ export async function probeSqliOob(params, url, opts = {}) {
   // returns [] and sends nothing. A non-lab target never receives a
   // callback URL, and a payload without a waiter could never be
   // confirmed — sending it would be pure noise.
-  if (!opts.oobCallback || typeof opts.oobWaitFor !== 'function' || !isLabHost(url, opts)) {
+  if (!opts.oobCallback || typeof opts.oobWaitFor !== 'function' || !isLabTargetHost(url, opts.labTargets)) {
     return findings;
   }
   const base = String(opts.oobCallback).replace(/\/+$/, '');

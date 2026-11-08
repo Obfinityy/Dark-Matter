@@ -24,22 +24,12 @@
 // human-reasoning lane), DOM-side sinks, encrypted-but-malleable blobs.
 // Per-run canary __ds_dm_<runid>. Control: well-formed benign blob first.
 
+import { isLabTargetHost } from '../../labCreds.js';
+
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 function rand() {
   return Math.random().toString(36).slice(2, 10);
-}
-
-function isLab(url, opts) {
-  try {
-    const host = new URL(url).hostname;
-    return String(opts.labTargets || '')
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .some((h) => host === h || host.endsWith('.' + h));
-  } catch {
-    return false;
-  }
 }
 
 async function fetchFull(url, opts = {}, extraHeaders = {}) {
@@ -246,7 +236,7 @@ async function t4JavaMarker(url, opts) {
 
 export async function probeDeserialization(url, opts = {}) {
   const findings = [];
-  const lab = isLab(url, opts);
+  const lab = isLabTargetHost(url, opts.labTargets);
   const r0 = await fetchFull(url, opts).catch(() => null);
   if (!r0) return findings;
   const fmts = detectFormats(r0.text, r0.setCookies);

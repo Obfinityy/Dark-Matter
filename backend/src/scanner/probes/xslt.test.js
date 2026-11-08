@@ -8,10 +8,12 @@ describe('xslt probe', () => {
   let server;
   let port;
   const base = () => `http://127.0.0.1:${port}`;
+  const requests = [];
 
   before(async () => {
     server = http.createServer((req, res) => {
       const u = new URL(req.url, base());
+      requests.push(req.url);
       const xsl = u.searchParams.get('xsl') || '';
       res.writeHead(200, { 'Content-Type': 'text/html' });
       // Vulnerable stub: "executes" arithmetic stylesheets.
@@ -21,6 +23,11 @@ describe('xslt probe', () => {
       }
       if (xsl.includes('DMXSLT-BASELINE')) {
         res.end('<html>transformed: DMXSLT-BASELINE</html>');
+        return;
+      }
+      if (xsl.includes('php:function')) {
+        const m = xsl.match(/DM_XSLTEXEC_([A-Za-z0-9]+)/);
+        res.end(`<html>executed ${m ? `DM_XSLTEXEC_${m[1]}` : 'DM_XSLTEXEC'}</html>`);
         return;
       }
       res.end('<html>no transform</html>');
@@ -142,6 +149,34 @@ describe('xslt probe', () => {
     } finally {
       await new Promise((r) => noisy.close(r));
     }
+  });
+
+  // isLab follow-up (8 Nov 2026): D5 php-function execution is lab-only,
+  // but the old local isLab never saw labTargets (no call-site pass) and
+  // never matched port-bearing entries — D5 could never run in production.
+  const hasPhpFn = (u) => {
+    try { return decodeURIComponent(u).includes('php:function'); } catch { return false; }
+  };
+
+  it('D5 php-function probe runs in lab mode (CRITICAL)', async () => {
+    requests.length = 0;
+    const findings = await probeXslt(`${base()}/t`, ['xsl'], {
+      labTargets: `127.0.0.1:${port}`,
+      timeoutMs: 8000,
+    });
+    const php = findings.find((f) => f.id.startsWith('xslt-php-'));
+    assert.ok(php, `expected D5 php-function CRITICAL, got ${JSON.stringify(findings.map((f) => f.id))}`);
+    assert.equal(php.severity, 'critical');
+    assert.ok(requests.some(hasPhpFn), 'lab mode must send the php:function stylesheet');
+  });
+
+  it('D5 php-function probe stays silent off-lab (D2 HIGH only)', async () => {
+    requests.length = 0;
+    const findings = await probeXslt(`${base()}/t`, ['xsl'], { timeoutMs: 8000 });
+    const exec = findings.find((f) => f.id.startsWith('xslt-exec-'));
+    assert.ok(exec, 'D2 arithmetic oracle still fires off-lab');
+    assert.ok(!findings.some((f) => f.id.startsWith('xslt-php-')), 'D5 must not run off-lab');
+    assert.ok(!requests.some(hasPhpFn), 'no php:function stylesheet may be sent off-lab');
   });
 
   it('exits clean with no XSLT surface', async () => {

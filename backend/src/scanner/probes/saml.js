@@ -19,6 +19,7 @@
 //   trust differential.
 
 import zlib from 'node:zlib';
+import { isLabTargetHost } from '../../labCreds.js';
 import crypto from 'node:crypto';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
@@ -98,14 +99,7 @@ function deflateB64(xml) {
 }
 
 // LAB GATE: aggressive variants run only when the authorized host is listed
-// in opts.labTargets (same split pattern as index.js).
-function isLabHost(url, opts) {
-  let host = '';
-  try { host = new URL(url).host; } catch { return false; }
-  return String(opts.labTargets || '')
-    .split(/[,\s]+/)
-    .some((t) => t && (host.includes(t) || t.includes(host)));
-}
+// in opts.labTargets (canonical isLabTargetHost, labCreds.js).
 
 // ---- XSW helpers (#67/#441) ----
 // Honest design note: we cannot know the real IdP's signing key, so this test
@@ -565,7 +559,7 @@ export async function probeSaml(url, opts = {}) {
       // unconfirmed stays silent). Without a waiter (an external
       // oobCallback string only) the old honest INFO record stands —
       // dispatched, confirmation out-of-band.
-      if (opts.oobCallback && isLabHost(url, opts)) {
+      if (opts.oobCallback && isLabTargetHost(url, opts.labTargets)) {
         const token = `saml-xxe-${rand()}`;
         const oobUrl = `${String(opts.oobCallback).replace(/\/+$/, '')}/${token}`;
         const xxeOobXml = buildXxeSamlResponse({ nameId: 'oob-probe', audience, externalUrl: oobUrl });

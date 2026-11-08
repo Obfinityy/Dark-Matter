@@ -192,6 +192,19 @@ describe('oauth auth gaps (#319/#320)', () => {
     assert.ok(/invalid\.invalid/.test(esc.evidence.response), 'must use the canary-invalid redirect_uri');
   });
 
+  // isLab follow-up (8 Nov 2026): the old local isLabTarget compared the
+  // bare hostname against port-bearing labTargets entries, so #319 never
+  // ran in production even when runScan passed labTargets.
+  it('#319 fires HIGH with PORT-BEARING labTargets (the production shape)', async () => {
+    scopeMode = 'accept';
+    const findings = await probeOauth(`${base()}/`, {
+      timeoutMs: 2000, depth: 'standard', labTargets: `127.0.0.1:${port}`,
+    });
+    const esc = findings.find((f) => f.class === 'oauth_scope_escalation');
+    assert.ok(esc, `port-bearing labTargets must open the lab branch, got ${findings.map((f) => f.class)}`);
+    assert.equal(esc.severity, 'high');
+  });
+
   it('#319 is skipped silently on non-lab targets', async () => {
     scopeMode = 'accept';
     const findings = await probeOauth(`${base()}/`, {

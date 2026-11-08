@@ -372,6 +372,45 @@ describe('graphql gap coverage (#155/#156/#158)', () => {
     }
   });
 
+  // isLab follow-up (8 Nov 2026): the old local isLabTarget compared the
+  // bare hostname against port-bearing labTargets entries (never matched)
+  // and accepted any SUBDOMAIN of a lab entry (fail-open). The canonical
+  // helper compares exact canonical hostnames, port-insensitive.
+  it('#158 fires HIGH with PORT-BEARING labTargets (the production shape)', async () => {
+    const origFetch = global.fetch;
+    global.fetch = makeGqlStub({ introOn: true, getQueryWorks: false, mutationEcho: true });
+    try {
+      const findings = await probeGraphql('http://test.example/', {
+        timeoutMs: 5000,
+        depth: 'standard',
+        labTargets: 'test.example:443',
+      });
+      const f = findings.find(x => x.class === 'graphql_mutation_mass_assignment');
+      assert.ok(f, 'port-bearing labTargets must open the lab branch');
+      assert.equal(f.severity, 'high');
+    } finally {
+      global.fetch = origFetch;
+    }
+  });
+
+  it('#158 stays passive on a subdomain of a lab entry (no suffix match)', async () => {
+    const origFetch = global.fetch;
+    global.fetch = makeGqlStub({ introOn: true, getQueryWorks: false, mutationEcho: true });
+    try {
+      const findings = await probeGraphql('http://sub.test.example/', {
+        timeoutMs: 5000,
+        depth: 'standard',
+        labTargets: 'test.example',
+      });
+      assert.ok(!findings.some(x => x.class === 'graphql_mutation_mass_assignment'), 'a subdomain is not the lab host');
+      const f = findings.find(x => x.class === 'graphql_mutation_privileged_fields');
+      assert.ok(f, 'passive surface note should fire instead');
+      assert.equal(f.severity, 'low');
+    } finally {
+      global.fetch = origFetch;
+    }
+  });
+
   it('#158 lab mode rejects when server errors on unknown fields', async () => {
     const origFetch = global.fetch;
     global.fetch = makeGqlStub({ introOn: true, getQueryWorks: false, mutationEcho: false });

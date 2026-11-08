@@ -20,6 +20,8 @@
 // Mandatory revert after T2. The 3-Nov GET-safety lesson applied: probing
 // must never mutate outside the lab, and every mutation is reverted.
 
+import { isLabTargetHost } from '../../labCreds.js';
+
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 const ROLE_FIELDS = ['role', 'isAdmin', 'is_admin', 'admin', 'privileged', 'group', 'status', 'type', 'plan'];
@@ -27,18 +29,6 @@ const FLAG_FIELDS = ['email_verified', 'verified', 'active', 'approved', 'paid']
 
 function rand() {
   return Math.random().toString(36).slice(2, 10);
-}
-
-function isLab(url, opts) {
-  try {
-    const host = new URL(url).hostname;
-    return String(opts.labTargets || '')
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .some((h) => host === h || host.endsWith('.' + h));
-  } catch {
-    return false;
-  }
 }
 
 async function postForm(url, fields, opts = {}) {
@@ -247,7 +237,7 @@ async function t4FlagFlip(forms, url, opts, rid) {
 
 export async function probeMassAssignment(forms, url, opts = {}) {
   const findings = [];
-  if (!isLab(url, opts)) return findings; // LAB-GATED ONLY
+  if (!isLabTargetHost(url, opts.labTargets)) return findings; // LAB-GATED ONLY
   const rid = rand();
   const depth = opts.depth || 'standard';
   const t1 = await t1RoleOverpost(forms, url, opts, rid);

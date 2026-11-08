@@ -4,6 +4,7 @@
 // confirmed findings.
 // No LLM, no API keys, no prompts. Same target + same code = same result.
 import { authorizeTarget } from './target.js';
+import { isLabTargetHost } from '../labCreds.js';
 import { randomBytes } from 'node:crypto';
 import { fingerprint, fetchPage } from './fingerprint.js';
 import { crawl, extractParams, extractForms } from './crawl.js';
@@ -332,9 +333,7 @@ export async function runScan(
   // LAB GATE (file-upload probe): uploads write real files — allowed only
   // when the authorized host is listed in labTargets. Everywhere else the
   // probe returns [] without a single request.
-  const allowWrite = String(labTargets || '')
-    .split(/[,\s]+/)
-    .some((t) => t && (host.includes(t) || t.includes(host)));
+  const allowWrite = isLabTargetHost(url, labTargets);
   const all = [];
   const errors = [];
   let fp = null;
@@ -902,7 +901,7 @@ export async function runScan(
     await step('sqli-blind', () =>
       probeBlindSqli(u, points, { ...opts, dbHint: fp?.dbHint })
     );
-    await step('hpp', () => probeHpp(u, points, opts));
+    await step('hpp', () => probeHpp(u, points, { ...opts, labTargets }));
     await step('csv-log-injection', () => probeCsvLog(u, points, opts));
     await step('xss', () => probeXssReflected(u, points, opts));
     await step('nosqli', () => probeNoSqli(u, points, opts));
@@ -923,8 +922,8 @@ export async function runScan(
     await step('ssi', () => probeSsiInjection(u, points, opts));
     await step('cmdi', () => probeCmdiTime(u, points, opts));
     await step('traversal', () => probeTraversal(u, points, opts));
-    await step('rfi', () => probeRfi(u, points, opts));
-    await step('xslt', () => probeXslt(u, points, opts));
+    await step('rfi', () => probeRfi(u, points, { ...opts, labTargets }));
+    await step('xslt', () => probeXslt(u, points, { ...opts, labTargets }));
     await step('eval-injection', () => probeEvalInject(u, points, opts));
     await step('jsonp', () => probeJsonp(u, points, opts));
     await step('rpo', () => probeRpo(u, points, opts));
@@ -1229,7 +1228,7 @@ export async function runScan(
   await step('timing-side-channel', () => probeTimingSideChannel(forms, url, opts));
   await step('csrf', () => probeCsrf(forms, url));
   await step('post-forms', () => probePostForms(postForms, opts));
-  await step('smtp-injection', () => probeSmtpInject(forms, url, opts));
+  await step('smtp-injection', () => probeSmtpInject(forms, url, { ...opts, labTargets }));
   // T4b (bearer/API login) needs the already-discovered route set —
   // wired in here from scanTargets (crawl + openapi + jsRoutes-mined),
   // no new discovery phase. T4b never fires on the SPA-root HTML alone.
@@ -1239,8 +1238,8 @@ export async function runScan(
   // as API-login candidates (never as GET probe targets).
   await step('session-fixation', () => probeSessionFixation(forms, url, { ...opts, apiRoutes: [...scanTargets, ...jsWriteTargets], labTargets }));
   await step('user-enumeration', () => probeUserEnum(forms, url, opts));
-  await step('mass-assignment', () => probeMassAssignment(forms, url, opts));
-  await step('ws-messages', () => probeWsMessages(url, opts));
+  await step('mass-assignment', () => probeMassAssignment(forms, url, { ...opts, labTargets }));
+  await step('ws-messages', () => probeWsMessages(url, { ...opts, labTargets }));
   await step('subdomain-takeover', () => probeSubdomainTakeover(url, opts));
   await step('race', () =>
     probeRace(
@@ -1310,9 +1309,9 @@ export async function runScan(
   await step('cache-poisoning', () => probeCachePoisoning(url, opts));
   await step('request-smuggling', () => probeRequestSmuggling(url, opts));
   await step('jwt', () => probeJwt(url, opts));
-  await step('graphql', () => probeGraphql(url, opts));
+  await step('graphql', () => probeGraphql(url, { ...opts, labTargets }));
   await step('cswsh', () => probeCswsh(url, opts));
-  await step('oauth', () => probeOauth(url, opts));
+  await step('oauth', () => probeOauth(url, { ...opts, labTargets }));
   // SAML-XXE OOB collaborator (6 Nov 2026): the SAML probe's blind-XXE
   // variant needs a callback base AND a waiter. Both come from a
   // collaborator started here for the duration of the saml phase — only
@@ -1353,10 +1352,10 @@ export async function runScan(
     }
   }
   await step('tls', () => probeTls(url, opts));
-  await step('password-reset', () => probePasswordReset(forms, url, opts));
+  await step('password-reset', () => probePasswordReset(forms, url, { ...opts, labTargets }));
   await step('crypto', () => probeCrypto(url, opts));
-  await step('prototype-pollution', () => probePrototypePollution(url, opts));
-  await step('deserialization', () => probeDeserialization(url, opts));
+  await step('prototype-pollution', () => probePrototypePollution(url, { ...opts, labTargets }));
+  await step('deserialization', () => probeDeserialization(url, { ...opts, labTargets }));
   // Nuclei step: captures the FULL runNuclei result. The old code kept
   // only `.findings` — a timeout/failure vanished with no trace. The phase
   // record now carries the tool's ok/timedOut plus a capped stderr tail

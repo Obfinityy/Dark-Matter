@@ -464,6 +464,68 @@ describe('saml XXE OOB collaborator', () => {
     }
   });
 
+  // isLab follow-up (8 Nov 2026): the old substring gate matched a lab
+  // entry that is a PREFIX of the target host (127.0.0.1 vs
+  // 127.0.0.10:PORT) — fail-open. The canonical helper compares exact
+  // canonical hostnames, port-insensitive.
+  it('CONFIRMS saml_xxe_oob with PORT-BEARING labTargets (the production shape)', async () => {
+    const stub = await startStub(); stub.setHandler(oobFetchHandler());
+    try {
+      const findings = await probeSaml(`http://127.0.0.1:${stub.port}/`, oobOpts({ labTargets: `127.0.0.1:${stub.port}` }));
+      const classes = findings.map((f) => f.class);
+      assert.ok(classes.includes('saml_xxe_oob'), `expected saml_xxe_oob, got ${classes}`);
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('near-miss host: no OOB dispatch when the lab entry is a prefix of the target host', async () => {
+    // No real server: 127.0.0.10 is unroutable in this sandbox (bind works,
+    // connect blackholes) — the earlier real-server version burned 8x3s
+    // timeouts and never reached the gate, so it passed vacuously. A fetch
+    // stub answers discovery so the probe genuinely reaches the OOB gate.
+    const posts = [];
+    let waiterCalls = 0;
+    const origFetch = global.fetch;
+    const ACS = 'http://127.0.0.10:9999/saml/acs';
+    global.fetch = async (url, init = {}) => {
+      const method = (init && init.method) || 'GET';
+      if (method === 'GET') {
+        return {
+          ok: true, status: 200,
+          headers: { get: () => null },
+          text: async () => `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="http://127.0.0.10:9999/sp"><md:SPSSODescriptor><md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="${ACS}" index="0"/></md:SPSSODescriptor></md:EntityDescriptor>`,
+        };
+      }
+      posts.push(String(init.body || ''));
+      return {
+        ok: false, status: 400,
+        headers: { get: () => null },
+        text: async () => 'rejected',
+      };
+    };
+    try {
+      const hitsBefore = collab.hits.length;
+      const findings = await probeSaml('http://127.0.0.10:9999/', oobOpts({
+        labTargets: '127.0.0.1',
+        oobWaitFor: (t, ms) => { waiterCalls += 1; return collab.waitFor(t, ms); },
+      }));
+      const classes = findings.map((f) => f.class);
+      assert.ok(!classes.includes('saml_xxe_oob'), `unexpected saml_xxe_oob in ${classes}`);
+      assert.ok(!classes.includes('saml_xxe_oob_sent'), `unexpected saml_xxe_oob_sent in ${classes}`);
+      assert.equal(collab.hits.length, hitsBefore, 'gate closed: a near-miss host must not receive an OOB URL');
+      assert.equal(waiterCalls, 0, 'gate closed: the OOB waiter must never be consulted');
+      // Reachability proof: the probe posted the internal-entity XXE variant
+      // (the step immediately before the OOB branch), so the gate was
+      // genuinely reached — but never the external-entity OOB payload.
+      const decoded = posts.map((b) => decodeSamlBody(b));
+      assert.ok(decoded.some((x) => x.includes('<!ENTITY dmxxe')), 'probe must reach the XXE section (internal entity posted)');
+      assert.ok(!decoded.some((x) => x.includes('<!ENTITY %')), 'a near-miss host must never receive the OOB payload');
+    } finally {
+      global.fetch = origFetch;
+    }
+  });
+
   it('backward compat: string-only oobCallback (no waiter) still emits saml_xxe_oob_sent', async () => {
     const stub = await startStub(); stub.setHandler(oobFetchHandler());
     try {

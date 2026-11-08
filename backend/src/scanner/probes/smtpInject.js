@@ -19,22 +19,12 @@
 // CONFIRMED needs received-mail evidence (lab) or server-side reflection.
 // Passthrough alone = "possible, impact unconfirmed", never upgraded.
 
+import { isLabTargetHost } from '../../labCreds.js';
+
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 function rand() {
   return Math.random().toString(36).slice(2, 10);
-}
-
-function isLab(url, opts) {
-  try {
-    const host = new URL(url).hostname;
-    return String(opts.labTargets || '')
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .some((h) => host === h || host.endsWith('.' + h));
-  } catch {
-    return false;
-  }
 }
 
 function ev(request, response, impact) {
@@ -134,7 +124,7 @@ async function t2BccLab(forms, opts, rid) {
   if (!opts.smtpCanaryInbox) return findings; // no canary inbox wired — graceful skip
   for (const form of emailForms(forms).slice(0, 2)) {
     const action = form.action;
-    if (!action || !isLab(action, opts)) continue;
+    if (!action || !isLabTargetHost(action, opts.labTargets)) continue;
     const base = {};
     for (const inp of form.inputs || []) {
       if (inp.name) base[inp.name] = inp.type === 'email' ? `dm_${rid}@example.invalid` : `Test ${rid}`;

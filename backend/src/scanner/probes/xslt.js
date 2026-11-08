@@ -15,22 +15,11 @@
 // (no triple counting). $0, no new deps.
 import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 
+import { isLabTargetHost } from '../../labCreds.js';
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 function rand() {
   return Math.random().toString(36).slice(2, 10);
-}
-
-function isLab(url, opts) {
-  try {
-    const host = new URL(url).hostname;
-    return String(opts.labTargets || '')
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .some((h) => host === h || host.endsWith('.' + h));
-  } catch {
-    return false;
-  }
 }
 
 function ev(request, response, impact) {
@@ -121,7 +110,7 @@ async function d2Exec(url, surface, opts, rid) {
 export async function probeXslt(url, params, opts = {}) {
   const findings = [];
   const rid = rand();
-  const lab = isLab(url, opts);
+  const lab = isLabTargetHost(url, opts.labTargets);
   const surfaces = await d1Surfaces(url, params, opts);
   // D7: error-oracle smell even without injectable surface.
   if (surfaces.some((s) => s.kind === 'error-smell') && !surfaces.some((s) => s.kind !== 'error-smell')) {

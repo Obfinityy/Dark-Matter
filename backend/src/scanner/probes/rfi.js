@@ -21,24 +21,13 @@
 // stream" = NEGATIVE (blocked), never a finding. Dedupe (target,param,rfi).
 
 import http from 'node:http';
+import { isLabTargetHost } from '../../labCreds.js';
 import { mutateUrl, probePointName, probePointParameter, probePointKind, isPathPoint } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 function rand() {
   return Math.random().toString(36).slice(2, 10);
-}
-
-function isLab(url, opts) {
-  try {
-    const host = new URL(url).hostname;
-    return String(opts.labTargets || '')
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .some((h) => host === h || host.endsWith('.' + h));
-  } catch {
-    return false;
-  }
 }
 
 function ev(request, response, impact) {
@@ -126,7 +115,7 @@ export async function probeRfi(url, params, opts = {}) {
   const targets = includeSmellParams(url, params);
   if (!targets.length) return findings; // no include smell — INFO, not a miss
   const rid = rand();
-  const lab = isLab(url, opts);
+  const lab = isLabTargetHost(url, opts.labTargets);
   let canarySrv = null;
   try {
     canarySrv = await startCanaryServer(rid, opts).catch(() => null);

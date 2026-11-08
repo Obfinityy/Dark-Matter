@@ -178,6 +178,43 @@ describe('xxe OOB collaborator', () => {
     assert.deepEqual(findings, []);
     assert.equal(waiterCalls, 0, 'target down: the probe must not wait for a hit that cannot come');
   });
+  // isLab follow-up (8 Nov 2026): the old substring gate matched a lab
+  // entry that is a PREFIX of the target host (172.17.0.1 vs
+  // 172.17.0.10:8080) — fail-open. The canonical helper compares exact
+  // canonical hostnames, port-insensitive.
+  it('CONFIRMS xxe_oob with PORT-BEARING labTargets (the production shape)', async () => {
+    const stub = await startStub(); stub.setHandler(oobFetchHandler());
+    try {
+      const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, oobOpts({ labTargets: `127.0.0.1:${stub.port}` }));
+      const classes = findings.map((f) => f.class);
+      assert.ok(classes.includes('xxe_oob'), `expected xxe_oob, got ${classes}`);
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('near-miss host: no OOB dispatch when the lab entry is a prefix of the target host', async () => {
+    const posts = [];
+    const origFetch = global.fetch;
+    global.fetch = async (url, init = {}) => {
+      if ((init.method || 'GET') === 'POST') posts.push(String(init.body || ''));
+      return { ok: true, status: 200, text: async () => '' };
+    };
+    try {
+      const findings = await probeXxe('http://172.17.0.10:9999/', {
+        timeoutMs: 3000,
+        labTargets: '172.17.0.1',
+        oobCallback: baseUrl,
+        oobWaitFor: (token, ms) => collab.waitFor(token, ms),
+        oobWaitTimeoutMs: 500,
+      });
+      assert.deepEqual(findings, []);
+      assert.ok(!posts.some((b) => b.includes('<!ENTITY %')), 'a near-miss host must never receive the OOB payload');
+    } finally {
+      global.fetch = origFetch;
+    }
+  });
+
 });
 
 describe('xxe internal entity expansion (v1 regression)', () => {

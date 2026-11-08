@@ -17,22 +17,12 @@
 // merge-sink library fingerprint (vulnerable lodash/jQuery/deepmerge).
 // Severity stays honest: pollution without a reachable gadget = INFO/LOW.
 
+import { isLabTargetHost } from '../../labCreds.js';
+
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 function rand() {
   return Math.random().toString(36).slice(2, 10);
-}
-
-function isLab(url, opts) {
-  try {
-    const host = new URL(url).hostname;
-    return String(opts.labTargets || '')
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .some((h) => host === h || host.endsWith('.' + h));
-  } catch {
-    return false;
-  }
 }
 
 async function postJson(url, obj, opts = {}) {
@@ -309,7 +299,7 @@ async function t5LogicBypass(url, canary, opts) {
 
 export async function probePrototypePollution(url, opts = {}) {
   const findings = [];
-  if (!isLab(url, opts)) return findings;
+  if (!isLabTargetHost(url, opts.labTargets)) return findings;
   const canary = rand();
   const sinks = await fingerprintMergeSinks(url, opts);
   if (sinks.length) {

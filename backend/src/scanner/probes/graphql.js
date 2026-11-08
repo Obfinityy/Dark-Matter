@@ -2,6 +2,8 @@
 // Tests GraphQL endpoints for: introspection enabled, query-depth DoS,
 // unauthenticated mutations, error-based field leakage, and batching abuse.
 // All tests use differential oracles per the 100% truth rule.
+import { isLabTargetHost } from '../../labCreds.js';
+
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 // Common GraphQL endpoint paths to probe
@@ -81,18 +83,6 @@ async function fetchPage(url, opts = {}) {
     return { ok: false, error: e.message, setCookies: [] };
   } finally {
     clearTimeout(t);
-  }
-}
-
-function isLabTarget(url, opts) {
-  try {
-    const host = new URL(url).hostname;
-    return String(opts.labTargets || '')
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .some((h) => host === h || host.endsWith('.' + h));
-  } catch {
-    return false;
   }
 }
 
@@ -253,7 +243,7 @@ async function t158MutationMassAssign(endpoint, opts, timeoutMs, canary) {
   if (!withPriv.length) return findings;
 
   // Non-lab: passive surface note only — never send the mutation.
-  if (!isLabTarget(endpoint, opts)) {
+  if (!isLabTargetHost(endpoint, opts.labTargets)) {
     const c = withPriv[0];
     findings.push({
       class: 'graphql_mutation_privileged_fields',

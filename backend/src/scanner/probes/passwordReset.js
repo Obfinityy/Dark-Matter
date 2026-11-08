@@ -23,6 +23,8 @@
 // Defensively framed: we decode our own canary responses; we never claim to
 // intercept anyone's mailbox (documented limit in docs/scanner/password-reset.md).
 
+import { isLabTargetHost } from '../../labCreds.js';
+
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 // JSON-style token disclosure: a reset-related key carrying a token-ish value.
@@ -35,18 +37,6 @@ const TOKEN_IN_URL_RE = /reset[^"'\s>]*[?&](?:token|code)=([A-Za-z0-9\-_~.]{8,25
 
 function rand() {
   return Math.random().toString(36).slice(2, 10);
-}
-
-function isLab(url, opts) {
-  try {
-    const host = new URL(url).hostname;
-    return String(opts.labTargets || '')
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .some((h) => host === h || host.endsWith('.' + h));
-  } catch {
-    return false;
-  }
 }
 
 function ev(request, response, impact) {
@@ -156,7 +146,7 @@ export async function probePasswordReset(forms, url, opts = {}) {
   const param = identifierName(form);
 
   // ---- Non-lab: passive check only — never submit the form. ----
-  if (!isLab(action, opts)) {
+  if (!isLabTargetHost(action, opts.labTargets)) {
     const page = await getPage(action, opts);
     const tok = page ? extractResetToken(page.text) : null;
     if (tok) {

@@ -5,6 +5,8 @@
 // callback hit CONFIRMS blind XXE in-scan (class xxe_oob, high); no hit
 // means no finding (100% truth rule). The OOB variant is lab-gated
 // (opts.labTargets) exactly like the SAML-XXE OOB variant in saml.js.
+import { isLabTargetHost } from '../../labCreds.js';
+
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 function rand() {
@@ -12,14 +14,7 @@ function rand() {
 }
 
 // LAB GATE: the OOB variant runs only when the authorized host is listed
-// in opts.labTargets (same split pattern as saml.js / index.js).
-function isLabHost(url, opts) {
-  let host = '';
-  try { host = new URL(url).host; } catch { return false; }
-  return String(opts.labTargets || '')
-    .split(/[,\s]+/)
-    .some((t) => t && (host.includes(t) || t.includes(host)));
-}
+// in opts.labTargets (canonical isLabTargetHost, labCreds.js).
 
 export async function probeXxe(url, opts = {}) {
   const findings = [];
@@ -85,7 +80,7 @@ export async function probeXxe(url, opts = {}) {
   // there means the endpoint is down, and waiting up to 8s for a hit
   // that cannot come would only stall the scan (saml.js has the same
   // precondition implicitly — it only runs after an ACS was found).
-  if (first.status !== 0 && opts.oobCallback && isLabHost(url, opts)) {
+  if (first.status !== 0 && opts.oobCallback && isLabTargetHost(url, opts.labTargets)) {
     const token = `xxe-oob-${rand()}`;
     const oobUrl = `${String(opts.oobCallback).replace(/\/+$/, '')}/${token}`;
     const oobPayload = `<?xml version="1.0"?><!DOCTYPE r [<!ENTITY % dmxxe SYSTEM "${oobUrl}"> %dmxxe;]><r>oob-probe</r>`;

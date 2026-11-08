@@ -8,6 +8,8 @@
 // exchanges a code, never redeems a token: authorization REQUESTS only, the
 // flow stops at the 302 Location header (redirects are never followed).
 
+import { isLabTargetHost } from '../../labCreds.js';
+
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 // Known authorization endpoint paths to probe (max 6)
@@ -144,17 +146,6 @@ async function findAuthEndpoint(url, opts) {
 
 // Lab-gate: true when the target host is listed in opts.labTargets
 // (comma/space separated). Shared fail-closed model with race.js etc.
-function isLabTarget(url, opts) {
-  try {
-    const host = new URL(url).hostname;
-    return String(opts.labTargets || '')
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .some((h) => host === h || host.endsWith('.' + h));
-  } catch {
-    return false;
-  }
-}
 
 export async function probeOauth(url, opts = {}) {
   const findings = [];
@@ -392,7 +383,7 @@ export async function probeOauth(url, opts = {}) {
   // in the Location (scope= echo) or with no invalid_scope error. An
   // invalid_scope error on the escalated request = correct behavior: no finding.
   // Non-lab targets: skipped silently (touches the authorization server).
-  if (isLabTarget(url, opts) && depth !== 'quick') {
+  if (isLabTargetHost(url, opts.labTargets) && depth !== 'quick') {
     const scopeRedirect = `https://invalid.invalid/dm-cb-${canary}`;
     const scopeState = `dm-scope-${canary}`;
     const scopeParams = (scope) => ({
@@ -437,7 +428,7 @@ export async function probeOauth(url, opts = {}) {
   // request a token via client_credentials and DECODE the returned id_token
   // payload WITHOUT verifying (defensive read of our own canary response).
   // Flags: missing exp, exp >24h out, alg=none on the issued token.
-  if (isLabTarget(url, opts) && depth !== 'quick' && opts.labCreds && opts.labCreds.clientId && oidc && oidc.token_endpoint) {
+  if (isLabTargetHost(url, opts.labTargets) && depth !== 'quick' && opts.labCreds && opts.labCreds.clientId && oidc && oidc.token_endpoint) {
     try {
       const body = new URLSearchParams({
         grant_type: 'client_credentials',

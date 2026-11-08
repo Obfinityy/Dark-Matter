@@ -1038,3 +1038,77 @@ describe('runScan XXE OOB wiring', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// runScan password-reset wiring (isLab follow-up, 8 Nov 2026): proves the
+// full path — runScan passes labTargets to the password-reset step, so the
+// lab submission branch runs on a lab target (token disclosed in the
+// response, confirmed) and never submits off-lab. Probe-level tests pass
+// labTargets directly and cannot catch a missing call-site pass.
+describe('runScan password-reset wiring', () => {
+  function startResetStub() {
+    let postCount = 0;
+    const server = http.createServer((req, res) => {
+      const u = new URL(req.url, 'http://127.0.0.1');
+      if (u.pathname === '/reset' && req.method === 'POST') {
+        postCount += 1;
+        let raw = '';
+        req.on('data', (c) => { raw += c; });
+        req.on('end', () => {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ reset_token: 'tok-abcdef123456' }));
+        });
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html><body><form action="/reset" method="post"><input name="email" type="email"><input type="submit"></form></body></html>');
+    });
+    return new Promise((resolve) => {
+      server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port, posts: () => postCount }));
+    });
+  }
+
+  it('CONFIRMS pwdreset_token_in_response end-to-end on a lab-gated target', async () => {
+    const stub = await startResetStub();
+    try {
+      const result = await runScan(
+        {
+          target: `http://127.0.0.1:${stub.port}/`,
+          labTargets: '127.0.0.1',
+          phases: ['fingerprint', 'crawl', 'password-reset'],
+          confirmedAuthorized: true,
+        },
+        { timeoutMs: 3000 }
+      );
+      const f = (result.findings || []).find((x) => x.class === 'pwdreset_token_in_response');
+      assert.ok(f, `expected pwdreset_token_in_response in confirmed findings, got ${JSON.stringify((result.findings || []).map((x) => x.class))}`);
+      assert.equal(f.confirmation, 'confirmed');
+      assert.equal(f.severity, 'critical');
+      assert.equal(stub.posts(), 2, 'lab mode submits twice (disclosure + entropy re-check)');
+      const phase = (result.phases || []).find((p) => p.name === 'password-reset');
+      assert.ok(phase && phase.ok, 'password-reset phase must record ok');
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('NEGATIVE: no submission and no finding when the target is not lab-gated', async () => {
+    const stub = await startResetStub();
+    try {
+      const result = await runScan(
+        {
+          target: `http://127.0.0.1:${stub.port}/`,
+          labTargets: '',
+          phases: ['fingerprint', 'crawl', 'password-reset'],
+          confirmedAuthorized: true,
+        },
+        { timeoutMs: 3000 }
+      );
+      const classes = [...(result.findings || []), ...(result.unconfirmed || [])].map((x) => x.class);
+      assert.ok(!classes.includes('pwdreset_token_in_response'), `unexpected pwdreset finding in ${classes}`);
+      assert.equal(stub.posts(), 0, 'off-lab the probe must never POST');
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+});

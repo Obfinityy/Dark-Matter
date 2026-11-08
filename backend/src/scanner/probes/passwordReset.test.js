@@ -169,4 +169,31 @@ describe('passwordReset probe (#324)', () => {
     assert.equal(rs.length, 1);
     assert.equal(rs[0].action, '/forgot-password');
   });
+  // isLab follow-up (8 Nov 2026): the old local isLab compared the bare
+  // hostname against port-bearing labTargets entries, so the lab branch
+  // never ran even when runScan passed labTargets. The canonical helper
+  // strips ports on both sides.
+  it('lab branch runs with PORT-BEARING labTargets (the production shape)', async () => {
+    mode = 'disclose';
+    postCount = 0;
+    const findings = await probePasswordReset(forms(), base(), {
+      labTargets: `127.0.0.1:${port}`,
+      timeoutMs: 2000,
+    });
+    const d = findings.find((f) => f.class === 'pwdreset_token_in_response');
+    assert.ok(d, `port-bearing labTargets must open the lab branch, got ${findings.map((f) => f.class)}`);
+    assert.equal(postCount, 2, 'lab mode submits twice (disclosure + entropy re-check)');
+  });
+
+  it('near-miss host stays passive: no submission', async () => {
+    mode = 'disclose';
+    postCount = 0;
+    const findings = await probePasswordReset(forms(), base(), {
+      labTargets: '127.0.0.2',
+      timeoutMs: 2000,
+    });
+    assert.deepEqual(findings, []);
+    assert.equal(postCount, 0, 'a near-miss labTargets entry must not open the lab branch');
+  });
+
 });

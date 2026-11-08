@@ -88,6 +88,46 @@ describe('massAssignment probe', () => {
     assert.ok(esc[0].evidence.response.includes('revert-ok: true'), 'evidence must report the successful revert');
   });
 
+  // isLab follow-up (8 Nov 2026): the whole probe is lab-gated, but the
+  // old local isLab never saw labTargets (no call-site pass) and never
+  // matched port-bearing entries — the probe could never run in production.
+  it('lab branch runs with PORT-BEARING labTargets (the production shape)', async () => {
+    const state = { role: 'user', revertRestores: true };
+    const calls = [];
+    const orig = global.fetch;
+    const inner = makeFetch(state);
+    global.fetch = async (url, init) => { calls.push(String(url)); return inner(url, init); };
+    try {
+      const findings = await probeMassAssignment(
+        [{ action: 'http://127.0.0.1:9/register', inputs: [{ name: 'user', value: 'x' }] }],
+        'http://127.0.0.1:9/register',
+        { labTargets: '127.0.0.1:9', timeoutMs: 2000, depth: 'quick' }
+      );
+      assert.ok(calls.length > 0, 'port-bearing labTargets must open the lab branch');
+      assert.ok(findings.some((x) => x.id.startsWith('ma-escalate-')), 'escalation must fire on the lab stub');
+    } finally {
+      global.fetch = orig;
+    }
+  });
+
+  it('mismatched host sends zero requests (lab gate)', async () => {
+    const calls = [];
+    const orig = global.fetch;
+    const inner = makeFetch({ role: 'user' });
+    global.fetch = async (url, init) => { calls.push(String(url)); return inner(url, init); };
+    try {
+      const findings = await probeMassAssignment(
+        [{ action: 'http://notlab.local/register', inputs: [{ name: 'user', value: 'x' }] }],
+        'http://notlab.local/register',
+        { labTargets: 'lab.local', timeoutMs: 2000, depth: 'quick' }
+      );
+      assert.deepEqual(findings, []);
+      assert.equal(calls.length, 0, 'non-lab target must not be probed at all');
+    } finally {
+      global.fetch = orig;
+    }
+  });
+
   it('T2 revert-network-failure: still reports revert-ok false', async () => {
     const findings = await runT2({ role: 'user', failRevert: true });
     const f = findings.find((x) => x.id.startsWith('ma-escalate-'));

@@ -278,3 +278,44 @@ describe('wsMessages T1 tampering', () => {
     }
   }, { timeout: 60000 });
 });
+
+// ---- T2 replay lab gate (isLab follow-up, 8 Nov 2026) ----------------------
+// T2 is lab-only, but the old local isLab never saw labTargets (no
+// call-site pass) and never matched port-bearing entries — replay could
+// never run in production. The gate is proven by connection count: the
+// replay opens exactly two extra WS connections (c1 + c2) on a lab host
+// and none off-lab. No finding is asserted — the stub sends no frames.
+describe('wsMessages T2 replay lab gate', () => {
+  it('lab mode opens two extra WS connections for replay; non-lab opens none', async () => {
+    const { server, port, closeAll } = await startMockWs({ onConnect: [], onSubscribe: [] });
+    let upgrades = 0;
+    const onUpgrade = (req) => {
+      try {
+        if (new URL(req.url, 'http://127.0.0.1').pathname === '/ws') upgrades += 1;
+      } catch { /* ignore */ }
+    };
+    server.on('upgrade', onUpgrade);
+    try {
+      await probeWsMessages(`http://127.0.0.1:${port}/`, {
+        labTargets: `127.0.0.1:${port}`,
+        timeoutMs: 5000,
+        depth: 'standard',
+      });
+      const labUpgrades = upgrades;
+      upgrades = 0;
+      await probeWsMessages(`http://127.0.0.1:${port}/`, {
+        labTargets: 'lab.local',
+        timeoutMs: 5000,
+        depth: 'standard',
+      });
+      const nonLabUpgrades = upgrades;
+      assert.equal(
+        labUpgrades, nonLabUpgrades + 2,
+        `lab mode must open exactly the 2 replay connections (c1+c2); lab=${labUpgrades} non-lab=${nonLabUpgrades}`
+      );
+    } finally {
+      server.off('upgrade', onUpgrade);
+      await closeAll();
+    }
+  }, { timeout: 60000 });
+});

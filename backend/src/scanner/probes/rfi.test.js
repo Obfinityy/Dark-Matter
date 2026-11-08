@@ -41,6 +41,53 @@ describe('rfi probe', () => {
     assert.equal(rfi.severity, 'high');
   }, { timeout: 60000 });
 
+  // isLab follow-up (8 Nov 2026): D5 wrapper variants are lab-first, but
+  // the old local isLab never saw labTargets (no call-site pass) and never
+  // matched port-bearing entries — D5 could never run in production.
+  const dec = (s) => {
+    try { return decodeURIComponent(s); } catch { return s; }
+  };
+
+  it('D5 wrapper variants run in lab mode with PORT-BEARING labTargets', async () => {
+    const calls = [];
+    const origFetch = global.fetch;
+    global.fetch = async (url) => {
+      calls.push(dec(String(url)));
+      return { ok: true, status: 200, text: async () => '<html>home</html>' };
+    };
+    try {
+      const findings = await probeRfi(`${base()}/index`, ['page'], {
+        labTargets: `127.0.0.1:${port}`,
+        timeoutMs: 15000,
+      });
+      assert.deepEqual(findings, [], 'plain stub confirms nothing — the gate test asserts requests, not findings');
+      assert.ok(calls.some((u) => u.includes('data://text/plain')), 'lab mode must try the data:// wrapper');
+      assert.ok(calls.some((u) => u.includes('php://filter')), 'lab mode must try the php://filter wrapper');
+    } finally {
+      global.fetch = origFetch;
+    }
+  }, { timeout: 30000 });
+
+  it('D5 wrapper variants stay silent off-lab', async () => {
+    const calls = [];
+    const origFetch = global.fetch;
+    global.fetch = async (url) => {
+      calls.push(dec(String(url)));
+      return { ok: true, status: 200, text: async () => '<html>home</html>' };
+    };
+    try {
+      const findings = await probeRfi(`${base()}/index`, ['page'], {
+        labTargets: 'lab.local',
+        timeoutMs: 15000,
+      });
+      assert.deepEqual(findings, []);
+      assert.ok(!calls.some((u) => u.includes('data://text/plain')), 'no data:// wrapper off-lab');
+      assert.ok(!calls.some((u) => u.includes('php://filter')), 'no php://filter wrapper off-lab');
+    } finally {
+      global.fetch = origFetch;
+    }
+  }, { timeout: 30000 });
+
   it('exits clean with no include-smell params', async () => {
     const findings = await probeRfi(`${base()}/index`, ['q'], { timeoutMs: 5000 });
     assert.deepEqual(findings, []);

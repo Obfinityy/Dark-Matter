@@ -150,6 +150,45 @@ async function runStub(mode, opts = {}) {
 }
 
 describe('prototypePollution probe', () => {
+  // isLab follow-up (8 Nov 2026): the whole probe is lab-gated, but the
+  // old local isLab never saw labTargets (no call-site pass) and never
+  // matched port-bearing entries — the probe could never run in production.
+  it('lab branch runs with PORT-BEARING labTargets (the production shape)', async () => {
+    const { server, port, close } = await startStub('baseline');
+    const calls = [];
+    const orig = global.fetch;
+    global.fetch = async (url, init) => { calls.push(String(url)); return orig(url, init); };
+    try {
+      const findings = await probePrototypePollution(`http://127.0.0.1:${port}/`, {
+        labTargets: `127.0.0.1:${port}`,
+        timeoutMs: 8000,
+      });
+      assert.ok(calls.length > 0, 'port-bearing labTargets must open the lab branch');
+      assert.ok(Array.isArray(findings));
+    } finally {
+      global.fetch = orig;
+      await close();
+    }
+  });
+
+  it('mismatched host sends zero requests (lab gate)', async () => {
+    const { server, port, close } = await startStub('baseline');
+    const calls = [];
+    const orig = global.fetch;
+    global.fetch = async (url, init) => { calls.push(String(url)); return orig(url, init); };
+    try {
+      const findings = await probePrototypePollution(`http://127.0.0.1:${port}/`, {
+        labTargets: 'lab.local',
+        timeoutMs: 8000,
+      });
+      assert.deepEqual(findings, []);
+      assert.equal(calls.length, 0, 'non-lab target must not be probed at all');
+    } finally {
+      global.fetch = orig;
+      await close();
+    }
+  });
+
   it('returns [] on non-lab targets (lab gate)', async () => {
     const findings = await probePrototypePollution('http://example.com/', {
       labTargets: 'lab.local',

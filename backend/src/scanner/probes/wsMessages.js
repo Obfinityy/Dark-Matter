@@ -17,6 +17,7 @@
 // Per-run canary __ws_dm_<runid>. $0, ~20 scripted frames per endpoint.
 
 import http from 'node:http';
+import { isLabTargetHost } from '../../labCreds.js';
 import https from 'node:https';
 import crypto from 'node:crypto';
 
@@ -24,18 +25,6 @@ const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 function rand() {
   return Math.random().toString(36).slice(2, 10);
-}
-
-function isLab(url, opts) {
-  try {
-    const host = new URL(url).hostname;
-    return String(opts.labTargets || '')
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .some((h) => host === h || host.endsWith('.' + h));
-  } catch {
-    return false;
-  }
 }
 
 function ev(request, response, impact) {
@@ -450,7 +439,7 @@ export async function probeWsMessages(url, opts = {}) {
   // #270 runs before the D1 early-return: a referenced ws:// URL exists
   // regardless of whether any wss endpoint is live.
   findings.push(...(await t270Unencrypted(url, opts, depth, timeoutMs)));
-  const lab = isLab(url, opts);
+  const lab = isLabTargetHost(url, opts.labTargets);
   const live = await d1Inventory(url, opts);
   if (!live.length) return findings; // no WS surface — class tested, absent
   const rid = rand();
