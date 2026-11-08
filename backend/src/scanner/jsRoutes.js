@@ -37,6 +37,20 @@
 // in both synthesisers, so the T4b oracle pair can never lose the
 // cap race to param-bearing list routes.
 //
+// (8 Nov 2026, miner extension): TEMPLATE SERVICE BASES and
+// INTERPOLATION-NAMED QUERY PARAMS. A service base is no longer
+// only `host = this.hostServer + "literal"` — the base itself may
+// be a template literal (`host = this.hostServer + `/rest/...``,
+// `host = `${this.hostServer}/rest/...``) or a variable
+// (`host = API_BASE + "/rest/..."`, `host = API_BASE`) resolved
+// from the bundle's own single-assignment string literals
+// (branches (a3)/(a4)/(a5)). Query-param NAMES may be interpolated
+// (`?${name}=v`, `?${qs}`) — resolved the same way when the
+// variable is bound to a valid name or a prebuilt query string;
+// unbound interpolations are left unmined, never guessed. A
+// reassigned, concatenated, or interpolated assignment never
+// binds. Existing branches are untouched.
+//
 // MECHANISM: when the pasted page yielded zero param-bearing targets
 // (after static + DOM + form synthesis + openapi-targets), fetch the
 // page's same-origin <script> bundles (read-only GET, max 5) and mine
@@ -149,14 +163,92 @@ function firstArg(text, start) {
   return { arg: text.slice(start, j), end: j };
 }
 
+// Single-assignment string-literal variable bindings in one bundle:
+// `const API_BASE = "/api"`, `let q = "query"`, `qs = "q=test"`.
+// Only idents with EXACTLY ONE plain literal assignment count — a
+// reassigned ident is never resolved, so the miner never guesses a
+// value. The literal must be followed by `,`, `;`, `}` or
+// end-of-input (so `x = "a" + "b"` does not bind x to "a"), and a
+// value containing a backslash or ${} is never bound (escaped or
+// interpolated content is not a plain literal). Pure — exported
+// for unit tests.
+export function collectLiteralBindings(src) {
+  const counts = new Map();
+  const values = new Map();
+  if (typeof src !== 'string' || !src) return values;
+  const re =
+    /(?:^|[;{},\n])\s*(?:const\s+|let\s+|var\s+)?([A-Za-z_$][\w$]*)\s*=\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|`([^`\\]*(?:\\.[^`\\]*)*)`)(?=[\s]*[,;}\]]|$)/g;
+  for (const m of src.matchAll(re)) {
+    const name = m[1];
+    const value = m[2] ?? m[3] ?? m[4];
+    if (value === undefined) continue;
+    if (value.includes('\\') || value.includes('${')) continue;
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+    values.set(name, value);
+  }
+  for (const [name, count] of counts) {
+    if (count !== 1) values.delete(name);
+  }
+  return values;
+}
+
+// Resolve a template-leading expression to a path prefix: a
+// hostServer expression is the origin (''), a `.host` expression
+// is the nearest preceding service base, a bare identifier resolves
+// via literal bindings ('' or a '/'-prefixed value). Anything else
+// is unresolvable — the miner never guesses a prefix.
+function resolveBaseExpr(expr, bindings, bases) {
+  const e = String(expr).trim();
+  if (/(?:^|\.)hostServer$/.test(e)) return '';
+  if (/\./.test(e)) {
+    // Dotted path: only a `.host` property is a service base.
+    if (/\.host$/.test(e)) return bases.length > 0 ? bases[bases.length - 1].path : null;
+    return null;
+  }
+  // Bare identifier: literal binding wins; `host` alone is the
+  // service base when unbound.
+  const value = bindings.get(e);
+  if (value !== undefined) {
+    if (value === '' || value.startsWith('/')) return value;
+    return null;
+  }
+  if (e === 'host') return bases.length > 0 ? bases[bases.length - 1].path : null;
+  return null;
+}
+
+// Interpolation-named query params resolved via literal bindings:
+// `?${name}=v` where name is bound to a valid param name, or
+// `?${qs}` where qs is bound to a prebuilt query string (parsed
+// for its names). Unbound interpolations are skipped — the miner
+// never invents a param name.
+function interpolationQueryNames(text, bindings) {
+  const names = [];
+  if (!bindings || bindings.size === 0) return names;
+  for (const m of text.matchAll(/[?&]\$\{\s*([A-Za-z_$][\w$]*)\s*\}(?:=|(?![\w$=]))/g)) {
+    const value = bindings.get(m[1]);
+    if (value === undefined) continue;
+    if (/^[A-Za-z_$][\w$-]*$/.test(value)) {
+      if (!names.includes(value)) names.push(value);
+    } else {
+      for (const n of value.matchAll(/[?&]?([A-Za-z_$][\w$-]*)=/g)) {
+        if (!names.includes(n[1])) names.push(n[1]);
+      }
+    }
+  }
+  return names;
+}
+
 // Query-param names appearing in a first-arg expression: every
 // `?name=` / `&name=` fragment across all string literals in the
 // arg (a concat arg carries the extra params as separate literals,
-// e.g. "?current=" + e.current + "&new=" + ...). Names only — the
-// values are always replaced with fillers at synthesis.
-function queryNamesIn(arg) {
+// e.g. "?current=" + e.current + "&new=" + ...), plus
+// interpolation-named params resolved via bindings (see
+// interpolationQueryNames). Names only — the values are always
+// replaced with fillers at synthesis.
+function queryNamesIn(arg, bindings = new Map()) {
   const names = new Set();
   for (const m of arg.matchAll(/[?&]([A-Za-z_$][\w$-]*)=/g)) names.add(m[1]);
+  for (const n of interpolationQueryNames(arg, bindings)) names.add(n);
   return [...names];
 }
 
@@ -179,13 +271,19 @@ function pathDescriptorsFor(routePath) {
 }
 
 // Split a route literal into its path (before '?') and query names.
-function splitRoute(literal) {
+// Interpolation-named params in the query part are resolved via
+// bindings (see interpolationQueryNames); unbound ones are skipped.
+function splitRoute(literal, bindings = new Map()) {
   const q = literal.indexOf('?');
   const path = q >= 0 ? literal.slice(0, q) : literal;
   const queryNames = [];
   if (q >= 0) {
-    for (const m of literal.slice(q).matchAll(/[?&]([A-Za-z_$][\w$-]*)=/g)) {
+    const qs = literal.slice(q);
+    for (const m of qs.matchAll(/[?&]([A-Za-z_$][\w$-]*)=/g)) {
       if (!queryNames.includes(m[1])) queryNames.push(m[1]);
+    }
+    for (const n of interpolationQueryNames(qs, bindings)) {
+      if (!queryNames.includes(n)) queryNames.push(n);
     }
   }
   return { path, queryNames };
@@ -212,14 +310,62 @@ export function extractJsRouteRecords(bundleText) {
     return records.get(path);
   };
 
+  // Literal variable bindings for this bundle (single-assignment
+  // string literals only — see collectLiteralBindings).
+  const bindings = collectLiteralBindings(src);
+
   // Service bases: host = this.hostServer + "/rest/..." — the base
   // literal IS the route; the methods come from this.host calls in
   // the slice up to the next base assignment (services are defined
-  // sequentially, methods inside their own class body).
+  // sequentially, methods inside their own class body). The base
+  // itself may be a template literal or a variable (branches
+  // (a3)/(a4)/(a5), miner extension) — candidates are resolved in
+  // source order so a `this.host` template base can build on an
+  // earlier base.
   const basePositions = [];
-  for (const m of src.matchAll(/host\s*=\s*this\.hostServer\s*\+\s*["'](\/[^"']+)["']/g)) {
-    basePositions.push({ pos: m.index, path: m[1] });
-    ensure(m[1]);
+  const baseCandidates = [];
+  // (a3) hostServer + quoted/template base literal (existing form,
+  // backtick added): the literal IS the base path.
+  for (const m of src.matchAll(/host\s*=\s*this\.hostServer\s*\+\s*["'`](\/[^"'`]+)["'`]/g)) {
+    baseCandidates.push({ pos: m.index, path: m[1] });
+  }
+  // (a4) template base: host = `${EXPR}/rest/...` — resolve the
+  // leading expression (hostServer = origin, .host = nearest base,
+  // bare ident = literal binding); the remainder is the base path.
+  for (const m of src.matchAll(/host\s*=\s*`(?:\$\{\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*\})([^`]*?)`/g)) {
+    if (!m[2].startsWith('/')) continue;
+    baseCandidates.push({ pos: m.index, templateExpr: m[1], rest: m[2] });
+  }
+  // (a4b) direct template base: host = `/rest/...` (no interpolation).
+  for (const m of src.matchAll(/host\s*=\s*`(\/[^`]*)`/g)) {
+    baseCandidates.push({ pos: m.index, path: m[1] });
+  }
+  // (a5) variable base: host = <ident> + "literal" or host = <ident>.
+  for (const m of src.matchAll(/host\s*=\s*([A-Za-z_$][\w$]*)\s*\+\s*["'`](\/[^"'`]+)["'`]/g)) {
+    baseCandidates.push({ pos: m.index, varIdent: m[1], suffix: m[2] });
+  }
+  for (const m of src.matchAll(/host\s*=\s*([A-Za-z_$][\w$]*)(?=[\s]*[,;}\n]|$)/g)) {
+    baseCandidates.push({ pos: m.index, varIdent: m[1], suffix: '' });
+  }
+  baseCandidates.sort((a, b) => a.pos - b.pos);
+  for (const c of baseCandidates) {
+    let path = null;
+    if (c.path !== undefined) path = c.path;
+    else if (c.templateExpr !== undefined) {
+      const prefix = resolveBaseExpr(c.templateExpr, bindings, basePositions);
+      if (prefix !== null) path = prefix + c.rest;
+    } else if (c.varIdent !== undefined) {
+      const value = bindings.get(c.varIdent);
+      if (value !== undefined && (value === '' || value.startsWith('/'))) {
+        path = value + c.suffix;
+      }
+    }
+    if (path === null || path === '') continue;
+    // Two regexes can match the same assignment — keep the first
+    // candidate per position.
+    if (basePositions.some((b) => b.pos === c.pos)) continue;
+    basePositions.push({ pos: c.pos, path });
+    ensure(path);
   }
 
   // Every http.<method>( call: attribute its route by first-arg shape.
@@ -240,7 +386,7 @@ export function extractJsRouteRecords(bundleText) {
       if (base) {
         const suffixMatch = /^\s*this\.host\s*\+\s*["'`]([^"'`]*)/.exec(trimmed);
         const suffix = suffixMatch ? suffixMatch[1] : '';
-        const { path, queryNames } = splitRoute(base.path + suffix);
+        const { path, queryNames } = splitRoute(base.path + suffix, bindings);
         const rec = ensure(path);
         rec.methods.add(method);
         for (const n of queryNames) rec.queryNames.add(n);
@@ -268,18 +414,18 @@ export function extractJsRouteRecords(bundleText) {
     const hostServerPlus =
       /^\s*(?:this|[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.hostServer\s*\+\s*["'`](\/[^"'`]+)["'`]/.exec(trimmed);
     if (hostServerPlus) {
-      const { path, queryNames } = splitRoute(hostServerPlus[1]);
+      const { path, queryNames } = splitRoute(hostServerPlus[1], bindings);
       const rec = ensure(path);
       rec.methods.add(method);
       for (const n of queryNames) rec.queryNames.add(n);
-      for (const n of queryNamesIn(arg)) rec.queryNames.add(n);
+      for (const n of queryNamesIn(arg, bindings)) rec.queryNames.add(n);
       continue;
     }
     // (b) <ident> + "literal" — the hostServer-prefixed call
     // (minified `Server + "/rest/..."`): the literal is the route.
     const hostPlus = /^\s*[A-Za-z_$][\w$]*\s*\+\s*["'`](\/[^"'`]+)["'`]/.exec(trimmed);
     if (hostPlus) {
-      const { path, queryNames } = splitRoute(hostPlus[1]);
+      const { path, queryNames } = splitRoute(hostPlus[1], bindings);
       const rec = ensure(path);
       rec.methods.add(method);
       for (const n of queryNames) rec.queryNames.add(n);
@@ -305,12 +451,12 @@ export function extractJsRouteRecords(bundleText) {
       /^\s*`(?:\$\{\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*\})([\s\S]*)`\s*$/.exec(trimmed);
     if (templateHost) {
       const rest = templateHost[2];
-      const { path: restPath, queryNames: restQuery } = splitRoute(rest);
+      const { path: restPath, queryNames: restQuery } = splitRoute(rest, bindings);
       if (/^\/(?:rest|api|b2b\/v2|snippets)\//.test(restPath)) {
         const rec = ensure(restPath);
         rec.methods.add(method);
         for (const n of restQuery) rec.queryNames.add(n);
-        for (const n of queryNamesIn(arg)) rec.queryNames.add(n);
+        for (const n of queryNamesIn(arg, bindings)) rec.queryNames.add(n);
         for (const d of pathDescriptorsFor(restPath)) {
           if (!rec.pathDescriptors.some((x) => x.name === d.name && x.segment === d.segment)) {
             rec.pathDescriptors.push(d);
@@ -323,11 +469,11 @@ export function extractJsRouteRecords(bundleText) {
           else break;
         }
         if (base) {
-          const { path, queryNames } = splitRoute(base.path + rest);
+          const { path, queryNames } = splitRoute(base.path + rest, bindings);
           const rec = ensure(path);
           rec.methods.add(method);
           for (const n of queryNames) rec.queryNames.add(n);
-          for (const n of queryNamesIn(arg)) rec.queryNames.add(n);
+          for (const n of queryNamesIn(arg, bindings)) rec.queryNames.add(n);
           for (const d of pathDescriptorsFor(path)) {
             if (!rec.pathDescriptors.some((x) => x.name === d.name && x.segment === d.segment)) {
               rec.pathDescriptors.push(d);
@@ -340,14 +486,14 @@ export function extractJsRouteRecords(bundleText) {
     // (c) direct string/template literal first arg starting with '/'.
     const literal = /^\s*["'`](\/[^"'`]+)["'`]/.exec(trimmed);
     if (literal) {
-      const { path, queryNames } = splitRoute(literal[1]);
+      const { path, queryNames } = splitRoute(literal[1], bindings);
       const rec = ensure(path);
       rec.methods.add(method);
       for (const n of queryNames) rec.queryNames.add(n);
       // Concat args carry extra query params as separate literals
       // ("?current=" + e.current + "&new=" + ...) — harvest them
       // from the whole arg expression.
-      for (const n of queryNamesIn(arg)) rec.queryNames.add(n);
+      for (const n of queryNamesIn(arg, bindings)) rec.queryNames.add(n);
       continue;
     }
     // (d) bare variable / anything else: no route evidence.

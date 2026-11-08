@@ -19,6 +19,7 @@ import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import {
+  collectLiteralBindings,
   discoverJsRoutes,
   extractJsRoutes,
   extractJsRouteRecords,
@@ -638,5 +639,152 @@ describe('runScan integration — re-proof T4b end to end (live Juice pair)', ()
     } finally {
       await new Promise((r) => server.close(r));
     }
+  });
+});
+
+// Template/variable service bases + interpolation-named query params
+// (miner extension, 8 Nov 2026). TEMPLATE_BASE_BUNDLE models the
+// new base forms: backtick base literal, template base with
+// ${this.hostServer}, template base with ${this.host} on an earlier
+// base, variable base (ident + literal), bare variable base.
+// INTERP_PARAM_BUNDLE models interpolation-named query params
+// resolved from single-assignment literals, plus unbound names that
+// must stay unmined. BINDING_DISCIPLINE_BUNDLE models assignments
+// that must NEVER bind (reassigned, concatenated, interpolated).
+const TEMPLATE_BASE_BUNDLE = `
+const API_BASE = "/rest";
+const API2 = "/rest/direct";
+let G = (() => { class n { http; hostServer = et.c.hostServer;
+  host = this.hostServer + \`/rest/tpl\`;
+  constructor(e) { this.http = e; }
+  status() { return this.http.get(this.host + "/status"); }
+} })();
+let H = (() => { class n { http; hostServer = et.c.hostServer;
+  host = \`\${this.hostServer}/rest/tplhost\`;
+  constructor(e) { this.http = e; }
+  ping() { return this.http.get(this.host + "/ping"); }
+} })();
+let I = (() => { class n { http; hostServer = et.c.hostServer;
+  host = API_BASE + "/varbase";
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.host); }
+} })();
+let J = (() => { class n { http; hostServer = et.c.hostServer;
+  host = API2;
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.host + "/go"); }
+} })();
+let K = (() => { class n { http; hostServer = et.c.hostServer;
+  host = this.hostServer + "/rest/parent";
+  constructor(e) { this.http = e; }
+  child() { return this.http.get(\`\${this.host}/child\`); }
+} })();
+`;
+
+const INTERP_PARAM_BUNDLE = `
+const q = "query";
+const qs = "page=1&size=10";
+const qn = "term";
+let L = (() => { class n { http; constructor(e) { this.http = e; }
+  search(v) { return this.http.get(\`/rest/search?\${q}=\${v}\`); }
+  list() { return this.http.get(\`/rest/list?\${qs}\`); }
+  concatCase(v) { return this.http.get("/rest/concat?\${qn}=" + v); }
+  skip(v) { return this.http.get(\`/rest/skip?\${unknown}=\${v}\`); }
+  skipBare() { return this.http.get(\`/rest/skip-bare?\${unknown}\`); }
+} })();
+`;
+
+const BINDING_DISCIPLINE_BUNDLE = `
+let q = "first";
+q = "second";
+let r = "a" + "b";
+let s = \`pre\${x}\`;
+let M = (() => { class n { http; constructor(e) { this.http = e; }
+  a(v) { return this.http.get(\`/rest/a?\${q}=\${v}\`); }
+  b(v) { return this.http.get(\`/rest/b?\${r}=\${v}\`); }
+  c(v) { return this.http.get(\`/rest/c?\${s}=\${v}\`); }
+} })();
+`;
+
+describe('extractJsRouteRecords (template/variable service bases)', () => {
+  test('JS-19: backtick base, template base, variable base, bare variable base all resolve; this.host suffix calls follow', () => {
+    const recs = extractJsRouteRecords(TEMPLATE_BASE_BUNDLE);
+    const byPath = new Map(recs.map((r) => [r.path, r]));
+    for (const base of ['/rest/tpl', '/rest/tplhost', '/rest/varbase', '/rest/direct', '/rest/parent']) {
+      assert.ok(byPath.has(base), `base record ${base} must exist`);
+    }
+    assert.deepEqual(byPath.get('/rest/tpl/status').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/tplhost/ping').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/varbase').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/direct/go').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/parent/child').methods, ['get']);
+    const { targets } = extractJsRoutes(TEMPLATE_BASE_BUNDLE, 'http://example.com/');
+    for (const want of ['/rest/tpl/status', '/rest/tplhost/ping', '/rest/varbase', '/rest/direct/go', '/rest/parent/child']) {
+      assert.ok(targets.some((t) => new URL(t).pathname === want), `expected mined target ${want}`);
+    }
+  });
+});
+
+describe('extractJsRouteRecords (interpolation-named query params)', () => {
+  test('JS-20: ?${name}=v resolves a bound name, ?${qs} parses a bound query string, unbound names stay unmined', () => {
+    const recs = extractJsRouteRecords(INTERP_PARAM_BUNDLE);
+    const byPath = new Map(recs.map((r) => [r.path, r]));
+    assert.deepEqual(byPath.get('/rest/search').queryNames, ['query']);
+    assert.deepEqual(byPath.get('/rest/search').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/list').queryNames, ['page', 'size']);
+    assert.deepEqual(byPath.get('/rest/concat').queryNames, ['term']);
+    assert.deepEqual(byPath.get('/rest/skip').queryNames, []);
+    assert.deepEqual(byPath.get('/rest/skip-bare').queryNames, []);
+    const { targets } = extractJsRoutes(INTERP_PARAM_BUNDLE, 'http://example.com/');
+    assert.ok(targets.some((t) => /\/rest\/search\?query=dmprobe/.test(t)), 'search target must carry the resolved query name');
+    assert.ok(
+      targets.some((t) => /\/rest\/list\?page=dmprobe/.test(t) && t.includes('size=dmprobe')),
+      'list target must carry both parsed query names'
+    );
+    assert.ok(targets.some((t) => /\/rest\/concat\?term=dmprobe/.test(t)), 'concat target must carry the resolved term name');
+  });
+
+  test('JS-21: bindings discipline — reassigned, concatenated, interpolated assignments never bind', () => {
+    const bindings = collectLiteralBindings(BINDING_DISCIPLINE_BUNDLE);
+    assert.equal(bindings.has('q'), false, 'reassigned q must not bind');
+    assert.equal(bindings.has('r'), false, 'concatenated r must not bind');
+    assert.equal(bindings.has('s'), false, 'interpolated s must not bind');
+    assert.equal(collectLiteralBindings('const a = "x";').get('a'), 'x');
+    assert.equal(collectLiteralBindings('let a = "x"; a = "y";').size, 0);
+    assert.equal(collectLiteralBindings('').size, 0);
+    assert.equal(collectLiteralBindings(null).size, 0);
+    const recs = extractJsRouteRecords(BINDING_DISCIPLINE_BUNDLE);
+    const byPath = new Map(recs.map((r) => [r.path, r]));
+    assert.deepEqual(byPath.get('/rest/a').queryNames, []);
+    assert.deepEqual(byPath.get('/rest/b').queryNames, []);
+    assert.deepEqual(byPath.get('/rest/c').queryNames, []);
+  });
+});
+
+describe('discoverJsRoutes (miner extension end to end)', () => {
+  test('JS-22: template bases + interpolation params mine end to end through discoverJsRoutes', async () => {
+    const fetchPage = stubFetchFor(JUICE_SHELL, {
+      'runtime.js': 'var r = 1;',
+      'polyfills.js': 'var p = 1;',
+      'vendor.js': 'var v = 1;',
+      'main.js': TEMPLATE_BASE_BUNDLE,
+    });
+    const found = await discoverJsRoutes('http://example.com/', { fetchPage });
+    assert.equal(found.routesFound, true);
+    assert.equal(found.bundlesFetched, 4);
+    for (const want of ['/rest/tpl/status', '/rest/tplhost/ping', '/rest/varbase', '/rest/direct/go', '/rest/parent/child']) {
+      assert.ok(found.targets.some((t) => new URL(t).pathname === want), `expected mined target ${want}`);
+    }
+    const found2 = await discoverJsRoutes('http://example.com/', {
+      fetchPage: stubFetchFor(JUICE_SHELL, {
+        'runtime.js': 'var r = 1;',
+        'polyfills.js': 'var p = 1;',
+        'vendor.js': 'var v = 1;',
+        'main.js': INTERP_PARAM_BUNDLE,
+      }),
+    });
+    assert.equal(found2.routesFound, true);
+    assert.ok(found2.targets.some((t) => /\/rest\/search\?query=dmprobe/.test(t)));
+    assert.ok(found2.targets.some((t) => /\/rest\/list\?page=dmprobe/.test(t)));
   });
 });
