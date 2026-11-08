@@ -8,11 +8,13 @@
 //       /eval /console /debug path tokens, language error strings.
 //   D2. Arithmetic oracle — HIGH: submit benign expression 1336*7; if the
 //       response contains 9352 (and the inert baseline does not), the input
-//       was evaluated as code. Read-only, non-destructive.
+//       was evaluated as code. Read-only, non-destructive. Guarded by the
+//       strip + repeat-confirm oracles in oracleGuards.js (proof #18:
+//       a fresh per-request token can contain 9352).
 //   D3. Blind timing oracle — HIGH: per-stack benign delay expression;
 //       median-of-3, >=2.5s delta on 2/3 runs.
 //   D4. Expression-language shapes — HIGH: ${1336*7} / %{1336*7} on
-//       Java-fingerprint targets; same verbatim-9352 rule.
+//       Java-fingerprint targets; same verbatim-9352 rule, same guards.
 //   D6. Error-oracle smell — MEDIUM/INFO: unbalanced input surfacing
 //       language parse errors (evaluation sink exposed, not proven).
 //
@@ -21,6 +23,7 @@
 // confirmation of execution impact is a human step. Destructive primitives
 // are never probed. Per-run canary. $0, no new deps.
 import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { stripVolatileValues, sameReflectionPoint } from './oracleGuards.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -72,8 +75,17 @@ async function d2Arithmetic(url, surfaces, opts) {
     // Benign arithmetic expression — valid in PHP, Node, Python, Ruby, ELs.
     const r = await getText(mutateUrl(url, p, '1336*7'), opts);
     if (!r || !rBase) continue;
-    if (r.text.includes('9352') && !rBase.text.includes('9352')) {
-      out.push({ param: p, kind: 'arithmetic' });
+    // Guard (a): strip per-request random values from both bodies, so the
+    // oracle can never match inside a fresh token (proof #18).
+    const cleanBase = stripVolatileValues(rBase.text);
+    const clean = stripVolatileValues(r.text);
+    if (clean.includes('9352') && !cleanBase.includes('9352')) {
+      // Guard (b): repeat the payload request — a genuine evaluation
+      // renders into the same static template slot every time.
+      const r2 = await getText(mutateUrl(url, p, '1336*7'), opts);
+      if (r2 && sameReflectionPoint(clean, stripVolatileValues(r2.text), '9352')) {
+        out.push({ param: p, kind: 'arithmetic' });
+      }
     } else if (EVAL_ERR_RES.test(r.text) && !EVAL_ERR_RES.test(rBase.text)) {
       out.push({ param: p, kind: 'error-smell', sample: r.text.slice(0, 300) });
     }
@@ -107,17 +119,26 @@ async function d4EL(url, surfaces, opts) {
   const out = [];
   for (const p of surfaces.slice(0, 3)) {
     if (p === '(path)') continue;
-    // Baseline first: 9352 must be ABSENT from the inert response, exactly
-    // like D2 (:78) — without it a coincidental 9352 (token, id, timestamp)
-    // fires a HIGH finding (same bare-oracle shape as the retracted EL 49).
+    // Baseline first: 9352 must be ABSENT from the inert response — without
+    // it a coincidental 9352 (token, id, timestamp) fires a HIGH finding.
+    // Proof #18 proved the coincidence is real (fresh 32-hex token), so
+    // the baseline AND the payload body are stripped of per-request random
+    // values first, and a candidate must re-appear at the same reflection
+    // point in a repeat request.
     const rBase = await getText(mutateUrl(url, p, 'DMEVAL-BASELINE'), opts);
     if (!rBase) continue;
+    const cleanBase = stripVolatileValues(rBase.text);
     for (const shape of ['${1336*7}', '%{1336*7}']) {
       const r = await getText(mutateUrl(url, p, shape), opts);
-      if (r && r.text.includes('9352') && !rBase.text.includes('9352')) {
-        const idx = r.text.indexOf('9352');
-        out.push({ param: p, kind: 'el', shape, window: r.text.slice(Math.max(0, idx - 60), idx + 60) });
-        break;
+      if (!r) continue;
+      const clean = stripVolatileValues(r.text);
+      if (clean.includes('9352') && !cleanBase.includes('9352')) {
+        const r2 = await getText(mutateUrl(url, p, shape), opts);
+        if (r2 && sameReflectionPoint(clean, stripVolatileValues(r2.text), '9352')) {
+          const idx = clean.indexOf('9352');
+          out.push({ param: p, kind: 'el', shape, window: clean.slice(Math.max(0, idx - 60), idx + 60) });
+          break;
+        }
       }
     }
   }

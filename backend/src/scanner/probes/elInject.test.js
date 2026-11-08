@@ -9,6 +9,15 @@ describe('elInject probe', () => {
   let port;
   const base = () => `http://127.0.0.1:${port}`;
 
+  // Fresh per-request 32-hex CSRF token, built by concatenation (never a
+  // single secret-shaped literal). Same proof-#18 shape as the SSTI probe.
+  let tokenSeq = 0;
+  function freshToken(withOracle) {
+    tokenSeq += 1;
+    const seq = String(tokenSeq).padStart(2, '0');
+    return 'd9516f' + seq + (withOracle ? '9352' : '4177') + '3765cd44c03913e4c7c';
+  }
+
   before(async () => {
     server = http.createServer((req, res) => {
       const u = new URL(req.url, base());
@@ -19,6 +28,13 @@ describe('elInject probe', () => {
         if (q === '${1336*7}' || q === '#{1336*7}') out = 'result: 9352';
         else if (q.includes('dmElTest')) out = 'result: dmElTest';
         else out = 'result: baseline-ok'; // no echo — control never carries the oracle
+      } else if (u.pathname === '/login') {
+        // Proof-#18 FP shape: every response carries a fresh 32-hex
+        // hidden user_token. The EL-payload responses' tokens happen to
+        // contain 9352; the control's token does not. The page never
+        // evaluates — any finding here is a false positive.
+        const token = freshToken(q === '${1336*7}' || q === '#{1336*7}');
+        out = `<form><input type="hidden" name="user_token" value="${token}">login</form>`;
       } else if (u.pathname === '/stronly') {
         // Evaluates only the string-method shape; math shapes reflect.
         if (q.includes('dmElTest')) out = 'result: dmElTest';
@@ -80,5 +96,19 @@ describe('elInject probe', () => {
 
   it('returns [] for unparseable URLs', async () => {
     assert.deepEqual(await probeElInject('not a url', ['q'], { timeoutMs: 1000 }), []);
+  });
+
+  it('stays silent when 9352 hides inside a fresh hidden token (proof-#18 FP)', async () => {
+    // Exact proof-#18 shape, EL flavour: payload tokens contain 9352,
+    // control token does not, page never evaluates. Must be [].
+    const findings = await probeElInject(`${base()}/login`, ['q'], { timeoutMs: 8000 });
+    assert.deepEqual(findings, [], 'a 9352 inside a per-request hidden token is not an EL evaluation');
+  });
+
+  it('fires exactly once on a stable visible evaluation (repeat-confirmed)', async () => {
+    const findings = await probeElInject(`${base()}/eval`, ['q'], { timeoutMs: 8000 });
+    assert.equal(findings.length, 1, `expected exactly 1 finding, got ${JSON.stringify(findings.map((x) => x.id))}`);
+    assert.equal(findings[0].class, 'el_injection');
+    assert.equal(findings[0].severity, 'high');
   });
 });

@@ -136,4 +136,59 @@ describe('evalInject probe', () => {
       await new Promise((r) => both.close(r));
     }
   });
+
+  it('D2 stays silent when 9352 hides inside a fresh hidden token (proof-#18 FP)', async () => {
+    // Proof-#18 FP shape, D2 flavour: every response carries a fresh
+    // 32-hex hidden user_token; the 1336*7 response's token happens to
+    // contain 9352, the baseline's does not. Nothing evaluates.
+    let n = 0;
+    const token = (withOracle) => {
+      n += 1;
+      const seq = String(n).padStart(2, '0');
+      return 'd9516f' + seq + (withOracle ? '9352' : '4177') + '3765cd44c03913e4c7c';
+    };
+    const srv = http.createServer((req, res) => {
+      const u = new URL(req.url, base());
+      const code = u.searchParams.get('code') || '';
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      const tok = token(code === '1336*7');
+      res.end(`<html><form><input type="hidden" name="user_token" value="${tok}">result: DMEVAL-BASELINE</form></html>`);
+    });
+    await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+    const p = srv.address().port;
+    try {
+      const findings = await probeEvalInject(`http://127.0.0.1:${p}/run`, ['code'], { timeoutMs: 15000 });
+      assert.deepEqual(findings, [], 'a 9352 inside a per-request hidden token is not code evaluation');
+    } finally {
+      await new Promise((r) => srv.close(r));
+    }
+  });
+
+  it('D4 stays silent when 9352 hides inside a fresh hidden token (proof-#18 FP)', async () => {
+    // Proof-#18 FP shape, D4 flavour: plain 1336*7 does not evaluate
+    // (clean token), but the EL-shape responses' tokens happen to contain
+    // 9352. Nothing evaluates.
+    let n = 0;
+    const token = (withOracle) => {
+      n += 1;
+      const seq = String(n).padStart(2, '0');
+      return 'd9516f' + seq + (withOracle ? '9352' : '4177') + '3765cd44c03913e4c7c';
+    };
+    const srv = http.createServer((req, res) => {
+      const u = new URL(req.url, base());
+      const code = u.searchParams.get('code') || '';
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      const tok = token(code === '${1336*7}' || code === '%{1336*7}');
+      res.end(`<html><form><input type="hidden" name="user_token" value="${tok}">result: DMEVAL-BASELINE</form></html>`);
+    });
+    await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+    const p = srv.address().port;
+    try {
+      const findings = await probeEvalInject(`http://127.0.0.1:${p}/run`, ['code'], { timeoutMs: 15000 });
+      assert.ok(!findings.some((x) => x.id.startsWith('eval-el-')), 'a 9352 inside a per-request hidden token must not fire D4');
+      assert.deepEqual(findings, [], 'no D2/D3/D4 finding may fire on the token FP shape');
+    } finally {
+      await new Promise((r) => srv.close(r));
+    }
+  });
 });

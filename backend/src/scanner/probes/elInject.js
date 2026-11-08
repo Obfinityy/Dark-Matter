@@ -14,10 +14,19 @@
 //      the EVALUATED result (9352) while the literal payload is NOT
 //      reflected, the server executed the expression: confirmed EL
 //      injection. A literal reflection of ${1336*7} is never a finding.
+//   3. Guards (oracleGuards.js, proof #18, 8 Nov 2026): the oracle must
+//      not match inside a per-request random value — hidden input values
+//      and long hex/token-looking attribute values are stripped from
+//      BOTH bodies before the differential, and the evaluated value must
+//      re-appear at the SAME reflection point in a repeat payload
+//      request. A fresh 32-hex CSRF token can contain 9352 (DVWA
+//      login.php did exactly that); the old "9352 cannot coincide"
+//      claim is FALSE.
 // Read-only GET, per-input unique canaries, redirect: manual.
 
 import { randomBytes } from 'node:crypto';
 import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { stripVolatileValues, sameReflectionPoint } from './oracleGuards.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -46,7 +55,8 @@ async function getText(url, opts = {}) {
 // string-method shape so string evaluation is distinguished from math
 // coincidence. The oracle token (9352 / dmElTest) is unique to the payload:
 // 9352 is a distinctive 4-digit product — a bare 49 can coincide with a
-// random token substring, 9352 cannot.
+// random token substring, and (proof #18) so can 9352 inside a fresh
+// 32-hex token, which is why the strip + repeat guards below apply.
 const EL_PAYLOADS = [
   { payload: '${1336*7}', expect: '9352' },
   { payload: '#{1336*7}', expect: '9352' },
@@ -60,22 +70,40 @@ export async function probeElInject(url, params, opts = {}) {
   const payloads = depth === 'quick' ? EL_PAYLOADS.slice(0, 1) : EL_PAYLOADS.slice(0, 3);
   for (const param of (params || []).slice(0, 10)) {
     // Control: unique filler canary — never empty==empty, proves 49 is new.
-    let control;
+    let controlRaw;
     try {
-      control = await getText(mutateUrl(url, param, `dm_${rand()}`), opts);
+      controlRaw = await getText(mutateUrl(url, param, `dm_${rand()}`), opts);
     } catch {
       continue;
     }
+    // Guard (a): strip per-request random values from the control before
+    // the differential.
+    const control = stripVolatileValues(controlRaw);
     for (const { payload, expect } of payloads) {
-      let body;
+      let bodyRaw;
       try {
-        body = await getText(mutateUrl(url, param, payload), opts);
+        bodyRaw = await getText(mutateUrl(url, param, payload), opts);
       } catch {
         continue;
       }
+      // Guard (a): strip per-request random values from the payload body
+      // too, so the oracle can never match inside a fresh token.
+      const body = stripVolatileValues(bodyRaw);
       // Fire ONLY on the evaluation differential: oracle result present,
       // literal payload absent, oracle absent from the control response.
-      if (body.includes(expect) && !body.includes(payload) && !control.includes(expect)) {
+      if (body.includes(expect) && !bodyRaw.includes(payload) && !control.includes(expect)) {
+        // Guard (b): repeat the payload request — a genuine evaluation
+        // renders into the same static template slot every time; a
+        // random-token coincidence lands elsewhere and changes on every
+        // request.
+        let body2Raw;
+        try {
+          body2Raw = await getText(mutateUrl(url, param, payload), opts);
+        } catch {
+          continue;
+        }
+        if (body2Raw.includes(payload)) continue;
+        if (!sameReflectionPoint(body, stripVolatileValues(body2Raw), expect)) continue;
         const idx = body.indexOf(expect);
         const window = body.slice(Math.max(0, idx - 60), idx + 60);
         findings.push({
@@ -87,7 +115,7 @@ export async function probeElInject(url, params, opts = {}) {
           parameter: probePointParameter(param),
           evidence: {
             request: `GET ${mutateUrl(url, param, payload)}`,
-            response: `payload evaluated to '${expect}' (literal '${payload}' absent; oracle absent in control) — "...${window}..."`,
+            response: `payload evaluated to '${expect}' (literal '${payload}' absent; oracle absent in control; repeat request confirmed the same reflection point) — "...${window}..."`,
             impact_demo: `EL expression ${payload} executed server-side — input reaches an EL evaluator`,
             signalCorrelated: true,
           },
