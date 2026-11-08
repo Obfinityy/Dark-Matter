@@ -1,22 +1,27 @@
-// Authenticated DOM render (CDP authenticated-DOM-render lane, 8 Nov 2026).
+// Authenticated DOM render (CDP authenticated-DOM-render lane, 8 Nov 2026;
+// host-network repair lane, 8 Nov 2026).
 //
 // renderDomAuthenticated starts a detached headless chromium with a
 // remote-debugging port, drives it through the standalone CDP client,
 // injects the lab session, and returns the rendered DOM. Docker and
 // CDP are both stubbed here — unit tests must never spawn a real
 // browser. The container command itself is proven live on EC2, not
-// in this file.
+// in this file: --network host, fixed http://127.0.0.1:9222. There
+// is NO `docker port` call anywhere in the production path (the
+// bridge-gateway repair parsed `docker port <id> 9222` output from
+// an assumed shape and failed on every live run — see
+// authDomRender.js header), so the fake runner below throws on a
+// 'port' call: any test that triggers one fails loudly.
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   renderDomAuthenticated,
   buildCdpContainerRunArgs,
-  buildCdpContainerPortArgs,
   buildCdpContainerRmArgs,
-  parseDockerPortOutput,
-  parseDockerPortEndpoint,
   mergeAuthAnalysis,
   AUTH_RENDER_DEBUG_HOST,
+  AUTH_RENDER_DEBUG_ENDPOINT,
+  AUTH_RENDER_CDP_PORT,
 } from './authDomRender.js';
 import { DOM_RENDER_IMAGE } from './domRender.js';
 
@@ -67,9 +72,11 @@ function makeFakeCdp({ navigateThrows = false } = {}) {
   return client;
 }
 
-// Fake docker runner: run -d starts a container, port publishes a
-// bridge-gateway debug port, rm -f removes it. Records every call.
-function makeRunner({ runOk = true, portStdout = '9222/tcp -> 172.17.0.1:49153\n' } = {}) {
+// Fake docker runner: run -d starts a container, rm -f removes it.
+// Records every call. There is deliberately NO 'port' branch: the
+// production path never calls `docker port`, so a runner that
+// answers one would hide a regression — an unexpected call throws.
+function makeRunner({ runOk = true } = {}) {
   const calls = [];
   const runner = async (file, args) => {
     calls.push({ file, args });
@@ -77,7 +84,6 @@ function makeRunner({ runOk = true, portStdout = '9222/tcp -> 172.17.0.1:49153\n
       if (!runOk) return { ok: false, code: 1, stdout: '', stderr: 'Cannot connect to the Docker daemon', timedOut: false };
       return { ok: true, code: 0, stdout: 'abc123def456\n', stderr: '', timedOut: false };
     }
-    if (args[0] === 'port') return { ok: true, code: 0, stdout: portStdout, stderr: '', timedOut: false };
     if (args[0] === 'rm') return { ok: true, code: 0, stdout: 'abc123def456\n', stderr: '', timedOut: false };
     throw new Error(`unexpected docker call ${args.join(' ')}`);
   };
@@ -85,13 +91,13 @@ function makeRunner({ runOk = true, portStdout = '9222/tcp -> 172.17.0.1:49153\n
 }
 
 describe('container command builders (pure)', () => {
-  test('AUTH-1: the detached-browser command publishes a random bridge-gateway debug port and overrides the entrypoint', () => {
+  test('AUTH-1: the detached-browser command shares the host network and overrides the entrypoint — nothing is published', () => {
     assert.deepEqual(buildCdpContainerRunArgs('img:test'), [
       'run',
       '-d',
       '--rm',
-      '-p',
-      '172.17.0.1:0:9222',
+      '--network',
+      'host',
       '--entrypoint',
       'chromium',
       'img:test',
@@ -103,16 +109,14 @@ describe('container command builders (pure)', () => {
       'about:blank',
     ]);
     assert.ok(buildCdpContainerRunArgs().includes(DOM_RENDER_IMAGE));
-    assert.deepEqual(buildCdpContainerPortArgs('abc123'), ['port', 'abc123', '9222']);
+    assert.ok(!buildCdpContainerRunArgs('img:test').includes('-p'), 'no port is ever published');
     assert.deepEqual(buildCdpContainerRmArgs('abc123'), ['rm', '-f', 'abc123']);
   });
 
-  test('AUTH-2: docker port output parses to the host port; garbage yields null', () => {
-    assert.equal(parseDockerPortOutput('9222/tcp -> 127.0.0.1:49153\n'), 49153);
-    assert.equal(parseDockerPortOutput('9222/tcp -> 0.0.0.0:9222'), 9222);
-    assert.equal(parseDockerPortOutput(''), null);
-    assert.equal(parseDockerPortOutput('no port here'), null);
-    assert.equal(parseDockerPortOutput('9222/tcp -> 127.0.0.1:99999'), null);
+  test('AUTH-2: the CDP endpoint is the fixed host loopback — never parsed from docker output', () => {
+    assert.equal(AUTH_RENDER_CDP_PORT, 9222);
+    assert.equal(AUTH_RENDER_DEBUG_HOST, '127.0.0.1');
+    assert.equal(AUTH_RENDER_DEBUG_ENDPOINT, 'http://127.0.0.1:9222');
   });
 });
 
@@ -121,7 +125,7 @@ describe('renderDomAuthenticated (stubbed docker + CDP)', () => {
     const { runner, calls: dockerCalls } = makeRunner();
     const fakeClient = makeFakeCdp();
     const cdpConnect = async (endpoint) => {
-      assert.match(endpoint, /^http:\/\/172\.17\.0\.1:49153$/);
+      assert.match(endpoint, /^http:\/\/127\.0\.0\.1:9222$/);
       return { ok: true, client: fakeClient };
     };
     const r = await renderDomAuthenticated('http://172.17.0.1:3000/#/account', SESSION, {
@@ -131,10 +135,11 @@ describe('renderDomAuthenticated (stubbed docker + CDP)', () => {
     });
     assert.equal(r.ok, true);
     assert.equal(r.html, '<html><body>authed</body></html>');
-    // Docker lifecycle: run -d, port, rm -f — in that order.
+    // Docker lifecycle: run -d, rm -f — in that order. No `docker
+    // port` call exists in the production path anymore.
     assert.deepEqual(
       dockerCalls.map((c) => c.args[0]),
-      ['run', 'port', 'rm'],
+      ['run', 'rm'],
     );
     assert.equal(dockerCalls[0].args[1], '-d');
     // Session injection precedes navigation: the cookie and the
@@ -192,7 +197,7 @@ describe('renderDomAuthenticated (stubbed docker + CDP)', () => {
     assert.equal(r.ok, false);
     assert.match(r.error, /connection refused/);
     assert.equal(connects, 3, 'the connect must be retried, bounded');
-    assert.deepEqual(calls.map((c) => c.args[0]), ['run', 'port', 'rm']);
+    assert.deepEqual(calls.map((c) => c.args[0]), ['run', 'rm']);
   });
 
   test('AUTH-7: a navigation failure fails honestly and still removes the container', async () => {
@@ -205,35 +210,32 @@ describe('renderDomAuthenticated (stubbed docker + CDP)', () => {
     });
     assert.equal(r.ok, false);
     assert.match(r.error, /navigation failed/);
-    assert.deepEqual(calls.map((c) => c.args[0]), ['run', 'port', 'rm']);
+    assert.deepEqual(calls.map((c) => c.args[0]), ['run', 'rm']);
   });
 });
 
-describe('bridge-gateway connect target (8 Nov 2026 repair lane)', () => {
-  test('AUTH-9: the builder publishes on the bridge gateway by default, never on loopback; the publish host is overridable', () => {
-    assert.equal(AUTH_RENDER_DEBUG_HOST, '172.17.0.1');
+describe('host-network connect target (8 Nov 2026 host-network repair lane)', () => {
+  test('AUTH-9: the builder shares the host network and never publishes a port — no loopback or gateway publish exists to get wrong', () => {
+    assert.equal(AUTH_RENDER_DEBUG_HOST, '127.0.0.1');
     const args = buildCdpContainerRunArgs('img:test');
-    assert.equal(args[args.indexOf('-p') + 1], '172.17.0.1:0:9222');
-    assert.ok(!args.join(' ').includes('127.0.0.1'), 'the default publish must not mention loopback');
-    const overridden = buildCdpContainerRunArgs('img:test', '127.0.0.1');
-    assert.equal(overridden[overridden.indexOf('-p') + 1], '127.0.0.1:0:9222');
-    const blank = buildCdpContainerRunArgs('img:test', '');
-    assert.equal(blank[blank.indexOf('-p') + 1], '172.17.0.1:0:9222');
+    assert.deepEqual(args.slice(args.indexOf('--network'), args.indexOf('--network') + 2), ['--network', 'host']);
+    assert.ok(!args.includes('-p'), 'the run args must contain no -p publish');
+    assert.ok(!args.join(' ').includes('172.17.0.1'), 'no bridge-gateway publish remains');
+    // The builder takes the image only now: a stale second
+    // positional arg (the old publishHost) changes nothing.
+    assert.deepEqual(
+      buildCdpContainerRunArgs('img:test', '172.17.0.1'),
+      buildCdpContainerRunArgs('img:test'),
+    );
   });
 
-  test('AUTH-10: docker port output parses to the full CDP endpoint; garbage yields null', () => {
-    assert.equal(parseDockerPortEndpoint('9222/tcp -> 172.17.0.1:49153\n'), 'http://172.17.0.1:49153');
-    assert.equal(parseDockerPortEndpoint('9222/tcp -> 127.0.0.1:9222'), 'http://127.0.0.1:9222');
-    assert.equal(parseDockerPortEndpoint('9222/tcp -> 172.17.0.1:50001'), 'http://172.17.0.1:50001');
-    assert.equal(parseDockerPortEndpoint(''), null);
-    assert.equal(parseDockerPortEndpoint('no port here'), null);
-    assert.equal(parseDockerPortEndpoint('9222/tcp -> 172.17.0.1:99999'), null);
-    assert.equal(parseDockerPortEndpoint('9222/tcp -> 172.17.0.1:0'), null);
-    assert.equal(parseDockerPortEndpoint('9222/tcp -> :49153'), null);
-  });
-
-  test('AUTH-11: the CDP client connects to the endpoint docker actually bound — not a hardcoded host', async () => {
-    const { runner, calls: dockerCalls } = makeRunner({ portStdout: '9222/tcp -> 172.17.0.1:50001\n' });
+  test('AUTH-10: the production path never calls `docker port` — the endpoint is fixed, not parsed', async () => {
+    // The fake runner throws on a 'port' call, so reaching success
+    // here proves the render never asks docker for a port. This
+    // pins the proof-#14 root cause: `docker port <id> 9222`
+    // prints the BARE form `172.17.0.1:32769`, which the old
+    // parser (requiring `9222/tcp -> ...`) rejected on every run.
+    const { runner, calls: dockerCalls } = makeRunner();
     const fakeClient = makeFakeCdp();
     let seenEndpoint = null;
     const cdpConnect = async (endpoint) => {
@@ -246,27 +248,12 @@ describe('bridge-gateway connect target (8 Nov 2026 repair lane)', () => {
       connectDelayMs: 0,
     });
     assert.equal(r.ok, true);
-    assert.equal(seenEndpoint, 'http://172.17.0.1:50001', 'the endpoint must follow docker port output');
-    assert.ok(!seenEndpoint.includes('127.0.0.1'), 'the loopback RST target must never be dialled');
-    assert.equal(dockerCalls[0].args[dockerCalls[0].args.indexOf('-p') + 1], '172.17.0.1:0:9222');
+    assert.equal(seenEndpoint, 'http://127.0.0.1:9222', 'the endpoint must be the fixed host loopback');
+    assert.deepEqual(dockerCalls.map((c) => c.args[0]), ['run', 'rm']);
   });
 
-  test('AUTH-12: a docker port answer with no endpoint fails honestly and still removes the container', async () => {
-    const { runner, calls } = makeRunner({ portStdout: 'nothing published\n' });
-    const fakeClient = makeFakeCdp();
-    const r = await renderDomAuthenticated('http://example.com/', SESSION, {
-      runner,
-      cdpConnect: async () => ({ ok: true, client: fakeClient }),
-      connectDelayMs: 0,
-    });
-    assert.equal(r.ok, false);
-    assert.match(r.error, /published no debug port/);
-    assert.deepEqual(calls.map((c) => c.args[0]), ['run', 'port', 'rm']);
-    assert.equal(fakeClient.calls.length, 0, 'CDP must never run without a parsed endpoint');
-  });
-
-  test('AUTH-13: opts.publishHost is honored in the run args and the endpoint follows it', async () => {
-    const { runner, calls: dockerCalls } = makeRunner({ portStdout: '9222/tcp -> 127.0.0.1:49999\n' });
+  test('AUTH-11: the removed publishHost seam cannot resurrect the old path — it is ignored', async () => {
+    const { runner, calls: dockerCalls } = makeRunner();
     const fakeClient = makeFakeCdp();
     let seenEndpoint = null;
     const r = await renderDomAuthenticated('http://example.com/', SESSION, {
@@ -275,12 +262,13 @@ describe('bridge-gateway connect target (8 Nov 2026 repair lane)', () => {
         seenEndpoint = endpoint;
         return { ok: true, client: fakeClient };
       },
-      publishHost: '127.0.0.1',
+      publishHost: '172.17.0.1',
       connectDelayMs: 0,
     });
     assert.equal(r.ok, true);
-    assert.equal(dockerCalls[0].args[dockerCalls[0].args.indexOf('-p') + 1], '127.0.0.1:0:9222');
-    assert.equal(seenEndpoint, 'http://127.0.0.1:49999');
+    assert.equal(seenEndpoint, 'http://127.0.0.1:9222');
+    assert.ok(!dockerCalls[0].args.includes('-p'), 'a stale publishHost must not re-add a publish');
+    assert.deepEqual(dockerCalls.map((c) => c.args[0]), ['run', 'rm']);
   });
 });
 

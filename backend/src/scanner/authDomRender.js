@@ -13,39 +13,42 @@
 // into discoverDomForms as a drop-in renderer.
 //
 // BROWSER LIFECYCLE (transient container, same image as domRender):
-//   docker run -d --rm -p 172.17.0.1:0:9222 --entrypoint chromium
+//   docker run -d --rm --network host --entrypoint chromium
 //     <image> --headless=new --no-sandbox --disable-gpu
 //     --remote-debugging-port=9222 --remote-debugging-address=0.0.0.0
 //     about:blank
 // The container is removed (`docker rm -f`) in a finally block —
-// a render that dies mid-flight must not leak a browser. The host
-// port is docker-assigned (172.17.0.1:0) and read back with
-// `docker port <id> 9222`, so parallel scans never collide on a
-// fixed port. The CDP endpoint is the docker bridge gateway
-// (172.17.0.1 — the same host-only address the OOB collaborator
-// and the SMTP canary sink already bind on): the browser is never
-// exposed beyond the backend host, and 0.0.0.0 is never published.
+// a render that dies mid-flight must not leak a browser. With
+// --network host the browser binds the HOST loopback directly, so
+// the CDP endpoint is the fixed http://127.0.0.1:9222 — no port
+// is published, no `docker port` call is made, no endpoint is
+// parsed. The browser is never exposed beyond the backend host:
+// it listens on loopback only, and 0.0.0.0 is never published.
 //
-// WHY THE BRIDGE GATEWAY, NOT LOOPBACK (8 Nov 2026 repair lane):
-// the first version published `-p 127.0.0.1:0:9222` and connected
-// to http://127.0.0.1:<port>. Live on EC2 that connect FAILS — the
-// mapped port accepts the TCP connection then resets it (curl: (56)
-// Recv failure: Connection reset by peer), while the browser
-// itself is healthy (inside the container,
-// http://127.0.0.1:9222/json/version answers). The endpoint never
-// answers even after 30s of polling, so this is not a timing
-// issue and no retry window fixes it — the connect TARGET had to
-// change. Publishing on the bridge gateway is proven on this box:
-// lab-xxe publishes 172.17.0.1:3500 and answers HTTP 200, while
-// 127.0.0.1:3500 returns 000 by design. The rejected
-// alternative was `docker inspect` for the container's bridge IP:
-// it needs an extra docker call plus Networks-map parsing (the
-// .NetworkSettings.IPAddress field is EMPTY on this box), and the
-// gateway publish achieves the same reachability with the existing
-// three docker calls (run, port, rm) and no new parsing shape.
-// opts.publishHost overrides the gateway for hosts whose docker
-// bridge differs; the endpoint is always parsed from `docker port`
-// output, never assumed from the publish arg.
+// WHY HOST NETWORK, NOT A PUBLISHED PORT (8 Nov 2026, two repair
+// lanes — both proven live on EC2, proof #14):
+// (1) The bridge-gateway repair published `-p 172.17.0.1:0:9222`
+// and parsed the endpoint from `docker port <id> 9222`. That
+// command prints the BARE form `172.17.0.1:32769`, but the parser
+// required the full `9222/tcp -> 172.17.0.1:49153` shape (which
+// only the no-arg `docker port <id>` prints) — so it returned
+// null on every live run and the hunt failed with 'browser
+// container published no debug port'. Never parse docker's output
+// from an assumed shape again.
+// (2) Even with a correct parse, the connect could not work: this
+// Chrome build (154.0.8037.92, --headless=new) IGNORES
+// --remote-debugging-address=0.0.0.0 — /proc/net/tcp inside the
+// container proves DevTools listens on 127.0.0.1:9222 ONLY. Host
+// connects to a published port fail (127.0.0.1 publish: RST, curl
+// 56; 172.17.0.1 publish: instant Connection refused; direct
+// bridge-IP connect: 000), while the browser answers inside the
+// container and a fresh lab-xxe publish answers 200 — the
+// forwarding, not the browser, is broken for this container.
+// --network host sidesteps both: the debug port IS a host
+// loopback socket (curl http://127.0.0.1:9222/json/version -> 200,
+// proven live twice). Fixed-port collision note: MAX_CONCURRENT_
+// HUNTS=1 and the dom-render phase runs once per hunt, so only
+// one auth browser ever exists at a time.
 //
 // SAFETY: lab-gated by the caller (acquireLabSession already
 // refused non-lab targets); this module itself never sees
@@ -65,27 +68,28 @@ export const AUTH_RENDER_CDP_PORT = 9222;
 export const AUTH_RENDER_CONNECT_ATTEMPTS = 5;
 export const AUTH_RENDER_CONNECT_DELAY_MS = 500;
 export const AUTH_RENDER_TIMEOUT_MS = 60000;
-// Docker bridge gateway on the EC2 host — the host-only address
-// the debug port is published on (see the header note). Same
-// convention as the OOB collaborator's DEFAULT_CALLBACK_HOST.
-export const AUTH_RENDER_DEBUG_HOST = '172.17.0.1';
+// Host loopback: with --network host the browser binds the host's
+// own 127.0.0.1:9222 (see the header note) — the CDP endpoint is
+// fixed, never published, never parsed from docker output.
+export const AUTH_RENDER_DEBUG_HOST = '127.0.0.1';
+export const AUTH_RENDER_DEBUG_ENDPOINT = `http://${AUTH_RENDER_DEBUG_HOST}:${AUTH_RENDER_CDP_PORT}`;
 
 /**
  * Pure builder for the detached-browser container command. The
  * --entrypoint override is load-bearing (same as domRender's
  * --dump-dom command): without it the hunt image's ENTRYPOINT
- * (/opt/hunt/run.sh) swallows the chromium args. publishHost is
- * the interface the debug port binds on (default: the bridge
- * gateway); the port itself stays docker-assigned (:0) so parallel
- * scans never collide.
+ * (/opt/hunt/run.sh) swallows the chromium args. --network host
+ * is load-bearing too (see the header note): it puts the debug
+ * port on the host loopback, so there is NO -p publish and no
+ * `docker port` lookup afterwards.
  */
-export function buildCdpContainerRunArgs(image, publishHost = AUTH_RENDER_DEBUG_HOST) {
+export function buildCdpContainerRunArgs(image) {
   return [
     'run',
     '-d',
     '--rm',
-    '-p',
-    `${publishHost || AUTH_RENDER_DEBUG_HOST}:0:${AUTH_RENDER_CDP_PORT}`,
+    '--network',
+    'host',
     '--entrypoint',
     'chromium',
     image || DOM_RENDER_IMAGE,
@@ -98,40 +102,8 @@ export function buildCdpContainerRunArgs(image, publishHost = AUTH_RENDER_DEBUG_
   ];
 }
 
-export function buildCdpContainerPortArgs(containerId) {
-  return ['port', String(containerId), String(AUTH_RENDER_CDP_PORT)];
-}
-
 export function buildCdpContainerRmArgs(containerId) {
   return ['rm', '-f', String(containerId)];
-}
-
-/**
- * Parse `docker port <id> 9222` output ("9222/tcp ->
- * 172.17.0.1:49153") into the host port number. Returns null when
- * the output carries no port. Pure — exported for unit tests.
- */
-export function parseDockerPortOutput(text) {
-  const m = /:(\d+)\s*$/.exec(String(text || '').trim());
-  if (!m) return null;
-  const port = Number(m[1]);
-  return Number.isInteger(port) && port > 0 && port < 65536 ? port : null;
-}
-
-/**
- * Parse `docker port <id> 9222` output ("9222/tcp ->
- * 172.17.0.1:49153") into the full CDP endpoint URL. The host is
- * taken from docker's own binding — never assumed from the publish
- * arg — so the connect always targets the interface docker actually
- * bound. Returns null when the output carries no usable
- * host:port. Pure — exported for unit tests.
- */
-export function parseDockerPortEndpoint(text) {
-  const m = /^\d+\/tcp\s*->\s*([0-9A-Za-z._-]+):(\d+)\s*$/.exec(String(text || '').trim());
-  if (!m) return null;
-  const port = Number(m[2]);
-  if (!Number.isInteger(port) || port <= 0 || port >= 65536) return null;
-  return `http://${m[1]}:${port}`;
 }
 
 function sleep(ms) {
@@ -143,19 +115,15 @@ function sleep(ms) {
  * session: {token, cookies:[{name, value, domain, path, ...}]}.
  * opts.runner is the docker seam (defaults to runCmd, same as
  * domRender); opts.cdpConnect is the CDP seam (defaults to
- * connectCdp); opts.image overrides the browser image;
- * opts.publishHost overrides the bridge-gateway publish interface
- * (default 172.17.0.1). Returns {ok:true, html} or
- * {ok:false, error}. Never throws.
+ * connectCdp); opts.image overrides the browser image. The CDP
+ * endpoint is the fixed host loopback (AUTH_RENDER_DEBUG_ENDPOINT)
+ * — there is no publish and no port lookup. Returns {ok:true,
+ * html} or {ok:false, error}. Never throws.
  */
 export async function renderDomAuthenticated(url, session, opts = {}) {
   const runner = typeof opts.runner === 'function' ? opts.runner : runCmd;
   const cdpConnect = typeof opts.cdpConnect === 'function' ? opts.cdpConnect : connectCdp;
   const image = opts.image || DOM_RENDER_IMAGE;
-  const publishHost =
-    typeof opts.publishHost === 'string' && opts.publishHost.trim()
-      ? opts.publishHost.trim()
-      : AUTH_RENDER_DEBUG_HOST;
   const timeoutMs =
     Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0 ? opts.timeoutMs : AUTH_RENDER_TIMEOUT_MS;
   if (!url) return { ok: false, error: 'no url' };
@@ -170,18 +138,16 @@ export async function renderDomAuthenticated(url, session, opts = {}) {
   let client = null;
   const startedAt = Date.now();
   try {
-    const run = await runner('docker', buildCdpContainerRunArgs(image, publishHost), { timeoutMs });
+    const run = await runner('docker', buildCdpContainerRunArgs(image), { timeoutMs });
     if (!run || !run.ok || !String(run.stdout || '').trim()) {
       const detail = String((run && run.stderr) || '').trim().slice(0, 300);
       return { ok: false, error: detail || 'browser container failed to start', durationMs: Date.now() - startedAt };
     }
     containerId = String(run.stdout).trim().split(/\s+/)[0];
 
-    const portRes = await runner('docker', buildCdpContainerPortArgs(containerId), { timeoutMs });
-    const endpoint = parseDockerPortEndpoint(portRes && portRes.stdout);
-    if (!endpoint) {
-      return { ok: false, error: 'browser container published no debug port', durationMs: Date.now() - startedAt };
-    }
+    // Fixed host-loopback endpoint (--network host, see the header
+    // note): no publish, no `docker port` lookup, nothing to parse.
+    const endpoint = AUTH_RENDER_DEBUG_ENDPOINT;
 
     // Cold chromium answers /json/version a moment after the
     // container reports running — retry the connect, bounded.
