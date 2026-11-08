@@ -51,6 +51,7 @@ import { probeWorkflowSkip } from './probes/workflowSkip.js';
 import { probeTwoFaBruteForce } from './probes/twoFaBruteForce.js';
 import { probeCredentialStuffing } from './probes/credentialStuffing.js';
 import { probeDomPostMessage } from './probes/domPostMessage.js';
+import { probeCsti } from './probes/csti.js';
 import { probeUserEnum } from './probes/userEnum.js';
 import { probeRfi } from './probes/rfi.js';
 import { probeXslt } from './probes/xslt.js';
@@ -199,6 +200,7 @@ export const DEFAULT_PHASES = [
   'dom-xss-sinks',
   'dom-xss-location-hash',
   'dom-postmessage',
+  'csti',
   'nuclei',
 ];
 
@@ -1291,6 +1293,47 @@ export async function runScan(
     );
   } else {
     skipPhase('dom-postmessage', 'no script targets');
+  }
+  // CLIENT-SIDE TEMPLATE INJECTION (9 Nov 2026, row #190 [High]
+  // CWE-79): dom-xss-sinks fingerprints sinks statically and
+  // dom-xss-location-hash / dom-postmessage drive canaries at other
+  // DOM sources; this phase goes after the fourth DOM source — it
+  // mines first-party code for runtime template engines (AngularJS
+  // $interpolate, Handlebars.compile, Mustache.render, _.template,
+  // doT, EJS, Nunjucks, Vue runtime compiler) and, only when one
+  // exists, navigates the pasted page in a real browser (transient
+  // container + fixed CDP endpoint, same pattern as
+  // renderDomAuthenticated) with the template canary {{7*7*191}} in
+  // the query string and then in the fragment, and confirms ONLY
+  // when the full SSTI oracle holds on the rendered DOM (control
+  // clean, canary evaluates to 9352, literal absent, same
+  // reflection point in two renders) — see csti.js. Engine presence
+  // alone never fires. Lab-gated like dom-postmessage (labCreds +
+  // allowWrite + lab host + depth !== 'quick'), so the drive never
+  // runs outside the lab gate; an engine feeding only a text sink
+  // drives but cannot execute, and zero engines is a proven true
+  // negative with no drive at all.
+  const cstiDiag = {};
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step(
+      'csti',
+      () =>
+        probeCsti(url, secretTargets, {
+          ...opts,
+          allowWrite,
+          labTargets,
+          diagnostics: cstiDiag,
+          ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+        }),
+      () => ({
+        engines: cstiDiag.engines || 0,
+        enginesNearSink: cstiDiag.enginesNearSink || 0,
+        driveAttempted: Boolean(cstiDiag.driveAttempted),
+        driveExecuted: Boolean(cstiDiag.driveExecuted),
+      })
+    );
+  } else {
+    skipPhase('csti', 'no script targets');
   }
   // ERROR DISCLOSURE (7 Nov 2026, rows #175 + #176): trigger
   // errors with read-only GETs on the same GET probe targets as
