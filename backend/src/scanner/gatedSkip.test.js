@@ -257,24 +257,27 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // honest no-op (no basket routes on a bare page — 8 Nov 2026,
       // 88th phase) instead of skipping, and workflow-skip RUNS as
       // an honest no-op alongside it (no basket/checkout routes on
-      // a bare page — 8 Nov 2026, 89th phase) instead of skipping.
+      // a bare page — 8 Nov 2026, 89th phase) instead of skipping,
+      // and twofa-bruteforce RUNS as an honest no-op alongside them
+      // (no 2FA verify route on a bare page — 8 Nov 2026, 90th
+      // phase) instead of skipping.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 89,
-        ok: 53,
+        total: 90,
+        ok: 54,
         failed: 0,
         skipped: 36,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 53 ran ok, 36 skipped, 0 failed, 0 timed out.'
+        'Phases: 54 ran ok, 36 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 118/118/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 119/119/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -338,21 +341,23 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // credential-disclosure + sqli-oob + sensitive-cache, 7 Nov 2026 —
       // all nineteen run here because param targets exist and the shell
       // carries a script bundle), and the two discovery phases now RUN
-      // instead of skipping — 118 total, 118 ok, 0 skipped
+      // instead of skipping — 119 total, 119 ok, 0 skipped
       // (basket-logic, the 88th phase, runs as an honest no-op here:
       // the Juice-shape stub carries no basket routes, and
       // workflow-skip, the 89th phase, runs as an honest no-op
-      // alongside it for the same reason).
+      // alongside it for the same reason, and twofa-bruteforce, the
+      // 90th phase, runs as an honest no-op alongside them — the
+      // stub carries no 2FA verify route).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 118,
-        ok: 118,
+        total: 119,
+        ok: 119,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 118 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 119 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -558,7 +563,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 89);
+      assert.equal(DEFAULT_PHASES.length, 90);
     } finally {
       teardown();
     }

@@ -105,7 +105,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 89);
+    assert.equal(DEFAULT_PHASES.length, 90);
   });
 
   it('zero param targets: all 29 param phases emit skipped records, rollup reports them', async () => {
@@ -337,6 +337,9 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
+  // 54/36 since 8 Nov 2026 (2FA brute-force): 'twofa-bruteforce' adds a
+  // 54th ok record (always-run as an honest no-op: no 2FA verify route
+  // on a bare page), so the bare-page line reads 54 ran ok, 36 skipped.
   // 53/36 since 8 Nov 2026 (workflow skip): 'workflow-skip' adds a
   // 53rd ok record (always-run as an honest no-op: no basket or
   // checkout routes on a bare page), so the bare-page line reads
@@ -379,7 +382,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // 44/33 before xml-injection and untrusted-js-inclusion;
   // 46/34 before session-token-in-url; 47/34 before credential-disclosure;
   // 48/34 before sqli-oob.)
-  it('real runScan on a bare page renders the 53/36 line end to end', async () => {
+  it('real runScan on a bare page renders the 54/36 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -391,15 +394,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 89,
-        ok: 53,
+        total: 90,
+        ok: 54,
         failed: 0,
         skipped: 36,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 53 ran ok, 36 skipped, 0 failed, 0 timed out.'
+        'Phases: 54 ran ok, 36 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

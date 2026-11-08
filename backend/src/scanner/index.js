@@ -48,6 +48,7 @@ import { probeSmtpInject } from './probes/smtpInject.js';
 import { probeSessionFixation } from './probes/sessionFixation.js';
 import { probeBasketLogic } from './probes/basketLogic.js';
 import { probeWorkflowSkip } from './probes/workflowSkip.js';
+import { probeTwoFaBruteForce } from './probes/twoFaBruteForce.js';
 import { probeUserEnum } from './probes/userEnum.js';
 import { probeRfi } from './probes/rfi.js';
 import { probeXslt } from './probes/xslt.js';
@@ -150,6 +151,7 @@ export const DEFAULT_PHASES = [
   'session-fixation',
   'basket-logic',
   'workflow-skip',
+  'twofa-bruteforce',
   'user-enumeration',
   'rfi',
   'xslt',
@@ -1451,6 +1453,31 @@ export async function runScan(
       basketId: Boolean(wsDiag.basketId),
       controlOk: Boolean(wsDiag.controlOk),
       mutations: wsDiag.mutations || 0,
+    })
+  );
+  // TWO-FA BRUTE-FORCE (8 Nov 2026, row #326 [High], CWE-307): a
+  // short 2FA code with no attempt limit is enumerable — confirm
+  // only when 10 distinct wrong codes are each answered as ordinary
+  // invalid-code responses with no throttle signal anywhere (see
+  // twoFaBruteForce.js). Same apiRoutes wiring as basket-logic /
+  // workflow-skip. Diagnostics ride the phase extras (twoFaRoutes,
+  // controlOk, attempts) so a live proof can tell "no surface" from
+  // "oracle uncalibrated" without re-running the scan.
+  const tfbDiag = {};
+  await step(
+    'twofa-bruteforce',
+    () =>
+      probeTwoFaBruteForce(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: tfbDiag,
+      }),
+    () => ({
+      twoFaRoutes: tfbDiag.twoFaRoutes || 0,
+      controlOk: Boolean(tfbDiag.controlOk),
+      attempts: tfbDiag.attempts || 0,
     })
   );
   await step('user-enumeration', () => probeUserEnum(forms, url, opts));
