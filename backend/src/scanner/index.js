@@ -85,6 +85,7 @@ import { probeMethodOverride } from './probes/methodOverride.js';
 import { probeSecretsInJs, extractSecretTargets } from './probes/secretsInJs.js';
 import { probeBrowserStorage } from './probes/browserStorage.js';
 import { probeDomXssSinks } from './probes/domXssSinks.js';
+import { probeDomXssLocationHash } from './probes/domXssLocationHash.js';
 import { probeErrorDisclosure } from './probes/errorDisclosure.js';
 import { probeValidation } from './probes/validation.js';
 import { probeFingerprintBanner } from './probes/fingerprintBanner.js';
@@ -193,6 +194,7 @@ export const DEFAULT_PHASES = [
   'sensitive-cache',
   'browser-storage',
   'dom-xss-sinks',
+  'dom-xss-location-hash',
   'nuclei',
 ];
 
@@ -1211,6 +1213,40 @@ export async function runScan(
     );
   } else {
     skipPhase('dom-xss-sinks', 'no script targets');
+  }
+  // DOM XSS VIA LOCATION.HASH (9 Nov 2026, row #275 [High] CWE-79):
+  // dom-xss-sinks fingerprints sinks statically; this phase goes one
+  // step further — it mines first-party code for location.hash reads
+  // and, only when a read exists, drives a canary fragment through
+  // the pasted page in a real browser (transient container + fixed
+  // CDP endpoint, same pattern as renderDomAuthenticated) and
+  // confirms ONLY on observed execution. Sink presence alone never
+  // fires. Lab-gated like basket-logic / workflow-skip / twofa
+  // (labCreds + allowWrite + lab host + depth !== 'quick'), so the
+  // drive never runs outside the lab gate; a read into a safe sink
+  // (textContent / encode) drives but cannot execute, and zero reads
+  // is a proven true negative with no drive at all.
+  const lhDiag = {};
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step(
+      'dom-xss-location-hash',
+      () =>
+        probeDomXssLocationHash(url, secretTargets, {
+          ...opts,
+          allowWrite,
+          labTargets,
+          diagnostics: lhDiag,
+          ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+        }),
+      () => ({
+        hashReads: lhDiag.hashReads || 0,
+        hashNearSink: lhDiag.hashNearSink || 0,
+        driveAttempted: Boolean(lhDiag.driveAttempted),
+        driveExecuted: Boolean(lhDiag.driveExecuted),
+      })
+    );
+  } else {
+    skipPhase('dom-xss-location-hash', 'no script targets');
   }
   // ERROR DISCLOSURE (7 Nov 2026, rows #175 + #176): trigger
   // errors with read-only GETs on the same GET probe targets as
