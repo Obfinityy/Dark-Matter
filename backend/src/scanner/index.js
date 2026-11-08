@@ -79,6 +79,7 @@ import { probeVerbTampering } from './probes/verbTampering.js';
 import { probeMethodOverride } from './probes/methodOverride.js';
 import { probeSecretsInJs, extractSecretTargets } from './probes/secretsInJs.js';
 import { probeBrowserStorage } from './probes/browserStorage.js';
+import { probeDomXssSinks } from './probes/domXssSinks.js';
 import { probeErrorDisclosure } from './probes/errorDisclosure.js';
 import { probeValidation } from './probes/validation.js';
 import { probeFingerprintBanner } from './probes/fingerprintBanner.js';
@@ -183,6 +184,7 @@ export const DEFAULT_PHASES = [
   'credential-disclosure',
   'sensitive-cache',
   'browser-storage',
+  'dom-xss-sinks',
   'nuclei',
 ];
 
@@ -1097,6 +1099,36 @@ export async function runScan(
     );
   } else {
     skipPhase('browser-storage', 'no script targets');
+  }
+  // DOM XSS SINKS (8 Nov 2026, row #115): the app's own first-party
+  // JS renders data through a DOM sink — Angular's
+  // bypassSecurityTrustHtml, innerHTML bindings/assignments,
+  // document.write. GATE (strict, decided on OWASP DOM-XSS grounds
+  // before any proof run): [Low] INFO fingerprint, one aggregated
+  // finding per bundle; vendor/polyfill/runtime bundles excluded by
+  // filename stem AND any bundle defining the sanitizer is skipped
+  // whole (framework code — Juice vendor.js would otherwise fire on
+  // Angular itself); call sites only, definitions never fire. Class
+  // 'dom_sink' routes to the default verifier protocol on purpose (a
+  // class containing 'xss' would land 'unconfirmed' under
+  // xss_reflected — see domXssSinks.js). Reuses secretTargets (same
+  // gate as secrets-in-js / browser-storage, so a script-less page
+  // records a skip instead of fetching). Juice Shop's main.js carries
+  // 9 bypass call sites + 22 innerHTML occurrences + 1 document.write
+  // (verified live 8 Nov 2026), so the Juice proof leg is expected to
+  // be 1 new [Low] finding; DVWA serves no JS bundles, so its leg is
+  // expected to be a true negative (see domXssSinks.js). Row #190
+  // (CSTI) is NOT claimed: these are DOM XSS sinks, not template
+  // injection — no template expression is evaluated from user input.
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step('dom-xss-sinks', () =>
+      probeDomXssSinks(url, secretTargets, {
+        ...opts,
+        ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+      })
+    );
+  } else {
+    skipPhase('dom-xss-sinks', 'no script targets');
   }
   // ERROR DISCLOSURE (7 Nov 2026, rows #175 + #176): trigger
   // errors with read-only GETs on the same GET probe targets as

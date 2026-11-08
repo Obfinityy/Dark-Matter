@@ -1,5 +1,6 @@
 // Dark Matter rule-based scanner — missing authentication for critical
-// function probe (coverage row #47 [Critical], phase 86).
+// function probe (coverage row #47 [Critical]; DEFAULT_PHASES was 86
+// when it landed).
 //
 // CWE-306 (Missing Authentication for Critical Function), ASVS V4.1:
 // a critical function (admin, management, setup, config, backup,

@@ -1,5 +1,5 @@
-// Missing authentication for critical function (#47 [Critical],
-// phase 86) — probeMissingAuth unit tests.
+// Missing authentication for critical function (#47 [Critical];
+// DEFAULT_PHASES was 86 when it landed) — probeMissingAuth unit tests.
 //
 // The gate is a strict 4-conjunct: (1) direct 200 only, (2) not the
 // SPA catch-all, (3) authenticated-content marker AND no login form,
