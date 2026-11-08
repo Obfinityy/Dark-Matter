@@ -5,12 +5,12 @@ target on EC2, verified first-hand (direct EC2 read, never a relay), with hunt I
 title-exact baselines and zero retractions. Nothing here is a unit-test result alone
 and nothing is claimed without evidence.
 
-## Live status (9 Nov 2026, ~03:35 IST)
+## Live status (9 Nov 2026, ~05:20 IST)
 
-- Coverage: **303/478 = 63.4% LIVE**, 92 phases in `backend/src/scanner/index.js`
-- HEAD: `82132710` (credential stuffing probe, phase 92, row #42), **68th deploy verified** (workflow
-  42523100239, backend PID 1909086, health ok, all 6 labs up)
-- Suites at HEAD: src 2416/2405/0/11, plain 2480/2469/0/11
+- Coverage: **304/478 = 63.6% LIVE**, 93 phases in `backend/src/scanner/index.js`
+- HEAD: `074e3623` (DOM XSS via postMessage probe, phase 93, row #274), **69th deploy verified** (workflow
+  42534525078, backend PID 1993213, health ok, all 6 labs up)
+- Suites at HEAD: src 2441/2430/0/11, plain 2505/2494/0/11
 - AI hunt `h_7d49c6ef7447` paused at iter 296 (owner zero-Meta order, 3 Nov 2026);
   spend frozen $38.4952 / 4661 entries
 - Baselines: DVWA **20** titles, Juice Shop **25** titles (listed below)
@@ -32,7 +32,7 @@ and nothing is claimed without evidence.
    (meta state, `scannerSummary`, title extraction from `type:"finding"` events,
    retraction check). Worker relays are never trusted for a verdict.
 
-## Proof table — re-proofs #4 to #21
+## Proof table — re-proofs #4 to #22
 
 | # | Date (IST) | Deploy | DVWA leg | Juice leg | Verdict |
 |---|-----------|--------|----------|-----------|---------|
@@ -54,6 +54,7 @@ and nothing is claimed without evidence.
 | 19 | 9 Nov ~01:08 | 66th `69bef482` | `h_8af7f168482f` {20,0} | `h_9a1c6701cd13` {24,0} | PASS on re-run, 0 retractions. **SSTI-oracle FP fix live-proven** (shared guards `oracleGuards.js`: strip hidden inputs + token-like attribute values, repeat request must re-show the value at the same reflection point; applied to ssti, elInject, evalInject D2/D4). 0-row fix — coverage unchanged 301/478, Juice baseline stays 24. First run: DVWA `h_f9f7b3aeece4` {20,0} baseline-exact (SSTI FP gone) + Juice `h_f1feba6f2ded` {25,0} — 24 baseline + WS frame-replay title AGAIN (2nd firing in ~9 Juice runs; verdict revised from one-off to INTERMITTENT, never a baseline title). Re-run legs baseline-exact. `authDom: true` again on Juice (token, authInputs 1). |
 | 20 | 9 Nov ~02:05 | 67th `07473376` | `h_77b886746f1a` {20,0} | `h_19732cd931c7` {24,0} | PASS, 0 retractions. **Row #275 AIB to LIVE — proven true negative** (two-tier oracle: tier-1 static mine found ZERO `location.hash` reads in Juice first-party bundles + inline blocks, `hashReads=0, hashNearSink=0, driveAttempted=false` — no drive needed; DVWA `dom-xss-location-hash` phase skipped 'no script targets'). Coverage 302/478. Baselines unchanged: DVWA 20, Juice 24. `authDom: true` again on Juice. |
 | 21 | 9 Nov ~03:35 | 68th `82132710` | `h_54fe3c4a646a` {20,0} | `h_9630c6259ee7` {25,0} | PASS, 0 retractions. **NEW [High] on Juice: 'Login accepts repeated wrong passwords without rate limiting'** (POST `/rest/user/login`, 10 distinct wrong passwords, all ordinary invalid-credential answers, no throttle signal, class `auth_bruteforce`; `credential-stuffing` phase `findingsCount=1, loginRoutes=1, controlOk=true, attempts=10`). Row #42 AIB to LIVE. Coverage 303/478. Juice baseline becomes 25. DVWA credential-stuffing honest no-op (form-only login, probe is JSON-only by design; `loginRoutes=1, controlOk=false, attempts=0`). `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
+| 22 | 9 Nov ~05:20 | 69th `074e3623` | `h_a6e97190c890` {20,0} | `h_22d5bfb65fb9` {25,0} | PASS, 0 retractions. **Row #274 AIB to LIVE — proven true negative** (two-tier oracle: tier-1 static mine found ZERO `message` listeners in Juice first-party bundles + inline blocks, `listeners=0, listenersNearSink=0, driveAttempted=false` — no drive needed; DVWA `dom-postmessage` phase skipped 'no script targets'). Coverage 304/478. Baselines unchanged: DVWA 20, Juice 25. `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
 
 ## Behaviour-analysis live proof (60th deploy `203c6d44`)
 
