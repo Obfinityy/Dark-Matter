@@ -67,12 +67,22 @@
 // "/rest" + "/admin") and fetch(API_BASE + "/rest" + "/admin")
 // resolve to the full route (branches (a)/(a2)/(b)/(b2) below). A
 // chain that starts but breaks leaves the whole call unmined —
-// never the prefix. fetch( calls are mined too, with no method
-// evidence (the method lives in the options object, which the
-// miner does not parse): their records keep methods [] and are
-// GET-usable exactly like orphans, never write targets. The
-// direct-literal branch (c) is untouched, so its trailing
-// query-concat forms keep working exactly as before.
+// never the prefix. fetch( calls are mined too: an explicit
+// method in the options object (`fetch(url, { method: 'POST' })`)
+// is method evidence — POST/PUT/DELETE/PATCH records are write
+// targets, never GET targets. Only a plain string-literal method
+// value on the top level of the options object counts (see
+// fetchOptionsMethod); anything else keeps methods [] and the
+// record is GET-usable exactly like an orphan, never a write
+// target. The direct-literal branch (c) is untouched, so its
+// trailing query-concat forms keep working exactly as before.
+//
+// (8 Nov 2026, fetch options-method): parse the options object
+// of fetch() calls for an explicit method literal. Before this,
+// every fetch( call kept methods [] — a POST-only fetch endpoint
+// was probed as a GET orphan (an honest no-op) instead of
+// feeding the write-target synthesis the session-fixation step
+// consumes.
 //
 // MECHANISM: when the pasted page yielded zero param-bearing targets
 // (after static + DOM + form synthesis + openapi-targets), fetch the
@@ -284,6 +294,208 @@ function concatChainTail(src, pos) {
   }
 }
 
+// Skip one value expression inside an options object, starting
+// at `start`. Returns the index just past the value (at a
+// top-level ',' or '}'), or -1 when the value is malformed or
+// unterminated. Strings, nested objects/arrays, and bare
+// expressions (identifiers, calls, concatenations) are all
+// skipped wholesale — a `method` key nested inside one never
+// counts (see fetchOptionsMethod).
+function skipOptionsValue(text, start) {
+  let i = start;
+  const n = text.length;
+  while (i < n && /\s/.test(text[i])) i += 1;
+  if (i >= n) return -1;
+  const ch = text[i];
+  if (ch === "'" || ch === '"' || ch === '`') {
+    const quote = ch;
+    i += 1;
+    while (i < n) {
+      const c = text[i];
+      if (c === '\\') {
+        i += 2;
+        continue;
+      }
+      if (c === quote) return i + 1;
+      if (quote === '`' && c === '$' && text[i + 1] === '{') {
+        // Skip the ${...} interpolation, braces balanced.
+        let depth = 1;
+        i += 2;
+        while (i < n && depth > 0) {
+          if (text[i] === '{') depth += 1;
+          else if (text[i] === '}') depth -= 1;
+          i += 1;
+        }
+        continue;
+      }
+      i += 1;
+    }
+    return -1;
+  }
+  if (ch === '{' || ch === '[') {
+    const open = ch;
+    const close = ch === '{' ? '}' : ']';
+    let depth = 1;
+    let quote = null;
+    i += 1;
+    while (i < n && depth > 0) {
+      const c = text[i];
+      if (quote) {
+        if (c === '\\') {
+          i += 2;
+          continue;
+        }
+        if (c === quote) quote = null;
+        i += 1;
+        continue;
+      }
+      if (c === "'" || c === '"' || c === '`') {
+        quote = c;
+        i += 1;
+        continue;
+      }
+      if (c === open) depth += 1;
+      else if (c === close) depth -= 1;
+      i += 1;
+    }
+    return depth === 0 ? i : -1;
+  }
+  // Bare token: identifiers, calls, concatenations — read until a
+  // top-level ',' or '}' (nesting tracked, strings skipped).
+  let depth = 0;
+  let quote = null;
+  while (i < n) {
+    const c = text[i];
+    if (quote) {
+      if (c === '\\') {
+        i += 2;
+        continue;
+      }
+      if (c === quote) quote = null;
+      i += 1;
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') {
+      quote = c;
+      i += 1;
+      continue;
+    }
+    if (c === '(' || c === '[' || c === '{') depth += 1;
+    else if (c === ')' || c === ']' || c === '}') {
+      if (depth === 0) return i;
+      depth -= 1;
+    } else if (c === ',' && depth === 0) return i;
+    i += 1;
+  }
+  return i;
+}
+
+// Parse the value after a top-level `method:` key. Only a plain
+// string literal counts — a backslash (escaped content) or a
+// `${` interpolation in a backtick literal is not plain. The
+// value must be a known HTTP method (case-insensitive); anything
+// else is not method evidence. Returns the lower-cased method or
+// null.
+function parseOptionsMethodValue(text, start) {
+  let i = start;
+  while (i < text.length && /\s/.test(text[i])) i += 1;
+  const quote = text[i];
+  if (quote !== "'" && quote !== '"' && quote !== '`') return null;
+  let j = i + 1;
+  let value = '';
+  while (j < text.length) {
+    const c = text[j];
+    if (c === '\\') return null;
+    if (c === quote) {
+      const m = value.toLowerCase();
+      return ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'].includes(m) ? m : null;
+    }
+    if (quote === '`' && c === '$' && text[j + 1] === '{') return null;
+    value += c;
+    j += 1;
+  }
+  return null;
+}
+
+// Explicit method from a fetch(url, options) options object:
+// `fetch(url, { method: 'POST' })`. Only a plain string-literal
+// method value on the TOP level of the options object counts —
+// other keys may sit before/after it, and whitespace/newlines are
+// fine. A variable, template, concatenation, missing method key,
+// non-object second argument, shorthand `{ method }`, or a method
+// key nested inside another object never counts — the call keeps
+// no method evidence (methods []), never guessed. Returns the
+// lower-cased method or null. Pure — exported for unit tests.
+export function fetchOptionsMethod(optionsArg) {
+  if (typeof optionsArg !== 'string') return null;
+  let i = 0;
+  const n = optionsArg.length;
+  const skipWs = () => {
+    while (i < n && /\s/.test(optionsArg[i])) i += 1;
+  };
+  skipWs();
+  if (optionsArg[i] !== '{') return null;
+  i += 1;
+  for (;;) {
+    skipWs();
+    if (i >= n) return null;
+    if (optionsArg[i] === '}') return null;
+    if (optionsArg[i] === ',') {
+      i += 1;
+      continue;
+    }
+    // Parse the key: bare identifier or quoted string.
+    let key = null;
+    let keyIsPlain = false;
+    const kc = optionsArg[i];
+    if (kc === "'" || kc === '"' || kc === '`') {
+      const quote = kc;
+      let j = i + 1;
+      let value = '';
+      let closed = false;
+      let plain = true;
+      while (j < n) {
+        const c = optionsArg[j];
+        if (c === '\\') {
+          plain = false;
+          j += 2;
+          continue;
+        }
+        if (c === quote) {
+          closed = true;
+          break;
+        }
+        if (quote === '`' && c === '$' && optionsArg[j + 1] === '{') plain = false;
+        value += c;
+        j += 1;
+      }
+      if (!closed) return null;
+      key = value;
+      keyIsPlain = plain;
+      i = j + 1;
+    } else if (/[A-Za-z_$]/.test(kc)) {
+      let j = i;
+      while (j < n && /[\w$]/.test(optionsArg[j])) j += 1;
+      key = optionsArg.slice(i, j);
+      keyIsPlain = true;
+      i = j;
+    } else {
+      return null;
+    }
+    skipWs();
+    if (optionsArg[i] !== ':') {
+      // Shorthand property `{ method }` — the value is a variable.
+      if (key === 'method') return null;
+      continue;
+    }
+    i += 1;
+    if (keyIsPlain && key === 'method') return parseOptionsMethodValue(optionsArg, i);
+    const after = skipOptionsValue(optionsArg, i);
+    if (after === -1) return null;
+    i = after;
+  }
+}
+
 // Interpolation-named query params resolved via literal bindings:
 // `?${name}=v` where name is bound to a valid param name, or
 // `?${qs}` where qs is bound to a prebuilt query string (parsed
@@ -450,18 +662,24 @@ export function extractJsRouteRecords(bundleText) {
   }
 
   // Every http.<method>( / fetch( call: attribute its route by
-  // first-arg shape. A fetch call carries no method evidence (the
-  // method lives in its options object, which the miner does not
-  // parse) — its records keep methods [] and are GET-usable exactly
-  // like orphans, never write targets.
+  // first-arg shape. A fetch call takes its method evidence from
+  // the options object (see fetchOptionsMethod) — a plain
+  // string-literal method there is real evidence; anything else
+  // keeps methods [] and the record is GET-usable exactly like an
+  // orphan, never a write target.
   let callMatch;
   const callPattern = /\b(?:http\.(get|post|put|delete|patch)|fetch)\s*\(/g;
   while ((callMatch = callPattern.exec(src)) !== null) {
-    const method = callMatch[1] ?? null;
+    const { arg, end } = firstArg(src, callPattern.lastIndex);
+    // http.<method> carries its method in the call itself; fetch(
+    // only: an explicit method in the second (options) argument.
+    let method = callMatch[1] ?? null;
+    if (method === null && end < src.length && src[end] === ',') {
+      method = fetchOptionsMethod(firstArg(src, end + 1).arg);
+    }
     const addMethod = (rec) => {
       if (method) rec.methods.add(method);
     };
-    const { arg } = firstArg(src, callPattern.lastIndex);
     const trimmed = arg.trim();
     // (a) this.host — bare, + "suffix", or + `suffix`: resolve via
     // the nearest preceding service base.

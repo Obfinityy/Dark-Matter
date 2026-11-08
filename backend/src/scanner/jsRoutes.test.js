@@ -24,6 +24,7 @@ import {
   extractJsRoutes,
   extractJsRouteRecords,
   extractScriptSrcs,
+  fetchOptionsMethod,
   synthesiseJsTargets,
   synthesiseJsWriteTargets,
   JS_ROUTES_MAX_TARGETS,
@@ -1060,5 +1061,116 @@ describe('discoverJsRoutes (call-arg chained-concat end to end)', () => {
     }
     assert.ok(!found.targets.some((t) => new URL(t).pathname === '/rest/login'), 'POST-only chained login must never be a GET target');
     assert.ok(found.writeTargets.includes('http://example.com/rest/login'), 'POST-only chained login must be a write target');
+  });
+});
+
+// Fetch options-method (8 Nov 2026). FETCH_OPTIONS_BUNDLE models
+// every method-evidence form a fetch() options object can carry:
+// POST/PUT/DELETE/PATCH literals (single/double/backtick quotes),
+// a method key after other keys (incl. a nested headers object),
+// an explicit GET, a lowercase 'post', a multiline options
+// object, and a fetch with no options at all (existing no-method
+// behaviour, pinned).
+const FETCH_OPTIONS_BUNDLE = `
+let OA = (() => { class n {
+  login(t) { return fetch("/rest/login", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: t }); }
+  putItem(t) { return fetch("/rest/basket/1", { method: "PUT", body: t }); }
+  delItem() { return fetch("/rest/item/2", { method: \`DELETE\` }); }
+  patchUser(t) { return fetch("/rest/user/3", { headers: { 'x-a': 'b' }, method: 'PATCH', body: t }); }
+  status() { return fetch("/rest/status", { method: 'GET' }); }
+  lower(t) { return fetch("/rest/lower", { method: 'post', body: t }); }
+  multi(t) { return fetch("/rest/multi", {
+    headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+    body: t }); }
+  open() { return fetch("/rest/open"); }
+} })();
+`;
+
+// FETCH_OPTIONS_DISCIPLINE_BUNDLE models fetch() options objects
+// that must NEVER yield method evidence: a variable method, a
+// missing method key, a method key nested inside headers, a
+// template method, a concatenated method, a non-object second
+// argument, a shorthand { method }, and an unknown method value.
+const FETCH_OPTIONS_DISCIPLINE_BUNDLE = `
+let OU = (() => { class n {
+  varMethod(t) { return fetch("/rest/a", { method: m, body: t }); }
+  noMethod(t) { return fetch("/rest/b", { headers: {}, body: t }); }
+  nested(t) { return fetch("/rest/c", { headers: { method: 'POST' }, body: t }); }
+  tplMethod(t) { return fetch("/rest/d", { method: \`PO\${x}ST\`, body: t }); }
+  concatMethod(t) { return fetch("/rest/e", { method: 'PO' + 'ST', body: t }); }
+  optsVar(t) { return fetch("/rest/f", opts); }
+  shorthand(t) { return fetch("/rest/g", { method, body: t }); }
+  bogus(t) { return fetch("/rest/h", { method: 'BOGUS', body: t }); }
+} })();
+`;
+
+describe('extractJsRouteRecords (fetch options-method)', () => {
+  test('JS-29: fetch options-method literals resolve — POST/PUT/DELETE/PATCH, quoted key, GET, lowercase, multiline, no-options stays unmined', () => {
+    const recs = extractJsRouteRecords(FETCH_OPTIONS_BUNDLE);
+    const byPath = new Map(recs.map((r) => [r.path, r]));
+    assert.deepEqual(byPath.get('/rest/login').methods, ['post']);
+    assert.deepEqual(byPath.get('/rest/basket/1').methods, ['put']);
+    assert.deepEqual(byPath.get('/rest/item/2').methods, ['delete']);
+    assert.deepEqual(byPath.get('/rest/user/3').methods, ['patch']);
+    assert.deepEqual(byPath.get('/rest/status').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/lower').methods, ['post']);
+    assert.deepEqual(byPath.get('/rest/multi').methods, ['post']);
+    assert.deepEqual(byPath.get('/rest/open').methods, []);
+    const { targets, writeTargets } = extractJsRoutes(FETCH_OPTIONS_BUNDLE, 'http://example.com/');
+    for (const want of ['/rest/status', '/rest/open']) {
+      assert.ok(targets.some((t) => new URL(t).pathname === want), `expected mined target ${want}`);
+    }
+    for (const banned of ['/rest/login', '/rest/basket/1', '/rest/item/2', '/rest/user/3', '/rest/lower', '/rest/multi']) {
+      assert.ok(!targets.some((t) => new URL(t).pathname === banned), `non-GET fetch route ${banned} must never be a GET target`);
+      assert.ok(writeTargets.includes(`http://example.com${banned}`), `non-GET fetch route ${banned} must be a write target`);
+    }
+  });
+
+  test('JS-30: fetch options-method discipline — variable, missing, nested, template, concatenated, non-object, shorthand and unknown methods all keep methods []', () => {
+    const recs = extractJsRouteRecords(FETCH_OPTIONS_DISCIPLINE_BUNDLE);
+    const byPath = new Map(recs.map((r) => [r.path, r]));
+    for (const p of ['/rest/a', '/rest/b', '/rest/c', '/rest/d', '/rest/e', '/rest/f', '/rest/g', '/rest/h']) {
+      assert.deepEqual(byPath.get(p).methods, [], `discipline fetch route ${p} must keep methods []`);
+    }
+    const { targets } = extractJsRoutes(FETCH_OPTIONS_DISCIPLINE_BUNDLE, 'http://example.com/');
+    for (const want of ['/rest/a', '/rest/b', '/rest/c', '/rest/d', '/rest/e', '/rest/f', '/rest/g', '/rest/h']) {
+      assert.ok(targets.some((t) => new URL(t).pathname === want), `no-method fetch route ${want} stays GET-usable like an orphan`);
+    }
+    // Direct unit checks on the parser itself.
+    assert.equal(fetchOptionsMethod("{ method: 'POST' }"), 'post');
+    assert.equal(fetchOptionsMethod('{ "method": "PUT" }'), 'put');
+    assert.equal(fetchOptionsMethod('{ method: `POST` }'), 'post');
+    assert.equal(fetchOptionsMethod("{\n method: 'DELETE',\n body: '{}'\n}"), 'delete');
+    assert.equal(fetchOptionsMethod("{ headers: { 'x-a': 'b' }, method: 'PATCH' }"), 'patch');
+    assert.equal(fetchOptionsMethod("{ method: 'PO\\'ST' }"), null);
+    assert.equal(fetchOptionsMethod('{ method: `PO${x}ST` }'), null);
+    assert.equal(fetchOptionsMethod('{ headers: { method: ' + "'POST'" + ' } }'), null);
+    assert.equal(fetchOptionsMethod('{ method }'), null);
+    assert.equal(fetchOptionsMethod('{ method: m }'), null);
+    assert.equal(fetchOptionsMethod('opts'), null);
+    assert.equal(fetchOptionsMethod(null), null);
+    assert.equal(fetchOptionsMethod('{ method: ' + "'BOGUS'" + ' }'), null);
+  });
+});
+
+describe('discoverJsRoutes (fetch options-method end to end)', () => {
+  test('JS-31: fetch options-method routes mine end to end through discoverJsRoutes — POST fetch is a write target, never a GET target', async () => {
+    const fetchPage = stubFetchFor(JUICE_SHELL, {
+      'runtime.js': 'var r = 1;',
+      'polyfills.js': 'var p = 1;',
+      'vendor.js': 'var v = 1;',
+      'main.js': FETCH_OPTIONS_BUNDLE,
+    });
+    const found = await discoverJsRoutes('http://example.com/', { fetchPage });
+    assert.equal(found.routesFound, true);
+    assert.equal(found.bundlesFetched, 4);
+    for (const want of ['/rest/status', '/rest/open']) {
+      assert.ok(found.targets.some((t) => new URL(t).pathname === want), `expected mined target ${want}`);
+    }
+    for (const banned of ['/rest/login', '/rest/basket/1', '/rest/item/2', '/rest/user/3', '/rest/lower', '/rest/multi']) {
+      assert.ok(!found.targets.some((t) => new URL(t).pathname === banned), `non-GET fetch route ${banned} must never be a GET target`);
+      assert.ok(found.writeTargets.includes(`http://example.com${banned}`), `non-GET fetch route ${banned} must be a write target`);
+    }
   });
 });
