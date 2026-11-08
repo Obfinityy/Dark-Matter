@@ -154,9 +154,33 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 ## Screenshots
 
 Frontend captures of the Confirmed findings lists are added here as proofs land.
-Capture in progress for proof #15 (Juice `h_5894a14c4069`, DVWA
-`h_4d444fe51078`); images will be committed under `docs/proofs/` and linked
-from this section.
+Proof #15 (8 Nov 2026) — captured from the live frontend
+(https://hack.thebhavesh.online), signed in as the owner. The browser PDF save
+captures the visible area, so each hunt is covered by overlapping segments
+that together show the full detail view: hunt header (ID, finished status,
+target), severity counts, and every confirmed finding.
+
+Juice Shop `h_5894a14c4069` — 21 confirmed (1 CRITICAL, 5 HIGH, 8 MEDIUM,
+7 LOW), finished 08/11/2026 19:52:42:
+
+- `docs/proofs/proof-15-juice-h_5894a14c4069-top.pdf` — header, severity
+  counts, findings 1–8.
+- `docs/proofs/proof-15-juice-h_5894a14c4069-overlap-5-12.pdf` — findings
+  5–12 in full (overlap segment).
+- `docs/proofs/proof-15-juice-h_5894a14c4069-middle.pdf` — findings 9–17.
+- `docs/proofs/proof-15-juice-h_5894a14c4069-bottom.pdf` — findings 16–21
+  plus the hunt-ID footer.
+
+DVWA `h_4d444fe51078` — 20 confirmed (1 CRITICAL, 2 HIGH, 9 MEDIUM,
+8 LOW), finished 08/11/2026 19:46:32:
+
+- `docs/proofs/proof-15-dvwa-h_4d444fe51078-top.pdf` — header, severity
+  counts, findings 1–7.
+- `docs/proofs/proof-15-dvwa-h_4d444fe51078-overlap-5-11.pdf` — findings
+  5–11 in full (overlap segment).
+- `docs/proofs/proof-15-dvwa-h_4d444fe51078-middle.pdf` — findings 9–16.
+- `docs/proofs/proof-15-dvwa-h_4d444fe51078-bottom.pdf` — findings 16–20
+  plus the hunt-ID footer.
 
 ## How to reproduce a proof
 
