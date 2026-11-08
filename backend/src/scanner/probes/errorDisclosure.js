@@ -24,13 +24,25 @@
 // trigger shapes, both GETs: (a) a non-existent path under the
 // target's directory, (b) a malformed query value (special chars +
 // overlong filler) on the first parameter of a param-bearing target.
-// Capped at 10 error-trigger requests per scan; baselines are one
-// GET per target, fetched lazily only when the trigger actually
+// BUDGETS ARE PER CLASS, never shared (re-proof #3, 8 Nov 2026): the
+// malformed-query class is uncapped — one trigger per param-bearing
+// target, because the input list is already bounded upstream by the
+// orchestrator's scanTargets cap (maxUrls + 20) — so target order can
+// never starve a late param target again. The non-existent-path class
+// keeps its own cap of 10 (one per directory, deduped). Baselines are
+// one GET per target, fetched lazily only when the trigger actually
 // errored.
 import { createHash } from 'node:crypto';
 import { fetchPage } from '../fingerprint.js';
 
-const MAX_ERROR_REQUESTS = 10;
+// Per-class request budget. Malformed-query triggers have NO cap here:
+// one per param-bearing target, bounded upstream by the orchestrator
+// (scanTargets <= maxUrls + 20). A shared cap let the 11th+ param
+// target lose its trigger (re-proof #3, 8 Nov 2026: with 15
+// param-bearing Juice targets the 10-cap cut the late ones and the
+// live SQLite leak vanished even though the malformed-first reorder
+// was in place).
+const MAX_NONEXISTENT_REQUESTS = 10;
 const MAX_FINDINGS = 20;
 const SNIPPET_RADIUS = 80;
 
@@ -116,7 +128,9 @@ function snippetAround(body, matchIndex, matchLen) {
  * params, non-existent path otherwise), plus one non-existent-path
  * trigger from the first target when every target was param-bearing
  * (so both trigger shapes are exercised whenever possible).
- * Capped at MAX_ERROR_REQUESTS.
+ * Budgets are per class: every param-bearing target gets its
+ * malformed-query trigger (no cap — the input is bounded upstream),
+ * non-existent-path triggers cap at MAX_NONEXISTENT_REQUESTS.
  *
  * Order (re-proof #2 fix, 8 Nov 2026): malformed-query triggers
  * are built FIRST, nonexistent-path triggers second — the trigger
@@ -126,8 +140,13 @@ function snippetAround(body, matchIndex, matchLen) {
  * and dropped the malformed trigger for /rest/products/search?q=
  * (the live SQLite leak, re-proof #2). Malformed triggers carry
  * the error-detail signal (#176); nonexistent-path triggers carry
- * the path signal (#175) — both shapes are still built and the cap
- * is unchanged.
+ * the path signal (#175) — both shapes are still built.
+ *
+ * Order alone was NOT enough (re-proof #3, 8 Nov 2026): with 15
+ * param-bearing Juice targets the shared 10-cap still cut the 11th+
+ * param target, so the malformed class now has no cap of its own —
+ * the reorder only decides which trigger is FIRST, the per-class
+ * budget decides that none is ever dropped.
  */
 export function buildErrorTriggers(urls) {
   const list = Array.isArray(urls) ? urls.filter(Boolean) : [];
@@ -137,15 +156,17 @@ export function buildErrorTriggers(urls) {
     // Two targets in one directory share the same non-existent
     // path — sending it twice wastes budget and double-counts
     // nothing (findings dedup anyway). Keep the first.
-    if (seenUrls.has(trigger.url)) return;
+    if (seenUrls.has(trigger.url)) return false;
     seenUrls.add(trigger.url);
     triggers.push(trigger);
+    return true;
   };
   // Pass 1 — malformed-query triggers for every param-bearing
   // target, in list order. Pass 2 — nonexistent-path triggers for
-  // the param-less targets. The cap is shared and checked in push
-  // order, so the malformed class can never be starved by the
-  // target sort again.
+  // the param-less targets, capped per class. The malformed class
+  // has NO cap (the input is bounded upstream), so a late
+  // param-bearing target can never lose its trigger to an earlier
+  // one — the re-proof #3 starvation cannot recur.
   const parsed = [];
   for (const raw of list) {
     let u;
@@ -157,8 +178,8 @@ export function buildErrorTriggers(urls) {
     parsed.push({ raw, u });
   }
   let sawNonexistent = false;
+  let nonexistentCount = 0;
   for (const { raw, u } of parsed) {
-    if (triggers.length >= MAX_ERROR_REQUESTS) break;
     const firstParam = [...u.searchParams.keys()][0];
     if (!firstParam) continue;
     const bad = new URL(u);
@@ -171,22 +192,26 @@ export function buildErrorTriggers(urls) {
     });
   }
   for (const { raw, u } of parsed) {
-    if (triggers.length >= MAX_ERROR_REQUESTS) break;
+    if (nonexistentCount >= MAX_NONEXISTENT_REQUESTS) break;
     if ([...u.searchParams.keys()].length > 0) continue;
     const dir = u.pathname.slice(0, u.pathname.lastIndexOf('/') + 1) || '/';
     const bad = new URL(u);
     bad.pathname = `${dir}${NONEXISTENT_LEAF}`;
     bad.search = '';
     bad.hash = '';
-    push({
-      url: bad.toString(),
-      baselineUrl: raw,
-      kind: 'nonexistent-path',
-      parameter: null,
-    });
-    sawNonexistent = true;
+    if (
+      push({
+        url: bad.toString(),
+        baselineUrl: raw,
+        kind: 'nonexistent-path',
+        parameter: null,
+      })
+    ) {
+      nonexistentCount += 1;
+      sawNonexistent = true;
+    }
   }
-  if (!sawNonexistent && list.length > 0 && triggers.length < MAX_ERROR_REQUESTS) {
+  if (!sawNonexistent && list.length > 0 && nonexistentCount < MAX_NONEXISTENT_REQUESTS) {
     try {
       const u = new URL(list[0]);
       const dir = u.pathname.slice(0, u.pathname.lastIndexOf('/') + 1) || '/';

@@ -53,10 +53,21 @@ describe('buildErrorTriggers', () => {
     assert.equal(t[0].url, 'http://lab.local/admin/dm-nonexistent-9f27a1c4.html');
   });
 
-  it('caps error-trigger requests at 10', () => {
+  it('every param-bearing target gets a malformed-query trigger — no shared cap (re-proof #3)', () => {
+    // The old shared 10-cap cut the 11th+ param target even after the
+    // malformed-first reorder (15 param-bearing Juice targets, live).
+    // Malformed triggers are per-class uncapped now: 12 param targets
+    // yield 12 malformed triggers plus the extra nonexistent-path one.
     const urls = Array.from({ length: 12 }, (_, i) => `http://lab.local/p${i}?a=${i}`);
     const t = buildErrorTriggers(urls);
-    assert.equal(t.length, 10);
+    assert.equal(t.filter((x) => x.kind === 'malformed-query').length, 12);
+    assert.equal(t.length, 13);
+    for (const u of urls) {
+      assert.ok(
+        t.some((x) => x.kind === 'malformed-query' && x.baselineUrl === u),
+        `param target ${u} must keep its malformed trigger`
+      );
+    }
   });
 
   it('two targets in one directory share one non-existent-path trigger', () => {
@@ -97,10 +108,31 @@ describe('buildErrorTriggers', () => {
     const plain = Array.from({ length: 12 }, (_, i) => `http://lab.local/dir${i}/page`);
     const search = 'http://lab.local/rest/products/search?q=hello';
     const t = buildErrorTriggers([...plain, search]);
-    assert.equal(t.length, 10, 'the cap is unchanged');
+    assert.equal(t.length, 11, '1 malformed + 10 nonexistent (per-class caps)');
     const malformed = t.find((x) => x.kind === 'malformed-query' && x.baselineUrl === search);
     assert.ok(malformed, `the late param target must keep its malformed trigger; kinds: ${t.map((x) => x.kind).join(',')}`);
     assert.equal(malformed.parameter, 'q');
+    assert.ok(t.some((x) => x.kind === 'nonexistent-path'), 'the nonexistent-path shape is still exercised');
+  });
+
+  it('a param-bearing target past position 10 still gets a malformed trigger when 11+ param targets precede it (re-proof #3)', () => {
+    // Test-gap fix (8 Nov 2026): the old cap test asserted COUNT only
+    // (12 param targets -> 10 triggers) and the re-proof #2 test was
+    // 12 plain + 1 param — no test ever covered a NAMED late param
+    // target among 11+ param-bearing targets. Live shape: Juice has
+    // 15 param-bearing verb targets; /rest/products/search?q= sits
+    // past position 10 when standalone/DOM targets precede it, and
+    // the shared cap dropped its malformed trigger — the SQLite leak
+    // vanished. Every param target must keep its trigger now.
+    const before = Array.from({ length: 10 }, (_, i) => `http://lab.local/api/r${i}?e=${i}`);
+    const search = 'http://lab.local/rest/products/search?q=hello';
+    const after = Array.from({ length: 4 }, (_, i) => `http://lab.local/api/s${i}?e=${i}`);
+    const t = buildErrorTriggers([...before, search, ...after]);
+    const malformed = t.filter((x) => x.kind === 'malformed-query');
+    assert.equal(malformed.length, 15, 'one malformed trigger per param-bearing target');
+    const hit = t.find((x) => x.kind === 'malformed-query' && x.baselineUrl === search);
+    assert.ok(hit, `the 11th param target must keep its malformed trigger; kinds: ${t.map((x) => x.kind).join(',')}`);
+    assert.equal(hit.parameter, 'q');
     assert.ok(t.some((x) => x.kind === 'nonexistent-path'), 'the nonexistent-path shape is still exercised');
   });
 });
@@ -424,7 +456,7 @@ describe('errorDisclosure probe — negatives, dedup, failures', () => {
     assert.equal(fetched, 0);
   });
 
-  it('at most 10 error-trigger requests are sent for 12 targets', async () => {
+  it('every param-bearing target sends its malformed trigger for 12 targets (re-proof #3)', async () => {
     const urls = Array.from({ length: 12 }, (_, i) => `http://lab.local/p${i}?a=${i}`);
     let triggerFetches = 0;
     const findings = await probeErrorDisclosure(urls, {
@@ -436,6 +468,7 @@ describe('errorDisclosure probe — negatives, dedup, failures', () => {
       },
     });
     assert.deepEqual(findings, []);
-    assert.equal(triggerFetches, 10);
+    // 12 malformed triggers + the extra nonexistent-path trigger.
+    assert.equal(triggerFetches, 13);
   });
 });
