@@ -51,6 +51,17 @@
 // reassigned, concatenated, or interpolated assignment never
 // binds. Existing branches are untouched.
 //
+// (8 Nov 2026, chained-concat bases): a service base may be a CHAIN
+// of `+` segments — `host = this.hostServer + "/rest" + "/admin"`,
+// `host = API_BASE + "/rest" + "/admin"`, or a template base
+// followed by `+ "/seg"`. The chain resolves only when EVERY
+// segment is a plain string literal starting with '/'
+// (concatChainTail); a variable, interpolated, escaped, or
+// non-'/'-starting segment breaks the whole chain and the base is
+// left unmined — never guessed, not even the prefix before the
+// break. Existing branches, caps, and sort-first rules are
+// untouched.
+//
 // MECHANISM: when the pasted page yielded zero param-bearing targets
 // (after static + DOM + form synthesis + openapi-targets), fetch the
 // page's same-origin <script> bundles (read-only GET, max 5) and mine
@@ -216,6 +227,51 @@ function resolveBaseExpr(expr, bindings, bases) {
   return null;
 }
 
+// Chained-concat segments after a service-base literal:
+// `host = this.hostServer + "/rest" + "/admin"` resolves to
+// "/rest/admin" only when EVERY `+ "segment"` is a plain string
+// literal starting with '/'. A segment that is a variable, an
+// interpolation, an escaped literal, or any non-literal expression
+// breaks the chain — the whole base is left unmined, never guessed
+// (not even the prefix before the break: "/rest" + dynSeg is not
+// the route "/rest"). A plain literal that does not start with '/'
+// also breaks the chain — the miner cannot know whether a '/'
+// separator was intended, so it never invents one. Returns
+// { extra, broke }: extra is the concatenated segments ('' when
+// there is no chain); broke is true when a '+' chain was started
+// but could not be resolved cleanly.
+function concatChainTail(src, pos) {
+  let extra = '';
+  let j = pos;
+  for (;;) {
+    let k = j;
+    while (k < src.length && /\s/.test(src[k])) k += 1;
+    if (src[k] !== '+') return { extra, broke: false };
+    k += 1;
+    while (k < src.length && /\s/.test(src[k])) k += 1;
+    const quote = src[k];
+    if (quote !== '"' && quote !== "'" && quote !== '`') return { extra, broke: true };
+    k += 1;
+    let value = '';
+    let closed = false;
+    while (k < src.length) {
+      const ch = src[k];
+      if (ch === '\\') return { extra, broke: true };
+      if (ch === quote) {
+        closed = true;
+        break;
+      }
+      if (quote === '`' && ch === '$' && src[k + 1] === '{') return { extra, broke: true };
+      value += ch;
+      k += 1;
+    }
+    if (!closed) return { extra, broke: true };
+    if (!value.startsWith('/')) return { extra, broke: true };
+    extra += value;
+    j = k + 1;
+  }
+}
+
 // Interpolation-named query params resolved via literal bindings:
 // `?${name}=v` where name is bound to a valid param name, or
 // `?${qs}` where qs is bound to a prebuilt query string (parsed
@@ -325,24 +381,37 @@ export function extractJsRouteRecords(bundleText) {
   const basePositions = [];
   const baseCandidates = [];
   // (a3) hostServer + quoted/template base literal (existing form,
-  // backtick added): the literal IS the base path.
+  // backtick added): the literal IS the base path. A chained-concat
+  // tail (`+ "/admin"`) resolves onto it (see concatChainTail); a
+  // broken chain drops the whole candidate.
   for (const m of src.matchAll(/host\s*=\s*this\.hostServer\s*\+\s*["'`](\/[^"'`]+)["'`]/g)) {
-    baseCandidates.push({ pos: m.index, path: m[1] });
+    const chain = concatChainTail(src, m.index + m[0].length);
+    if (chain.broke) continue;
+    baseCandidates.push({ pos: m.index, path: m[1] + chain.extra });
   }
   // (a4) template base: host = `${EXPR}/rest/...` — resolve the
   // leading expression (hostServer = origin, .host = nearest base,
   // bare ident = literal binding); the remainder is the base path.
+  // A chained-concat tail (`+ "/seg"`) resolves onto it as well.
   for (const m of src.matchAll(/host\s*=\s*`(?:\$\{\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*\})([^`]*?)`/g)) {
     if (!m[2].startsWith('/')) continue;
-    baseCandidates.push({ pos: m.index, templateExpr: m[1], rest: m[2] });
+    const chain = concatChainTail(src, m.index + m[0].length);
+    if (chain.broke) continue;
+    baseCandidates.push({ pos: m.index, templateExpr: m[1], rest: m[2] + chain.extra });
   }
   // (a4b) direct template base: host = `/rest/...` (no interpolation).
+  // A chained-concat tail (`+ "/seg"`) resolves onto it as well.
   for (const m of src.matchAll(/host\s*=\s*`(\/[^`]*)`/g)) {
-    baseCandidates.push({ pos: m.index, path: m[1] });
+    const chain = concatChainTail(src, m.index + m[0].length);
+    if (chain.broke) continue;
+    baseCandidates.push({ pos: m.index, path: m[1] + chain.extra });
   }
   // (a5) variable base: host = <ident> + "literal" or host = <ident>.
+  // A chained-concat tail (`+ "/admin"`) resolves onto the suffix.
   for (const m of src.matchAll(/host\s*=\s*([A-Za-z_$][\w$]*)\s*\+\s*["'`](\/[^"'`]+)["'`]/g)) {
-    baseCandidates.push({ pos: m.index, varIdent: m[1], suffix: m[2] });
+    const chain = concatChainTail(src, m.index + m[0].length);
+    if (chain.broke) continue;
+    baseCandidates.push({ pos: m.index, varIdent: m[1], suffix: m[2] + chain.extra });
   }
   for (const m of src.matchAll(/host\s*=\s*([A-Za-z_$][\w$]*)(?=[\s]*[,;}\n]|$)/g)) {
     baseCandidates.push({ pos: m.index, varIdent: m[1], suffix: '' });

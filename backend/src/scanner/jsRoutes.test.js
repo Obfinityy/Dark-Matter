@@ -788,3 +788,137 @@ describe('discoverJsRoutes (miner extension end to end)', () => {
     assert.ok(found2.targets.some((t) => /\/rest\/list\?page=dmprobe/.test(t)));
   });
 });
+
+// Chained-concat service bases (8 Nov 2026). CHAINED_CONCAT_BUNDLE
+// models every chain form: hostServer + two literals, variable base
+// + two literals, template base + a literal segment, direct template
+// base + two segments, a three-segment chain, and single-quoted
+// segments. CHAINED_DISCIPLINE_BUNDLE models chains that must NEVER
+// resolve: a variable segment, an interpolated segment, a
+// non-'/'-starting literal, a reassigned binding, a concatenated
+// binding, a valid segment followed by a variable (the whole chain
+// breaks — not even the prefix before it), and an escaped segment.
+const CHAINED_CONCAT_BUNDLE = `
+const API_BASE = "/api";
+let P = (() => { class n { http; hostServer = et.c.hostServer;
+  host = this.hostServer + "/rest" + "/admin";
+  constructor(e) { this.http = e; }
+  version() { return this.http.get(this.host + "/application-version"); }
+} })();
+let Q = (() => { class n { http; hostServer = et.c.hostServer;
+  host = API_BASE + "/v1" + "/users";
+  constructor(e) { this.http = e; }
+  list() { return this.http.get(this.host); }
+} })();
+let R = (() => { class n { http; hostServer = et.c.hostServer;
+  host = \`\${this.hostServer}/rest/tpl\` + "/deep";
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.host + "/go"); }
+} })();
+let S = (() => { class n { http; hostServer = et.c.hostServer;
+  host = \`/rest/direct\` + "/sub" + "/leaf";
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.host); }
+} })();
+let T = (() => { class n { http; hostServer = et.c.hostServer;
+  host = this.hostServer + "/rest" + "/a" + "/b" + "/c";
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.host); }
+} })();
+let AB = (() => { class n { http; hostServer = et.c.hostServer;
+  host = this.hostServer + '/rest' + '/sq';
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.host); }
+} })();
+`;
+
+const CHAINED_DISCIPLINE_BUNDLE = `
+let BASE2 = "/rest";
+BASE2 = "/api";
+const CONCAT = "/a" + "/b";
+let U = (() => { class n { http; hostServer = et.c.hostServer;
+  host = this.hostServer + "/rest" + dynSeg;
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.host + "/go"); }
+} })();
+let V = (() => { class n { http; hostServer = et.c.hostServer;
+  host = this.hostServer + "/rest" + \`/seg\${x}\`;
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.host + "/go"); }
+} })();
+let W = (() => { class n { http; hostServer = et.c.hostServer;
+  host = this.hostServer + "/rest" + "noslash";
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.host + "/go"); }
+} })();
+let X = (() => { class n { http; hostServer = et.c.hostServer;
+  host = BASE2 + "/v1" + "/users";
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.host); }
+} })();
+let Y = (() => { class n { http; hostServer = et.c.hostServer;
+  host = CONCAT + "/x";
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.host); }
+} })();
+let Z = (() => { class n { http; hostServer = et.c.hostServer;
+  host = this.hostServer + "/rest" + "/ok" + other;
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.host + "/go"); }
+} })();
+let AA = (() => { class n { http; hostServer = et.c.hostServer;
+  host = this.hostServer + "/rest" + "/a\\/b";
+  constructor(e) { this.http = e; }
+  go() { return this.http.get(this.host + "/go"); }
+} })();
+`;
+
+describe('extractJsRouteRecords (chained-concat service bases)', () => {
+  test('JS-23: hostServer, variable, template and direct-template chains all resolve; this.host calls follow the chained base', () => {
+    const recs = extractJsRouteRecords(CHAINED_CONCAT_BUNDLE);
+    const byPath = new Map(recs.map((r) => [r.path, r]));
+    for (const base of ['/rest/admin', '/api/v1/users', '/rest/tpl/deep', '/rest/direct/sub/leaf', '/rest/a/b/c', '/rest/sq']) {
+      assert.ok(byPath.has(base), `chained base record ${base} must exist`);
+    }
+    assert.deepEqual(byPath.get('/rest/admin/application-version').methods, ['get']);
+    assert.deepEqual(byPath.get('/api/v1/users').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/tpl/deep/go').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/direct/sub/leaf').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/a/b/c').methods, ['get']);
+    assert.deepEqual(byPath.get('/rest/sq').methods, ['get']);
+    const { targets } = extractJsRoutes(CHAINED_CONCAT_BUNDLE, 'http://example.com/');
+    for (const want of ['/rest/admin', '/rest/admin/application-version', '/api/v1/users', '/rest/tpl/deep/go', '/rest/direct/sub/leaf', '/rest/a/b/c', '/rest/sq']) {
+      assert.ok(targets.some((t) => new URL(t).pathname === want), `expected mined target ${want}`);
+    }
+  });
+
+  test('JS-24: chain discipline — variable, interpolated, non-slash, reassigned, concatenated, late-break and escaped segments all leave the base unmined', () => {
+    const recs = extractJsRouteRecords(CHAINED_DISCIPLINE_BUNDLE);
+    const byPath = new Map(recs.map((r) => [r.path, r]));
+    for (const banned of ['/rest', '/rest/go', '/rest/ok', '/rest/ok/go', '/api/v1/users', '/a/b', '/a/b/x']) {
+      assert.ok(!byPath.has(banned), `broken-chain base ${banned} must stay unmined`);
+    }
+    const { targets } = extractJsRoutes(CHAINED_DISCIPLINE_BUNDLE, 'http://example.com/');
+    const paths = targets.map((t) => new URL(t).pathname);
+    for (const banned of ['/rest', '/rest/go', '/rest/ok', '/rest/ok/go', '/api/v1/users', '/a/b/x']) {
+      assert.ok(!paths.includes(banned), `broken-chain target ${banned} must never be mined`);
+    }
+  });
+});
+
+describe('discoverJsRoutes (chained-concat bases end to end)', () => {
+  test('JS-25: chained-concat bases mine end to end through discoverJsRoutes', async () => {
+    const fetchPage = stubFetchFor(JUICE_SHELL, {
+      'runtime.js': 'var r = 1;',
+      'polyfills.js': 'var p = 1;',
+      'vendor.js': 'var v = 1;',
+      'main.js': CHAINED_CONCAT_BUNDLE,
+    });
+    const found = await discoverJsRoutes('http://example.com/', { fetchPage });
+    assert.equal(found.routesFound, true);
+    assert.equal(found.bundlesFetched, 4);
+    for (const want of ['/rest/admin/application-version', '/api/v1/users', '/rest/tpl/deep/go', '/rest/direct/sub/leaf', '/rest/a/b/c', '/rest/sq']) {
+      assert.ok(found.targets.some((t) => new URL(t).pathname === want), `expected mined target ${want}`);
+    }
+  });
+});
