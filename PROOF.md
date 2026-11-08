@@ -5,12 +5,12 @@ target on EC2, verified first-hand (direct EC2 read, never a relay), with hunt I
 title-exact baselines and zero retractions. Nothing here is a unit-test result alone
 and nothing is claimed without evidence.
 
-## Live status (9 Nov 2026, ~01:09 IST)
+## Live status (9 Nov 2026, ~02:05 IST)
 
-- Coverage: **301/478 = 63.0% LIVE**, 90 phases in `backend/src/scanner/index.js`
-- HEAD: `69bef482` (SSTI-oracle FP fix, shared `oracleGuards.js`), **66th deploy verified** (workflow
-  42513286560, backend PID 1826514, health ok, all 6 labs up)
-- Suites at HEAD: src 2376/2365/0/11, plain 2440/2429/0/11
+- Coverage: **302/478 = 63.2% LIVE**, 91 phases in `backend/src/scanner/index.js`
+- HEAD: `07473376` (DOM-XSS location.hash probe, phase 91, row #275), **67th deploy verified** (workflow
+  42519158232, backend PID 1874968, health ok, all 6 labs up)
+- Suites at HEAD: src 2401/2390/0/11, plain 2465/2454/0/11
 - AI hunt `h_7d49c6ef7447` paused at iter 296 (owner zero-Meta order, 3 Nov 2026);
   spend frozen $38.4952 / 4661 entries
 - Baselines: DVWA **20** titles, Juice Shop **24** titles (listed below)
@@ -32,7 +32,7 @@ and nothing is claimed without evidence.
    (meta state, `scannerSummary`, title extraction from `type:"finding"` events,
    retraction check). Worker relays are never trusted for a verdict.
 
-## Proof table — re-proofs #4 to #19
+## Proof table — re-proofs #4 to #20
 
 | # | Date (IST) | Deploy | DVWA leg | Juice leg | Verdict |
 |---|-----------|--------|----------|-----------|---------|
@@ -52,6 +52,7 @@ and nothing is claimed without evidence.
 | 17 | 8 Nov ~23:33 | 64th `3766ae49` | `h_c85f8704056b` {20,0} | `h_37a4b84183dc` {23,0} | PASS, 0 retractions. **NEW [High] on Juice: 'Business logic — checkout accepted for an empty basket'** (control order `5267-24588cdcc50768b4`, empty-basket checkout returned DISTINCT order `5267-50d75690371f6492`, class `business_logic`). Row #87 AIB to LIVE. Coverage 300/478. Juice baseline becomes 23. DVWA workflow-skip honest no-op (workflowRoutes 0). `authDom: true` again on Juice (token, authInputs 1). |
 | 18 | 9 Nov ~00:20 | 65th `d48a083d` | `h_6d50fb50491c` {20,0} | `h_d4f0d605dadf` {24,0} | PASS on re-run, 0 retractions. **NEW [High] on Juice: '2FA verification accepts repeated wrong codes without rate limiting'** (POST `/rest/2fa/verify`, 10 distinct wrong `totpToken` codes, all invalid-code answers, no throttle signal, class `auth_2fa`; `twofa-bruteforce` phase `findingsCount=1, twoFaRoutes=1, controlOk=true, attempts=10`). Row #326 AIB to LIVE. Coverage 301/478. Juice baseline becomes 24. The 2FA finding fired on BOTH runs. First run was noisy, not a regression: DVWA `h_cba0a9fdd19c` {21,0} carried 1 SSTI FALSE POSITIVE (DVWA login `user_token` contained `9352`; live re-test proved no evaluation — `ssti.js` fix lane spawned); Juice `h_f98dd828078b` {21,0} missed the 3 verb titles (`?email=dmprobe_` probe point absent, known flake) and dom-render failed on dbus noise. Re-run legs are baseline-exact. `authDom: true` again on Juice (token, authInputs 1). |
 | 19 | 9 Nov ~01:08 | 66th `69bef482` | `h_8af7f168482f` {20,0} | `h_9a1c6701cd13` {24,0} | PASS on re-run, 0 retractions. **SSTI-oracle FP fix live-proven** (shared guards `oracleGuards.js`: strip hidden inputs + token-like attribute values, repeat request must re-show the value at the same reflection point; applied to ssti, elInject, evalInject D2/D4). 0-row fix — coverage unchanged 301/478, Juice baseline stays 24. First run: DVWA `h_f9f7b3aeece4` {20,0} baseline-exact (SSTI FP gone) + Juice `h_f1feba6f2ded` {25,0} — 24 baseline + WS frame-replay title AGAIN (2nd firing in ~9 Juice runs; verdict revised from one-off to INTERMITTENT, never a baseline title). Re-run legs baseline-exact. `authDom: true` again on Juice (token, authInputs 1). |
+| 20 | 9 Nov ~02:05 | 67th `07473376` | `h_77b886746f1a` {20,0} | `h_19732cd931c7` {24,0} | PASS, 0 retractions. **Row #275 AIB to LIVE — proven true negative** (two-tier oracle: tier-1 static mine found ZERO `location.hash` reads in Juice first-party bundles + inline blocks, `hashReads=0, hashNearSink=0, driveAttempted=false` — no drive needed; DVWA `dom-xss-location-hash` phase skipped 'no script targets'). Coverage 302/478. Baselines unchanged: DVWA 20, Juice 24. `authDom: true` again on Juice. |
 
 ## Behaviour-analysis live proof (60th deploy `203c6d44`)
 
@@ -163,6 +164,7 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 | 64th | `3766ae49` | 42506563300 | Workflow-skip probe, phase 89 (row #87) |
 | 65th | `d48a083d` | 42509413641 | 2FA brute-force probe, phase 90 (row #326) |
 | 66th | `69bef482` | 42513286560 | SSTI/EL/eval 9352-oracle FP fix (0-row, shared oracleGuards.js) |
+| 67th | `07473376` | 42519158232 | DOM-XSS location.hash probe, phase 91 (row #275) |
 
 ## Screenshots
 
