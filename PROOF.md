@@ -5,15 +5,15 @@ target on EC2, verified first-hand (direct EC2 read, never a relay), with hunt I
 title-exact baselines and zero retractions. Nothing here is a unit-test result alone
 and nothing is claimed without evidence.
 
-## Live status (8 Nov 2026, ~22:12 IST)
+## Live status (8 Nov 2026, ~23:40 IST)
 
-- Coverage: **299/478 = 62.6% LIVE**, 88 phases in `backend/src/scanner/index.js`
-- HEAD: `b1fa279f` (basket-logic probe, phase 88), **62nd deploy verified** (workflow
-  42498808158, backend PID 1700242, health ok, all 6 labs up)
-- Suites at HEAD: src 2331/2320/0/11, plain 2395/2384/0/11
+- Coverage: **300/478 = 62.8% LIVE**, 89 phases in `backend/src/scanner/index.js`
+- HEAD: `3766ae49` (workflow-skip probe, phase 89), **64th deploy verified** (workflow
+  42506563300, backend PID 1765881, health ok, all 6 labs up)
+- Suites at HEAD: src 2354/2343/0/11, plain 2418/2407/0/11
 - AI hunt `h_7d49c6ef7447` paused at iter 296 (owner zero-Meta order, 3 Nov 2026);
   spend frozen $38.4952 / 4661 entries
-- Baselines: DVWA **20** titles, Juice Shop **22** titles (listed below)
+- Baselines: DVWA **20** titles, Juice Shop **23** titles (listed below)
 
 ## How a proof works
 
@@ -32,7 +32,7 @@ and nothing is claimed without evidence.
    (meta state, `scannerSummary`, title extraction from `type:"finding"` events,
    retraction check). Worker relays are never trusted for a verdict.
 
-## Proof table — re-proofs #4 to #16
+## Proof table — re-proofs #4 to #17
 
 | # | Date (IST) | Deploy | DVWA leg | Juice leg | Verdict |
 |---|-----------|--------|----------|-----------|---------|
@@ -49,6 +49,7 @@ and nothing is claimed without evidence.
 | 14 | 8 Nov ~18:52 | 59th `ae0f45ba` | `h_4fcc323cd67f` {20,0} | `h_58458e51b647` {21,0} | PASS on titles, 0 retractions. `authDom` still FALSE: `docker port` prints the bare form `172.17.0.1:32769` (parser required the `9222/tcp ->` prefix) and this Chrome build binds DevTools to 127.0.0.1:9222 only. Proven fix: `--network host`. |
 | 15 | 8 Nov ~20:00 | 61st `3c2a86a8` | `h_4d444fe51078` {20,0} | `h_5894a14c4069` {21,0} | PASS, 0 retractions, scan errors []. **CDP authenticated render LIVE-PROVEN for the first time: `authDom: true`, `authSession: "token"`, `authInputs: 1`, `authError: null`** (Juice dom-render phase, 39158ms, 3 findings, 6 domRoutes). DVWA skips dom-render ('static elements found', expected). |
 | 16 | 8 Nov ~22:05 | 62nd `b1fa279f` | `h_c52efad4ae64` {20,0} | `h_a704a2334c12` {22,0} | PASS, 0 retractions. **NEW [High] on Juice: 'Business logic — negative quantity reduces the basket total'** (PUT qty -1 → total 23.93→15.97, +1 control + same-value replay verified, class `business_logic`). Rows #82 + #370 + #374 AIB to LIVE. Coverage 299/478. Juice baseline becomes 22. DVWA basket-logic honest no-op (basketRoutes 0). `authDom: true` again on Juice (token, authInputs 1). |
+| 17 | 8 Nov ~23:33 | 64th `3766ae49` | `h_c85f8704056b` {20,0} | `h_37a4b84183dc` {23,0} | PASS, 0 retractions. **NEW [High] on Juice: 'Business logic — checkout accepted for an empty basket'** (control order `5267-24588cdcc50768b4`, empty-basket checkout returned DISTINCT order `5267-50d75690371f6492`, class `business_logic`). Row #87 AIB to LIVE. Coverage 300/478. Juice baseline becomes 23. DVWA workflow-skip honest no-op (workflowRoutes 0). `authDom: true` again on Juice (token, authInputs 1). |
 
 ## Behaviour-analysis live proof (60th deploy `203c6d44`)
 
@@ -117,7 +118,7 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 19. Session fixation — session ID not regenerated on login (MEDIUM, T1)
 20. Session fixation — planted session ID reaches authenticated state (HIGH, T2)
 
-### Juice Shop — 22 titles
+### Juice Shop — 23 titles
 
 1. HTTP request smuggling (CL.TE desync proven)
 2. Verb tampering — DELETE
@@ -141,6 +142,7 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 20. Vulnerable merge library fingerprinted: jQuery@2.2.4 (INFO) (Low, since re-proof #5)
 21. DOM XSS sink fingerprinted: bypassSecurityTrustHtml x9, innerHTML x22, document.write x1 (INFO) (Low, since re-proof #12, row #115)
 22. Business logic — negative quantity reduces the basket total (HIGH) (since live-proof #16, rows #82/#370/#374)
+23. Business logic — checkout accepted for an empty basket (HIGH) (since live-proof #17, row #87)
 
 ## Deploy chain (recent)
 
@@ -154,6 +156,8 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 | 60th | `203c6d44` | 42486420990 | AI behaviour-analysis |
 | 61st | `3c2a86a8` | 42488852862 | CDP host-network fix (`--network host`, fixed `http://127.0.0.1:9222`) |
 | 62nd | `b1fa279f` | 42498808158 | Basket-logic probe, phase 88 (first AI-part lane) |
+| 63rd | `66b02639` | 42502999724 | Professionalize repo to Obfinity company-product standard (docs/comments only, no live-proof) |
+| 64th | `3766ae49` | 42506563300 | Workflow-skip probe, phase 89 (row #87) |
 
 ## Screenshots
 
