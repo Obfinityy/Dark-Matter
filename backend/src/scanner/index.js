@@ -47,6 +47,7 @@ import { probeCsvLog } from './probes/csvLogInjection.js';
 import { probeSmtpInject } from './probes/smtpInject.js';
 import { probeSessionFixation } from './probes/sessionFixation.js';
 import { probeBasketLogic } from './probes/basketLogic.js';
+import { probeWorkflowSkip } from './probes/workflowSkip.js';
 import { probeUserEnum } from './probes/userEnum.js';
 import { probeRfi } from './probes/rfi.js';
 import { probeXslt } from './probes/xslt.js';
@@ -148,6 +149,7 @@ export const DEFAULT_PHASES = [
   'smtp-injection',
   'session-fixation',
   'basket-logic',
+  'workflow-skip',
   'user-enumeration',
   'rfi',
   'xslt',
@@ -1423,6 +1425,32 @@ export async function runScan(
       basketId: Boolean(blDiag.basketId),
       controlOk: Boolean(blDiag.controlOk),
       mutations: blDiag.mutations || 0,
+    })
+  );
+  // WORKFLOW SKIP (8 Nov 2026, row #87 [High], WSTG-BUSL): the
+  // out-of-order half of the basket-logic row family — checkout
+  // accepted for an empty basket, confirmed by a control checkout
+  // of a non-empty basket that must first return an order artefact
+  // (see workflowSkip.js). Same apiRoutes wiring as basket-logic.
+  // Diagnostics ride the phase extras (workflowRoutes, basketId,
+  // controlOk, mutations) so a live proof can tell "no surface"
+  // from "oracle uncalibrated" without re-running the scan.
+  const wsDiag = {};
+  await step(
+    'workflow-skip',
+    () =>
+      probeWorkflowSkip(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: wsDiag,
+      }),
+    () => ({
+      workflowRoutes: wsDiag.workflowRoutes || 0,
+      basketId: Boolean(wsDiag.basketId),
+      controlOk: Boolean(wsDiag.controlOk),
+      mutations: wsDiag.mutations || 0,
     })
   );
   await step('user-enumeration', () => probeUserEnum(forms, url, opts));
