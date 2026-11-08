@@ -49,6 +49,7 @@ import { probeSessionFixation } from './probes/sessionFixation.js';
 import { probeBasketLogic } from './probes/basketLogic.js';
 import { probeWorkflowSkip } from './probes/workflowSkip.js';
 import { probeTwoFaBruteForce } from './probes/twoFaBruteForce.js';
+import { probeCredentialStuffing } from './probes/credentialStuffing.js';
 import { probeUserEnum } from './probes/userEnum.js';
 import { probeRfi } from './probes/rfi.js';
 import { probeXslt } from './probes/xslt.js';
@@ -153,6 +154,7 @@ export const DEFAULT_PHASES = [
   'basket-logic',
   'workflow-skip',
   'twofa-bruteforce',
+  'credential-stuffing',
   'user-enumeration',
   'rfi',
   'xslt',
@@ -1514,6 +1516,33 @@ export async function runScan(
       twoFaRoutes: tfbDiag.twoFaRoutes || 0,
       controlOk: Boolean(tfbDiag.controlOk),
       attempts: tfbDiag.attempts || 0,
+    })
+  );
+  // CREDENTIAL STUFFING (9 Nov 2026, row #42 [High], OWASP A07:2021):
+  // a login that never throttles wrong passwords lets an attacker
+  // replay leaked credential pairs at scale — confirm only when 10
+  // distinct fixed wrong passwords are each answered as ordinary
+  // invalid-credential responses with no throttle signal anywhere
+  // (see credentialStuffing.js). Same apiRoutes wiring as
+  // twofa-bruteforce. Diagnostics ride the phase extras
+  // (loginRoutes, controlOk, attempts) so a live proof can tell
+  // "no surface" from "oracle uncalibrated" without re-running
+  // the scan.
+  const csDiag = {};
+  await step(
+    'credential-stuffing',
+    () =>
+      probeCredentialStuffing(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: csDiag,
+      }),
+    () => ({
+      loginRoutes: csDiag.loginRoutes || 0,
+      controlOk: Boolean(csDiag.controlOk),
+      attempts: csDiag.attempts || 0,
     })
   );
   await step('user-enumeration', () => probeUserEnum(forms, url, opts));
