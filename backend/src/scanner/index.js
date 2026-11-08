@@ -69,6 +69,8 @@ import { probeSaml } from './probes/saml.js';
 import { createOobCollaborator } from './oobCollaborator.js';
 import { createSmtpCanaryInbox } from './smtpCanaryInbox.js';
 import { discoverDomForms } from './domRender.js';
+import { acquireLabSession } from './labSession.js';
+import { renderDomAuthenticated, mergeAuthAnalysis } from './authDomRender.js';
 import { discoverOpenApiTargets } from './openapi.js';
 import { discoverJsRoutes } from './jsRoutes.js';
 import { probeTls } from './probes/tlsScan.js';
@@ -482,6 +484,9 @@ export async function runScan(
   // chromium execution. Production callers never pass it.
   let domForms = [];
   let domDiscovery = null;
+  let authSession = null;
+  let authDiscovery = null;
+  let authAdded = null;
   const needsDom =
     pageAnalysis &&
     pageAnalysis.forms.length === 0 &&
@@ -519,12 +524,71 @@ export async function runScan(
         // Inputs stay { name, type, value } objects (D1, #474 repair):
         // the old .map(x => x.name) flattened them to bare strings,
         // which broke every consumer testing i.type === 'password'.
-        domForms = (dom.forms || []).map((f) => ({
+        const toCrawlForm = (f) => ({
           action: f.action,
           method: f.method,
           inputs: [...(f.inputs || []), ...(f.textareas || []), ...(f.selects || [])]
             .filter((x) => x && x.name),
-        }));
+        });
+        domForms = (dom.forms || []).map(toCrawlForm);
+
+        // AUTHENTICATED DOM RENDER (8 Nov 2026, CDP lane): the
+        // unauthenticated pass above renders the logged-OUT shell, so
+        // DOM probes never see post-login state on a lab SPA (Juice
+        // Shop: account/basket views and their named inputs exist
+        // only after login). When the hunt carries lab canary
+        // credentials for a lab target, log in and re-render the
+        // page + routes with the session, then merge what login
+        // reveals (deduplicated) into the same analysis. SECOND
+        // PASS, never a replacement: without a session the
+        // unauthenticated analysis stands and the scan continues —
+        // a failed login or a dead browser is a skipped auth pass,
+        // never a failed phase.
+        if (opts.labCreds && opts.labCreds.username && isLabTargetHost(url, labTargets)) {
+          const acquirer = typeof opts.labSessionAcquirer === 'function' ? opts.labSessionAcquirer : acquireLabSession;
+          let session = null;
+          try {
+            session = await acquirer({
+              url,
+              routes: [...(domDiscovery.rendered || []).map((r) => r.url), ...(crawled ? crawled.links : [])],
+              forms: [...(dom.forms || []), ...(crawled ? crawled.forms : [])],
+              pageBody,
+              creds: opts.labCreds,
+              labTargets,
+              fetchPage: typeof opts.jsRoutesFetcher === 'function' ? opts.jsRoutesFetcher : fetchPage,
+            });
+          } catch (e) {
+            session = { ok: false, reason: String((e && e.message) || e).slice(0, 120) };
+          }
+          authSession = session;
+          if (session && session.ok) {
+            const authRenderer =
+              typeof opts.authDomRender === 'function'
+                ? opts.authDomRender
+                : (u) => renderDomAuthenticated(u, session.session, opts);
+            let authDisc = null;
+            try {
+              authDisc = await discoverDomForms(url, { ...opts, domRender: authRenderer });
+            } catch (e) {
+              authDisc = { analysis: null, errors: [String((e && e.message) || e).slice(0, 200)], rendered: [] };
+            }
+            authDiscovery = authDisc;
+            if (authDisc && authDisc.analysis) {
+              authAdded = mergeAuthAnalysis(dom, authDisc.analysis);
+              pageAnalysis.inputs.push(...authAdded.inputs);
+              pageAnalysis.textareas.push(...authAdded.textareas);
+              pageAnalysis.selects.push(...authAdded.selects);
+              pageAnalysis.buttons.push(...authAdded.buttons);
+              for (const p of dom.params || []) {
+                if (!pageAnalysis.params.includes(p)) pageAnalysis.params.push(p);
+              }
+              domForms = [...domForms, ...authAdded.forms.map(toCrawlForm)];
+              for (const e of authDisc.errors || []) errors.push(e);
+            } else {
+              for (const e of (authDisc && authDisc.errors) || []) errors.push(e);
+            }
+          }
+        }
         return dom;
       },
       () =>
@@ -535,6 +599,18 @@ export async function runScan(
                 (domDiscovery.analysis.forms || []).length,
               domRoutes: (domDiscovery.rendered || []).filter((r) => r.ok).length,
               domForms: (domDiscovery.analysis.forms || []).length,
+              authDom: Boolean(authDiscovery && authDiscovery.analysis),
+              authSession:
+                authSession && authSession.ok
+                  ? authSession.session && authSession.session.token
+                    ? authSession.session.cookies && authSession.session.cookies.length
+                      ? 'token+cookies'
+                      : 'token'
+                    : 'cookies'
+                  : null,
+              authInputs: authAdded ? authAdded.inputs.length : 0,
+              authForms: authAdded ? authAdded.forms.length : 0,
+              authError: authSession && !authSession.ok ? authSession.reason || 'login-failed' : null,
             }
           : {}
     );

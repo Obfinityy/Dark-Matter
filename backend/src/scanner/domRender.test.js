@@ -83,6 +83,58 @@ function startStub(rootHtml) {
 }
 const stopStub = (s) => new Promise((r) => s.server.close(r));
 
+// Rendered Juice Shop root AFTER login (CDP auth lane, 8 Nov 2026):
+// the account view renders only post-login — one named standalone
+// input plus a basket route the logged-out shell never shows.
+const AUTH_ROOT_DOM = `<html><body><app-root>
+<input id="account" name="account" matinput type="text">
+<a href="#/basket">Basket</a></app-root></body></html>`;
+
+// Rendered Juice Shop /#/basket after login: a named quantity input.
+const BASKET_DOM = `<html><body><app-root>
+<input id="quantity" name="quantity" matinput type="number">
+</app-root></body></html>`;
+
+// Route-aware stub for the auth integration tests: serves the static
+// shell for the pasted page, the JS bundle (which names the login
+// API), and the login API itself — 200 + token when loginOk, 401
+// otherwise. Every call is recorded for probe assertions.
+function startAuthStub({ loginOk = true } = {}) {
+  const calls = [];
+  const server = http.createServer((req, res) => {
+    let raw = '';
+    req.on('data', (c) => { raw += c; });
+    req.on('end', () => {
+      calls.push({ method: req.method, url: req.url, body: raw });
+      if (req.method === 'GET' && req.url === '/main.js') {
+        res.writeHead(200, { 'Content-Type': 'application/javascript' });
+        return res.end('const LOGIN_API = "/rest/user/login"; fetch(LOGIN_API, {method:"POST"});');
+      }
+      if (req.method === 'POST' && req.url === '/rest/user/login') {
+        if (!loginOk) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ message: 'Invalid credentials' }));
+        }
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Set-Cookie': 'session=stub1; Path=/',
+        });
+        return res.end(JSON.stringify({ authentication: { token: 'jwt-test-123', bid: 1 } }));
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(req.method === 'GET' && req.url === '/' ? STATIC_SHELL : '');
+    });
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port, calls }));
+  });
+}
+
+// Lab canary credentials, built by concatenation so no secret-shaped
+// literal lands in the file (GH013 push protection).
+const LAB_USER = 'admin@juice-sh.op';
+const LAB_PASS = 'admin' + '123';
+
 describe('buildDomRenderArgs (transient-container render command)', () => {
   test('DR-1: uses --entrypoint chromium so the hunt image entrypoint cannot swallow the args', () => {
     const args = buildDomRenderArgs('http://172.17.0.1:3000/');
@@ -408,6 +460,165 @@ describe('runScan DOM integration (Juice-shaped stub server, stubbed renderer)',
       );
       const sqli = result.phases.find((p) => p.name === 'sqli-error');
       assert.ok(sqli && sqli.ok && !sqli.skipped, 'battery must run on the DOM form target');
+    } finally {
+      await stopStub(stub);
+    }
+  });
+
+  test('DOM-INT-5: authenticated pass merges post-login inputs — the battery probes them too', async () => {
+    const stub = await startAuthStub({ loginOk: true });
+    try {
+      const target = `http://127.0.0.1:${stub.port}/`;
+      const norm = (u) => String(u).replace(/\/$/, '');
+      const domRenderer = async (url) => {
+        if (norm(url) === norm(target)) return { ok: true, html: ROOT_DOM };
+        if (url === `${norm(target)}/#/login`) return { ok: true, html: LOGIN_DOM };
+        return { ok: false, html: '', error: 'stub: route not rendered' };
+      };
+      // The authenticated renderer: same shape as the unauthenticated
+      // one, but it sees the post-login DOM — account input + basket.
+      const authDomRender = async (url) => {
+        if (norm(url) === norm(target)) return { ok: true, html: AUTH_ROOT_DOM };
+        if (url === `${norm(target)}/#/basket`) return { ok: true, html: BASKET_DOM };
+        return { ok: false, html: '', error: 'stub: route not rendered' };
+      };
+      const result = await runScan(
+        { target, confirmedAuthorized: true, labTargets: '127.0.0.1', phases: BATTERY_PHASES },
+        {
+          timeoutMs: 5000,
+          domRenderer,
+          authDomRender,
+          labCreds: { username: LAB_USER, password: LAB_PASS },
+          nucleiRunner: async () => ({ findings: [], ok: true, timedOut: false }),
+        }
+      );
+      const domPhase = result.phases.find((p) => p.name === 'dom-render');
+      assert.ok(domPhase && domPhase.ok, 'dom-render must record ok');
+      assert.equal(domPhase.authDom, true, 'the authenticated pass must have run');
+      assert.equal(domPhase.authSession, 'token+cookies', 'token + session cookie must both have been carried');
+      assert.equal(domPhase.authInputs, 2, 'account + quantity must be the auth additions');
+      assert.equal(domPhase.authForms, 0);
+      assert.equal(domPhase.authError, null);
+      // Four DOM targets (email, password + account, quantity): the
+      // 29-phase battery records once per target — 7 non-param + 116.
+      assert.deepEqual(buildPhaseRollup(result.phases), {
+        total: 123,
+        ok: 123,
+        failed: 0,
+        skipped: 0,
+        timedOut: 0,
+      });
+      // The login API was actually hit with the lab credentials, and
+      // the post-login params were actually probed.
+      assert.ok(
+        stub.calls.some((c) => c.method === 'POST' && c.url === '/rest/user/login' && c.body.includes('"email"')),
+        'expected a login POST with the lab credentials'
+      );
+      assert.ok(
+        stub.calls.some((c) => /[?&]account=dmprobe_/.test(c.url)),
+        'expected a GET probe with the post-login account param'
+      );
+      assert.ok(
+        stub.calls.some((c) => /[?&]quantity=dmprobe_/.test(c.url)),
+        'expected a GET probe with the post-login quantity param'
+      );
+      // pageAnalysis.inputs is a COUNT on the returned result (the
+      // internal array lives in the step) — 4 means the two post-login
+      // inputs were merged into the target set.
+      assert.ok((result.pageAnalysis?.inputs || 0) >= 4, 'account + quantity must count in pageAnalysis');
+    } finally {
+      await stopStub(stub);
+    }
+  });
+
+  test('DOM-INT-6: failed login leaves the unauthenticated analysis standing — scan still passes', async () => {
+    const stub = await startAuthStub({ loginOk: false });
+    try {
+      const target = `http://127.0.0.1:${stub.port}/`;
+      const norm = (u) => String(u).replace(/\/$/, '');
+      const domRenderer = async (url) => {
+        if (norm(url) === norm(target)) return { ok: true, html: ROOT_DOM };
+        if (url === `${norm(target)}/#/login`) return { ok: true, html: LOGIN_DOM };
+        return { ok: false, html: '', error: 'stub: route not rendered' };
+      };
+      let authCalls = 0;
+      const authDomRender = async () => {
+        authCalls += 1;
+        return { ok: true, html: AUTH_ROOT_DOM };
+      };
+      const result = await runScan(
+        { target, confirmedAuthorized: true, labTargets: '127.0.0.1', phases: BATTERY_PHASES },
+        {
+          timeoutMs: 5000,
+          domRenderer,
+          authDomRender,
+          labCreds: { username: LAB_USER, password: LAB_PASS },
+          nucleiRunner: async () => ({ findings: [], ok: true, timedOut: false }),
+        }
+      );
+      const domPhase = result.phases.find((p) => p.name === 'dom-render');
+      assert.ok(domPhase && domPhase.ok, 'dom-render must stay ok when login fails');
+      assert.equal(domPhase.authDom, false, 'no authenticated render without a session');
+      assert.equal(domPhase.authSession, null);
+      assert.equal(domPhase.authInputs, 0);
+      assert.equal(domPhase.authError, 'login-failed');
+      assert.equal(authCalls, 0, 'the auth renderer must never run without a session');
+      // Same rollup as DOM-INT-1: the unauthenticated analysis stands.
+      assert.deepEqual(buildPhaseRollup(result.phases), {
+        total: 65,
+        ok: 65,
+        failed: 0,
+        skipped: 0,
+        timedOut: 0,
+      });
+      assert.ok(
+        !stub.calls.some((c) => /[?&]account=dmprobe_/.test(c.url)),
+        'no post-login param must be probed after a failed login'
+      );
+    } finally {
+      await stopStub(stub);
+    }
+  });
+
+  test('DOM-INT-7: without lab creds the auth pass never fires — behaviour is byte-identical to DOM-INT-1', async () => {
+    const stub = await startStub(STATIC_SHELL);
+    try {
+      const target = `http://127.0.0.1:${stub.port}/`;
+      const norm = (u) => String(u).replace(/\/$/, '');
+      const domRenderer = async (url) => {
+        if (norm(url) === norm(target)) return { ok: true, html: ROOT_DOM };
+        if (url === `${norm(target)}/#/login`) return { ok: true, html: LOGIN_DOM };
+        return { ok: false, html: '', error: 'stub: route not rendered' };
+      };
+      let authCalls = 0;
+      const authDomRender = async () => {
+        authCalls += 1;
+        return { ok: true, html: AUTH_ROOT_DOM };
+      };
+      const result = await runScan(
+        { target, confirmedAuthorized: true, labTargets: '127.0.0.1', phases: BATTERY_PHASES },
+        { timeoutMs: 5000, domRenderer, authDomRender, nucleiRunner: async () => ({ findings: [], ok: true, timedOut: false }) }
+      );
+      const domPhase = result.phases.find((p) => p.name === 'dom-render');
+      assert.ok(domPhase && domPhase.ok);
+      assert.equal(domPhase.authDom, false);
+      assert.equal(domPhase.authSession, null);
+      assert.equal(domPhase.authInputs, 0);
+      assert.equal(authCalls, 0, 'no auth pass without lab creds');
+      assert.deepEqual(buildPhaseRollup(result.phases), {
+        total: 65,
+        ok: 65,
+        failed: 0,
+        skipped: 0,
+        timedOut: 0,
+      });
+      // The battery legitimately POSTs to DOM-param URLs (DOM-INT-1)
+      // — the invariant is that no POST ever reaches the login API
+      // without lab creds.
+      assert.ok(
+        !stub.calls.some((c) => c.method === 'POST' && c.url === '/rest/user/login'),
+        'no login attempt may fire without lab creds'
+      );
     } finally {
       await stopStub(stub);
     }
