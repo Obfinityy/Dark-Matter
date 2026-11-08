@@ -265,24 +265,27 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // with 'no script targets' (a bare page carries no bundles —
       // 9 Nov 2026, 91st phase), and credential-stuffing RUNS as an
       // honest no-op alongside them (no login route on a bare page —
-      // 9 Nov 2026, 92nd phase) instead of skipping.
+      // 9 Nov 2026, 92nd phase) instead of skipping, and
+      // dom-postmessage SKIPS with 'no script targets' alongside
+      // dom-xss-location-hash (a bare page carries no bundles —
+      // 9 Nov 2026, 93rd phase).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 92,
+        total: 93,
         ok: 55,
         failed: 0,
-        skipped: 37,
+        skipped: 38,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 55 ran ok, 37 skipped, 0 failed, 0 timed out.'
+        'Phases: 55 ran ok, 38 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 121/121/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 122/122/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -347,7 +350,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // credential-disclosure + sqli-oob + sensitive-cache, 7 Nov 2026 —
       // all nineteen run here because param targets exist and the shell
       // carries a script bundle), and the two discovery phases now RUN
-      // instead of skipping — 121 total, 121 ok, 0 skipped
+      // instead of skipping — 122 total, 122 ok, 0 skipped
       // (basket-logic, the 88th phase, runs as an honest no-op here:
       // the Juice-shape stub carries no basket routes, and
       // workflow-skip, the 89th phase, runs as an honest no-op
@@ -359,17 +362,20 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // mine runs — and credential-stuffing, the 92nd phase, runs as
       // an honest no-op alongside them for the same reason: the stub
       // carries no labCreds, so the lab gate fails before the mine
-      // runs, exactly as for twofa-bruteforce).
+      // runs, exactly as for twofa-bruteforce — and dom-postmessage,
+      // the 93rd phase, runs as an honest no-op alongside them for
+      // the same reason: the stub carries no labCreds, so the lab
+      // gate fails before the mine runs).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 121,
-        ok: 121,
+        total: 122,
+        ok: 122,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 121 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 122 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -575,7 +581,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 92);
+      assert.equal(DEFAULT_PHASES.length, 93);
     } finally {
       teardown();
     }

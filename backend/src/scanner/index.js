@@ -50,6 +50,7 @@ import { probeBasketLogic } from './probes/basketLogic.js';
 import { probeWorkflowSkip } from './probes/workflowSkip.js';
 import { probeTwoFaBruteForce } from './probes/twoFaBruteForce.js';
 import { probeCredentialStuffing } from './probes/credentialStuffing.js';
+import { probeDomPostMessage } from './probes/domPostMessage.js';
 import { probeUserEnum } from './probes/userEnum.js';
 import { probeRfi } from './probes/rfi.js';
 import { probeXslt } from './probes/xslt.js';
@@ -197,6 +198,7 @@ export const DEFAULT_PHASES = [
   'browser-storage',
   'dom-xss-sinks',
   'dom-xss-location-hash',
+  'dom-postmessage',
   'nuclei',
 ];
 
@@ -1249,6 +1251,46 @@ export async function runScan(
     );
   } else {
     skipPhase('dom-xss-location-hash', 'no script targets');
+  }
+  // DOM XSS VIA POSTMESSAGE (9 Nov 2026, row #274 [High] CWE-79):
+  // dom-xss-sinks fingerprints sinks statically and
+  // dom-xss-location-hash drives a fragment canary; this phase
+  // goes after the third DOM-XSS source — it mines first-party code
+  // for `message` listeners and, only when one exists, posts a
+  // control message and canary messages to the pasted page from a
+  // cross-origin iframe in a real browser (transient container +
+  // fixed CDP endpoint, same pattern as renderDomAuthenticated)
+  // and confirms ONLY on observed execution. A self-post would
+  // arrive as the page's own origin and falsely confirm a handler
+  // that checks origin, so the drive posts from a data:-URL iframe
+  // (opaque "null" origin) and verifies delivery at the window —
+  // see domPostMessage.js. Listener presence alone never fires.
+  // Lab-gated like dom-xss-location-hash (labCreds + allowWrite +
+  // lab host + depth !== 'quick'), so the drive never runs outside
+  // the lab gate; a listener into a safe sink drives but cannot
+  // execute, and zero listeners is a proven true negative with no
+  // drive at all.
+  const pmDiag = {};
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step(
+      'dom-postmessage',
+      () =>
+        probeDomPostMessage(url, secretTargets, {
+          ...opts,
+          allowWrite,
+          labTargets,
+          diagnostics: pmDiag,
+          ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+        }),
+      () => ({
+        listeners: pmDiag.listeners || 0,
+        listenersNearSink: pmDiag.listenersNearSink || 0,
+        driveAttempted: Boolean(pmDiag.driveAttempted),
+        driveExecuted: Boolean(pmDiag.driveExecuted),
+      })
+    );
+  } else {
+    skipPhase('dom-postmessage', 'no script targets');
   }
   // ERROR DISCLOSURE (7 Nov 2026, rows #175 + #176): trigger
   // errors with read-only GETs on the same GET probe targets as
