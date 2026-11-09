@@ -5,11 +5,11 @@ target on EC2, verified first-hand (direct EC2 read, never a relay), with hunt I
 title-exact baselines and zero retractions. Nothing here is a unit-test result alone
 and nothing is claimed without evidence.
 
-## Live status (9 Nov 2026, ~15:50 IST)
+## Live status (9 Nov 2026, ~16:35 IST)
 
-- Coverage: **315/478 = 65.9% LIVE**, 102 phases in `backend/src/scanner/index.js`
-- HEAD: `e2ac2f6e` (SEO, frontend-only; backend still phase 102 from `e0ef10a4`), **78th deploy verified** (workflow 42587796527, backend PID 2393328, health ok, LAB_TARGETS 7/7 incl. coupon lab 3610)
-- Suites at HEAD: src 2687/2676/0/11, plain 2751/2740/0/11
+- Coverage: **316/478 = 66.1% LIVE**, 103 phases in `backend/src/scanner/index.js`
+- HEAD: `1fee5101` (#342 API token auth), **79th deploy verified** (workflow 42601378551, backend PID 2430368, health ok, LAB_TARGETS 8/8 incl. LLM lab 3600)
+- Suites at HEAD: src 2710/2699/0/11, plain 2774/2763/0/11
 - AI hunt `h_7d49c6ef7447` paused at iter 296 (owner zero-Meta order, 3 Nov 2026);
   spend frozen $38.4952 / 4661 entries
 - Baselines: DVWA **20** titles, Juice Shop **26** titles (listed below)
@@ -63,6 +63,7 @@ and nothing is claimed without evidence.
 | 29 | 9 Nov ~14:05 | 77th `18900b2f` | `h_7fb2db4ca4f4` {20,0} | `h_a02f5b2ea2b5` {26,0} | INCONCLUSIVE for rows #78 + #371, 0 retractions. Both legs baseline-exact, but the Juice coupon drive never ran (`couponRoutes=1, couponCodes=0, controlOk=false, attempts=0` — this Juice Shop build (v17.3.0) has NO coupon-list endpoint: GET /api/Coupons returns HTTP 500, and the bundle publishes no codes; the probe never guesses codes by design). DVWA `coupon-abuse` phase ok:true, 0ms, `couponRoutes=0, couponCodes=0, attempts=0` — DVWA has no coupon surface at all. Coverage stays 308/478. Fix: a dedicated coupon lab (port 3610) is built and parent-verified; re-proof runs on it. |
 | 30 | 9 Nov ~14:46 | 78th `e0ef10a4` | `h_0f285f54870d` {20,0} | `h_b03922828348` {26,0} | PASS, 0 retractions. **Rows #91 + #89 + #90 AIB to LIVE — proven true negatives** (three two-tier DOM-sink oracles sharing the #275/#274 CDP harness; DVWA trio phases all skipped 'no script targets' by design — DVWA serves no JS; Juice `dom-open-redirect` ok:true, 8s, `redirectSinks=11, redirectNearSink=0, driveAttempted=true, driveExecuted=false` — CDP drive RAN (control + canary shapes, generic params redirect/next), canary never navigated; `dom-clobbering` ok:true, 19ms, `clobberSinks=0, clobberNearSink=0, driveAttempted=false` — ZERO sink-feeding global reads, no drive needed; `dom-cookie-manipulation` ok:true, 15ms, `cookieSinks=0, cookieNearSink=0, sessionOk=false, driveAttempted=false` — ZERO document.cookie writes, no drive needed; sessionOk false is the early-return artifact, the lab session existed (dom-render authDom true, token)). Coverage 313/478. Baselines unchanged: DVWA 20, Juice 26. DVWA phases 102/88/14/0/0, 148 events; Juice phases 537/537/0/0/0, 596 events. `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
 | 31 | 9 Nov ~15:50 | coupon lab `6e29eff5` (no backend deploy — labs-only) | `h_f9aac40ba461` {13,0} | `h_980af7709347` {13,0} | PASS, 0 retractions. **Rows #78 + #371 AIB to LIVE** (coupon-lab re-proof, port 3610 — both legs on the coupon lab, not DVWA/Juice: leg 1 default mode, `coupon-abuse` ok:true, `couponRoutes=1, couponCodes=2, controlOk=true, attempts=2, bypassKind='stacked'`, finding 'Business logic — two coupons stacked for a double discount (MEDIUM)'; leg 2 `COUPON_STACKING=fixed`, `coupon-abuse` ok:true, `couponRoutes=1, couponCodes=2, controlOk=true, attempts=3, bypassKind='reuse'`, finding 'Business logic — coupon code accepted again on a fresh basket (MEDIUM)'; other 12 titles identical across legs, stacking swapped for reuse exactly as designed; both legs 251 events). Coverage 315/478. Coupon lab is not a baseline lab. |
+| 32 | 9 Nov ~16:35 | 79th `1fee5101` | `h_92b4e76cba79` {20,0} | `h_53e217a8729d` {26,0} | PASS, 0 retractions. **Row #342 GAP to LIVE — proven true negative** (api-token-auth probe: three-way differential on mined token-param API routes + two-login weak-token judgement, opaque tokens only; DVWA `api-token-auth` ok:true, `tokenUrlRoutes=0, tokenKind=null, tokenLen=0, tokensCompared=0, controlOk=false, attempts=0, bypassKind=null` — ZERO token-param routes on DVWA; Juice `api-token-auth` ok:true, `tokenUrlRoutes=0, tokenKind='jwt', tokenLen=732, tokensCompared=2, controlOk=false, attempts=0, bypassKind=null` — issued token is a JWT, leg silent by design (jwt.js owns those). Coverage 316/478. Baselines unchanged: DVWA 20, Juice 26. DVWA phases 103/89/0/14/0, 149 events; Juice phases 538/538/0/0/0, 597 events; scan errors []). |
 
 ## Behaviour-analysis live proof (60th deploy `203c6d44`)
 
@@ -188,6 +189,7 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 | 76th | `0eee858b` | 42582266153 | Site-crawl mode (scanScope page/site, route-grouped reporting; both proof legs baseline-exact with findingsByRoute live, but multi-page crawl NOT yet proven live — both legs crawled 1 page: Juice is an SPA with no <a> links, DVWA hits the login wall) |
 | 77th | `18900b2f` | 42585263008 | Coupon-abuse probe, phase 99 (rows #78/#371, unproven — proof #29 INCONCLUSIVE) |
 | 78th | `e0ef10a4` | 42587796527 | DOM trio probes, phase 102 (rows #91/#89/#90) |
+| 79th | `1fee5101` | 42601378551 | API token auth probe, phase 103 (row #342) |
 
 ## Screenshots
 
