@@ -81,6 +81,7 @@ import { probeFileUpload } from './probes/fileUpload.js';
 import { probeCachePoisoning } from './probes/cachePoison.js';
 import { probeRequestSmuggling } from './probes/smuggling.js';
 import { probeJwt } from './probes/jwt.js';
+import { probeJwtClaims } from './probes/jwtClaims.js';
 import { probeGraphql } from './probes/graphql.js';
 import { probeCswsh } from './probes/cswsh.js';
 import { probeOauth } from './probes/oauth.js';
@@ -196,6 +197,7 @@ export const DEFAULT_PHASES = [
   'cache-poisoning',
   'request-smuggling',
   'jwt',
+  'jwt-claims',
   'graphql',
   'cswsh',
   'oauth',
@@ -2287,6 +2289,39 @@ export async function runScan(
   await step('cache-poisoning', () => probeCachePoisoning(url, opts));
   await step('request-smuggling', () => probeRequestSmuggling(url, opts));
   await step('jwt', () => probeJwt(url, opts));
+  // JWT SENSITIVE CLAIMS (9 Nov 2026, row #481 [Medium] JWT —
+  // sensitive data in claims (unencrypted payload), CWE-359 /
+  // CWE-200): the token the server itself issues, decoded
+  // (base64url, no key needed), claims walked for sensitive fields
+  // — a credential/secret field or a personal-data field with a
+  // non-empty value confirms (field names only in the evidence;
+  // values never leak into the report); a token whose payload holds
+  // only standard identifiers is a proven true negative (see
+  // jwtClaims.js). Same lab gates + apiRoutes wiring as bfla /
+  // coupon-abuse. Diagnostics ride the phase extras (loginRoutes,
+  // tokenFound, tokenJwt, claimsScanned, sensitiveFields, tier) so
+  // a live proof can tell "no token" from "clean token" without
+  // re-running the scan.
+  const jwtClaimsDiag = {};
+  await step(
+    'jwt-claims',
+    () =>
+      probeJwtClaims(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: jwtClaimsDiag,
+      }),
+    () => ({
+      loginRoutes: jwtClaimsDiag.loginRoutes || 0,
+      tokenFound: Boolean(jwtClaimsDiag.tokenFound),
+      tokenJwt: Boolean(jwtClaimsDiag.tokenJwt),
+      claimsScanned: jwtClaimsDiag.claimsScanned || 0,
+      sensitiveFields: jwtClaimsDiag.sensitiveFields || 0,
+      tier: jwtClaimsDiag.tier || null,
+    })
+  );
   await step('graphql', () => probeGraphql(url, { ...opts, labTargets }));
   // CSWSH — DOM-BASED WEBSOCKET-URL POISONING (9 Nov 2026, row #92
   // [Medium] Technique (no single CVE) | PortSwigger DOM): tier 1
