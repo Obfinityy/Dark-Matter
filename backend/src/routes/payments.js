@@ -37,7 +37,9 @@ import { notifyAccount } from '../notifications.js';
 const router = Router();
 
 /** Populate req.user when a valid Bearer token is present; never rejects. */
-function optionalAuth(req, _res, next) {
+// Exported for the Razorpay router (routes/razorpay.js), which resolves the
+// paying user the same way (auth header, else username+password).
+export function optionalAuth(req, _res, next) {
   const header = req.headers.authorization || '';
   const m = /^Bearer (.+)$/.exec(header.trim());
   if (m) {
@@ -72,7 +74,8 @@ router.get('/status', requireAuth, (req, res) => {
 
 // Resolve the claiming user: Bearer token first, else username+password
 // (pending users cannot log in, so they prove ownership this way).
-function resolveClaimUser(req) {
+// Exported for the Razorpay router (routes/razorpay.js).
+export function resolveClaimUser(req) {
   if (req.user) {
     const users = readUsers();
     const user = Object.values(users).find((u) => u && u.id === req.user.id);
