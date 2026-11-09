@@ -5,12 +5,12 @@ target on EC2, verified first-hand (direct EC2 read, never a relay), with hunt I
 title-exact baselines and zero retractions. Nothing here is a unit-test result alone
 and nothing is claimed without evidence.
 
-## Live status (9 Nov 2026, ~06:25 IST)
+## Live status (9 Nov 2026, ~08:48 IST)
 
-- Coverage: **305/478 = 63.8% LIVE**, 94 phases in `backend/src/scanner/index.js`
-- HEAD: `e3eac1e2` (client-side template injection probe, phase 94, row #190), **70th deploy verified** (workflow
-  42538535922, backend PID 2023470, health ok, all 6 labs up)
-- Suites at HEAD: src 2467/2456/0/11, plain 2531/2520/0/11
+- Coverage: **306/478 = 64.0% LIVE**, 95 phases in `backend/src/scanner/index.js`
+- HEAD: `5f3ecf64` (CAPTCHA feedback-route fix, phase 95, row #40), **72nd deploy verified** (workflow
+  42554014971, backend PID 2121362, health ok, all 6 labs up)
+- Suites at HEAD: src 2492/2481/0/11, plain 2556/2545/0/11
 - AI hunt `h_7d49c6ef7447` paused at iter 296 (owner zero-Meta order, 3 Nov 2026);
   spend frozen $38.4952 / 4661 entries
 - Baselines: DVWA **20** titles, Juice Shop **25** titles (listed below)
@@ -32,7 +32,7 @@ and nothing is claimed without evidence.
    (meta state, `scannerSummary`, title extraction from `type:"finding"` events,
    retraction check). Worker relays are never trusted for a verdict.
 
-## Proof table — re-proofs #4 to #23
+## Proof table — re-proofs #4 to #25
 
 | # | Date (IST) | Deploy | DVWA leg | Juice leg | Verdict |
 |---|-----------|--------|----------|-----------|---------|
@@ -56,6 +56,8 @@ and nothing is claimed without evidence.
 | 21 | 9 Nov ~03:35 | 68th `82132710` | `h_54fe3c4a646a` {20,0} | `h_9630c6259ee7` {25,0} | PASS, 0 retractions. **NEW [High] on Juice: 'Login accepts repeated wrong passwords without rate limiting'** (POST `/rest/user/login`, 10 distinct wrong passwords, all ordinary invalid-credential answers, no throttle signal, class `auth_bruteforce`; `credential-stuffing` phase `findingsCount=1, loginRoutes=1, controlOk=true, attempts=10`). Row #42 AIB to LIVE. Coverage 303/478. Juice baseline becomes 25. DVWA credential-stuffing honest no-op (form-only login, probe is JSON-only by design; `loginRoutes=1, controlOk=false, attempts=0`). `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
 | 22 | 9 Nov ~05:20 | 69th `074e3623` | `h_a6e97190c890` {20,0} | `h_22d5bfb65fb9` {25,0} | PASS, 0 retractions. **Row #274 AIB to LIVE — proven true negative** (two-tier oracle: tier-1 static mine found ZERO `message` listeners in Juice first-party bundles + inline blocks, `listeners=0, listenersNearSink=0, driveAttempted=false` — no drive needed; DVWA `dom-postmessage` phase skipped 'no script targets'). Coverage 304/478. Baselines unchanged: DVWA 20, Juice 25. `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
 | 23 | 9 Nov ~06:25 | 70th `e3eac1e2` | `h_8009e3793f25` {20,0} | `h_b13b38519fc1` {25,0} | PASS, 0 retractions. **Row #190 AIB to LIVE — proven true negative** (two-tier oracle: tier-1 static mine found ZERO runtime template-engine calls in Juice first-party bundles + inline blocks, `engines=0, enginesNearSink=0, driveAttempted=false` — no drive needed; DVWA `csti` phase skipped 'no script targets'). Coverage 305/478. Baselines unchanged: DVWA 20, Juice 25. `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
+| 24 | 9 Nov ~07:45 | 71st `cdf4a2d7` | `h_1487805ad95e` {20,0} | `h_a6eb0c43fde8` {25,0} | INCONCLUSIVE for row #40, 0 retractions. Both legs baseline-exact, but the Juice captcha drive never ran (`feedbackRoutes=0, controlOk=false, attempts=0` — the miner's templated write target `/api/Feedbacks/dmprobe4_2e69` was rejected by the probe's exact-end matcher). DVWA captcha phase skipped 'no script targets' (designed). Coverage stays 305/478. |
+| 25 | 9 Nov ~08:47 | 72nd `5f3ecf64` | `h_e49818888c34` {20,0} | `h_6c10630921ab` {25,0} | PASS, 0 retractions. **Row #40 AIB to LIVE — proven true negative** (feedback-route fix: the probe now resolves the templated write target to the collection URL; Juice captcha drive RAN: `feedbackRoutes=1, controlOk=true, attempts=2`, control accepted; manual repro: missing-captcha POST → HTTP 500, wrong-answer POST → HTTP 401, neither created feedback — bypass refuted on both variants. DVWA captcha phase skipped 'no script targets', designed). Coverage 306/478. Baselines unchanged: DVWA 20, Juice 25. `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
 
 ## Behaviour-analysis live proof (60th deploy `203c6d44`)
 
@@ -172,6 +174,8 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 | 68th | `82132710` | 42523100239 | Credential stuffing probe, phase 92 (row #42) |
 | 69th | `074e3623` | 42534525078 | DOM postMessage probe, phase 93 (row #274) |
 | 70th | `e3eac1e2` | 42538535922 | CSTI probe, phase 94 (row #190) |
+| 71st | `cdf4a2d7` | 42548297209 | CAPTCHA bypass probe, phase 95 (row #40) |
+| 72nd | `5f3ecf64` | 42554014971 | CAPTCHA feedback-route fix (row #40) |
 
 ## Screenshots
 
