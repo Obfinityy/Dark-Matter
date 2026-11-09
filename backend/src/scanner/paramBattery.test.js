@@ -187,6 +187,14 @@ describe('param battery skipped records (35/63 fix)', () => {
     // — confirms only on no exp or a lifetime over 7 days — and
     // inspects the login transaction for a remember-me token —
     // confirms only when that token is predictable or permanent).
+    // (112 since 10 Nov 2026 (insecure provisioning / role
+    // definition): 'provisioning' joins as a standalone gated
+    // phase (one record per scan, always-run as an honest no-op:
+    // no registration routes and no labCreds on a bare page;
+    // lab-gated, registers a throwaway account and checks the
+    // default role three ways — registration response, issued JWT
+    // claim, admin-route replay; confirms only on a privileged
+    // role marker).
     // (97 since 9 Nov 2026 (BFLA): 'bfla' joins as a standalone
     // gated phase (one record per scan, always-run as an honest
     // no-op: no admin routes on a bare page; lab-gated, three-way
@@ -211,7 +219,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 111);
+    assert.equal(DEFAULT_PHASES.length, 112);
   });
 
   it('zero param targets: all 30 param phases emit skipped records, rollup reports them', async () => {
@@ -443,7 +451,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
-  // 65/46 since 9 Nov 2026 (API token auth + autocomplete + blind XPath + exceptional conditions + workflow data exposure + JWT sensitive claims + limit / quota bypass + document.domain relaxation + session timeout / remember-me):
+  // 66/46 since 10 Nov 2026 (API token auth + autocomplete + blind XPath + exceptional conditions + workflow data exposure + JWT sensitive claims + limit / quota bypass + document.domain relaxation + session timeout / remember-me + insecure provisioning):
   // 'api-token-auth' adds a 59th ok record (always-run as an honest
   // no-op: no token-param routes and no lab login on a bare page)
   // and 'autocomplete' adds a 60th ok record (always-run as an
@@ -460,8 +468,10 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // page), and 'document-domain' adds a 46th skipped record
   // (SKIPS on a bare page: no script targets), and
   // 'session-timeout' adds a 65th ok record (always-run as an
-  // honest no-op: no labCreds on a bare page), so the bare-page
-  // line reads 65 ran ok, 46 skipped.
+  // honest no-op: no labCreds on a bare page), and 'provisioning'
+  // adds a 66th ok record (always-run as an honest no-op: no
+  // registration routes and no labCreds on a bare page), so the
+  // bare-page line reads 66 ran ok, 46 skipped.
   // 58/40 since 9 Nov 2026 (coupon abuse): 'coupon-abuse' adds a
   // 58th ok record (always-run as an honest no-op: no coupon routes
   // on a bare page), so the bare-page line reads 58 ran ok, 40 skipped.
@@ -528,7 +538,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // 44/33 before xml-injection and untrusted-js-inclusion;
   // 46/34 before session-token-in-url; 47/34 before credential-disclosure;
   // 48/34 before sqli-oob.)
-  it('real runScan on a bare page renders the 65/46 line end to end', async () => {
+  it('real runScan on a bare page renders the 66/46 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -540,15 +550,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 111,
-        ok: 65,
+        total: 112,
+        ok: 66,
         failed: 0,
         skipped: 46,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 65 ran ok, 46 skipped, 0 failed, 0 timed out.'
+        'Phases: 66 ran ok, 46 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

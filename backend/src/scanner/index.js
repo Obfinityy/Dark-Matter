@@ -57,6 +57,7 @@ import { probeApiTokenAuth } from './probes/apiTokenAuth.js';
 import { probeExceptionalConditions } from './probes/exceptionalConditions.js';
 import { probeWorkflowDataExposure } from './probes/workflowDataExposure.js';
 import { probeQuotaBypass } from './probes/quotaBypass.js';
+import { probeProvisioning } from './probes/provisioning.js';
 import { probeDomPostMessage } from './probes/domPostMessage.js';
 import { probeDomOpenRedirect } from './probes/domOpenRedirect.js';
 import { probeDomClobbering } from './probes/domClobbering.js';
@@ -185,6 +186,7 @@ export const DEFAULT_PHASES = [
   'dom-cookie-manipulation',
   'document-domain',
   'quota-bypass',
+  'provisioning',
   'user-enumeration',
   'rfi',
   'xslt',
@@ -2230,6 +2232,40 @@ export async function runScan(
       attempts: quotaDiag.attempts || 0,
       throttled: Boolean(quotaDiag.throttled),
       bypassKind: quotaDiag.bypassKind || null,
+    })
+  );
+  // PROVISIONING (9 Nov 2026, rows #171 [Medium] Insecure Account
+  // Provisioning / Deprovisioning and #172 [Medium] Role Definition
+  // Flaws, WSTG-IDNT): a freshly self-registered account must land
+  // in an unprivileged role — the probe registers a throwaway
+  // account and checks the default role three ways (the role
+  // marker in the registration response, the role claim in the
+  // issued JWT, and an admin-route replay with the fresh token),
+  // confirming on the first leg that proves privilege (see
+  // provisioning.js). Same apiRoutes wiring as bfla. Diagnostics
+  // ride the phase extras (registerRoutes, registerOk, roleClaim,
+  // adminRoutes, controlOk, attempts, bypassKind) so a live proof
+  // can tell "no surface" from "oracle uncalibrated" without
+  // re-running the scan.
+  const provDiag = {};
+  await step(
+    'provisioning',
+    () =>
+      probeProvisioning(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: provDiag,
+      }),
+    () => ({
+      registerRoutes: provDiag.registerRoutes || 0,
+      registerOk: Boolean(provDiag.registerOk),
+      roleClaim: provDiag.roleClaim || null,
+      adminRoutes: provDiag.adminRoutes || 0,
+      controlOk: Boolean(provDiag.controlOk),
+      attempts: provDiag.attempts || 0,
+      bypassKind: provDiag.bypassKind || null,
     })
   );
   // WORKFLOW DATA EXPOSURE (9 Nov 2026, row #375 [Medium] Logic —
