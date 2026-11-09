@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 54/37 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 96/56/40 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -272,24 +272,26 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // targets' alongside them (a bare page carries no bundles —
       // 9 Nov 2026, 94th phase), and captcha SKIPS with 'no script
       // targets' alongside them (a bare page carries no bundles —
-      // 9 Nov 2026, 95th phase).
+      // 9 Nov 2026, 95th phase), and css-injection RUNS as an
+      // honest no-op alongside them (no style contexts on a bare
+      // page — 9 Nov 2026, 96th phase).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 95,
-        ok: 55,
+        total: 96,
+        ok: 56,
         failed: 0,
         skipped: 40,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 55 ran ok, 40 skipped, 0 failed, 0 timed out.'
+        'Phases: 56 ran ok, 40 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 124/124/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 125/125/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -343,7 +345,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // source-code-disclosure + metadata-leakage +
       // sensitive-data-in-logs + sensitive-info-disclosure +
       // timing-side-channel + xml-injection: the battery ran twice
-      // (two DOM targets, 58 records), 56 non-param phases ran ok (36 +
+      // (two DOM targets, 58 records), 57 non-param phases ran ok (36 +
       // verb-tampering + method-override + secrets-in-js +
       // browser-storage + dom-xss-sinks + dom-xss-location-hash +
       // error-disclosure + validation +
@@ -351,11 +353,12 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // sensitive-data-in-logs + sensitive-info-disclosure +
       // timing-side-channel + untrusted-js-inclusion +
       // api-versioning + session-token-in-url +
-      // credential-disclosure + sqli-oob + sensitive-cache + captcha,
+      // credential-disclosure + sqli-oob + sensitive-cache + captcha +
+      // css-injection,
       // 7 Nov 2026 —
       // all twenty run here because param targets exist and the shell
       // carries a script bundle), and the two discovery phases now RUN
-      // instead of skipping — 122 total, 122 ok, 0 skipped
+      // instead of skipping — 125 total, 125 ok, 0 skipped
       // (basket-logic, the 88th phase, runs as an honest no-op here:
       // the Juice-shape stub carries no basket routes, and
       // workflow-skip, the 89th phase, runs as an honest no-op
@@ -376,17 +379,20 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // the mine runs — and captcha, the 95th phase,
       // runs as an honest no-op alongside them for the same reason:
       // the stub carries no labCreds, so the lab gate fails before
-      // the mine runs).
+      // the mine runs — and css-injection, the 96th phase, runs as
+      // an honest no-op alongside them for the same reason: the stub
+      // carries no labCreds, so the lab gate fails before the mine
+      // runs).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 124,
-        ok: 124,
+        total: 125,
+        ok: 125,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 124 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 125 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -592,7 +598,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 95);
+      assert.equal(DEFAULT_PHASES.length, 96);
     } finally {
       teardown();
     }

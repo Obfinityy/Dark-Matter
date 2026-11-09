@@ -53,6 +53,7 @@ import { probeCredentialStuffing } from './probes/credentialStuffing.js';
 import { probeDomPostMessage } from './probes/domPostMessage.js';
 import { probeCsti } from './probes/csti.js';
 import { probeCaptcha } from './probes/captcha.js';
+import { probeCssInjection } from './probes/cssInjection.js';
 import { probeUserEnum } from './probes/userEnum.js';
 import { probeRfi } from './probes/rfi.js';
 import { probeXslt } from './probes/xslt.js';
@@ -203,6 +204,7 @@ export const DEFAULT_PHASES = [
   'dom-postmessage',
   'csti',
   'captcha',
+  'css-injection',
   'nuclei',
 ];
 
@@ -1378,6 +1380,47 @@ export async function runScan(
   } else {
     skipPhase('captcha', 'no script targets');
   }
+  // CSS INJECTION (9 Nov 2026, row #194 [Medium] CWE-79): the
+  // served page itself is the primary surface — an inline `style`
+  // attribute or a `<style>` block the server reflects input into —
+  // so this phase mines the page HTML for CSS contexts AND the
+  // first-party bundles / inline scripts for runtime CSS writes
+  // (cssText, style-property assignments, setAttribute('style', …),
+  // insertRule), and, only when a sink exists, navigates the pasted
+  // page in a real browser (transient container + fixed CDP
+  // endpoint, same pattern as renderDomAuthenticated) with the CSS
+  // canary in the query string and then in the fragment, and
+  // confirms ONLY when the canary changes a computed style
+  // (control clean, same element carries the marker colour in two
+  // renders) — see cssInjection.js. Sink presence alone never
+  // fires. Lab-gated like csti (labCreds + allowWrite + lab host +
+  // depth !== 'quick'), so the drive never runs outside the lab
+  // gate; zero CSS contexts is a proven true negative with no drive
+  // at all. Unlike the JS-only probes this step is NOT gated on
+  // secretTargets: a server-rendered page with zero JS can still
+  // reflect input into a style attribute, and gating on scripts
+  // would leave exactly that surface untested (DVWA serves no JS).
+  // The probe needs no apiRoutes — it navigates the pasted page
+  // URL only and fetches the page's own script bundles.
+  const cssDiag = {};
+  await step(
+    'css-injection',
+    () =>
+      probeCssInjection(url, secretTargets, {
+        ...opts,
+        allowWrite,
+        labTargets,
+        pageBody,
+        diagnostics: cssDiag,
+        ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+      }),
+    () => ({
+      cssSinks: cssDiag.cssSinks || 0,
+      cssNearSink: cssDiag.cssNearSink || 0,
+      driveAttempted: Boolean(cssDiag.driveAttempted),
+      driveExecuted: Boolean(cssDiag.driveExecuted),
+    })
+  );
   // ERROR DISCLOSURE (7 Nov 2026, rows #175 + #176): trigger
   // errors with read-only GETs on the same GET probe targets as
   // verb-tampering (non-existent paths + malformed query values)

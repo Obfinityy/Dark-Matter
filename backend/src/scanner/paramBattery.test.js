@@ -129,7 +129,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 95);
+    assert.equal(DEFAULT_PHASES.length, 96);
   });
 
   it('zero param targets: all 29 param phases emit skipped records, rollup reports them', async () => {
@@ -361,6 +361,9 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
+  // 56/40 since 9 Nov 2026 (CSS injection): 'css-injection' adds a
+  // 56th ok record (always-run as an honest no-op: no style contexts
+  // on a bare page), so the bare-page line reads 56 ran ok, 40 skipped.
   // 55/40 since 9 Nov 2026 (CAPTCHA bypass): 'captcha' adds a
   // 40th skipped record ('no script targets': the bare page carries
   // no script), so the bare-page line reads 55 ran ok, 40 skipped.
@@ -418,7 +421,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // 44/33 before xml-injection and untrusted-js-inclusion;
   // 46/34 before session-token-in-url; 47/34 before credential-disclosure;
   // 48/34 before sqli-oob.)
-  it('real runScan on a bare page renders the 55/40 line end to end', async () => {
+  it('real runScan on a bare page renders the 56/40 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -430,15 +433,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 95,
-        ok: 55,
+        total: 96,
+        ok: 56,
         failed: 0,
         skipped: 40,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 55 ran ok, 40 skipped, 0 failed, 0 timed out.'
+        'Phases: 56 ran ok, 40 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
