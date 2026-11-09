@@ -5,14 +5,14 @@ target on EC2, verified first-hand (direct EC2 read, never a relay), with hunt I
 title-exact baselines and zero retractions. Nothing here is a unit-test result alone
 and nothing is claimed without evidence.
 
-## Live status (9 Nov 2026, ~18:10 IST)
+## Live status (10 Nov 2026, ~00:43 IST)
 
-- Coverage: **318/478 = 66.5% LIVE**, 110 phases in `backend/src/scanner/index.js`
-- HEAD: `75f12de9` (#81 quota-bypass calibration fix), **81st deploy verified** (workflow 42614065567, backend PID 2499755, health ok, LAB_TARGETS 8/8, PHASES 110)
-- Suites at HEAD: src 2916/2905/0/11, plain 2980/2969/0/11
+- Coverage: **317/478 = 66.3% LIVE**, 110 phases in `backend/src/scanner/index.js`
+- HEAD: `74b3d733` (sqlite DB-error pattern `[_\s.]` fix), **87th deploy verified** (workflow 42678299299, backend PID 2729805, health ok, LAB_TARGETS 8/8, PHASES 110)
+- Suites at HEAD: src 2968/2956/1/11 (SS-4 desktop flake, green standalone 15/15), plain 3032/3021/0/11
 - AI hunt `h_7d49c6ef7447` paused at iter 296 (owner zero-Meta order, 3 Nov 2026);
-  spend frozen $38.5251 / 4662 entries
-- Baselines: DVWA **20** titles, Juice Shop **27** titles (listed below)
+  spend frozen $38.6028 / 4669 entries
+- Baselines: DVWA **20** titles, Juice Shop **25** titles (listed below)
 
 ## How a proof works
 
@@ -66,6 +66,7 @@ and nothing is claimed without evidence.
 | 32 | 9 Nov ~16:35 | 79th `1fee5101` | `h_92b4e76cba79` {20,0} | `h_53e217a8729d` {26,0} | PASS, 0 retractions. **Row #342 GAP to LIVE — proven true negative** (api-token-auth probe: three-way differential on mined token-param API routes + two-login weak-token judgement, opaque tokens only; DVWA `api-token-auth` ok:true, `tokenUrlRoutes=0, tokenKind=null, tokenLen=0, tokensCompared=0, controlOk=false, attempts=0, bypassKind=null` — ZERO token-param routes on DVWA; Juice `api-token-auth` ok:true, `tokenUrlRoutes=0, tokenKind='jwt', tokenLen=732, tokensCompared=2, controlOk=false, attempts=0, bypassKind=null` — issued token is a JWT, leg silent by design (jwt.js owns those). Coverage 316/478. Baselines unchanged: DVWA 20, Juice 26. DVWA phases 103/89/0/14/0, 149 events; Juice phases 538/538/0/0/0, 597 events; scan errors []). |
 | 33 | 9 Nov ~17:15 | 80th `619a8ba8` | `h_11df879eed51` {20,0} | `h_cbb5b38267b5` {27,0} | PASS, 0 retractions. **Batch of 9 lanes live-proven: #92 + #375 AIB to LIVE; scout rows #479-#484 to LIVE (extended 324/515).** DVWA phases 110/95/15/0/0, 156 events; Juice phases 110/110/0/0/0, 621 events. Juice baseline 26 -> 27: NEW title 'JWT payload carries sensitive data in its claims (MEDIUM)' (#481, tier secret, 2 sensitive fields, 15 claims scanned). Per-row: #92 CSWSH true negative both legs (wsSinks 0, wsEndpoints 0, driveAttempted true); #375 DVWA uncalibrated (workflowRoutes 0) + Juice calibrated silent (3 routes, controlOk true, 4 steps inspected); #479 calibrated true negative both legs (DVWA 4 params/40 attempts/0 oracle, Juice 2 params/20 attempts/0 oracle); #480 DVWA never ran (0 WS endpoints) + Juice 1 replay attempt, before==after==1, replayConfirmed false - snapshot oracle works live, WS title stays INTERMITTENT; #481 FIRED on Juice, DVWA true negative; #482 DVWA uncalibrated + Juice calibrated silent (controlOk true, attempts 5, failOpenKind null); #483 DVWA true negative (4 inputs, 1 sensitive, 0 unprotected - password input carries AUTOCOMPLETE='off', verified by direct curl; the lane's 'DVWA will fire' expectation was WRONG) + Juice 0 inputs (SPA shell); #484 DVWA skipped 'no script targets' + Juice ran (0 relaxations). #81 quota-bypass UNPROVEN - uncalibrated both legs (DVWA apiRoutes 0; Juice apiRoutes 2, controlOk false, attempts 0); feed is [...scanTargets, ...jsWriteTargets] so only templated write-targets were mined while /api/Products + /api/Feedbacks grant 200 JSON unauthenticated - fix lane: derive collection URLs from templated write targets. Coverage 318/478 = 66.5%. Baselines: DVWA 20, Juice 27. |
 | 34 | 9 Nov ~18:10 | 81st `75f12de9` | `h_3446ed656867` {20,0} | `h_7a1342904b11` {27,0} | INCONCLUSIVE for row #81, 0 retractions. Both legs baseline-exact, but the quota-bypass drive never calibrated (DVWA `quota-bypass` ok:true, `apiRoutes=0, controlOk=false, attempts=0` - DVWA has no API surface at all; Juice `quota-bypass` ok:true, `apiRoutes=2, controlOk=false, attempts=0, throttled=false, bypassKind=null` - the control GET granted on NEITHER candidate, so no burst ran). The 81st-deploy fix (derive collection URLs from templated write targets) is live on EC2 (HEAD 75f12de9, PID 2499755, probe file carries deriveCollectionUrl), but the live record cannot show whether derivation ran: the new `derivedCollections` diagnostic was never wired into the phase extras in index.js (extras list only apiRoutes/controlOk/attempts/throttled/bypassKind). Decisive counter-evidence to the fix premise: the captcha probe in the SAME Juice hunt found `feedbackRoutes=1` from the identical feed ([...scanTargets, ...jsWriteTargets]), so a feedbacks-segment route WAS mined - the quota probe still did not calibrate. Next: a follow-up lane must reproduce the live feed, name the actual 2 candidates, fix the root cause (cap-2 cut, template shape, or wiring), wire the diagnostic into extras, and re-proof. Coverage stays 318/478 = 66.5%. Baselines unchanged: DVWA 20, Juice 27. DVWA phases 110/95/15/0/0, 156 events; Juice phases 110/110/0/0/0 (560 phase records), 621 events. |
+| 35 | 10 Nov ~00:43 | 87th `74b3d733` | `h_a64dee98a867` {20,0} | `h_09574ffbb449` {25,0} | PASS, 0 retractions. **Zerodha FP-fix re-proof (sqlite regex `[_\s.]`): the genuine SQLi 'q' title is back on Juice; the 2 EL titles are confirmed old false positives and leave the baseline.** Row #197 (EL injection) LIVE to AIB — its only live evidence was those two titles (payload substring `dmElTesttoString` + SQLITE_ERROR echo, no evaluation; Juice is Node.js, no EL evaluator). Juice baseline 27 -> 25. Coverage 318 -> 317/478 = 66.3%. DVWA phases 110/95/15/0/0, 156 events; Juice phases 110/110/0/0/0 (560 phase records), 617 events. |
 
 ## Behaviour-analysis live proof (60th deploy `203c6d44`)
 
@@ -134,7 +135,7 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 19. Session fixation — session ID not regenerated on login (MEDIUM, T1)
 20. Session fixation — planted session ID reaches authenticated state (HIGH, T2)
 
-### Juice Shop — 26 titles
+### Juice Shop — 25 titles
 
 1. HTTP request smuggling (CL.TE desync proven)
 2. Verb tampering — DELETE
@@ -147,22 +148,20 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 9. Target served over cleartext HTTP
 10. Error-based SQL injection in parameter 'q'
 11. XPath injection (boolean) in parameter 'q'
-12. Expression Language injection in parameter 'q'
-13. Expression Language injection in parameter 'e (path)'
-14. Log injection — unescaped script in log-viewer surface (MEDIUM)
-15. Information disclosure via error messages — SQLite error in an error response (malformed-query)
-16. Missing Content-Security-Policy header
-17. Missing Referrer-Policy header
-18. Sensitive data stored in localStorage — 'token' written to browser storage that survives browser restart
-19. Session lifecycle — bearer token remains valid after logout (MEDIUM, T4b)
-20. Vulnerable merge library fingerprinted: jQuery@2.2.4 (INFO) (Low, since re-proof #5)
-21. DOM XSS sink fingerprinted: bypassSecurityTrustHtml x9, innerHTML x22, document.write x1 (INFO) (Low, since re-proof #12, row #115)
-22. Business logic — negative quantity reduces the basket total (HIGH) (since live-proof #16, rows #82/#370/#374)
-23. Business logic — checkout accepted for an empty basket (HIGH) (since live-proof #17, row #87)
-24. 2FA verification accepts repeated wrong codes without rate limiting (HIGH) (since live-proof #18, row #326)
-25. Login accepts repeated wrong passwords without rate limiting (HIGH) (since live-proof #21, row #42)
-26. BFLA — admin endpoint callable by low-privilege user (HIGH) (since live-proof #27, row #340)
-27. JWT payload carries sensitive data in its claims (MEDIUM) (since live-proof #33, row #481)
+12. Log injection — unescaped script in log-viewer surface (MEDIUM)
+13. Information disclosure via error messages — SQLite error in an error response (malformed-query)
+14. Missing Content-Security-Policy header
+15. Missing Referrer-Policy header
+16. Sensitive data stored in localStorage — 'token' written to browser storage that survives browser restart
+17. Session lifecycle — bearer token remains valid after logout (MEDIUM, T4b)
+18. Vulnerable merge library fingerprinted: jQuery@2.2.4 (INFO) (Low, since re-proof #5)
+19. DOM XSS sink fingerprinted: bypassSecurityTrustHtml x9, innerHTML x22, document.write x1 (INFO) (Low, since re-proof #12, row #115)
+20. Business logic — negative quantity reduces the basket total (HIGH) (since live-proof #16, rows #82/#370/#374)
+21. Business logic — checkout accepted for an empty basket (HIGH) (since live-proof #17, row #87)
+22. 2FA verification accepts repeated wrong codes without rate limiting (HIGH) (since live-proof #18, row #326)
+23. Login accepts repeated wrong passwords without rate limiting (HIGH) (since live-proof #21, row #42)
+24. BFLA — admin endpoint callable by low-privilege user (HIGH) (since live-proof #27, row #340)
+25. JWT payload carries sensitive data in its claims (MEDIUM) (since live-proof #33, row #481)
 
 ## Deploy chain (recent)
 
@@ -195,6 +194,12 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 | 79th | `1fee5101` | 42601378551 | API token auth probe, phase 103 (row #342) |
 | 80th | `619a8ba8` | 42608825763 | Batch of 9 lanes (rows #92/#375/#479-#484), phase 110 |
 | 81st | `75f12de9` | 42614065567 | Quota-bypass calibration fix (row #81, derive collection URLs from templated write targets; proof #34 INCONCLUSIVE - probe still uncalibrated live) |
+| 82nd | `68c63b3b` | 42637255123 | PR #494 merged — repo professionalization (docs/comments, README/CONTRIBUTING/SECURITY; no live-proof) |
+| 83rd | `41fe1c75` | 42640760239 | PR #418 merged — fix(#359): autofiler-no-fake-replay |
+| 84th | `4fc3c2c9` | 42653597612 | PR #425 merged — fix(#366): brainaction-value-validation |
+| 85th | `29368406` | 42656465347 | PR #402 merged — fix(#343): plugin-per-deployment-salt |
+| 86th | `963ddea1` | 42666109813 | Zerodha FP fix (SSRF+SQLi, EL+LDAP oracle hardening) + CI Node 24 |
+| 87th | `74b3d733` | 42678299299 | Sqlite DB-error regex fix `[_\s.]` (Zerodha re-proof #35) |
 
 ## Screenshots
 
