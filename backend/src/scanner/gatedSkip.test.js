@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 113/67/46 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 117/71/46 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -305,24 +305,29 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // provisioning RUNS as an honest no-op alongside them (no
       // labCreds on a bare page — 10 Nov 2026, 112th phase), and
       // webrtc-leak RUNS as an honest no-op alongside them (no
-      // labCreds on a bare page — 10 Nov 2026, 113th phase).
+      // labCreds on a bare page — 10 Nov 2026, 113th phase), and
+      // llm-tool-misuse, llm-excessive-agency, llm-output-handling
+      // and llm-misinformation RUN as honest no-ops alongside them
+      // (no LLM surface on a bare page — the target is not a lab
+      // target, so the fingerprint makes no requests — 10 Nov 2026,
+      // 114th-117th phases).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 113,
-        ok: 67,
+        total: 117,
+        ok: 71,
         failed: 0,
         skipped: 46,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 67 ran ok, 46 skipped, 0 failed, 0 timed out.'
+        'Phases: 71 ran ok, 46 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 143/143/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 147/147/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -458,17 +463,21 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // gate fails before the mine runs), and webrtc-leak, the
       // 113th phase, runs as an honest no-op alongside them for
       // the same reason: the stub carries no labCreds, so the lab
-      // gate fails before the drive runs).
+      // gate fails before the drive runs), and llm-tool-misuse,
+      // llm-excessive-agency, llm-output-handling and
+      // llm-misinformation, the 114th-117th phases, run as honest
+      // no-ops alongside them (the stub answers no completion to
+      // the fingerprint POST, so no LLM endpoint is fingerprinted).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 143,
-        ok: 143,
+        total: 147,
+        ok: 147,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 143 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 147 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -674,7 +683,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 113);
+      assert.equal(DEFAULT_PHASES.length, 117);
     } finally {
       teardown();
     }

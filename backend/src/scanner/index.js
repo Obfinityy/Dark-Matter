@@ -87,6 +87,10 @@ import { probeRequestSmuggling } from './probes/smuggling.js';
 import { probeJwt } from './probes/jwt.js';
 import { probeJwtClaims } from './probes/jwtClaims.js';
 import { probeSessionTimeout } from './probes/sessionTimeout.js';
+import { probeLlmToolMisuse } from './probes/llmToolMisuse.js';
+import { probeLlmExcessiveAgency } from './probes/llmExcessiveAgency.js';
+import { probeLlmOutputHandling } from './probes/llmOutputHandling.js';
+import { probeLlmMisinformation } from './probes/llmMisinformation.js';
 import { probeGraphql } from './probes/graphql.js';
 import { probeCswsh } from './probes/cswsh.js';
 import { probeOauth } from './probes/oauth.js';
@@ -208,6 +212,10 @@ export const DEFAULT_PHASES = [
   'jwt',
   'jwt-claims',
   'session-timeout',
+  'llm-tool-misuse',
+  'llm-excessive-agency',
+  'llm-output-handling',
+  'llm-misinformation',
   'graphql',
   'cswsh',
   'oauth',
@@ -2528,6 +2536,120 @@ export async function runScan(
         typeof stDiag.tokenLifetimeSecs === 'number' ? stDiag.tokenLifetimeSecs : null,
       rememberMeSurface: Boolean(stDiag.rememberMeSurface),
       rememberMeKind: stDiag.rememberMeKind || null,
+    })
+  );
+  // LLM TOOL MISUSE (9 Nov 2026, rows #384 [High] + #28 [High]):
+  // the model invokes a file-read / command tool from prompt
+  // content, and the tool endpoint answers directly without auth
+  // (see llmToolMisuse.js). The probe fingerprints the chat
+  // endpoint first (a benign POST must return a completion
+  // string), then asks the question that retrieves the lab's
+  // tool-instructing document and confirms only on an observed
+  // tool call with a real tool result; it also replays that call
+  // and tries the harmless runCommand canary directly against
+  // /api/tool. Lab-gated (allowWrite + lab host + depth !==
+  // 'quick'). Diagnostics ride the phase extras (llmEndpoints,
+  // controlOk, toolViaPrompt, toolDirect, toolName,
+  // runCommandDirect) so a live proof can tell "no LLM surface"
+  // from "LLM present, tools safe" without re-running the scan.
+  const llmToolDiag = {};
+  await step(
+    'llm-tool-misuse',
+    () =>
+      probeLlmToolMisuse(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: llmToolDiag,
+      }),
+    () => ({
+      llmEndpoints: llmToolDiag.llmEndpoints || 0,
+      controlOk: Boolean(llmToolDiag.controlOk),
+      toolViaPrompt: Boolean(llmToolDiag.toolViaPrompt),
+      toolDirect: Boolean(llmToolDiag.toolDirect),
+      toolName: llmToolDiag.toolName || null,
+      runCommandDirect: Boolean(llmToolDiag.runCommandDirect),
+    })
+  );
+  // LLM EXCESSIVE AGENCY (9 Nov 2026, rows #17 [Critical] + #379
+  // [High]): a state-changing agent action with no confirmation
+  // step (see llmExcessiveAgency.js). The probe reads the user
+  // list, sends ONE deleteUser request for the last listed user
+  // (no approval token, no confirmation field), and re-reads the
+  // list — it confirms only on the observed state change (the
+  // victim gone, count down by exactly one). Lab-gated
+  // (allowWrite + lab host + depth !== 'quick'). Diagnostics ride
+  // the phase extras (usersBefore, usersAfter, deletedUserId,
+  // confirmationRequired). STATE NOTE: each confirming run
+  // consumes one seeded lab user; the lab re-seeds on restart.
+  const llmAgencyDiag = {};
+  await step(
+    'llm-excessive-agency',
+    () =>
+      probeLlmExcessiveAgency(url, {
+        ...opts,
+        allowWrite,
+        labTargets,
+        diagnostics: llmAgencyDiag,
+      }),
+    () => ({
+      usersBefore: llmAgencyDiag.usersBefore || 0,
+      usersAfter: llmAgencyDiag.usersAfter || 0,
+      deletedUserId: llmAgencyDiag.deletedUserId || null,
+      confirmationRequired: Boolean(llmAgencyDiag.confirmationRequired),
+    })
+  );
+  // LLM OUTPUT HANDLING (9 Nov 2026, row #18 [High]): model
+  // output rendered as raw HTML without escaping (see
+  // llmOutputHandling.js). The probe fingerprints the chat
+  // endpoint first, then GETs the output page with a benign
+  // markup marker and confirms only when the marker is echoed
+  // verbatim (its escaped form absent). Read-only — no
+  // allowWrite gate. Lab-gated (lab host + depth !== 'quick').
+  // Diagnostics ride the phase extras (llmEndpoints,
+  // pageReflects, markerEscaped).
+  const llmOutputDiag = {};
+  await step(
+    'llm-output-handling',
+    () =>
+      probeLlmOutputHandling(url, {
+        ...opts,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: llmOutputDiag,
+      }),
+    () => ({
+      llmEndpoints: llmOutputDiag.llmEndpoints || 0,
+      pageReflects: Boolean(llmOutputDiag.pageReflects),
+      markerEscaped: Boolean(llmOutputDiag.markerEscaped),
+    })
+  );
+  // LLM MISINFORMATION (9 Nov 2026, rows #21 [Medium] + #381
+  // [Medium]): the model repeats a claim its own knowledge base
+  // contradicts (see llmMisinformation.js). The probe fingerprints
+  // the chat endpoint first, asks the refund-policy question,
+  // then asks the retrieval surface the same question — it
+  // confirms only when the answer's duration differs from a
+  // duration the store itself returns (a contradiction, not a
+  // hardcoded string). Read-only — no allowWrite gate. Lab-gated
+  // (lab host + depth !== 'quick'). Diagnostics ride the phase
+  // extras (llmEndpoints, chatDays, ragDays, contradiction).
+  const llmMisinfoDiag = {};
+  await step(
+    'llm-misinformation',
+    () =>
+      probeLlmMisinformation(url, {
+        ...opts,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: llmMisinfoDiag,
+      }),
+    () => ({
+      llmEndpoints: llmMisinfoDiag.llmEndpoints || 0,
+      chatDays: llmMisinfoDiag.chatDays ?? null,
+      ragDays: llmMisinfoDiag.ragDays || [],
+      contradiction: Boolean(llmMisinfoDiag.contradiction),
     })
   );
   await step('graphql', () => probeGraphql(url, { ...opts, labTargets }));
