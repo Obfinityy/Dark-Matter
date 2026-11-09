@@ -2190,7 +2190,37 @@ export async function runScan(
   await step('request-smuggling', () => probeRequestSmuggling(url, opts));
   await step('jwt', () => probeJwt(url, opts));
   await step('graphql', () => probeGraphql(url, { ...opts, labTargets }));
-  await step('cswsh', () => probeCswsh(url, opts));
+  // CSWSH — DOM-BASED WEBSOCKET-URL POISONING (9 Nov 2026, row #92
+  // [Medium] Technique (no single CVE) | PortSwigger DOM): tier 1
+  // mines first-party code for WebSocket endpoints (new WebSocket()
+  // URLs + ws(s):// literals); tier 2 drives the raw-socket
+  // handshake oracle — the control (legit Origin + lab-session
+  // cookies) must upgrade before the evil-Origin attack handshake
+  // counts, so a missing Origin check confirms only on a live
+  // endpoint (see cswsh.js). No CDP drive: the handshake
+  // differential IS the attack (a browser sends the same Origin +
+  // cookies), and no application message is ever sent. The phase
+  // runs on every scan; zero mined endpoints + zero known-path
+  // upgrades is a proven true negative, recorded as wsSinks /
+  // wsEndpoints 0 in the phase record.
+  const cswshDiag = {};
+  await step(
+    'cswsh',
+    () =>
+      probeCswsh(url, secretTargets, {
+        ...opts,
+        session: authSession && authSession.ok ? authSession.session : null,
+        diagnostics: cswshDiag,
+        ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+      }),
+    () => ({
+      wsSinks: cswshDiag.wsSinks || 0,
+      wsEndpoints: cswshDiag.wsEndpoints || 0,
+      driveAttempted: Boolean(cswshDiag.driveAttempted),
+      driveExecuted: Boolean(cswshDiag.driveExecuted),
+      sessionOk: Boolean(cswshDiag.sessionOk),
+    })
+  );
   await step('oauth', () => probeOauth(url, { ...opts, labTargets }));
   // SAML-XXE OOB collaborator (6 Nov 2026): the SAML probe's blind-XXE
   // variant needs a callback base AND a waiter. Both come from a
