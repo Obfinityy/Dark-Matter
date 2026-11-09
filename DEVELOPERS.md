@@ -359,8 +359,9 @@ WHILE hunt is running:
 POST /api/v1/hunts
 {
   "target": "http://example.com",
-  "mode": "human",
-  "brain": "muse-spark-1.3"
+  "scope": {},
+  "confirmedAuthorized": true,
+  "mode": "human"
 }
 → Returns huntId (e.g., h_7d49c6ef7447)
 → Docker container spawned: dm-hunt-<huntId>
