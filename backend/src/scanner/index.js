@@ -84,6 +84,7 @@ import { probeCachePoisoning } from './probes/cachePoison.js';
 import { probeRequestSmuggling } from './probes/smuggling.js';
 import { probeJwt } from './probes/jwt.js';
 import { probeJwtClaims } from './probes/jwtClaims.js';
+import { probeSessionTimeout } from './probes/sessionTimeout.js';
 import { probeGraphql } from './probes/graphql.js';
 import { probeCswsh } from './probes/cswsh.js';
 import { probeOauth } from './probes/oauth.js';
@@ -202,6 +203,7 @@ export const DEFAULT_PHASES = [
   'request-smuggling',
   'jwt',
   'jwt-claims',
+  'session-timeout',
   'graphql',
   'cswsh',
   'oauth',
@@ -2417,6 +2419,43 @@ export async function runScan(
       claimsScanned: jwtClaimsDiag.claimsScanned || 0,
       sensitiveFields: jwtClaimsDiag.sensitiveFields || 0,
       tier: jwtClaimsDiag.tier || null,
+    })
+  );
+  // SESSION TIMEOUT + REMEMBER-ME TOKEN (9 Nov 2026, rows #259
+  // [Medium] No Session Timeout, CWE-613, and #475 [High]
+  // Remember-me token flaws, CWE-384): the token the server itself
+  // issues, decoded (base64url, no key needed), its exp claim
+  // judged offline — no exp, or a lifetime over 7 days, confirms
+  // #259; the same login transaction is inspected for a
+  // remember-me token (JSON field / Set-Cookie) and confirms #475
+  // only when that token is predictable or permanent (see
+  // sessionTimeout.js). The logout-invalidation half of #259 is
+  // already LIVE via #474 and is NEVER re-tested here. Same lab
+  // gates + apiRoutes wiring as jwt-claims. Diagnostics ride the
+  // phase extras (loginRoutes, tokenFound, tokenJwt, expPresent,
+  // tokenLifetimeSecs, rememberMeSurface, rememberMeKind) so a live
+  // proof can tell "no token" from "clean token" and "no
+  // remember-me surface" from "surface clean" without re-running.
+  const stDiag = {};
+  await step(
+    'session-timeout',
+    () =>
+      probeSessionTimeout(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: stDiag,
+      }),
+    () => ({
+      loginRoutes: stDiag.loginRoutes || 0,
+      tokenFound: Boolean(stDiag.tokenFound),
+      tokenJwt: Boolean(stDiag.tokenJwt),
+      expPresent: Boolean(stDiag.expPresent),
+      tokenLifetimeSecs:
+        typeof stDiag.tokenLifetimeSecs === 'number' ? stDiag.tokenLifetimeSecs : null,
+      rememberMeSurface: Boolean(stDiag.rememberMeSurface),
+      rememberMeKind: stDiag.rememberMeKind || null,
     })
   );
   await step('graphql', () => probeGraphql(url, { ...opts, labTargets }));

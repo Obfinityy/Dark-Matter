@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 110/64/46 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 111/65/46 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -299,24 +299,26 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // RUNS as an honest no-op alongside them (no API routes on
       // a bare page — 9 Nov 2026, 109th phase), and document-domain
       // SKIPS with 'no script targets' alongside them (a bare page
-      // carries no bundles — 9 Nov 2026, 110th phase).
+      // carries no bundles — 9 Nov 2026, 110th phase), and
+      // session-timeout RUNS as an honest no-op alongside them
+      // (no labCreds on a bare page — 9 Nov 2026, 111th phase).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 110,
-        ok: 64,
+        total: 111,
+        ok: 65,
         failed: 0,
         skipped: 46,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 64 ran ok, 46 skipped, 0 failed, 0 timed out.'
+        'Phases: 65 ran ok, 46 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 140/140/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 141/141/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -443,17 +445,20 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // the stub carries no labCreds, so the lab gate fails before
       // the mine runs), and document-domain, the 110th phase, runs
       // as an honest no-op alongside them (the stub bundle carries
-      // no document.domain assignment).
+      // no document.domain assignment), and session-timeout, the
+      // 111th phase, runs as an honest no-op alongside them for
+      // the same reason: the stub carries no labCreds, so the lab
+      // gate fails before the mine runs).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 140,
-        ok: 140,
+        total: 141,
+        ok: 141,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 140 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 141 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -659,7 +664,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 110);
+      assert.equal(DEFAULT_PHASES.length, 111);
     } finally {
       teardown();
     }
