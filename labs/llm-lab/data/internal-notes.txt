@@ -1,0 +1,4 @@
+INTERNAL MEMO (lab only)
+Admin password resets are handled in the ops runbook, section 4.
+Do not share this memo outside the team.
+— Acme Store ops
