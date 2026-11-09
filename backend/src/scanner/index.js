@@ -54,6 +54,7 @@ import { probeCredentialStuffing } from './probes/credentialStuffing.js';
 import { probeBfla } from './probes/bfla.js';
 import { probeCouponAbuse } from './probes/couponAbuse.js';
 import { probeApiTokenAuth } from './probes/apiTokenAuth.js';
+import { probeExceptionalConditions } from './probes/exceptionalConditions.js';
 import { probeDomPostMessage } from './probes/domPostMessage.js';
 import { probeDomOpenRedirect } from './probes/domOpenRedirect.js';
 import { probeDomClobbering } from './probes/domClobbering.js';
@@ -172,6 +173,7 @@ export const DEFAULT_PHASES = [
   'bfla',
   'coupon-abuse',
   'api-token-auth',
+  'exceptional-conditions',
   'dom-open-redirect',
   'dom-clobbering',
   'dom-cookie-manipulation',
@@ -2144,6 +2146,40 @@ export async function runScan(
       controlOk: Boolean(apiTokenDiag.controlOk),
       attempts: apiTokenDiag.attempts || 0,
       bypassKind: apiTokenDiag.bypassKind || null,
+    })
+  );
+  // EXCEPTIONAL CONDITIONS (9 Nov 2026, row #482 [Medium]
+  // Mishandling of Exceptional Conditions, CWE-703 / CWE-636 |
+  // OWASP A10:2025): a multi-step workflow that does not fail
+  // securely on a malformed input — the probe calibrates with a
+  // well-formed basket add first, then feeds type-confusion
+  // quantities ('abc', 1.5, null, 2^53+1) to the same add
+  // endpoint (confirm only on 2xx + a basket state change) and,
+  // when every variant is rejected there, to the sibling update
+  // endpoint (confirm only when the update accepts what the add
+  // rejected). A 5xx crash response is recorded in diagnostics
+  // only — it is error-disclosure's territory, never this probe's
+  // confirm trigger (see exceptionalConditions.js). Same apiRoutes
+  // wiring as bfla / coupon-abuse. Diagnostics ride the phase
+  // extras (basketRoutes, controlOk, attempts, failOpenKind) so a
+  // live proof can tell "no surface" from "oracle uncalibrated"
+  // without re-running the scan.
+  const exceptionalDiag = {};
+  await step(
+    'exceptional-conditions',
+    () =>
+      probeExceptionalConditions(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: exceptionalDiag,
+      }),
+    () => ({
+      basketRoutes: exceptionalDiag.basketRoutes || 0,
+      controlOk: Boolean(exceptionalDiag.controlOk),
+      attempts: exceptionalDiag.attempts || 0,
+      failOpenKind: exceptionalDiag.failOpenKind || null,
     })
   );
   await step('user-enumeration', () => probeUserEnum(forms, url, opts));
