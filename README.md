@@ -17,7 +17,7 @@ Most security tools run a checklist: test for SQL injection, then XSS, then move
 5. **It verifies before it reports** — every finding goes through confirmation probes. Unreproducible results are discarded, not reported. Only verified vulnerabilities reach the operator.
 6. **It remembers** — everything it learns is saved to its persistent memory, so each hunt makes it sharper.
 
-The brain is an **uncensored AI model running on our own infrastructure** — no third-party API, no data leaving our servers, no rate limits deciding when it can think.
+The brain is an **uncensored AI model** — it currently reasons through third-party APIs (Meta's API plus OpenRouter; see `backend/src/brainProvider.js`), so hunt prompts and results do leave the operator's servers. No rate limits from the project itself decide when it can think, but the providers' own limits and keys apply.
 
 ---
 
@@ -97,3 +97,4 @@ Dark Matter is developed and operated by Obfinity; it is not distributed for ext
 ## License
 
 Dark Matter © Obfinity. Third-party components retain their own licenses — see `THIRD_PARTY_NOTICES.md`.
+
