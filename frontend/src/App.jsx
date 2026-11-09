@@ -5,6 +5,7 @@ import ActivityDrawer from './components/ActivityDrawer';
 import UpiPayPage from './pages/UpiPayPage';
 import AdminPage from './pages/AdminPage';
 import ChatPage from './pages/ChatPage';
+import LandingPage from './pages/LandingPage';
 import PluginsPage from './pages/PluginsPage';
 import ReportsPage from './pages/ReportsPage';
 import LiveMachinesPage from './pages/LiveMachinesPage';
@@ -13,7 +14,7 @@ import AuthPage from './pages/AuthPage';
 import LegalPage from './pages/LegalPage';
 import AuthModal from './components/AuthModal';
 import ToastHost from './components/ToastHost';
-import { AuthProvider, useAuth } from './lib/auth';
+import { AuthProvider, useAuth, openAuthModal } from './lib/auth';
 import { huntCardFromListEntry } from './lib/huntMode';
 
 const CHATS_KEY = 'dm.chats';
@@ -837,7 +838,10 @@ function AppInner() {
         {(page === 'privacy' || page === 'terms') && (
           <LegalPage type={page} onNavigate={navigate} />
         )}
-        {page === 'chat' && (
+        {page === 'chat' && !user && (
+          <LandingPage onNavigate={navigate} onRequestAccess={() => openAuthModal('login')} />
+        )}
+        {page === 'chat' && user && (
           <ChatPage
             chat={activeChat}
             onAppendMessage={appendMessage}
