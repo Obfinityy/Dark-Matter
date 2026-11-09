@@ -37,8 +37,9 @@ export const ELEMENT_VULN_MATRIX = {
   'input:url': ['sqli-error', 'xss', 'ssrf', 'redirect', 'stored-xss'],
   'input:number': ['sqli-error', 'xss'],
   'input:tel': ['sqli-error', 'xss'],
-  // Password fields: login inputs are prime injection points.
-  'input:password': ['sqli-error', 'sqli-blind', 'xss', 'weak-creds', 'nosqli'],
+  // Password fields: login inputs are prime injection points, and the
+  // autocomplete phase tests them for browser-stored credentials (#483).
+  'input:password': ['sqli-error', 'sqli-blind', 'xss', 'weak-creds', 'nosqli', 'autocomplete'],
   // Hidden fields: server-trusted values the client can rewrite.
   'input:hidden': ['sqli-error', 'xss', 'traversal'],
   // File picker: upload battery (lab-gated).

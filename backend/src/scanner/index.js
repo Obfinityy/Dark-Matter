@@ -97,6 +97,7 @@ import { probeVerbTampering } from './probes/verbTampering.js';
 import { probeMethodOverride } from './probes/methodOverride.js';
 import { probeSecretsInJs, extractSecretTargets } from './probes/secretsInJs.js';
 import { probeBrowserStorage } from './probes/browserStorage.js';
+import { probeAutocomplete } from './probes/autocomplete.js';
 import { probeDomXssSinks } from './probes/domXssSinks.js';
 import { probeDomXssLocationHash } from './probes/domXssLocationHash.js';
 import { probeErrorDisclosure } from './probes/errorDisclosure.js';
@@ -213,6 +214,7 @@ export const DEFAULT_PHASES = [
   'credential-disclosure',
   'sensitive-cache',
   'browser-storage',
+  'autocomplete',
   'dom-xss-sinks',
   'dom-xss-location-hash',
   'dom-postmessage',
@@ -1290,6 +1292,40 @@ export async function runScan(
     );
   } else {
     skipPhase('browser-storage', 'no script targets');
+  }
+  // AUTOCOMPLETE (9 Nov 2026, row #483 [Low] Autocomplete enabled on
+  // sensitive fields, CWE-200 / CWE-525 | OWASP WSTG v4.2): a password,
+  // payment-card, secret/token, SSN, PIN or card-expiry input with no
+  // autocomplete="off" lets the browser store the value in form
+  // history and re-offer it (see autocomplete.js). Static served-HTML
+  // check on the page body page-analyze already fetched — in site
+  // mode the merged body of every discovered page — so a page with
+  // no body at all records a skip instead of running. No lab gate,
+  // no allowWrite gate, all depths: the check is read-only on a body
+  // the scan already holds. Diagnostics ride the phase extras
+  // (inputsScanned, sensitiveInputs, unprotectedInputs) so a live
+  // proof can tell "no inputs" from "inputs, all protected" without
+  // re-running the scan. DVWA's server-rendered login form carries a
+  // password input with no autocomplete attribute, so its leg is
+  // expected to be 1 real [Low] finding; Juice Shop's served shell
+  // carries no inputs, so its leg is expected to be a true negative.
+  const acDiag = {};
+  if (pageBody && typeof pageBody === 'string') {
+    await step(
+      'autocomplete',
+      () =>
+        probeAutocomplete(url, sitePageBody || pageBody, {
+          ...opts,
+          diagnostics: acDiag,
+        }),
+      () => ({
+        inputsScanned: acDiag.inputsScanned || 0,
+        sensitiveInputs: acDiag.sensitiveInputs || 0,
+        unprotectedInputs: acDiag.unprotectedInputs || 0,
+      })
+    );
+  } else {
+    skipPhase('autocomplete', 'no page body');
   }
   // DOM XSS SINKS (8 Nov 2026, row #115): the app's own first-party
   // JS renders data through a DOM sink — Angular's

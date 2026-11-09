@@ -121,6 +121,10 @@ describe('param battery skipped records (35/63 fix)', () => {
     // always-run as an honest no-op: no coupon routes on a bare
     // page; lab-gated, control apply first, then reuse on a fresh
     // basket and stacking against the single-coupon floor).
+    // (103 since 9 Nov 2026 (autocomplete): 'autocomplete' joins
+    // as a standalone phase (one record per scan, always-run as an
+    // honest no-op: no sensitive inputs on a bare page; static
+    // served-HTML check, no lab gate, no drive).
     // (100-102 since 9 Nov 2026 (DOM trio): 'dom-open-redirect',
     // 'dom-clobbering' and 'dom-cookie-manipulation' join as
     // standalone gated phases (one record per scan, skipped with
@@ -163,7 +167,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 103);
+    assert.equal(DEFAULT_PHASES.length, 104);
   });
 
   it('zero param targets: all 29 param phases emit skipped records, rollup reports them', async () => {
@@ -395,10 +399,12 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
-  // 59/44 since 9 Nov 2026 (API token auth): 'api-token-auth' adds a
-  // 59th ok record (always-run as an honest no-op: no token-param
-  // routes and no lab login on a bare page), so the bare-page line
-  // reads 59 ran ok, 44 skipped.
+  // 60/44 since 9 Nov 2026 (API token auth + autocomplete):
+  // 'api-token-auth' adds a 59th ok record (always-run as an honest
+  // no-op: no token-param routes and no lab login on a bare page)
+  // and 'autocomplete' adds a 60th ok record (always-run as an
+  // honest no-op: no sensitive inputs on a bare page), so the
+  // bare-page line reads 60 ran ok, 44 skipped.
   // 58/40 since 9 Nov 2026 (coupon abuse): 'coupon-abuse' adds a
   // 58th ok record (always-run as an honest no-op: no coupon routes
   // on a bare page), so the bare-page line reads 58 ran ok, 40 skipped.
@@ -477,15 +483,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 103,
-        ok: 59,
+        total: 104,
+        ok: 60,
         failed: 0,
         skipped: 44,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 59 ran ok, 44 skipped, 0 failed, 0 timed out.'
+        'Phases: 60 ran ok, 44 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
