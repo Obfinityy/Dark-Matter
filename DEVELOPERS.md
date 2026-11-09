@@ -52,7 +52,7 @@
 
 **Product naming (owner-set, 31 Oct 2026):**
 - Product = **Dark Matter**
-- Repo = **Dark-Matter** (github.com/Obfinityy/Dark-Matter, private)
+- Repo = **Dark-Matter** (github.com/Obfinityy/Dark-Matter, public)
 - Company = **Obfinity**
 - Internal AI agent = **Infinity AI**
 
@@ -497,43 +497,48 @@ These are permanently dead (do not re-file without genuinely new proof):
 ```
 Dark-Matter/
 ├── README.md                   # Project overview
-├── AGENTS.md                   # Operating manual (how to work here)
-├── COORDINATION.md             # Multi-AI sync (Infinity One ↔ Two)
-├── VISION.md                   # Product vision
-├── THIRD_PARTY_NOTICES.md      # Legal (licenses)
-├── DEVELOPERS.md               # THIS FILE (complete technical reference)
+├── CONTRIBUTING.md              # How to contribute
+├── SECURITY.md                  # How to report vulnerabilities
+├── AGENTS.md                    # Operating manual (how to work here)
+├── COORDINATION.md              # Pointer — the frozen coordination log lives at docs/archive/
+├── VISION.md                    # Product vision
+├── PROOF.md                     # Live proof log
+├── THIRD_PARTY_NOTICES.md       # Legal (licenses)
+├── DEVELOPERS.md                # THIS FILE (complete technical reference)
 │
-├── frontend/                   # React SPA
+├── frontend/                    # React SPA
 │   ├── src/
-│   │   ├── App.jsx             # Main app (ChatGPT-like UI)
-│   │   ├── pages/              # ChatPage, AdminPage, etc.
-│   │   └── components/         # HuntCard, LiveViewer, etc.
+│   │   ├── App.jsx              # Main app (chat-style UI)
+│   │   ├── pages/               # ChatPage, AdminPage, etc.
+│   │   └── components/          # HuntCard, LiveViewer, etc.
 │   └── public/
-│       └── d/                  # Obfinity dashboard (/d route)
+│       └── d/                   # Obfinity dashboard (/d route)
 │
-├── backend/                    # Node.js API + hunt engine
+├── backend/                     # Node.js API + hunt engine
+│   ├── brain-py/                # Python brain demos
 │   └── src/
-│       ├── humanLoop.js        # THE HUNT ENGINE (~6000 lines)
-│       ├── autoFiler.js        # Auto-claim filer
-│       ├── brainProvider.js    # Brain API abstraction
-│       ├── huntMemory.js       # Per-hunt memory system
-│       ├── osControl.js        # 17 OS actions
-│       ├── screenMap.js        # OCR pipeline
-│       ├── llm.js              # LLM client
-│       └── routes/             # API endpoints
+│       ├── humanLoop.js         # THE HUNT ENGINE (~6000 lines)
+│       ├── autoFiler.js         # Auto-claim filer
+│       ├── brainProvider.js     # Brain API abstraction
+│       ├── huntMemory.js        # Per-hunt memory system
+│       ├── osControl.js         # 17 OS actions
+│       ├── screenMap.js         # OCR pipeline
+│       ├── llm.js               # LLM client
+│       ├── routes/              # API endpoints
+│       ├── scanner/             # Deterministic rule-based scanner
+│       └── hunt-intel/          # Chain engine, differential verification
 │
-├── brain-py/                   # Python brain demos (parent-as-brain)
-│   └── brain-apiloop-v1.py     # Proven 11/11 on DVWA, $0
-│
-├── engine/                     # Security tools (pentagi, etc.)
-│
-├── ideas/                      # Future roadmap (10,000 ideas)
-│
-└── docs/                       # Additional documentation
-    └── aws-deploy.md           # EC2 deployment guide
+├── engine/                      # Hunt engine (PentAGI, by reference)
+├── docker/                      # Hunt/engine images, Compose, sandbox tools
+├── docs/                        # Documentation index + architecture + research
+├── ideas/                       # Feature-idea backlog (waves currently paused)
+├── labs/                        # Local test labs
+├── research/                    # Hunter research notes
+├── third_party/                 # Vendored third-party code + licenses
+└── voice/                       # STT/TTS services
 ```
 
-**Root holds ONLY:** frontend, backend, ideas, brain-py, engine, docs, .gitignore, AGENTS.md, COORDINATION.md, README.md, VISION.md, DEVELOPERS.md, THIRD_PARTY_NOTICES.md
+**Root holds ONLY:** the docs listed above plus `frontend/`, `backend/`, `engine/`, `docker/`, `docs/`, `ideas/`, `labs/`, `research/`, `third_party/`, `voice/`, `.gitignore`, `.editorconfig`, `.prettierrc`.
 
 ---
 
@@ -560,6 +565,9 @@ curl https://api.thebhavesh.online/api/v1/health  # → {"ok":true}
 - Auto-deploys on git push to main (takes ~5 min)
 - URL: https://hack.thebhavesh.online
 - Manual check: curl the URL and verify bundle hash changed
+
+### Backend (Render — alternative deploy path)
+- A Render configuration also exists (`backend/render.yaml`). The canonical backend host is under owner review (see issue #493) — do not assume EC2 or Render from this file alone.
 
 ### Git Push (from EC2)
 ```bash
@@ -650,6 +658,8 @@ Resource constraints (2 vCPU, 8GB RAM) and focus. One elite hunter does one targ
 ## 15. Current Status & Roadmap
 
 ### As of 1 Nov 2026, 21:00 IST
+
+> **Note (9 Nov 2026): this section is frozen at 1 Nov 2026 and is kept for the record. For current live status, see `PROOF.md`.**
 
 **Built (infrastructure):**
 - ✅ Full OS control (17 actions)

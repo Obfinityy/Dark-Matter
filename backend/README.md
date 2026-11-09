@@ -90,14 +90,25 @@ every `STREAM_POLL_MS` (default 1s) per connected client:
 If the engine later gains SSE/WS, swap the poll loop in `src/server.js` —
 the outbound contract to the frontend stays identical.
 
+## Testing
+
+```bash
+npm test     # node --test; ~2,980 tests (Nov 2026), colocated as *.test.js
+```
+
+One test boots a real backend (~20s); run sequentially or at most 2-way parallel. Run the suite before opening a PR.
+
+## Payments
+
+Access is sold as 1-day passes (₹10,000 via UPI). The current flow is manual: a user files a payment claim (`src/paymentClaims.js`, `src/upiPay.js`), an admin verifies it, and verification grants 1-day access (`src/access.js`, `grantAccess(user, 1)` sets `accessUntil` to now + 24h). Automated gateway checkout is tracked separately (see issue #491) and is not part of this backend yet.
+
 ## Security notes
 
 - Hunt creation is **allowlist-gated** (`ALLOWED_TARGETS`) **plus**
   per-request `confirmedAuthorized: true`. Both required; rejections logged.
 - Plugin keys: AES-256-GCM at rest; master key from env only; never logged;
   never returned over the API. GET catalog exposes only `configured` booleans.
-- No auth layer is built into this rebuild yet — treat deployment as
-  internal/trusted-network until auth is added (open gap, see below).
+- JWT auth exists (`src/routes/auth.js`: signup/login, admin bootstrap via `ADMIN_USERNAME` / `ADMIN_PASSWORD_HASH`); hunts require login. Authorization coverage on individual routes varies — check the route before assuming it is protected.
 
 ## Deploy (Render)
 
@@ -108,7 +119,7 @@ Alternatively `docker build -t dm-backend . && docker run -p 4000:4000 dm-backen
 
 ## Remaining gaps (honest)
 
-- No authentication/authorization on the API yet (see Security notes).
+- Authorization is not yet uniform across all routes — some endpoints rely on the auth middleware, others do not; audit before exposing a new route.
 - Chat replies are template/summary-based (no external LLM needed) — richer
   generation can be wired to plugin providers later.
 - Model downloads are best-effort and async; `queued`/`failed` statuses are

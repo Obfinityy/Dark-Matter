@@ -65,8 +65,11 @@ One application. Three capabilities. Fully autonomous operation.
 
 ## How we work (for AI developers)
 
-- `COORDINATION.md` — who owns what, claims, and inter-AI messages.
+- GitHub Issues + pull requests — new work starts from an issue, lands via a
+  reviewed PR, never by pushing directly to `main`. See `CONTRIBUTING.md`.
 - `AGENTS.md` — technical onboarding: stack, commands, conventions.
-- `ideas/manifest.json` — the 100,000+ idea roadmap being implemented wave by wave.
+- `ideas/manifest.json` — the 100,000+ idea roadmap. The wave-by-wave
+  implementation pipeline is **paused by owner order (Oct 2026)**; the old
+  coordination log is frozen history at `docs/archive/COORDINATION.md`.
 - GitHub-facing text (commits, PRs, issues): professional English only.
 - Verify before push: frontend builds, backend boots, tests pass.
