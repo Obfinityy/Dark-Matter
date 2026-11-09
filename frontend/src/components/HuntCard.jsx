@@ -207,6 +207,8 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   const [phase, setPhase] = useState(hunt.phase || '');
   const [busy, setBusy] = useState(false);
   const [streamError, setStreamError] = useState(false);
+  const [streamReconnecting, setStreamReconnecting] = useState(false);
+  const streamRef = useRef(null);
   const [showFeed, setShowFeed] = useState(true);
   const [resolvedCreatedAt, setResolvedCreatedAt] = useState(hunt.createdAt || null);
   // Lane P: until the history fetch settles, the card cannot tell a
@@ -535,6 +537,9 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   useEffect(() => {
     const handlers = {
       onEvent: (type, payload) => {
+        // A live event means the socket is back: clear the
+        // reconnecting banner (FIX #443).
+        setStreamReconnecting(false);
         if (type === 'thinking') {
           setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: payload.text || payload.message || '', at: eventTimeMs(payload) }]);
         } else if (type === 'tool_call') {
@@ -596,7 +601,18 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         setStreamError(true);
         setStatus((s) => (s === 'idle' ? 'error' : s));
       },
-      onClose: () => {},
+      // FIX (#443): the client now auto-reconnects on a transient
+      // drop (up to 5 attempts, backoff). Show "reconnecting"
+      // instead of the error banner; only a final close after
+      // exhausted retries surfaces the error + Retry button.
+      onReconnecting: () => {
+        setStreamReconnecting(true);
+        setStreamError(false);
+      },
+      onClose: (reason) => {
+        setStreamReconnecting(false);
+        if (reason === 'exhausted') setStreamError(true);
+      },
     };
 
     let stream;
@@ -604,12 +620,16 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
       stream = isDemoMode()
         ? createSimulatedStream(hunt.huntId, handlers)
         : new HuntStreamClient(hunt.huntId, handlers);
+      streamRef.current = stream;
       stream.connect();
     } catch (err) {
       setStreamError(true);
       setStatus('error');
     }
-    return () => stream && stream.disconnect();
+    return () => {
+      streamRef.current = null;
+      stream && stream.disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hunt.huntId]);
 
@@ -838,10 +858,16 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         </div>
       )}
 
+      {streamReconnecting && (
+        <div className="hunt-stream-warning">
+          Live stream reconnecting — live output will resume automatically.
+        </div>
+      )}
+
       {streamError && (
         <div className="hunt-stream-warning">
           Live stream unavailable — control buttons still work, but live output will not update.
-          <button className="btn btn-ghost btn-sm" onClick={() => window.location.reload()}>
+          <button className="btn btn-ghost btn-sm" onClick={() => { setStreamError(false); const s = streamRef.current; if (s) { if (s.reconnect) s.reconnect(); else s.connect(); } }}>
             Retry
           </button>
         </div>
@@ -1244,7 +1270,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
                   steerHunt(hunt.huntId, steerMsg.trim()).then((r) => {
                     setSteerBusy(false);
                     if (r.ok) { setSteerSent(true); setSteerMsg(''); }
-                    else toast.error(r.error || 'Could not send instruction');
+                    else toast(r.error || 'Could not send instruction', 'error');
                   });
                 }
               }}
@@ -1257,7 +1283,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
                 steerHunt(hunt.huntId, steerMsg.trim()).then((r) => {
                   setSteerBusy(false);
                   if (r.ok) { setSteerSent(true); setSteerMsg(''); }
-                  else toast.error(r.error || 'Could not send instruction');
+                  else toast(r.error || 'Could not send instruction', 'error');
                 });
               }}
             >
