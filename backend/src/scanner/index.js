@@ -61,6 +61,7 @@ import { probeDomPostMessage } from './probes/domPostMessage.js';
 import { probeDomOpenRedirect } from './probes/domOpenRedirect.js';
 import { probeDomClobbering } from './probes/domClobbering.js';
 import { probeDomCookieManipulation } from './probes/domCookieManipulation.js';
+import { probeDocumentDomain } from './probes/documentDomain.js';
 import { probeCsti } from './probes/csti.js';
 import { probeCaptcha } from './probes/captcha.js';
 import { probeCssInjection } from './probes/cssInjection.js';
@@ -181,6 +182,7 @@ export const DEFAULT_PHASES = [
   'dom-open-redirect',
   'dom-clobbering',
   'dom-cookie-manipulation',
+  'document-domain',
   'quota-bypass',
   'user-enumeration',
   'rfi',
@@ -1760,6 +1762,39 @@ export async function runScan(
     );
   } else {
     skipPhase('dom-cookie-manipulation', 'no script targets');
+  }
+  // DOCUMENT.DOMAIN RELAXATION (9 Nov 2026, row #484 [Low] SOP —
+  // document.domain relaxation, CWE-668): dom-xss-sinks fingerprints
+  // sinks statically and the DOM trio drives canaries only when
+  // their sink exists; this phase mines first-party code for
+  // `document.domain =` assignments and confirms ONLY on an
+  // observed string-literal assignment to a parent suffix of the
+  // page host (see documentDomain.js). Static mining only — no lab
+  // gate, no writes — reuses secretTargets (same gate as
+  // dom-xss-sinks, so a script-less page records a skip instead of
+  // fetching). Diagnostics ride the phase extras
+  // (domainRelaxations, unresolvedAssignments, noopAssignments,
+  // invalidAssignments) so a live proof can tell "no assignments"
+  // from "assignments that do not relax" without re-running.
+  const ddDiag = {};
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step(
+      'document-domain',
+      () =>
+        probeDocumentDomain(url, secretTargets, {
+          ...opts,
+          diagnostics: ddDiag,
+          ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+        }),
+      () => ({
+        domainRelaxations: ddDiag.domainRelaxations || 0,
+        unresolvedAssignments: ddDiag.unresolvedAssignments || 0,
+        noopAssignments: ddDiag.noopAssignments || 0,
+        invalidAssignments: ddDiag.invalidAssignments || 0,
+      })
+    );
+  } else {
+    skipPhase('document-domain', 'no script targets');
   }
   // ERROR DISCLOSURE (7 Nov 2026, rows #175 + #176): trigger
   // errors with read-only GETs on the same GET probe targets as
