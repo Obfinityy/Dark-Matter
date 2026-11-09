@@ -245,6 +245,15 @@ textarea:focus-visible, [tabindex]:focus-visible {
 }
 .dm-action-title { color: var(--dm-text); font-size: 14px; }
 .dm-action-sub { color: var(--dm-secondary); font-size: 12px; line-height: 1.5; }
+/* SEO landing copy (9 Nov 2026): quiet, readable section under the hero
+   quick actions — same muted palette as the tagline, nothing hidden. */
+.dm-seo { width: 100%; margin: 8px 0 24px; text-align: left; }
+.dm-seo h2 { margin: 0 0 10px; color: var(--dm-text); font-size: 17px; font-weight: 700; line-height: 1.4; }
+.dm-seo > p { margin: 0 0 18px; color: var(--dm-secondary); font-size: 13.5px; line-height: 1.65; }
+.dm-seo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.dm-seo-item { border: 1px solid #d9e3e1; border-radius: 12px; background: rgba(255,255,255,.82); padding: 14px; }
+.dm-seo-item h3 { margin: 0 0 6px; color: var(--dm-text); font-size: 13.5px; font-weight: 650; }
+.dm-seo-item p { margin: 0; color: var(--dm-secondary); font-size: 12.5px; line-height: 1.55; }
 .dm-disclaimer { padding: 0 16px 14px; color: #62787c; }
 .composer-wrap { padding: 10px 20px 10px; }
 .composer {
@@ -476,6 +485,8 @@ textarea:focus-visible, [tabindex]:focus-visible {
   .dm-wordmark { font-size: 25px; letter-spacing: .08em; }
   .dm-tagline { margin: 8px 0 22px; font-size: 13px; }
   .dm-quick-actions { grid-template-columns: 1fr; gap: 8px; margin-bottom: 14px; }
+  .dm-seo-grid { grid-template-columns: 1fr; gap: 8px; }
+  .dm-seo h2 { font-size: 15.5px; }
   .dm-action-card { min-height: 0; display: grid; grid-template-columns: 32px minmax(0, 1fr); column-gap: 11px; padding: 12px; }
   .dm-action-icon { grid-row: span 2; margin: 0; align-self: center; }
   .dm-action-title, .dm-action-sub { grid-column: 2; }
