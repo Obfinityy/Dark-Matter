@@ -54,6 +54,11 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
   const [scanDepth, setScanDepth] = useState('standard');
   const [scanScope, setScanScope] = useState('page');
   const [confirmed, setConfirmed] = useState(false);
+  const [targetTouched, setTargetTouched] = useState(false);
+
+  const targetError = targetTouched && !target.trim()
+    ? 'Enter the target URL or program address to start a hunt.'
+    : '';
 
   // Fresh dialog state on every open — picks up the top-bar hunter choice.
   useEffect(() => {
@@ -79,17 +84,22 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
         <p className="modal-sub">
           The hunt runs in the background. You can keep chatting while it works.
         </p>
-        <label className="field-label">
-          Target
+        <div className="field-label">
+          <label htmlFor="new-hunt-target">Target</label>
           <input
-            className="text-input"
+            id="new-hunt-target"
+            className={`text-input${targetError ? ' input-error' : ''}`}
             placeholder="https://target.example or bug-bounty program URL"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
+            onBlur={() => setTargetTouched(true)}
             autoFocus
             disabled={!!duplicate}
+            aria-invalid={!!targetError}
+            aria-describedby={targetError ? 'new-hunt-target-error' : undefined}
           />
-        </label>
+          {targetError && <p className="field-error" id="new-hunt-target-error" role="alert">{targetError}</p>}
+        </div>
         <label className="field-label">
           Scope <span className="optional">(optional)</span>
           <textarea
@@ -106,6 +116,7 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
             <button
               type="button"
               className={`mode-card${brainMode === 'ai' ? ' selected' : ''}`}
+              aria-pressed={brainMode === 'ai'}
               onClick={() => setBrainMode('ai')}
               title="The AI agent hunts like a human expert"
             >
@@ -115,6 +126,7 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
             <button
               type="button"
               className={`mode-card${brainMode === 'scanner' ? ' selected' : ''}`}
+              aria-pressed={brainMode === 'scanner'}
               onClick={() => setBrainMode('scanner')}
               title="Predefined rule-based automation — no AI, $0, results in minutes"
             >
@@ -133,6 +145,7 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
                   key={d.id}
                   type="button"
                   className={`mode-card${scanDepth === d.id ? ' selected' : ''}`}
+                  aria-pressed={scanDepth === d.id}
                   onClick={() => setScanDepth(d.id)}
                   title={d.tagline}
                 >
@@ -153,6 +166,7 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
                   key={s.id}
                   type="button"
                   className={`mode-card${scanScope === s.id ? ' selected' : ''}`}
+                  aria-pressed={scanScope === s.id}
                   onClick={() => setScanScope(s.id)}
                   title={s.tagline}
                 >
@@ -171,6 +185,7 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
                 key={m.id}
                 type="button"
                 className={`mode-card${mode === m.id ? ' selected' : ''}`}
+                aria-pressed={mode === m.id}
                 onClick={() => setMode(m.id)}
                 title={m.tagline}
               >
