@@ -2251,7 +2251,26 @@ export async function runScan(
   );
   await step('user-enumeration', () => probeUserEnum(forms, url, opts));
   await step('mass-assignment', () => probeMassAssignment(forms, url, { ...opts, labTargets }));
-  await step('ws-messages', () => probeWsMessages(url, { ...opts, labTargets }));
+  // WS MESSAGES (rows #39/#270 + #480 [Medium] WebSocket message/frame
+  // replay, CWE-1385): T2 replays a captured state-changing frame
+  // verbatim on a fresh connection. Diagnostics ride the phase extras
+  // so a live proof can tell "no WS surface" (wsEndpoints 0) from
+  // "replay ran, no double-effect" (replayAttempts 1, replayConfirmed
+  // false) from "replay never ran" (quick depth / non-lab:
+  // replayAttempts 0, frames null).
+  const wsMsgDiag = {};
+  await step(
+    'ws-messages',
+    () => probeWsMessages(url, { ...opts, labTargets, diagnostics: wsMsgDiag }),
+    () => ({
+      wsEndpoints: wsMsgDiag.wsEndpoints || 0,
+      replayEndpoints: wsMsgDiag.replayEndpoints || 0,
+      replayAttempts: wsMsgDiag.replayAttempts || 0,
+      replayFramesBefore: wsMsgDiag.replayFramesBefore ?? null,
+      replayFramesAfter: wsMsgDiag.replayFramesAfter ?? null,
+      replayConfirmed: Boolean(wsMsgDiag.replayConfirmed),
+    })
+  );
   await step('subdomain-takeover', () => probeSubdomainTakeover(url, opts));
   await step('race', () =>
     probeRace(

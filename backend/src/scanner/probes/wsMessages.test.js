@@ -319,3 +319,189 @@ describe('wsMessages T2 replay lab gate', () => {
     }
   }, { timeout: 60000 });
 });
+
+// ---- T2: frame replay verdict (row #480, CWE-1385) ---------------------------
+// Mock WS server that answers ONLY the probe's purchase frame, per mode.
+// T1 mutations and T3 subscribes are ignored, so the verdict tests observe
+// T2 alone. Replies key on the purchase count, not the connection count:
+// D1, T1 and T3 each open a /ws connection before T2's c1/c2, so the
+// connection index is not a stable way to tell the first send from the
+// replay — the first purchase frame is the first send, the second is the
+// replay, whatever opened before them.
+function startMockWsT2(mode, greetingsForConn) {
+  const server = http.createServer((req, res) => { res.writeHead(404); res.end(); });
+  const sockets = new Set();
+  let wsConns = 0;
+  let purchases = 0;
+  const greet = typeof greetingsForConn === 'function'
+    ? greetingsForConn
+    : () => ['{"message":"Welcome to the socket"}'];
+  server.on('upgrade', (req, socket) => {
+    sockets.add(socket);
+    socket.on('close', () => sockets.delete(socket));
+    socket.on('end', () => socket.end());
+    const u = new URL(req.url, 'http://127.0.0.1');
+    if (u.pathname !== '/ws') { socket.destroy(); return; }
+    const accept = wsAccept(req.headers['sec-websocket-key'] || '');
+    socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ' + accept + '\r\n\r\n');
+    wsConns += 1;
+    for (const f of greet(wsConns)) socket.write(encodeServerFrame(f));
+    let buf = Buffer.alloc(0);
+    socket.on('data', (chunk) => {
+      buf = Buffer.concat([buf, chunk]);
+      const text = decodeClientFrame(buf);
+      if (text === null) return;
+      buf = Buffer.alloc(0);
+      let obj;
+      try { obj = JSON.parse(text); } catch { return; }
+      if (obj.type !== 'purchase' || typeof obj.item !== 'string' || !obj.item.startsWith('dmws_')) return;
+      purchases += 1;
+      if (mode === 'echo') {
+        socket.write(encodeServerFrame(text));
+      } else if (mode === 'double-effect') {
+        socket.write(encodeServerFrame(JSON.stringify({ status: 'applied', item: obj.item })));
+        if (purchases === 2) {
+          socket.write(encodeServerFrame(JSON.stringify({ status: 'applied-again', item: obj.item, duplicate: true })));
+        }
+      }
+      // 'silent': no reply to the frame.
+    });
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => resolve({
+      server,
+      port: server.address().port,
+      wsConnCount: () => wsConns,
+      closeAll: () => new Promise((r) => { setTimeout(() => server.close(r), 150); }),
+    }));
+  });
+}
+
+describe('wsMessages T2 replay verdict', () => {
+  async function runT2(port, diag, extraOpts = {}) {
+    return probeWsMessages(`http://127.0.0.1:${port}/`, {
+      labTargets: '127.0.0.1',
+      timeoutMs: 8000,
+      depth: 'standard',
+      diagnostics: diag,
+      ...extraOpts,
+    });
+  }
+
+  it('T2-1 fires MEDIUM on a double-effect replay (row #480)', async () => {
+    const { server, port, closeAll } = await startMockWsT2('double-effect');
+    const diag = {};
+    try {
+      const findings = await runT2(port, diag);
+      const f = findings.find((x) => x.id.startsWith('ws-replay-'));
+      assert.ok(f, `expected ws-replay MEDIUM finding, got ${JSON.stringify(findings.map((x) => x.id))}`);
+      assert.equal(f.class, 'websocket_tampering');
+      assert.equal(f.title, 'WebSocket — frame replay executes action twice (MEDIUM)');
+      assert.equal(f.severity, 'medium');
+      assert.equal(f.parameter, 'frame-replay');
+      assert.ok(f.evidence.response.includes('2 post-send server frames vs 1'), 'evidence must quote the post-send counts');
+      assert.equal(diag.wsEndpoints, 1);
+      assert.equal(diag.replayEndpoints, 1);
+      assert.equal(diag.replayAttempts, 1);
+      assert.equal(diag.replayFramesBefore, 1);
+      assert.equal(diag.replayFramesAfter, 2);
+      assert.equal(diag.replayConfirmed, true);
+    } finally {
+      await closeAll();
+    }
+  }, { timeout: 60000 });
+
+  it('T2-2 stays silent when the server only echoes the replayed frame', async () => {
+    const { server, port, closeAll } = await startMockWsT2('echo');
+    const diag = {};
+    try {
+      const findings = await runT2(port, diag);
+      assert.ok(!findings.some((x) => x.id.startsWith('ws-replay-')), 'a symmetric echo is not a double effect');
+      assert.equal(diag.replayAttempts, 1);
+      assert.equal(diag.replayFramesBefore, 1);
+      assert.equal(diag.replayFramesAfter, 1);
+      assert.equal(diag.replayConfirmed, false);
+    } finally {
+      await closeAll();
+    }
+  }, { timeout: 60000 });
+
+  it('T2-3 stays silent on an asymmetric greeting burst (snapshot fix)', async () => {
+    // Greeting plan: D1, T1, T3 and c1 get 1 greeting each; c2 gets 2.
+    // The greetings ride with the 101 response, so wsConnect decodes
+    // them from `head` — under whole-connection counting that alone
+    // fires the old oracle (after 2 > before 1); under post-send
+    // snapshots both counts are 0. The /ws connection count pins the
+    // premise: D1 + T1 + T3 + c1 + c2.
+    const { server, port, wsConnCount, closeAll } = await startMockWsT2(
+      'silent',
+      (i) => (i === 5
+        ? ['{"message":"Welcome to the socket"}', '{"message":"Connected — enjoy your stay"}']
+        : ['{"message":"Welcome to the socket"}'])
+    );
+    const diag = {};
+    try {
+      const findings = await runT2(port, diag);
+      assert.equal(wsConnCount(), 5, 'premise: exactly 5 /ws connections (D1, T1, T3, c1, c2)');
+      assert.ok(!findings.some((x) => x.id.startsWith('ws-replay-')), 'greeting frames must not count toward the replay comparison');
+      assert.equal(diag.replayAttempts, 1);
+      assert.equal(diag.replayFramesBefore, 0);
+      assert.equal(diag.replayFramesAfter, 0);
+      assert.equal(diag.replayConfirmed, false);
+    } finally {
+      await closeAll();
+    }
+  }, { timeout: 60000 });
+
+  it('T2-4 stays silent when the server never acts on the frame', async () => {
+    const { server, port, closeAll } = await startMockWsT2('silent', () => [
+      '{"message":"Welcome to the socket"}',
+      '{"message":"Connected — enjoy your stay"}',
+    ]);
+    const diag = {};
+    try {
+      const findings = await runT2(port, diag);
+      assert.ok(!findings.some((x) => x.id.startsWith('ws-replay-')), 'greetings alone are not a double effect');
+      assert.equal(diag.replayAttempts, 1);
+      assert.equal(diag.replayFramesBefore, 0);
+      assert.equal(diag.replayFramesAfter, 0);
+      assert.equal(diag.replayConfirmed, false);
+    } finally {
+      await closeAll();
+    }
+  }, { timeout: 60000 });
+
+  it('T2-5 replay leg never runs on a non-lab host', async () => {
+    const { server, port, closeAll } = await startMockWsT2('double-effect');
+    const diag = {};
+    try {
+      const findings = await runT2(port, diag, { labTargets: 'lab.local' });
+      assert.ok(!findings.some((x) => x.id.startsWith('ws-replay-')), 'non-lab hosts must not run the replay leg');
+      assert.equal(diag.wsEndpoints, 1);
+      assert.equal(diag.replayEndpoints, 0);
+      assert.equal(diag.replayAttempts, 0);
+      assert.equal(diag.replayFramesBefore, null);
+      assert.equal(diag.replayFramesAfter, null);
+      assert.equal(diag.replayConfirmed, false);
+    } finally {
+      await closeAll();
+    }
+  }, { timeout: 60000 });
+
+  it('T2-6 replay leg never runs at quick depth', async () => {
+    const { server, port, closeAll } = await startMockWsT2('double-effect');
+    const diag = {};
+    try {
+      const findings = await runT2(port, diag, { depth: 'quick' });
+      assert.ok(!findings.some((x) => x.id.startsWith('ws-replay-')), 'quick depth must not run the replay leg');
+      assert.equal(diag.wsEndpoints, 1);
+      assert.equal(diag.replayEndpoints, 0);
+      assert.equal(diag.replayAttempts, 0);
+      assert.equal(diag.replayFramesBefore, null);
+      assert.equal(diag.replayFramesAfter, null);
+      assert.equal(diag.replayConfirmed, false);
+    } finally {
+      await closeAll();
+    }
+  }, { timeout: 60000 });
+});

@@ -6,7 +6,11 @@
 //   T1. Message-field tampering — HIGH/CRITICAL: JSON frame field mutated
 //       per attempt; CONFIRMED only on differential (server-acted effect,
 //       not verbatim echo — echo-control guard).
-//   T2. Replay — MEDIUM/HIGH (lab-only): verbatim replay on fresh conn.
+//   T2. Replay — MEDIUM (lab-only, row #480, CWE-1385): verbatim replay
+//       on a fresh connection; confirmed only when the replay connection
+//       yields more post-send frames than the first send. Connect-time
+//       greetings are excluded by snapshot (see t2Replay) — the old
+//       whole-connection counts fired on greeting bursts.
 //   T3. Unauthenticated topic subscription — HIGH: private/other-user
 //       topics streamed to our socket = cross-user leak.
 //   T4. Cross-client broadcast injection — HIGH (lab-only, both sockets
@@ -116,14 +120,19 @@ function wsConnect(wsUrl, opts = {}, captureMs = 3000) {
       },
       () => resolve({ ok: false, reason: 'no-upgrade' })
     );
-    req.on('upgrade', (res, socket) => {
+    req.on('upgrade', (res, socket, head) => {
       if (res.statusCode !== 101) {
         socket.destroy();
         resolve({ ok: false, reason: `status-${res.statusCode}` });
         return;
       }
       const frames = [];
-      let buf = Buffer.alloc(0);
+      // Frames bundled with the 101 response arrive in `head`, not as
+      // 'data' events — decode them here or connect-time server frames
+      // are silently dropped (which used to hide greeting frames from
+      // every frame count in this probe).
+      let buf = Buffer.from(head || []);
+      for (const f of decodeFrames(buf)) frames.push(f);
       socket.on('data', (d) => {
         buf = Buffer.concat([buf, d]);
         // decodeFrames re-parses buf from the start on every chunk; only
@@ -302,24 +311,40 @@ async function t3Topics(live, opts, rid) {
 }
 
 // ---- T2/T4/T5: lab-only ------------------------------------------------------------------
-async function t2Replay(live, opts) {
+// Row #480 (CWE-1385): a captured state-changing frame replayed verbatim
+// must not execute the action a second time. The oracle compares
+// POST-SEND frame counts only: each connection's frame count is
+// snapshotted before the send, so connect-time greetings and broadcast
+// frames cannot inflate the comparison. The two post-send windows are
+// symmetric (1500ms each) — the old code waited 1000ms after the first
+// send but 1500ms after the replay, biasing the replay count upward.
+// Firing condition, title, class, severity and parameter are unchanged.
+async function t2Replay(live, opts, diag) {
   const findings = [];
+  const d = diag || {};
   for (const ep of live.slice(0, 1)) {
+    d.replayEndpoints = 1;
     const c1 = await wsConnect(ep.wsUrl, opts, 1500);
     if (!c1.ok) continue;
     const frame = JSON.stringify({ type: 'purchase', item: `dmws_${rand()}`, qty: 1 });
+    const pre1 = c1.frames.length;
     c1.sendText(frame);
-    await new Promise((r) => setTimeout(r, 1000));
-    const before = c1.frames.length;
+    await new Promise((r) => setTimeout(r, 1500));
+    const before = c1.frames.length - pre1;
     c1.close();
     // Fresh connection, verbatim replay.
     const c2 = await wsConnect(ep.wsUrl, opts, 1500);
     if (!c2.ok) continue;
+    const pre2 = c2.frames.length;
     c2.sendText(frame);
     await new Promise((r) => setTimeout(r, 1500));
-    const after = c2.frames.length;
+    const after = c2.frames.length - pre2;
     c2.close();
+    d.replayAttempts = 1;
+    d.replayFramesBefore = before;
+    d.replayFramesAfter = after;
     if (after > before && after >= 2) {
+      d.replayConfirmed = true;
       findings.push({
         class: 'websocket_tampering',
         id: `ws-replay-${rand()}`,
@@ -329,7 +354,7 @@ async function t2Replay(live, opts) {
         parameter: 'frame-replay',
         evidence: ev(
           `WS frame sent, fresh connection, verbatim replay`,
-          `Replay produced ${after} server frames vs ${before} on first send — no nonce/timestamp binding; the action executed twice.`,
+          `Replay produced ${after} post-send server frames vs ${before} on first send — no nonce/timestamp binding; the action executed twice.`,
           'WS replay primitive: double-effect via frame replay.'
         ),
       });
@@ -436,18 +461,33 @@ export async function probeWsMessages(url, opts = {}) {
   const findings = [];
   const depth = opts.depth || 'standard';
   const timeoutMs = opts.timeoutMs || 15000;
+  // Replay diagnostics (row #480): always populated when the caller
+  // passes opts.diagnostics, so the phase record can tell "no WS
+  // surface" (wsEndpoints 0) from "replay ran, no double-effect"
+  // (replayAttempts 1, replayConfirmed false) from "replay never ran"
+  // (quick depth / non-lab: replayAttempts 0, frames null).
+  const diag = opts.diagnostics || null;
+  if (diag) {
+    diag.wsEndpoints = 0;
+    diag.replayEndpoints = 0;
+    diag.replayAttempts = 0;
+    diag.replayFramesBefore = null;
+    diag.replayFramesAfter = null;
+    diag.replayConfirmed = false;
+  }
   // #270 runs before the D1 early-return: a referenced ws:// URL exists
   // regardless of whether any wss endpoint is live.
   findings.push(...(await t270Unencrypted(url, opts, depth, timeoutMs)));
   const lab = isLabTargetHost(url, opts.labTargets);
   const live = await d1Inventory(url, opts);
+  if (diag) diag.wsEndpoints = live.length;
   if (!live.length) return findings; // no WS surface — class tested, absent
   const rid = rand();
   findings.push(...(await t1Tamper(live, opts, rid)));
   findings.push(...(await t3Topics(live, opts, rid)));
   if (depth === 'quick') return findings;
   if (lab) {
-    findings.push(...(await t2Replay(live, opts)));
+    findings.push(...(await t2Replay(live, opts, diag)));
     // T4 cross-client broadcast + T5 malformed frames: bounded lab-only
     // shapes; run inside the same lab session discipline (documented).
   }
