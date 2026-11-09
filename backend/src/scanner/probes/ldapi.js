@@ -11,11 +11,29 @@
 //   2. Error: LDAP error text ("LDAP:", "javax.naming", "Invalid DN",
 //      "LDAPException") on the malicious input, absent on benign.
 //
+// Zerodha guards (9 Nov 2026 — hunt h_6b5942052353): the sibling
+// ldapBlind probe fired on a Cloudflare "Just a moment" challenge page
+// whose length bucket wobbled, on a WordPress site with no LDAP backend.
+// The same noise shapes can reach this probe's boolean leg, so:
+//   (a) the benign baseline is fetched TWICE and must reproduce itself
+//       (FP3 double-control guard, oracleGuards.js) or the parameter
+//       is skipped;
+//   (b) a bot-challenge page on either side voids the differential —
+//       the error leg still requires genuine LDAP error text, never a
+//       challenge page;
+//   (c) PHP/WordPress stacks skip the probe entirely (no LDAP filter
+//       backend exists there).
+//
 // class 'ldap_injection' → default protocol → signalCorrelated=true
 // (boolean variant also sets diverged=true for the evidence trail).
 // Severity: high.
 import { randomBytes } from 'node:crypto';
 import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import {
+  isBotChallengePage,
+  controlObservationsStable,
+  isPhpWordpressStack,
+} from './oracleGuards.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -38,14 +56,24 @@ const BREAKOUTS = ['*)(uid=*))(|(uid=*', '*', 'admin)(uid=*'];
 
 export async function probeLdapInjection(url, params, opts = {}) {
   const findings = [];
+  // Stack gate: no LDAP filter backend exists on PHP/WordPress stacks.
+  if (isPhpWordpressStack(opts.stack)) return findings;
   for (const param of params.slice(0, 10)) {
     const unlikely = `dmldap${randomBytes(3).toString('hex')}`;
     let benign;
+    let benign2;
     try {
       benign = await get(mutateUrl(url, param, unlikely), opts);
+      // FP3: the benign baseline must reproduce itself. Same input,
+      // second request — a wobbling baseline makes every divergence
+      // unconfirmable.
+      benign2 = await get(mutateUrl(url, param, unlikely), opts);
     } catch {
       continue;
     }
+    // Bot-challenge invalidation: a challenged baseline voids the param.
+    if (isBotChallengePage(benign.text) || isBotChallengePage(benign2.text)) continue;
+    if (!controlObservationsStable(benign, benign2)) continue;
     for (const payload of BREAKOUTS) {
       let malicious;
       try {
@@ -53,6 +81,8 @@ export async function probeLdapInjection(url, params, opts = {}) {
       } catch {
         continue;
       }
+      // Bot-challenge invalidation: a challenged leg voids its differential.
+      if (isBotChallengePage(malicious.text)) continue;
       if (LDAP_ERRORS.test(malicious.text) && !LDAP_ERRORS.test(benign.text)) {
         const m = malicious.text.match(LDAP_ERRORS);
         const idx = malicious.text.indexOf(m[0]);

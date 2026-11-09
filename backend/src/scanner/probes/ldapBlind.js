@@ -28,11 +28,35 @@
 //   (In the DVWA incident zzz* moved too and the old 2/3 threshold fired
 //   anyway.)
 //
+// Zerodha guards (9 Nov 2026 — hunt h_6b5942052353, zerodha.com):
+//   A Cloudflare "Just a moment..." challenge page made the T1 matrix
+//   fire twice on a WordPress site with no LDAP backend at all:
+//     /open-account: baseline err:other:15, star err:other:14 — the ONLY
+//       difference was the length bucket (challenge page, same outcome
+//       words); /varsity/wp-comments-post.php: baseline err:other:17,
+//       star err:deny:16 — the moved response WAS the challenge page.
+//   Three system-level fixes, all in this file plus oracleGuards.js:
+//     (a) SIGNAL-only moves: a wildcard counts as "moved" only when the
+//         outcome SIGNAL (allow/deny/other) changes — a length-bucket
+//         wobble with identical outcome words is noise, not LDAP logic.
+//     (b) BOT-CHALLENGE INVALIDATION: if either baseline is a challenge
+//         page the parameter is skipped; a challenged probe leg voids
+//         only its own differential (matrix 'challenge') and its text
+//         never supplies evidence. If the nonsense control itself is
+//         challenged, the finding is blocked — LDAP-specificity cannot
+//         be established without it.
+//     (c) FP3 double baseline: the wrong-user baseline must reproduce
+//         itself (identical triple on a second identical request) or
+//         the parameter is skipped — a wobbling baseline confirms nothing.
+//   Plus a stack gate: PHP/WordPress stacks skip the probe entirely
+//   (no LDAP filter backend exists there).
+//
 // Depth gating: Quick = T1 only; Standard/Deep = T1 + T2 (T2 needs
 // opts.ldapCanary = { user, attr, value }; skipped gracefully when absent).
 // Every CONFIRMED verdict sits behind a differential oracle per the 100%
 // truth rule. Read-only HTTP, per-run canary values, redirects never followed.
 import { probePointName, probePointParameter } from '../probePoints.js';
+import { isBotChallengePage, isPhpWordpressStack } from './oracleGuards.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -91,6 +115,13 @@ export function triple(r) {
   return `${r.status < 400 ? 'ok' : 'err'}:${sig}:${Math.floor(r.text.length / 400)}`;
 }
 
+// Outcome-signal component of a triple ('allow' | 'deny' | 'other').
+// A wildcard "moves" the outcome only when this changes — the length
+// bucket alone never counts (Zerodha guard (a) above).
+function tripleSignal(t) {
+  return String(t || '').split(':')[1] || '';
+}
+
 function ev(request, response, impact) {
   return { request, response, impact_demo: impact, signalCorrelated: true };
 }
@@ -111,11 +142,20 @@ async function t1Oracle(url, params, opts) {
     base[probePointName(up)] = wrongUser;
     base['password'] = `wrong_${rand()}`;
     let rBase;
+    let rBase2;
     try {
       rBase = await postForm(url, base, opts);
+      // FP3: the baseline must reproduce itself. Same fields, second
+      // request — if the two baselines disagree, the page is noisy and
+      // no differential from it can confirm anything.
+      rBase2 = await postForm(url, base, opts);
     } catch {
       continue;
     }
+    // Bot-challenge invalidation: a challenge page is not the
+    // application answering. If either baseline is one, skip the param.
+    if (isBotChallengePage(rBase.text) || isBotChallengePage(rBase2.text)) continue;
+    if (triple(rBase2) !== triple(rBase)) continue;
     const tBase = triple(rBase);
     // Wildcard battery: each must be filter-logic-consistent.
     const probes = {
@@ -130,6 +170,7 @@ async function t1Oracle(url, params, opts) {
     // If zzz* moves the outcome, the oracle is not LDAP-specific (any
     // '*' in the input changes the response) and NO finding may fire,
     // however star/paren behave. This is a veto, not a vote.
+    let zzzUnknown = false; // nonsense control challenged: specificity unknown.
     let movedText = null; // response text of the first probe that moved the outcome
     for (const [k, v] of Object.entries(probes)) {
       const f = { ...base, [probePointName(up)]: v };
@@ -140,13 +181,23 @@ async function t1Oracle(url, params, opts) {
         matrix[k] = 'error';
         continue;
       }
+      // Bot-challenge invalidation (per leg): a challenged leg voids
+      // only its own differential — it counts as neither a move nor a
+      // stay, and its text never supplies evidence.
+      if (isBotChallengePage(r.text)) {
+        matrix[k] = 'challenge';
+        if (k === 'zzzStar') zzzUnknown = true;
+        continue;
+      }
       const t = triple(r);
       matrix[k] = t;
       if (t !== tBase && !movedText) movedText = r.text;
-      // Filter-logic consistency: a TRUE wildcard ('*') widening the match
-      // should move the outcome; a nonsense wildcard ('zzz*') should not.
+      // Filter-logic consistency, SIGNAL-only: a TRUE wildcard ('*')
+      // widening the match should move the OUTCOME; a nonsense wildcard
+      // ('zzz*') should not. A length-bucket wobble with the same
+      // outcome words is noise, not LDAP logic.
       if (k === 'star' || k === 'paren') {
-        if (t !== tBase) consistent++;
+        if (tripleSignal(t) !== tripleSignal(tBase)) consistent++;
       } else if (k === 'zzzStar') {
         if (t === tBase) consistent++;
         else zzzMoved = true;
@@ -155,7 +206,7 @@ async function t1Oracle(url, params, opts) {
     const matrixText = Object.entries(matrix)
       .map(([k, v]) => `${k}=${v}`)
       .join(' | ');
-    if (!zzzMoved && consistent >= 2) {
+    if (!zzzMoved && !zzzUnknown && consistent >= 2) {
       // Evidence window from VISIBLE text only, so the cited words are the
       // ones that drove the verdict — never a token value.
       const movedVisible = visibleText(movedText || '');
@@ -197,6 +248,9 @@ async function t2Extract(url, userParam, canary, opts) {
   } catch {
     return findings;
   }
+  // Bot-challenge invalidation: a challenged known-good baseline makes
+  // the whole extraction channel unusable.
+  if (isBotChallengePage(rTrue.text)) return findings;
   const tTrue = triple(rTrue);
   for (let i = 0; i < maxLen; i++) {
     let hit = null;
@@ -219,6 +273,8 @@ async function t2Extract(url, userParam, canary, opts) {
       } catch {
         break;
       }
+      // Bot-challenge invalidation: a challenged leg voids this guess.
+      if (isBotChallengePage(rT.text) || isBotChallengePage(rF.text)) break;
       // Decision: true leg must differ from the false control in the same
       // direction as the known-good baseline differs from wrong-user.
       if (triple(rT) !== triple(rF) && triple(rT) === tTrue) {
@@ -254,6 +310,8 @@ async function t2Extract(url, userParam, canary, opts) {
 
 export async function probeLdapBlind(url, params, opts = {}) {
   const findings = [];
+  // Stack gate: no LDAP filter backend exists on PHP/WordPress stacks.
+  if (isPhpWordpressStack(opts.stack)) return findings;
   const depth = opts.depth || 'standard';
   if (!params || params.length === 0) return findings;
   const { findings: f1, oracle, userParam } = await t1Oracle(url, params, opts);

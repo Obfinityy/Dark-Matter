@@ -604,6 +604,74 @@ describe('iter3 probes: nosqli, ldapi, xpathi', () => {
     }
   });
 
+  it('ldapi stays silent when the breakout leg is a bot-challenge page (Zerodha FP)', async () => {
+    const { probeLdapInjection } = await import('./probes/ldapi.js');
+    const CHALLENGE =
+      '<html><head><title>Just a moment...</title></head><body>' +
+      '<h1>Just a moment...</h1><p>Checking your browser before accessing this site.</p>' +
+      '<p>DDoS protection by Cloudflare.</p>' +
+      `<style>${'*{box-sizing:border-box;margin:0;padding:0}'.repeat(40)}</style>` +
+      '</body></html>';
+    globalThis.fetch = async (url) => {
+      const u = new URL(String(url));
+      const v = u.searchParams.get('user') || '';
+      // Breakout legs are answered by a challenge page much longer than
+      // the benign page — the old length-divergence leg would have fired
+      // on the size gap alone.
+      const body = v.includes('*') || v.includes(')(') ? CHALLENGE : '<html>ok</html>';
+      return { text: async () => body, status: 200 };
+    };
+    try {
+      const findings = await probeLdapInjection('http://example.com/users', ['user'], { timeoutMs: 5000 });
+      assert.deepEqual(findings, []);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('ldapi stays silent when the benign baseline wobbles (FP3 double-control)', async () => {
+    const { probeLdapInjection } = await import('./probes/ldapi.js');
+    let benignCalls = 0;
+    globalThis.fetch = async (url) => {
+      const u = new URL(String(url));
+      const v = u.searchParams.get('user') || '';
+      let body;
+      if (v.includes('*') || v.includes(')(')) {
+        body = `<html>${'<li>uid=admin</li>'.repeat(40)}</html>`;
+      } else {
+        // Benign baseline alternates short/long — the two control
+        // fetches disagree, so the divergence is unconfirmable.
+        benignCalls += 1;
+        body = benignCalls % 2 === 1 ? '<html>1 result</html>' : `<html>1 result${'x'.repeat(1000)}</html>`;
+      }
+      return { text: async () => body, status: 200 };
+    };
+    try {
+      const findings = await probeLdapInjection('http://example.com/users', ['user'], { timeoutMs: 5000 });
+      assert.deepEqual(findings, []);
+    } finally {
+      teardown();
+    }
+  });
+
+  it('ldapi stays silent on a php/wordpress stack (stack gate)', async () => {
+    const { probeLdapInjection } = await import('./probes/ldapi.js');
+    globalThis.fetch = async (url) => {
+      const u = new URL(String(url));
+      const v = u.searchParams.get('user') || '';
+      const body = v.includes('*') || v.includes(')(')
+        ? `<html>${'<li>uid=admin</li>'.repeat(40)}</html>`
+        : '<html>1 result</html>';
+      return { text: async () => body, status: 200 };
+    };
+    try {
+      const findings = await probeLdapInjection('http://example.com/users', ['user'], { timeoutMs: 5000, stack: ['php', 'wordpress'] });
+      assert.deepEqual(findings, []);
+    } finally {
+      teardown();
+    }
+  });
+
   it('xpathi confirms on TRUE-payload divergence', async () => {
     const { probeXpathInjection } = await import('./probes/xpathi.js');
     globalThis.fetch = async (url) => {

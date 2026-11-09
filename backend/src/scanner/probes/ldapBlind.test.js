@@ -73,6 +73,16 @@ describe('ldapBlind token-noise + control-veto regression (7 Nov 2026)', () => {
     `<label>Password</label><input name='password' /></form></body></html>`;
   const WELCOME = '<html>Welcome to the dashboard</html>';
   const FAILED = '<html>Username and/or password incorrect.</html>';
+  // Zerodha shape (9 Nov 2026, hunt h_6b5942052353): Cloudflare
+  // "Just a moment" interstitial — same outcome words as the baseline,
+  // only the length bucket differs (challenge page is longer).
+  const CHALLENGE =
+    '<html><head><title>Just a moment...</title></head><body>' +
+    '<h1>Just a moment...</h1><p>Checking your browser before accessing this site.</p>' +
+    '<p>DDoS protection by Cloudflare.</p>' +
+    `<style>${'*{box-sizing:border-box;margin:0;padding:0}'.repeat(40)}</style>` +
+    '</body></html>';
+  let baselineCalls = 0;
 
   function readBody(req) {
     return new Promise((resolve) => {
@@ -94,6 +104,21 @@ describe('ldapBlind token-noise + control-veto regression (7 Nov 2026)', () => {
       } else if (mode === 'star-moves-all') {
         // Any '*' in the input changes the outcome — NOT LDAP-specific.
         page = user.includes('*') ? WELCOME : FAILED;
+      } else if (mode === 'challenge-star') {
+        // Zerodha shape: the wildcard leg is answered by a Cloudflare
+        // challenge page (different bucket, same outcome words); every
+        // other leg is the plain failed-login page.
+        page = user === '*' ? CHALLENGE : FAILED;
+      } else if (mode === 'noisy-baseline') {
+        // FP3 shape: the wrong-user baseline itself wobbles — alternate
+        // calls return a short and a long failed-login page, so the two
+        // baseline fetches disagree and the differential is void.
+        if (user.startsWith('zz_no_such_')) {
+          baselineCalls += 1;
+          page = baselineCalls % 2 === 1 ? FAILED : FAILED + 'x'.repeat(900);
+        } else {
+          page = user === '*' ? WELCOME : FAILED;
+        }
       } else {
         // True oracle: real wildcards move, the nonsense wildcard does not.
         page = (user === '*' || user === 'admin*' || user === '*)(uid=*') ? WELCOME : FAILED;
@@ -126,6 +151,29 @@ describe('ldapBlind token-noise + control-veto regression (7 Nov 2026)', () => {
     assert.equal(findings[0].class, 'ldap_injection');
     assert.equal(findings[0].title, 'LDAP injection — boolean oracle detected (filter logic responds to wildcards)');
     assert.equal(findings[0].severity, 'medium');
+  });
+
+  it('challenge: a Cloudflare interstitial answering the wildcard leg does not fire (Zerodha FP)', async () => {
+    // Recorded matrices: baseline err:other:15, star err:other:14 (bucket
+    // only) on /open-account; baseline err:other:17, star err:deny:16
+    // (challenge page) on /varsity/wp-comments-post.php. Either way the
+    // "moved" response is a challenge page, never LDAP logic.
+    mode = 'challenge-star';
+    const findings = await probeLdapBlind(`${base()}/login`, ['user', 'pass'], { timeoutMs: 5000 });
+    assert.deepEqual(findings, []);
+  });
+
+  it('double-control: a wobbling wrong-user baseline voids the oracle (FP3)', async () => {
+    mode = 'noisy-baseline';
+    baselineCalls = 0;
+    const findings = await probeLdapBlind(`${base()}/login`, ['user', 'pass'], { timeoutMs: 5000 });
+    assert.deepEqual(findings, []);
+  });
+
+  it('stack gate: a php/wordpress stack skips the probe even on a true oracle', async () => {
+    mode = 'true-oracle';
+    const findings = await probeLdapBlind(`${base()}/login`, ['user', 'pass'], { timeoutMs: 5000, stack: ['php', 'wordpress'] });
+    assert.deepEqual(findings, [], 'LDAP probe must not run where no LDAP filter backend can exist');
   });
 
   it('triple: visible "incorrect" is deny, visible "Welcome" is allow', () => {

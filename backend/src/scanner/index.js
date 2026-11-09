@@ -1088,8 +1088,8 @@ export async function runScan(
     await step('xss', () => probeXssReflected(u, points, opts));
     await step('nosqli', () => probeNoSqli(u, points, opts));
     await step('nosql-deep', () => probeNoSqlDeep(u, points, opts));
-    await step('ldapi', () => probeLdapInjection(u, points, opts));
-    await step('ldap-blind', () => probeLdapBlind(u, points, opts));
+    await step('ldapi', () => probeLdapInjection(u, points, { ...opts, stack: fp?.tech }));
+    await step('ldap-blind', () => probeLdapBlind(u, points, { ...opts, stack: fp?.tech }));
     await step('xpathi', () => probeXpathInjection(u, points, opts));
     // BLIND XPATH INJECTION (9 Nov 2026, row #479 [High], CWE-643):
     // the sink evaluates injected XPath but suppresses engine
@@ -1140,7 +1140,7 @@ export async function runScan(
     await step('padding-oracle', () => probePaddingOracle(u, opts));
     await step('arg-injection', () => probeArgInjection(u, points, opts));
     await step('ssti', () => probeSsti(u, points, opts));
-    await step('el-injection', () => probeElInject(u, points, opts));
+    await step('el-injection', () => probeElInject(u, points, { ...opts, stack: fp?.tech }));
     await step('ognl-injection', () => probeOgnlInject(u, points, opts));
     await step('redirect', () => probeOpenRedirect(u, points, opts));
     await step('crlf', () => probeCrlf(u, points, opts));

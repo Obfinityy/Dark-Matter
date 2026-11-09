@@ -26,6 +26,7 @@ describe('elInject probe', () => {
       if (u.pathname === '/eval') {
         // Vulnerable stub: evaluates benign EL oracles.
         if (q === '${1336*7}' || q === '#{1336*7}') out = 'result: 9352';
+        else if (q === "${'dmElTest'.toUpperCase()}") out = 'result: DMELTEST';
         else if (q.includes('dmElTest')) out = 'result: dmElTest';
         else out = 'result: baseline-ok'; // no echo — control never carries the oracle
       } else if (u.pathname === '/login') {
@@ -37,7 +38,8 @@ describe('elInject probe', () => {
         out = `<form><input type="hidden" name="user_token" value="${token}">login</form>`;
       } else if (u.pathname === '/stronly') {
         // Evaluates only the string-method shape; math shapes reflect.
-        if (q.includes('dmElTest')) out = 'result: dmElTest';
+        if (q === "${'dmElTest'.toUpperCase()}") out = 'result: DMELTEST';
+        else if (q.includes('dmElTest')) out = 'result: dmElTest';
         else out = 'result: baseline-ok';
       } else if (u.pathname === '/noisy') {
         // Every response carries 9352 (e.g. a coincidental token/id) —
@@ -47,6 +49,13 @@ describe('elInject probe', () => {
         // Old bare-49 FP scenario: math shapes render as 49, never 9352.
         if (q === '${1336*7}' || q === '#{1336*7}') out = 'result: 49';
         else out = 'result: baseline-ok';
+      } else if (u.pathname === '/reflect-encoded') {
+        // Zerodha FP shape (9 Nov 2026, hunt h_6b5942052353): the page
+        // reflects the URL-encoded payload inside a JS tracking string
+        // (current-URL variable) — the marker rides inside the encoded
+        // payload. Never a finding, whatever the payload.
+        const encoded = new URLSearchParams({ q }).toString().slice(2);
+        out = `var cUPMDTk="/page?q=${encoded}";`;
       } else {
         out = `result: ${q}`; // plain reflector — literal echo only
       }
@@ -110,5 +119,20 @@ describe('elInject probe', () => {
     assert.equal(findings.length, 1, `expected exactly 1 finding, got ${JSON.stringify(findings.map((x) => x.id))}`);
     assert.equal(findings[0].class, 'el_injection');
     assert.equal(findings[0].severity, 'high');
+  });
+
+  it('stays silent when the marker only appears inside the URL-encoded payload (Zerodha FP)', async () => {
+    // Exact Zerodha shape: the page reflects the URL-encoded payload in
+    // a JS string. The old ${'dmElTest'.toString()} payload would have
+    // fired here (its marker rides inside the encoded payload); the
+    // fixed payloads must not — if the retired shape ever returns,
+    // this test fails.
+    const findings = await probeElInject(`${base()}/reflect-encoded`, ['q'], { timeoutMs: 8000 });
+    assert.deepEqual(findings, [], 'an encoded reflection of the payload is never an evaluation');
+  });
+
+  it('stays silent on a php/wordpress stack (stack gate: no EL evaluator)', async () => {
+    const findings = await probeElInject(`${base()}/eval`, ['q'], { timeoutMs: 8000, stack: ['php', 'wordpress', 'cloudflare'] });
+    assert.deepEqual(findings, [], 'EL probe must not run where no EL evaluator can exist');
   });
 });
