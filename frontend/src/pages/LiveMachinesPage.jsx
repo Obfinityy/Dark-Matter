@@ -104,9 +104,17 @@ export default function LiveMachinesPage({ onOpenHunt }) {
       <p className="machines-sub">
         Every active hunter&apos;s screen, together. View only — the hunters are driving.
       </p>
-      {hunts === null && <p className="machines-empty">Loading machines…</p>}
+      {hunts === null && (
+        <div className="machines-grid" aria-label="Loading machines">
+          <span className="skeleton skeleton-machine" />
+          <span className="skeleton skeleton-machine" />
+        </div>
+      )}
       {hunts !== null && hunts.length === 0 && (
-        <p className="machines-empty">No active hunts right now. Start a hunt to see its machine here.</p>
+        <div className="empty-state">
+          <p className="empty-state-title">No live machines right now</p>
+          <p className="empty-state-text">No hunts are running at the moment. Start a hunt from the chat page and its live machine will appear here.</p>
+        </div>
       )}
       {hunts !== null && hunts.length > 0 && (
         <div className="machines-grid">
