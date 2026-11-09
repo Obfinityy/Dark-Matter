@@ -254,11 +254,58 @@ test('CAP-4: feedbackRoute and whoamiRoute pick same-origin routes, ignore the r
     'http://172.17.0.1:3000/api/Feedbacks?x=1',
     'http://172.17.0.1:3000/rest/user/whoami',
   ];
-  assert.equal(feedbackRoute(routes, 'http://172.17.0.1:3000'), 'http://172.17.0.1:3000/api/Feedbacks?x=1');
+  // Exact collection route returns the collection URL (query dropped).
+  assert.equal(feedbackRoute(routes, 'http://172.17.0.1:3000'), 'http://172.17.0.1:3000/api/Feedbacks');
   assert.equal(whoamiRoute(routes, 'http://172.17.0.1:3000'), 'http://172.17.0.1:3000/rest/user/whoami');
   assert.equal(feedbackRoute([], 'http://172.17.0.1:3000'), null);
   assert.equal(whoamiRoute([], 'http://172.17.0.1:3000'), null);
   assert.equal(feedbackRoute(['not a url'], 'http://172.17.0.1:3000'), null);
+  // A non-feedback route still returns null.
+  assert.equal(
+    feedbackRoute(['http://172.17.0.1:3000/api/Products/1'], 'http://172.17.0.1:3000'),
+    null
+  );
+  // A cross-origin feedbacks URL still returns null.
+  assert.equal(
+    feedbackRoute(['https://other.example.com/api/Feedbacks'], 'http://172.17.0.1:3000'),
+    null
+  );
+});
+
+test('CAP-24: feedbackRoute maps a templated write target to the collection URL', () => {
+  // The jsRoutes miner hands the probe write targets with a template
+  // filler (FeedbackService.find GETs host + '/' + id); the probe must
+  // POST the collection, never the templated item URL.
+  assert.equal(
+    feedbackRoute(
+      ['http://172.17.0.1:3000/api/Feedbacks/dmprobe4_2e69'],
+      'http://172.17.0.1:3000'
+    ),
+    'http://172.17.0.1:3000/api/Feedbacks'
+  );
+  // Deeper paths below the collection still map to the collection.
+  assert.equal(
+    feedbackRoute(
+      ['http://172.17.0.1:3000/api/Feedbacks/123/comments'],
+      'http://172.17.0.1:3000'
+    ),
+    'http://172.17.0.1:3000/api/Feedbacks'
+  );
+  // A trailing slash after the collection is the collection.
+  assert.equal(
+    feedbackRoute(['http://172.17.0.1:3000/api/Feedbacks/'], 'http://172.17.0.1:3000'),
+    'http://172.17.0.1:3000/api/Feedbacks'
+  );
+  // Singular 'Feedback' is not a feedbacks segment.
+  assert.equal(
+    feedbackRoute(['http://172.17.0.1:3000/api/Feedback/1'], 'http://172.17.0.1:3000'),
+    null
+  );
+  // A longer segment merely containing 'feedbacks' does not match.
+  assert.equal(
+    feedbackRoute(['http://172.17.0.1:3000/api/FeedbacksReport'], 'http://172.17.0.1:3000'),
+    null
+  );
 });
 
 test('CAP-5: assessFeedbackResponse — accepted, captcha-error, other', () => {

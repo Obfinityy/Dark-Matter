@@ -238,11 +238,30 @@ function stripQuery(u) {
   }
 }
 
-/** First same-origin feedback POST route (/api/Feedbacks), or null. Pure. */
+/**
+ * First same-origin feedback POST route, or null. The miner hands the
+ * probe write targets with a template filler (e.g.
+ * /api/Feedbacks/dmprobe4_2e69, from FeedbackService.find doing a GET
+ * on host + '/' + id), so a route whose pathname contains a `feedbacks`
+ * segment matches and the COLLECTION base URL is returned — origin +
+ * path up to and including the `feedbacks` segment — never the
+ * templated item URL. An exact /api/Feedbacks route returns the same
+ * collection URL (any query string is dropped: the POST target is the
+ * collection). Pure.
+ */
 export function feedbackRoute(routes, origin) {
   for (const r of routes || []) {
     if (!sameOrigin(r, origin)) continue;
-    if (/\/feedbacks$/i.test(pathOf(r))) return String(r);
+    let u;
+    try {
+      u = new URL(String(r));
+    } catch {
+      continue;
+    }
+    const segments = u.pathname.split('/').filter(Boolean);
+    const idx = segments.findIndex((s) => s.toLowerCase() === 'feedbacks');
+    if (idx === -1) continue;
+    return `${u.origin}/${segments.slice(0, idx + 1).join('/')}`;
   }
   return null;
 }
