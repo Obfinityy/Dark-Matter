@@ -92,6 +92,11 @@ describe('param battery skipped records (35/63 fix)', () => {
     // joins as a standalone gated phase (one record per scan, skipped
     // with 'no probe targets' when no scan target carries a probe
     // point).
+    // (95 since 9 Nov 2026 (CAPTCHA bypass): 'captcha'
+    // joins as a standalone gated phase (one record per scan, skipped
+    // with 'no script targets' when the page carries no script; lab-gated,
+    // drives the feedback math-CAPTCHA flow only when a solvable math
+    // CAPTCHA exists in first-party code).
     // (94 since 9 Nov 2026 (client-side template injection): 'csti'
     // joins as a standalone gated phase (one record per scan, skipped
     // with 'no script targets' when the page carries no script; lab-gated,
@@ -124,7 +129,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 94);
+    assert.equal(DEFAULT_PHASES.length, 95);
   });
 
   it('zero param targets: all 29 param phases emit skipped records, rollup reports them', async () => {
@@ -356,6 +361,9 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
+  // 55/40 since 9 Nov 2026 (CAPTCHA bypass): 'captcha' adds a
+  // 40th skipped record ('no script targets': the bare page carries
+  // no script), so the bare-page line reads 55 ran ok, 40 skipped.
   // 55/39 since 9 Nov 2026 (client-side template injection): 'csti' adds a
   // 39th skipped record ('no script targets': the bare page carries
   // no script), so the bare-page line reads 55 ran ok, 39 skipped.
@@ -410,7 +418,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // 44/33 before xml-injection and untrusted-js-inclusion;
   // 46/34 before session-token-in-url; 47/34 before credential-disclosure;
   // 48/34 before sqli-oob.)
-  it('real runScan on a bare page renders the 55/39 line end to end', async () => {
+  it('real runScan on a bare page renders the 55/40 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -422,15 +430,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 94,
+        total: 95,
         ok: 55,
         failed: 0,
-        skipped: 39,
+        skipped: 40,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 55 ran ok, 39 skipped, 0 failed, 0 timed out.'
+        'Phases: 55 ran ok, 40 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

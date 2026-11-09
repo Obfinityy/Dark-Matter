@@ -52,6 +52,7 @@ import { probeTwoFaBruteForce } from './probes/twoFaBruteForce.js';
 import { probeCredentialStuffing } from './probes/credentialStuffing.js';
 import { probeDomPostMessage } from './probes/domPostMessage.js';
 import { probeCsti } from './probes/csti.js';
+import { probeCaptcha } from './probes/captcha.js';
 import { probeUserEnum } from './probes/userEnum.js';
 import { probeRfi } from './probes/rfi.js';
 import { probeXslt } from './probes/xslt.js';
@@ -201,6 +202,7 @@ export const DEFAULT_PHASES = [
   'dom-xss-location-hash',
   'dom-postmessage',
   'csti',
+  'captcha',
   'nuclei',
 ];
 
@@ -1334,6 +1336,47 @@ export async function runScan(
     );
   } else {
     skipPhase('csti', 'no script targets');
+  }
+  // CAPTCHA BYPASS (9 Nov 2026, row #40 [Medium] Technique (no
+  // single CVE) | OWASP A07:2021): mines first-party code for
+  // CAPTCHA services and, only when a solvable math CAPTCHA exists
+  // (Juice Shop feedback form — GET /rest/captcha/ returns a math
+  // expression the probe computes, never the leaked answer field),
+  // drives the feedback flow: control with a solved CAPTCHA, then
+  // a missing-CAPTCHA submission, then a wrong-answer submission,
+  // and confirms ONLY when the control was accepted AND a bypass
+  // submission was accepted with the same success signal (see
+  // captcha.js). Lab-gated like csti (labCreds + allowWrite + lab
+  // host + depth !== 'quick'); an image CAPTCHA is noted, never
+  // driven, and zero CAPTCHA surfaces is a proven true negative
+  // with no drive at all. 'Missing CAPTCHA on login' is never a
+  // finding — it would double-count credential stuffing (#42).
+  const capDiag = {};
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step(
+      'captcha',
+      () =>
+        probeCaptcha(url, secretTargets, {
+          ...opts,
+          allowWrite,
+          apiRoutes: [...scanTargets, ...jsWriteTargets],
+          labTargets,
+          diagnostics: capDiag,
+          ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+        }),
+      () => ({
+        captchaSurfaces: capDiag.captchaSurfaces || 0,
+        mathSurfaces: capDiag.mathSurfaces || 0,
+        imageSurfaces: capDiag.imageSurfaces || 0,
+        genericSurfaces: capDiag.genericSurfaces || 0,
+        feedbackRoutes: capDiag.feedbackRoutes || 0,
+        controlOk: Boolean(capDiag.controlOk),
+        attempts: capDiag.attempts || 0,
+        bypassKind: capDiag.bypassKind || null,
+      })
+    );
+  } else {
+    skipPhase('captcha', 'no script targets');
   }
   // ERROR DISCLOSURE (7 Nov 2026, rows #175 + #176): trigger
   // errors with read-only GETs on the same GET probe targets as
