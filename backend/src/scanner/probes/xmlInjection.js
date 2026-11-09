@@ -48,7 +48,7 @@
 // payloads)); findings capped at 10 per call. Payloads are
 // structure-breaking metacharacters only — no destructive content.
 import { randomBytes } from 'node:crypto';
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 const MAX_POINTS = 10;
@@ -163,6 +163,7 @@ function snippetAround(body, matchIndex, matchLen) {
 export async function probeXmlInjection(url, params, opts = {}) {
   const findings = [];
   const points = Array.isArray(params) ? params.slice(0, MAX_POINTS) : [];
+  noteAttemptedPoints(opts, points);
   for (const point of points) {
     if (findings.length >= MAX_FINDINGS) break;
     const label = probePointParameter(point);

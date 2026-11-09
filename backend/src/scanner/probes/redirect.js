@@ -1,7 +1,7 @@
 // Dark Matter rule-based scanner — open redirect probe.
 // Oracle: 3xx response whose Location points at our evil host.
 // redirect:'manual' so we observe the Location header instead of following it.
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 async function getManual(url, opts = {}) {
@@ -24,6 +24,7 @@ async function getManual(url, opts = {}) {
 export async function probeOpenRedirect(url, params, opts = {}) {
   const findings = [];
   const evil = 'https://evil.example/';
+  noteAttemptedPoints(opts, params.slice(0, 10));
   for (const param of params.slice(0, 10)) {
     let r;
     try {

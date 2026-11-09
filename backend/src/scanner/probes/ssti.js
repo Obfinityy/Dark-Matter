@@ -16,7 +16,7 @@
 //       independent response. A random token changes every request; a real
 //       evaluation is stable.
 import { randomBytes } from 'node:crypto';
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 import { stripVolatileValues, sameReflectionPoint } from './oracleGuards.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
@@ -39,6 +39,7 @@ async function get(url, opts = {}) {
 
 export async function probeSsti(url, params, opts = {}) {
   const findings = [];
+  noteAttemptedPoints(opts, params.slice(0, 10));
   for (const param of params.slice(0, 10)) {
     // Control: unique filler — proves the oracle token is not already on the page.
     let controlRaw;

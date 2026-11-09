@@ -13,7 +13,7 @@
 //
 // Proof: unique markers only. One finding per sink at highest severity
 // (no triple counting). $0, no new deps.
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 
 import { isLabTargetHost } from '../../labCreds.js';
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
@@ -130,6 +130,7 @@ export async function probeXslt(url, params, opts = {}) {
     });
   }
   const injectable = surfaces.filter((s) => s.kind !== 'error-smell');
+  noteAttemptedPoints(opts, injectable.filter((s) => s.kind === 'param').map((s) => s.param));
   if (!injectable.length) return findings;
   let best = null; // one finding per sink at highest severity
   for (const s of injectable.slice(0, 4)) {

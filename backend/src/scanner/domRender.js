@@ -171,6 +171,13 @@ export function extractSpaRoutes(html, baseUrl) {
       continue;
     }
     if (u.protocol !== base.protocol || u.host !== base.host) continue;
+    // Non-HTML assets are not app routes (9 Nov 2026, deep-coverage
+    // audit): Juice's favicon.ico + styles.css ate 2 of the 5 DOM
+    // render slots, so /#/register + /#/search never rendered.
+    // Hash-routed apps map absolute asset paths into the fragment
+    // (#/assets/favicon.ico), so test the fragment path too.
+    const ASSET_EXT = /\.(?:ico|css|js|mjs|map|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|otf|eot|mp3|mp4|webm|pdf|zip)$/i;
+    if (ASSET_EXT.test(u.pathname) || ASSET_EXT.test(u.hash.replace(/^#/, ''))) continue;
     // The pasted page itself (same URL, or the bare hash root) is not
     // a route to re-render.
     if (u.toString() === base.toString()) continue;

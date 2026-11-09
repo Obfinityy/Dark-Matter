@@ -104,11 +104,23 @@ describe('buildValidationCases', () => {
     assert.ok(cases[1].url.includes('/users/42%00dmjunk'));
   });
 
-  it('caps targets at 3 and points at 2 per target', () => {
+  it('caps targets at 3 and points at 4 per target (deep-coverage audit, 9 Nov 2026: was 2 — the 3rd+ param never got tested)', () => {
     const urls = Array.from({ length: 5 }, (_, i) => `http://lab.local/p${i}?a=${i}&b=${i}&c=${i}`);
     const cases = buildValidationCases(urls);
-    // 3 targets x 2 points x 4 vectors (integer params) = 24
-    assert.equal(cases.length, 24);
+    // 3 targets x 3 points (all present, under the 4-point cap) x 4 vectors (integer params) = 36
+    assert.equal(cases.length, 36);
+    assert.deepEqual(
+      [...new Set(cases.map((c) => c.parameter))].sort(),
+      ['a', 'b', 'c']
+    );
+  });
+
+  it('a target with 5 params tests only the first 4', () => {
+    const cases = buildValidationCases(['http://lab.local/p?a=1&b=2&c=3&d=4&e=5']);
+    assert.deepEqual(
+      [...new Set(cases.map((c) => c.parameter))].sort(),
+      ['a', 'b', 'c', 'd']
+    );
   });
 });
 
@@ -305,17 +317,19 @@ describe('validation probe — unicode normalization (#439)', () => {
 });
 
 describe('validation probe — request budget', () => {
-  it('caps GET requests at 32 across many targets', async () => {
+  it('caps GET requests at 64 across many targets (deep-coverage audit, 9 Nov 2026: was 32)', async () => {
     let count = 0;
-    const urls = Array.from({ length: 8 }, (_, i) => `http://lab.local/p${i}?a=${i}&b=x`);
+    // 4 params per URL: 3 URLs x 4 points x 4 vectors = 48 cases +
+    // baselines — above the old 32 cap, inside the new 64 cap.
+    const urls = Array.from({ length: 8 }, (_, i) => `http://lab.local/p${i}?a=${i}&b=${i}&c=${i}&d=${i}`);
     await probeValidation(urls, [], {
       fetchPage: async () => {
         count += 1;
         return { status: 200, body: BASELINE_STR };
       },
     });
-    assert.ok(count <= 32, `expected <= 32 requests, got ${count}`);
-    assert.ok(count > 0);
+    assert.ok(count <= 64, `expected <= 64 requests, got ${count}`);
+    assert.ok(count > 32, `expected the raised budget to actually be used, got ${count}`);
   });
 
   it('no targets and no forms yields no findings and no fetches', async () => {

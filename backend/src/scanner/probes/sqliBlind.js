@@ -2,7 +2,7 @@
 // Oracle: a SQL SLEEP payload must ADD ~5s to the response time vs baseline.
 // Uses the same double-baseline + pure-differential pattern as the cmdi probe.
 import { randomBytes } from 'node:crypto';
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -38,6 +38,7 @@ export async function probeBlindSqli(url, params, opts = {}) {
   const SLEEP_S = 5;
   const dbHint = (opts.dbHint || 'mysql').toLowerCase();
   const mkPayload = SLEEP_PAYLOADS[dbHint] || SLEEP_PAYLOADS.mysql;
+  noteAttemptedPoints(opts, params.slice(0, 6));
   for (const param of params.slice(0, 6)) {
     const base1 = await getTimed(mutateUrl(url, param, '1'), opts).catch(() => null);
     const base2 = await getTimed(mutateUrl(url, param, '2'), opts).catch(() => null);

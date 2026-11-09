@@ -26,9 +26,9 @@ function fetchPageFor(bodies) {
 }
 
 describe('buildErrorTriggers', () => {
-  it('a param target gets a malformed-query trigger on its first param', () => {
+  it('a param target gets a malformed-query trigger on EVERY param (deep-coverage audit, 9 Nov 2026: was first-param-only)', () => {
     const t = buildErrorTriggers([TARGET_PARAM]);
-    assert.equal(t.length, 2); // malformed-query + the extra nonexistent-path trigger
+    assert.equal(t.length, 3); // 2 malformed-query (q + page) + the extra nonexistent-path trigger
     assert.equal(t[0].kind, 'malformed-query');
     assert.equal(t[0].parameter, 'q');
     assert.equal(t[0].baselineUrl, TARGET_PARAM);
@@ -36,7 +36,34 @@ describe('buildErrorTriggers', () => {
     assert.equal(u.searchParams.get('page'), '2');
     assert.ok(u.searchParams.get('q').includes('AAAA'));
     assert.notEqual(u.searchParams.get('q'), 'hello');
-    assert.equal(t[1].kind, 'nonexistent-path');
+    assert.equal(t[1].kind, 'malformed-query');
+    assert.equal(t[1].parameter, 'page');
+    assert.equal(t[1].baselineUrl, TARGET_PARAM);
+    const u2 = new URL(t[1].url);
+    assert.equal(u2.searchParams.get('q'), 'hello');
+    assert.ok(u2.searchParams.get('page').includes('AAAA'));
+    assert.notEqual(u2.searchParams.get('page'), '2');
+    assert.equal(t[2].kind, 'nonexistent-path');
+  });
+
+  it('a 3-param target yields 3 malformed triggers, each malforming only its own param', () => {
+    const target = 'http://lab.local/search?a=1&b=2&c=3';
+    const t = buildErrorTriggers([target]).filter((x) => x.kind === 'malformed-query');
+    assert.deepEqual(
+      t.map((x) => x.parameter),
+      ['a', 'b', 'c']
+    );
+    const orig = { a: '1', b: '2', c: '3' };
+    for (const trig of t) {
+      const u = new URL(trig.url);
+      for (const [name, value] of Object.entries(orig)) {
+        if (name === trig.parameter) {
+          assert.notEqual(u.searchParams.get(name), value, `${name} must be malformed`);
+        } else {
+          assert.equal(u.searchParams.get(name), value, `${name} must be untouched`);
+        }
+      }
+    }
   });
 
   it('a plain target gets a non-existent-path trigger under its directory', () => {

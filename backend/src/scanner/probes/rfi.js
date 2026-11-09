@@ -22,7 +22,7 @@
 
 import http from 'node:http';
 import { isLabTargetHost } from '../../labCreds.js';
-import { mutateUrl, probePointName, probePointParameter, probePointKind, isPathPoint } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints, probePointKind, isPathPoint } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -113,6 +113,10 @@ function includeSmellParams(url, params) {
 export async function probeRfi(url, params, opts = {}) {
   const findings = [];
   const targets = includeSmellParams(url, params);
+  // Coverage diagnostic, before the early return: a target with no
+  // include-smell params reports attempted [] (deliberate, not a
+  // silent skip) instead of leaving pointsAttempted unset.
+  noteAttemptedPoints(opts, targets.slice(0, 6));
   if (!targets.length) return findings; // no include smell — INFO, not a miss
   const rid = rand();
   const lab = isLabTargetHost(url, opts.labTargets);

@@ -17,7 +17,7 @@
 // HONEST SCOPE (binding): v1 confirms OPTION-PARSER REACH, never code
 // execution. MEDIUM max. Dedup: suppress if cmdi confirmed the same sink.
 // Class key: argumentInjection.
-import { mutateUrl as setParam, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl as setParam, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -90,6 +90,7 @@ export async function probeArgInjection(url, params, opts = {}) {
   const sinks = (params || []).filter((p) => CLI_SINK_RES.test(probePointName(p)));
   // Also try generic params on deep (bounded).
   const targets = sinks.length ? sinks : (opts.depth === 'deep' ? (params || []).slice(0, 3) : []);
+  noteAttemptedPoints(opts, targets.slice(0, 4));
   for (const p of targets.slice(0, 4)) {
     const hit = await d2Differential(url, p, opts);
     if (!hit) continue;

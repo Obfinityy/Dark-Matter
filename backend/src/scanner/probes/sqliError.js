@@ -8,7 +8,7 @@
 // signature that contradicts the fingerprinted stack (opts.tech —
 // e.g. postgres on WordPress/MySQL) never confirms either.
 import { detectDbError, engineForTech } from '../fingerprint.js';
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -29,6 +29,7 @@ async function get(url, opts = {}) {
 // then re-request with the benign value to prove correlation.
 export async function probeSqliError(url, params, opts = {}) {
   const findings = [];
+  noteAttemptedPoints(opts, params.slice(0, 10));
   for (const param of params.slice(0, 10)) {
     let base;
     try {

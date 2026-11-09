@@ -100,6 +100,39 @@ export function extractForms(body, base) {
         value: attrs.value ?? '',
       });
     }
+    // Textareas + selects are submittable controls too (9 Nov 2026,
+    // deep-coverage audit): the DOM path (toCrawlForm) already merges
+    // them, but the static extractor dropped them, so a textarea
+    // (DVWA xss_s mtxMessage) never reached the battery or any form
+    // consumer. Textarea value is its inner text; select value is the
+    // selected option's value, else the first option's. Attributes
+    // are read from the OPEN tag only — the full match carries the
+    // inner text, which extractAttributes would misread as attrs.
+    const tre = /<textarea\b[^>]*>([\s\S]*?)<\/textarea>/gi;
+    let tm;
+    while ((tm = tre.exec(inner))) {
+      const openTag = (/<textarea\b[^>]*>/i.exec(tm[0]) || [])[0] || '';
+      const attrs = extractAttributes(openTag);
+      if (!attrs.name) continue;
+      inputs.push({ name: attrs.name, type: 'textarea', value: tm[1] ?? '' });
+    }
+    const sre = /<select\b[^>]*>([\s\S]*?)<\/select>/gi;
+    let sm;
+    while ((sm = sre.exec(inner))) {
+      const openTag = (/<select\b[^>]*>/i.exec(sm[0]) || [])[0] || '';
+      const attrs = extractAttributes(openTag);
+      if (!attrs.name) continue;
+      const opts = [];
+      const ore = /<option\b[^>]*>([\s\S]*?)<\/option>/gi;
+      let om;
+      while ((om = ore.exec(sm[1]))) {
+        const oOpen = (/<option\b[^>]*>/i.exec(om[0]) || [])[0] || '';
+        const oattrs = extractAttributes(oOpen);
+        opts.push({ value: oattrs.value ?? om[1] ?? '', selected: /selected/i.test(oOpen) });
+      }
+      const chosen = opts.find((o) => o.selected) || opts[0];
+      inputs.push({ name: attrs.name, type: 'select', value: chosen ? chosen.value : '' });
+    }
     try {
       forms.push({ action: new URL(action, base).toString(), method, inputs });
     } catch {

@@ -17,7 +17,7 @@
 // string contains 'sqli'), so evidence.diverged=true → 'confirmed'.
 // Severity: high (auth bypass / data exfiltration primitive).
 import { randomBytes } from 'node:crypto';
-import { mutateUrl, probePointName, probePointParameter, isQueryPoint } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints, isQueryPoint } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -46,6 +46,7 @@ export async function probeNoSqli(url, params, opts = {}) {
   // Operator syntax (param[$ne]) only exists in the query string —
   // path segments carry no operator names. Query points only.
   const queryParams = params.filter(isQueryPoint);
+  noteAttemptedPoints(opts, queryParams.slice(0, 10));
   for (const param of queryParams.slice(0, 10)) {
     const unlikely = `dmno${randomBytes(3).toString('hex')}`;
     let benign;

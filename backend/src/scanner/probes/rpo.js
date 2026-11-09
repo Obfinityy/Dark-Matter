@@ -16,7 +16,7 @@
 //
 // Class key: rpoinjection. Honest ceiling: string-level sink proof; the
 // scanner never claims CSS execution it did not observe. Per-run canary.
-import { mutateUrl, probePointName, probePointParameter, isPathPoint } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints, isPathPoint } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -90,6 +90,7 @@ async function d2Oracle(url, params, surf, opts, rid) {
   const findings = [];
   const marker = `dmrpo${rid}`;
   const cssFrag = `}${marker}{x:y`;
+  noteAttemptedPoints(opts, (params || []).slice(0, 4));
   for (const p of (params || []).slice(0, 4)) {
     const rPage = await getFull(mutateUrl(url, p, cssFrag), opts);
     if (!rPage || !rPage.text.includes(marker)) continue; // not reflected
@@ -138,7 +139,13 @@ async function d2Oracle(url, params, surf, opts, rid) {
 export async function probeRpo(url, params, opts = {}) {
   const findings = [];
   const surf = await d1Surface(url, opts);
-  if (!surf || surf.hardening) return findings; // INFO exit, not a miss
+  // Coverage diagnostic: no relative-stylesheet surface means the
+  // oracle never runs — report attempted [] (deliberate) instead
+  // of leaving pointsAttempted unset.
+  if (!surf || surf.hardening) {
+    noteAttemptedPoints(opts, []);
+    return findings; // INFO exit, not a miss
+  }
   findings.push(...(await d2Oracle(url, params, surf, opts, rand())));
   // D3 scripts ride the same oracle (documented); D5 error-shape is a
   // cheap add when the junk path yields verbose errors (not implemented

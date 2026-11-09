@@ -15,7 +15,7 @@
 //   D5. Error-oracle smell — MEDIUM/INFO.
 //
 // Class key: jsonpinjection (no double-count vs xss.js). Per-run canary.
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -60,6 +60,7 @@ function jsonpParams(params) {
 // errorSmells are internal-error disclosures on the malformed-callback
 // probe (D5); probed counts successful fetches (D4 needs at least one).
 async function d2Reflection(url, cbParams, opts, rid) {
+  noteAttemptedPoints(opts, cbParams.slice(0, 4));
   const out = { hits: [], errorSmells: [], probed: 0 };
   const cb = `dmCb${rid}`;
   for (const p of cbParams.slice(0, 4)) {
@@ -102,7 +103,10 @@ export async function probeJsonp(url, params, opts = {}) {
     const r0 = await getFull(url, opts);
     if (r0 && JSONP_WRAP_RES.test(r0.text) && JS_CT_RES.test(r0.ct)) shaped = true;
   }
-  if (!shaped) return findings; // no JSONP surface — INFO, not a miss
+  if (!shaped) {
+    noteAttemptedPoints(opts, []);
+    return findings; // no JSONP surface — INFO, not a miss
+  }
   const rid = rand();
   const targets = cbParams.length ? cbParams : ['callback'];
   const d2 = await d2Reflection(url, targets, opts, rid);

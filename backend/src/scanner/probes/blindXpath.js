@@ -56,7 +56,7 @@
 // general and blind findings can both stand on one sink.
 
 import { randomBytes } from 'node:crypto';
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 const TIMEOUT_MS = 15000;
@@ -211,6 +211,7 @@ export async function probeBlindXpath(url, params, opts = {}) {
   const setDiag = (k, v) => {
     if (diag) diag[k] = v;
   };
+  setDiag('pointsAttempted', (params || []).slice(0, MAX_PARAMS).map((p) => probePointParameter(p)));
   const fetchFn = typeof opts.fetchFn === 'function' ? opts.fetchFn : globalThis.fetch;
   let attempts = 0;
   let paramsTried = 0;

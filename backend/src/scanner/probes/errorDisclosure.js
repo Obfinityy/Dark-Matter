@@ -23,7 +23,8 @@
 // SAFETY: read-only GETs only — no writes, no allowWrite gate. Two
 // trigger shapes, both GETs: (a) a non-existent path under the
 // target's directory, (b) a malformed query value (special chars +
-// overlong filler) on the first parameter of a param-bearing target.
+// overlong filler) on every parameter of a param-bearing target
+// (9 Nov 2026, deep-coverage audit — was first-param-only).
 // BUDGETS ARE PER CLASS, never shared (re-proof #3, 8 Nov 2026): the
 // malformed-query class is uncapped — one trigger per param-bearing
 // target, because the input list is already bounded upstream by the
@@ -124,10 +125,10 @@ function snippetAround(body, matchIndex, matchLen) {
  * targets. Pure — exported for unit tests. Each trigger carries the
  * URL to fetch, the baseline URL it is differenced against, the
  * trigger kind and (for malformed queries) the parameter name.
- * One trigger per target (malformed query when the target carries
- * params, non-existent path otherwise), plus one non-existent-path
- * trigger from the first target when every target was param-bearing
- * (so both trigger shapes are exercised whenever possible).
+ * One malformed-query trigger per param of every param-bearing
+ * target, plus one non-existent-path trigger from the first target
+ * when every target was param-bearing (so both trigger shapes are
+ * exercised whenever possible).
  * Budgets are per class: every param-bearing target gets its
  * malformed-query trigger (no cap — the input is bounded upstream),
  * non-existent-path triggers cap at MAX_NONEXISTENT_REQUESTS.
@@ -161,8 +162,10 @@ export function buildErrorTriggers(urls) {
     triggers.push(trigger);
     return true;
   };
-  // Pass 1 — malformed-query triggers for every param-bearing
-  // target, in list order. Pass 2 — nonexistent-path triggers for
+  // Pass 1 — malformed-query triggers for EVERY param of every
+  // param-bearing target, in list order (9 Nov 2026, deep-coverage
+  // audit: the first-param-only rule left params 2..N untested on
+  // every target). Pass 2 — nonexistent-path triggers for
   // the param-less targets, capped per class. The malformed class
   // has NO cap (the input is bounded upstream), so a late
   // param-bearing target can never lose its trigger to an earlier
@@ -180,16 +183,16 @@ export function buildErrorTriggers(urls) {
   let sawNonexistent = false;
   let nonexistentCount = 0;
   for (const { raw, u } of parsed) {
-    const firstParam = [...u.searchParams.keys()][0];
-    if (!firstParam) continue;
-    const bad = new URL(u);
-    bad.searchParams.set(firstParam, MALFORMED_VALUE);
-    push({
-      url: bad.toString(),
-      baselineUrl: raw,
-      kind: 'malformed-query',
-      parameter: firstParam,
-    });
+    for (const param of [...u.searchParams.keys()]) {
+      const bad = new URL(u);
+      bad.searchParams.set(param, MALFORMED_VALUE);
+      push({
+        url: bad.toString(),
+        baselineUrl: raw,
+        kind: 'malformed-query',
+        parameter: param,
+      });
+    }
   }
   for (const { raw, u } of parsed) {
     if (nonexistentCount >= MAX_NONEXISTENT_REQUESTS) break;

@@ -38,7 +38,7 @@
 // Read-only GET, per-input unique canaries, redirect: manual.
 
 import { randomBytes } from 'node:crypto';
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 import {
   stripVolatileValues,
   sameReflectionPoint,
@@ -92,13 +92,20 @@ const EL_PAYLOADS = [
 export async function probeElInject(url, params, opts = {}) {
   const findings = [];
   // Stack gate: no EL evaluator exists on PHP/WordPress stacks.
-  if (isPhpWordpressStack(opts.stack)) return findings;
+  // Coverage diagnostic, before the early return: a gated-out stack
+  // reports attempted [] (deliberate, not a silent skip) instead of
+  // leaving pointsAttempted unset.
+  if (isPhpWordpressStack(opts.stack)) {
+    noteAttemptedPoints(opts, []);
+    return findings;
+  }
   const depth = opts.depth || 'standard';
   // max 3 payloads/param; quick depth fires on the single ${7*7} oracle.
   // Self-referential payloads are banned outright — they can never prove
   // evaluation, however the page reflects them.
   const payloads = (depth === 'quick' ? EL_PAYLOADS.slice(0, 1) : EL_PAYLOADS.slice(0, 3))
     .filter(({ payload, expect }) => !isSelfReferentialMarker(payload, expect));
+  noteAttemptedPoints(opts, (params || []).slice(0, 10));
   for (const param of (params || []).slice(0, 10)) {
     // Control: unique filler canary — never empty==empty, proves 49 is new.
     // Fetched TWICE with the same filler (FP3): if the two controls

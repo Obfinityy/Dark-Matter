@@ -19,7 +19,7 @@
 
 import http from 'node:http';
 import https from 'node:https';
-import { mutateUrl, probePointName, probePointParameter, isPathPoint, setPathSegmentRaw } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints, isPathPoint, setPathSegmentRaw } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -85,6 +85,7 @@ function hasHeader(rawHeaders, name) {
 async function d1EchoPoints(url, params, opts, rid) {
   const points = [];
   const canary = `__dm_crlf_${rid}`;
+  noteAttemptedPoints(opts, params.slice(0, 8));
   for (const p of params.slice(0, 8)) {
     const r = await rawGet(mutateUrl(url, p, canary), opts);
     if (!r) continue;

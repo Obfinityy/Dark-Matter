@@ -14,7 +14,7 @@
 // matching, and a match that only existed inside the echoed request
 // URL is never confirmation. A full OOB collaborator listener is a
 // documented next step.
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 const URL_PARAM_RE = /^(url|uri|image|img|src|source|fetch|feed|redirect|next|callback|webhook)$/i;
 
@@ -105,6 +105,7 @@ async function get(url, opts = {}) {
 export async function probeSsrf(url, params, opts = {}) {
   const findings = [];
   const candidates = params.filter((p) => URL_PARAM_RE.test(probePointName(p)));
+  noteAttemptedPoints(opts, candidates.slice(0, 5));
   for (const param of candidates.slice(0, 5)) {
     const sentUrl = mutateUrl(url, param, METADATA_URL);
     let body;

@@ -8,7 +8,7 @@ import { isLabTargetHost } from '../labCreds.js';
 import { randomBytes } from 'node:crypto';
 import { fingerprint, fetchPage } from './fingerprint.js';
 import { crawl, extractParams, extractForms, normalizeScanScope, siteMaxUrls } from './crawl.js';
-import { extractProbePoints } from './probePoints.js';
+import { extractProbePoints, buildCoverageExtras, probePointParameter } from './probePoints.js';
 import { analyzePage, planForPage, mergePageAnalyses } from './pageAnalyze.js';
 import { groupFindingsByRoute } from './routeGroup.js';
 import { probeHeaders } from './probes/headers.js';
@@ -640,8 +640,15 @@ export async function runScan(
         const toCrawlForm = (f) => ({
           action: f.action,
           method: f.method,
-          inputs: [...(f.inputs || []), ...(f.textareas || []), ...(f.selects || [])]
-            .filter((x) => x && x.name),
+          // DOM textareas/selects carry no type in the analysis, so
+          // tag them here (9 Nov 2026, deep-coverage audit) — the
+          // static extractor sets the same types, so both paths now
+          // honour the { name, type, value } contract.
+          inputs: [
+            ...(f.inputs || []),
+            ...(f.textareas || []).map((t) => ({ ...t, type: 'textarea' })),
+            ...(f.selects || []).map((s) => ({ ...s, type: 'select' })),
+          ].filter((x) => x && x.name),
         });
         domForms = (dom.forms || []).map(toCrawlForm);
 
@@ -889,7 +896,16 @@ export async function runScan(
   // This is what makes the one-page-deep model exhaustive: every input box
   // on the pasted page gets the full param battery, in a form or not.
   if (pageAnalysis) {
-    for (const inp of pageAnalysis.inputs) {
+    // Standalone textareas/selects get the same treatment (9 Nov
+    // 2026, deep-coverage audit): analyzePage inventories them, but
+    // only inputs reached the battery — a standalone textarea or
+    // select was planned and never tried.
+    const standalone = [
+      ...(pageAnalysis.inputs || []),
+      ...(pageAnalysis.textareas || []),
+      ...(pageAnalysis.selects || []),
+    ];
+    for (const inp of standalone) {
       if (inp.form || !inp.name) continue;
       try {
         // DOM-discovered standalone inputs live on a route, not the
@@ -1106,6 +1122,21 @@ export async function runScan(
   // and the 30 phases inside it would vanish in silence — record each of
   // them as skipped instead (after the loop).
   let paramBatteryRan = false;
+  // PER-PHASE COVERAGE DIAGNOSTIC (9 Nov 2026, deep-coverage audit):
+  // batteryStep wraps step() for the param battery: it hands the
+  // probe a fresh opts.diagnostics object and records the coverage
+  // extras — points offered vs points the probe actually attempted
+  // (see probePoints.buildCoverageExtras). A probe that never
+  // reports leaves pointsAttempted null ("not reported"), never an
+  // invented number.
+  const batteryStep = async (name, fn, points) => {
+    const diag = {};
+    await step(
+      name,
+      () => fn({ ...opts, diagnostics: diag }),
+      () => buildCoverageExtras(diag, points)
+    );
+  };
   for (const u of scanTargets) {
     // Probe points: path segments first, then query params
     // (extractProbePoints) — the battery mutates segments with the
@@ -1117,18 +1148,17 @@ export async function runScan(
     // Stack gate input (9 Nov 2026, Zerodha FP fix): the error-SQLi
     // probe needs the fingerprinted tech so an engine-specific error
     // contradicting the stack (postgres on WordPress) never confirms.
-    await step('sqli-error', () => probeSqliError(u, points, { ...opts, tech: fp?.tech }));
-    await step('sqli-blind', () =>
-      probeBlindSqli(u, points, { ...opts, dbHint: fp?.dbHint })
-    );
-    await step('hpp', () => probeHpp(u, points, { ...opts, labTargets }));
-    await step('csv-log-injection', () => probeCsvLog(u, points, opts));
-    await step('xss', () => probeXssReflected(u, points, opts));
-    await step('nosqli', () => probeNoSqli(u, points, opts));
-    await step('nosql-deep', () => probeNoSqlDeep(u, points, opts));
-    await step('ldapi', () => probeLdapInjection(u, points, { ...opts, stack: fp?.tech }));
-    await step('ldap-blind', () => probeLdapBlind(u, points, { ...opts, stack: fp?.tech }));
-    await step('xpathi', () => probeXpathInjection(u, points, opts));
+    await batteryStep('sqli-error', (o) => probeSqliError(u, points, { ...o, tech: fp?.tech }), points);
+    await batteryStep('sqli-blind', (o) =>
+      probeBlindSqli(u, points, { ...o, dbHint: fp?.dbHint }), points);
+    await batteryStep('hpp', (o) => probeHpp(u, points, { ...o, labTargets }), points);
+    await batteryStep('csv-log-injection', (o) => probeCsvLog(u, points, o), points);
+    await batteryStep('xss', (o) => probeXssReflected(u, points, o), points);
+    await batteryStep('nosqli', (o) => probeNoSqli(u, points, o), points);
+    await batteryStep('nosql-deep', (o) => probeNoSqlDeep(u, points, o), points);
+    await batteryStep('ldapi', (o) => probeLdapInjection(u, points, { ...o, stack: fp?.tech }), points);
+    await batteryStep('ldap-blind', (o) => probeLdapBlind(u, points, { ...o, stack: fp?.tech }), points);
+    await batteryStep('xpathi', (o) => probeXpathInjection(u, points, o), points);
     // BLIND XPATH INJECTION (9 Nov 2026, row #479 [High], CWE-643):
     // the sink evaluates injected XPath but suppresses engine
     // errors and caps the result set, so xpathi's widening/error
@@ -1153,6 +1183,7 @@ export async function runScan(
         shape: blindXpathDiag.shape || null,
         extracted: blindXpathDiag.extracted || null,
         attempts: blindXpathDiag.attempts || 0,
+        ...buildCoverageExtras(blindXpathDiag, points),
       })
     );
     // XML INJECTION (7 Nov 2026, row #214): a parameter spliced
@@ -1164,25 +1195,25 @@ export async function runScan(
     // signature absent from the benign response (see
     // xmlInjection.js). No DOCTYPE/entity payloads (xxe owns
     // those), no entity-expansion bombs (DoS-class, excluded).
-    await step('xml-injection', () => probeXmlInjection(u, points, opts));
-    await step('ssi', () => probeSsiInjection(u, points, opts));
-    await step('cmdi', () => probeCmdiTime(u, points, opts));
-    await step('traversal', () => probeTraversal(u, points, opts));
-    await step('rfi', () => probeRfi(u, points, { ...opts, labTargets }));
-    await step('xslt', () => probeXslt(u, points, { ...opts, labTargets }));
-    await step('eval-injection', () => probeEvalInject(u, points, opts));
-    await step('jsonp', () => probeJsonp(u, points, opts));
-    await step('rpo', () => probeRpo(u, points, opts));
-    await step('tabnabbing', () => probeTabnabbing(u, opts));
-    await step('dangling-markup', () => probeDanglingMarkup(u, points, opts));
-    await step('padding-oracle', () => probePaddingOracle(u, opts));
-    await step('arg-injection', () => probeArgInjection(u, points, opts));
-    await step('ssti', () => probeSsti(u, points, opts));
-    await step('el-injection', () => probeElInject(u, points, { ...opts, stack: fp?.tech }));
-    await step('ognl-injection', () => probeOgnlInject(u, points, opts));
-    await step('redirect', () => probeOpenRedirect(u, points, opts));
-    await step('crlf', () => probeCrlf(u, points, opts));
-    await step('ssrf', () => probeSsrf(u, points, opts));
+    await batteryStep('xml-injection', (o) => probeXmlInjection(u, points, o), points);
+    await batteryStep('ssi', (o) => probeSsiInjection(u, points, o), points);
+    await batteryStep('cmdi', (o) => probeCmdiTime(u, points, o), points);
+    await batteryStep('traversal', (o) => probeTraversal(u, points, o), points);
+    await batteryStep('rfi', (o) => probeRfi(u, points, { ...o, labTargets }), points);
+    await batteryStep('xslt', (o) => probeXslt(u, points, { ...o, labTargets }), points);
+    await batteryStep('eval-injection', (o) => probeEvalInject(u, points, o), points);
+    await batteryStep('jsonp', (o) => probeJsonp(u, points, o), points);
+    await batteryStep('rpo', (o) => probeRpo(u, points, o), points);
+    await batteryStep('tabnabbing', (o) => probeTabnabbing(u, o), points);
+    await batteryStep('dangling-markup', (o) => probeDanglingMarkup(u, points, o), points);
+    await batteryStep('padding-oracle', (o) => probePaddingOracle(u, o), points);
+    await batteryStep('arg-injection', (o) => probeArgInjection(u, points, o), points);
+    await batteryStep('ssti', (o) => probeSsti(u, points, o), points);
+    await batteryStep('el-injection', (o) => probeElInject(u, points, { ...o, stack: fp?.tech }), points);
+    await batteryStep('ognl-injection', (o) => probeOgnlInject(u, points, o), points);
+    await batteryStep('redirect', (o) => probeOpenRedirect(u, points, o), points);
+    await batteryStep('crlf', (o) => probeCrlf(u, points, o), points);
+    await batteryStep('ssrf', (o) => probeSsrf(u, points, o), points);
   }
   // 35/63 FIX: no param-bearing target existed, so the whole injection
   // battery was skipped in silence. Emit one skipped record per phase so
@@ -1247,17 +1278,26 @@ export async function runScan(
       sqliOob = null;
     }
   }
+  // Coverage diagnostic for the sqli-oob global cap (9 Nov 2026,
+  // deep-coverage audit): the phase tries only the first 2 probe
+  // points across ALL verb targets (each payload waits up to 8s on
+  // the collaborator) — the extras name exactly which points were
+  // attempted and which the cap skipped.
+  let sqliOobCoverage = {};
   try {
     await step('sqli-oob', async () => {
       const findings = [];
-      const pairs = [];
+      const allPairs = [];
       for (const u of verbTargets) {
         for (const p of extractProbePoints(u, pathParamsByUrl.get(u))) {
-          pairs.push([u, p]);
-          if (pairs.length >= 2) break;
+          allPairs.push([u, p]);
         }
-        if (pairs.length >= 2) break;
       }
+      const pairs = allPairs.slice(0, 2);
+      sqliOobCoverage = buildCoverageExtras(
+        { pointsAttempted: pairs.map(([, p]) => probePointParameter(p)) },
+        allPairs.map(([, p]) => p)
+      );
       for (const [u, p] of pairs) {
         findings.push(
           ...(await probeSqliOob([p], u, {
@@ -1271,7 +1311,7 @@ export async function runScan(
         );
       }
       return findings;
-    });
+    }, () => sqliOobCoverage);
   } finally {
     if (sqliOob) {
       try { await sqliOob.stop(); } catch { /* stop is best-effort */ }

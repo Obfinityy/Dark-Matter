@@ -55,7 +55,7 @@
 // opts.ldapCanary = { user, attr, value }; skipped gracefully when absent).
 // Every CONFIRMED verdict sits behind a differential oracle per the 100%
 // truth rule. Read-only HTTP, per-run canary values, redirects never followed.
-import { probePointName, probePointParameter } from '../probePoints.js';
+import { probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 import { isBotChallengePage, isPhpWordpressStack } from './oracleGuards.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
@@ -135,6 +135,7 @@ function userParams(params) {
 
 // T1 — boolean oracle inventory. Returns { oracle: bool, matrix, userParam }.
 async function t1Oracle(url, params, opts) {
+  noteAttemptedPoints(opts, userParams(params));
   const findings = [];
   for (const up of userParams(params)) {
     const wrongUser = `zz_no_such_${rand()}`;

@@ -11,7 +11,7 @@
 // class 'ssi_injection' → default protocol → signalCorrelated=true.
 // Severity: high (directive execution; #exec = RCE on misconfigured hosts).
 import { randomBytes } from 'node:crypto';
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -34,6 +34,7 @@ const DATE_LIKE = /\b(?:mon|tue|wed|thu|fri|sat|sun)\w*,?\s+\d{1,2}[\s-](?:jan|f
 
 export async function probeSsiInjection(url, params, opts = {}) {
   const findings = [];
+  noteAttemptedPoints(opts, params.slice(0, 10));
   for (const param of params.slice(0, 10)) {
     const rand = randomBytes(4).toString('hex');
     const benignVal = `dmssi${rand}`;

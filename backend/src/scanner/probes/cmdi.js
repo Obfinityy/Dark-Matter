@@ -1,7 +1,7 @@
 // Dark Matter rule-based scanner — OS command injection probe.
 // Oracle: injected sleep tracks the response delay (time differential).
 // The baseline must be fast; otherwise the result is inconclusive (no finding).
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 async function getTimed(url, opts = {}) {
@@ -23,6 +23,7 @@ async function getTimed(url, opts = {}) {
 export async function probeCmdiTime(url, params, opts = {}) {
   const findings = [];
   const SLEEP_S = 5;
+  noteAttemptedPoints(opts, params.slice(0, 6));
   for (const param of params.slice(0, 6)) {
     // Two baselines: the max absorbs normal jitter; a wide spread means the
     // page is too unstable for a timing oracle (skip instead of guessing).

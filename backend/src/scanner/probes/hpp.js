@@ -17,7 +17,7 @@
 //
 // Per-run canary pair __hpp_dm_<runid>_A / _B. Severity capped at MEDIUM
 // unless a security-relevant effect is proven. Read-only, inert strings.
-import { mutateUrl, probePointName, probePointParameter, isQueryPoint } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints, isQueryPoint } from '../probePoints.js';
 
 import { isLabTargetHost } from '../../labCreds.js';
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
@@ -78,6 +78,7 @@ async function t1Oracle(url, params, opts) {
   const rid = rand();
   const A = `__hpp_dm_${rid}_A`;
   const B = `__hpp_dm_${rid}_B`;
+  noteAttemptedPoints(opts, params.filter(isQueryPoint).slice(0, 6));
   for (const p of params.filter(isQueryPoint).slice(0, 6)) {
     const dup = new URL(url);
     // Build ?p=A&p=B manually to preserve duplication order.

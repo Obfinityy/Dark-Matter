@@ -16,7 +16,7 @@
 //
 // Differential oracle: payload vs benign control, raw bytes, per-run
 // canaries (cache-busted re-downloads). $0, no new deps.
-import { mutateUrl, probePointName, probePointParameter, isQueryPoint, isPathPoint } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints, isQueryPoint, isPathPoint } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -94,6 +94,7 @@ async function csvHalf(url, params, opts, rid) {
       `+2+2${fieldCanary}`,
       `@SUM(1+1)${fieldCanary}`,
     ];
+    noteAttemptedPoints(opts, params.filter(isQueryPoint).slice(0, 4));
     for (const p of params.filter(isQueryPoint).slice(0, 4)) {
       for (const f of formulas.slice(0, 2)) {
         const u = new URL(mutateUrl(expUrl, p, f));
@@ -172,6 +173,7 @@ async function logHalf(url, params, opts, rid) {
   // D3: LF canary in each input; check observable surfaces (error pages,
   // reflected responses, admin/log-viewer paths).
   const surfaces = [url];
+  noteAttemptedPoints(opts, params.slice(0, 6));
   for (const p of params.slice(0, 6)) {
     // Query points keep the manual query build (exact bytes, encoded
     // LF); path points take the decoded value through mutateUrl, which

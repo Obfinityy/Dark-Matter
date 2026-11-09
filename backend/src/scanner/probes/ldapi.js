@@ -28,7 +28,7 @@
 // (boolean variant also sets diverged=true for the evidence trail).
 // Severity: high.
 import { randomBytes } from 'node:crypto';
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 import {
   isBotChallengePage,
   controlObservationsStable,
@@ -57,7 +57,14 @@ const BREAKOUTS = ['*)(uid=*))(|(uid=*', '*', 'admin)(uid=*'];
 export async function probeLdapInjection(url, params, opts = {}) {
   const findings = [];
   // Stack gate: no LDAP filter backend exists on PHP/WordPress stacks.
-  if (isPhpWordpressStack(opts.stack)) return findings;
+  // Coverage diagnostic, before the early return: a gated-out stack
+  // reports attempted [] (deliberate, not a silent skip) instead of
+  // leaving pointsAttempted unset.
+  if (isPhpWordpressStack(opts.stack)) {
+    noteAttemptedPoints(opts, []);
+    return findings;
+  }
+  noteAttemptedPoints(opts, params.slice(0, 10));
   for (const param of params.slice(0, 10)) {
     const unlikely = `dmldap${randomBytes(3).toString('hex')}`;
     let benign;

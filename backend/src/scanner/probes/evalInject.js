@@ -22,7 +22,7 @@
 // left to the manual lab lane — this probe reports detection findings;
 // confirmation of execution impact is a human step. Destructive primitives
 // are never probed. Per-run canary. $0, no new deps.
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 import { stripVolatileValues, sameReflectionPoint } from './oracleGuards.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
@@ -148,6 +148,7 @@ async function d4EL(url, surfaces, opts) {
 export async function probeEvalInject(url, params, opts = {}) {
   const findings = [];
   const surfaces = evalSurfaces(url, params);
+  noteAttemptedPoints(opts, surfaces.filter((p) => p !== '(path)'));
   if (!surfaces.length) return findings; // no eval-shaped surface
   const d2 = await d2Arithmetic(url, surfaces, opts);
   for (const hit of d2) {

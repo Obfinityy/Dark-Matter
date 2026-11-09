@@ -14,7 +14,7 @@
 // class 'xpath_injection' → default protocol → signalCorrelated=true.
 // Severity: high.
 import { randomBytes } from 'node:crypto';
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -37,6 +37,7 @@ const PAYLOADS = [`' or '1'='1`, `'] | //* | //*['`, `1' or 1=1 or '1'='1`];
 
 export async function probeXpathInjection(url, params, opts = {}) {
   const findings = [];
+  noteAttemptedPoints(opts, params.slice(0, 10));
   for (const param of params.slice(0, 10)) {
     const unlikely = `dmxp${randomBytes(3).toString('hex')}`;
     let benign;

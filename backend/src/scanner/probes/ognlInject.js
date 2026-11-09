@@ -14,7 +14,7 @@
 // Detection = math-evaluation differential only. Read-only GET.
 
 import { randomBytes } from 'node:crypto';
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -96,10 +96,14 @@ export async function probeOgnlInject(url, params, opts = {}) {
     });
   }
 
-  if (!pathHit && !markerHit) return findings; // not a Struts target — stop
+  if (!pathHit && !markerHit) {
+    noteAttemptedPoints(opts, []);
+    return findings; // not a Struts target — stop
+  }
 
   const depth = opts.depth || 'standard';
   const payloads = depth === 'quick' ? OGNL_PAYLOADS.slice(0, 1) : OGNL_PAYLOADS;
+  noteAttemptedPoints(opts, (params || []).slice(0, 10));
   for (const param of (params || []).slice(0, 10)) {
     // Control: OGNL-shaped but non-evaluating literal (unknown identifier).
     let control;

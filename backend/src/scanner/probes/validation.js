@@ -47,8 +47,11 @@
 // are read-only GETs and run anywhere. CSRF-style hidden inputs
 // (token/csrf/nonce names) are never tampered — they are sent
 // with their fetched values so the control and tampered submits
-// differ in exactly one field. Capped at 32 GET requests + 8
-// form requests per scan.
+// differ in exactly one field. Capped at 64 GET requests + 8
+// form requests per scan (9 Nov 2026, deep-coverage audit: was 32
+// GETs / 2 points per URL — the 3rd+ param on a target never got
+// integer-overflow / type-juggling / null-byte / unicode tests;
+// 3 URLs x 4 points x ~5 requests worst case is 63).
 import { createHash } from 'node:crypto';
 import { fetchPage } from '../fingerprint.js';
 import {
@@ -62,8 +65,8 @@ import {
 } from '../probePoints.js';
 
 const MAX_URLS = 3;
-const MAX_POINTS_PER_URL = 2;
-const MAX_GET_REQUESTS = 32;
+const MAX_POINTS_PER_URL = 4;
+const MAX_GET_REQUESTS = 64;
 const MAX_FORMS = 2;
 const MAX_FORM_REQUESTS = 8;
 const MAX_FINDINGS = 20;

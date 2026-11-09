@@ -1,6 +1,6 @@
 // Dark Matter rule-based scanner — path traversal / LFI probe.
 // Oracle: known file-content markers (root:x:0:0 / [extensions]) in the response.
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
 async function get(url, opts = {}) {
@@ -22,6 +22,7 @@ const TRAVERSAL_CASES = [
 
 export async function probeTraversal(url, params, opts = {}) {
   const findings = [];
+  noteAttemptedPoints(opts, params.slice(0, 10));
   for (const param of params.slice(0, 10)) {
     for (const { payload, marker, os } of TRAVERSAL_CASES) {
       let body;

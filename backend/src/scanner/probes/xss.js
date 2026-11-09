@@ -2,7 +2,7 @@
 // Oracle: unique canary reflected UNENCODED (canaryReflected), with an
 // HTML-encoded variant as the control (must not reflect raw).
 import { randomBytes } from 'node:crypto';
-import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -20,6 +20,7 @@ async function get(url, opts = {}) {
 
 export async function probeXssReflected(url, params, opts = {}) {
   const findings = [];
+  noteAttemptedPoints(opts, params.slice(0, 10));
   for (const param of params.slice(0, 10)) {
     const rand = randomBytes(4).toString('hex');
     const payload = `'"<>${`dmxss${rand}`}`;

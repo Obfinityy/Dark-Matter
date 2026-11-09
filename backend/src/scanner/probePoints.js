@@ -128,3 +128,58 @@ export function extractProbePoints(url, pathParams) {
   }
   return points;
 }
+
+// ---- Per-phase coverage diagnostic (9 Nov 2026, deep-coverage audit) ----
+// The owner requires every element to get every applicable class tried.
+// A probe that filters by name (rfi/ssrf/eval/...) or caps its list
+// (sqli-blind 6, crlf 8, ...) silently skips elements unless it says
+// what it attempted. The contract: a battery probe records the probe
+// points it actually attempted into opts.diagnostics.pointsAttempted
+// (display labels via probePointParameter); the orchestrator turns
+// that into per-phase coverage extras (see buildCoverageExtras).
+// A probe that never reports leaves pointsAttempted unset — the
+// extras then carry pointsAttempted: null ("not reported"), never an
+// invented number. Non-param probes (tabnabbing, padding-oracle)
+// record pointsAttempted: [] plus a coverageNote naming their real
+// surface, so 0 attempted reads as "not a param probe", not a skip.
+/**
+ * Record the probe points a probe actually attempted, for the
+ * per-phase coverage diagnostic. `points` is the working list the
+ * probe iterated (already sliced/filtered); labels come from
+ * probePointParameter. No-op when opts carries no diagnostics
+ * object (unit tests and old callers are unaffected). Calls
+ * ACCUMULATE (union, deduped): a probe with two halves (csv-log's
+ * CSV half + log half) reports each half and the diagnostic holds
+ * the union — the second call never erases the first.
+ */
+export function noteAttemptedPoints(opts, points) {
+  const d = opts && typeof opts === 'object' ? opts.diagnostics : null;
+  if (!d || typeof d !== 'object') return;
+  const prev = Array.isArray(d.pointsAttempted) ? d.pointsAttempted : [];
+  const mine = (Array.isArray(points) ? points : []).map((p) => probePointParameter(p));
+  d.pointsAttempted = [...new Set([...prev, ...mine])];
+}
+
+/**
+ * Build the per-phase coverage extras for one battery step, from the
+ * diagnostics object the probe filled and the points the orchestrator
+ * offered it. Pure — exported for unit tests.
+ * Returns { coverage: { pointsOffered, pointsAttempted, attemptedPoints,
+ * skippedPoints, note? } }. pointsAttempted/skippedPoints are null
+ * when the probe reported nothing.
+ */
+export function buildCoverageExtras(diag, points) {
+  const offered = (Array.isArray(points) ? points : []).map((p) => probePointParameter(p));
+  const attempted = diag && Array.isArray(diag.pointsAttempted) ? diag.pointsAttempted : null;
+  const skipped = attempted === null ? null : offered.filter((n) => !attempted.includes(n));
+  const coverage = {
+    pointsOffered: offered.length,
+    pointsAttempted: attempted === null ? null : attempted.length,
+    attemptedPoints: attempted,
+    skippedPoints: skipped,
+  };
+  if (diag && typeof diag.coverageNote === 'string' && diag.coverageNote) {
+    coverage.note = diag.coverageNote;
+  }
+  return { coverage };
+}

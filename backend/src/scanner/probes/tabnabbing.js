@@ -59,6 +59,12 @@ function isExternal(href, pageHost) {
 
 export async function probeTabnabbing(url, opts = {}) {
   const findings = [];
+  // Coverage diagnostic: a markup-only probe — it attempts no
+  // params by design; the surface is the page markup itself.
+  if (opts && opts.diagnostics) {
+    opts.diagnostics.pointsAttempted = [];
+    opts.diagnostics.coverageNote = 'markup-only probe — no params attempted by design';
+  }
   const html = await getText(url, opts);
   if (!html) return findings;
   let pageHost = '';

@@ -156,6 +156,12 @@ const AUTH_SINK_RES = /remember|auth|session|ticket|token/i;
 
 export async function probePaddingOracle(url, opts = {}) {
   const findings = [];
+  // Coverage diagnostic: a cookie-sink probe — it attempts no
+  // params by design; the surface is ciphertext-shaped cookies.
+  if (opts && opts.diagnostics) {
+    opts.diagnostics.pointsAttempted = [];
+    opts.diagnostics.coverageNote = 'cookie-sink probe — no params attempted by design';
+  }
   const sinks = await d1Cookies(url, opts);
   for (const sink of sinks.slice(0, 3)) {
     const res = await d2Signal(url, sink, opts);

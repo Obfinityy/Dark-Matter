@@ -17,7 +17,7 @@
 // Depth: Quick = T3 only; Standard = T3 (+T4 capped when canary present);
 // Deep = full battery + T5. Read-only HTTP, per-run canaries, redirects
 // never followed, $0 AI.
-import { probePointName, probePointParameter } from '../probePoints.js';
+import { probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -110,6 +110,12 @@ async function t3Bypass(url, params, opts) {
   const up = params.find((p) => /user|login|name|mail/i.test(probePointName(p))) || params[0];
   const pp = params.find((p) => /pass|pwd/i.test(probePointName(p))) || params[1] || 'password';
   if (!up) return findings;
+  // Credential pair only: the bypass differential varies the
+  // user-like + password-like params, never the whole form. Only
+  // real probe-point objects count — pp falls back to the literal
+  // string 'password' when no password-like param exists, and a
+  // literal is not a point on this target.
+  noteAttemptedPoints(opts, [up, pp].filter((p) => p && typeof p === 'object'));
   const wrongU = `zz_${rand()}`;
   const wrongP = `wrong_${rand()}`;
   let rPlain;

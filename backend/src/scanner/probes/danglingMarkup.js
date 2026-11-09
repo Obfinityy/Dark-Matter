@@ -19,7 +19,7 @@
 //
 // Grading: MEDIUM = token in blob; LOW = structural swallow, no secret;
 // INFO = escaped/encoded/not swallowed. Class key: danglingMarkup.
-import { mutateUrl, probePointParameter } from '../probePoints.js';
+import { mutateUrl, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -62,6 +62,7 @@ function findSecrets(html) {
 async function d1d2(url, params, opts, rid) {
   const sinks = [];
   const probe = `dmq${rid}"'><`;
+  noteAttemptedPoints(opts, (params || []).slice(0, 6));
   for (const p of (params || []).slice(0, 6)) {
     const html = await getText(mutateUrl(url, p, probe), opts);
     if (!html || !html.includes(probe)) continue;
