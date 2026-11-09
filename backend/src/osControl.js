@@ -454,9 +454,29 @@ export async function executeOsAction(huntId, kind, action, ctx = {}) {
     if (!typedOk) {
       return { ok: false, observation: `Could not type into the terminal window "${termWin.title || 'Terminal'}" — the focus, type, or Return step failed. Take desktop_snapshot to check the desktop, then try again.` };
     }
-    // (4) Let it run, read the tee log back, screenshot.
-    await sleep(3000);
+    // (4) Poll the tee log until the exit marker lands, then read
+    // it back, screenshot. FIX (#368): the old code slept a fixed
+    // 3000ms and read once, so any command slower than 3s came back
+    // truncated — the brain saw partial output and had to chase the
+    // rest by hand. Polls are cheap tail reads: the marker is the
+    // log's LAST line (see desktopTerminalWrapCommand), so a
+    // 256-byte tail decides completion exactly like a full read,
+    // and the full log is read once, after completion or at the
+    // poll cap. Quick commands now return faster than the old fixed
+    // 3000ms; commands up to ~30s complete in-call; slower ones keep
+    // the honest still-running observation below (unchanged text).
+    // The cap counts POLLS, not wall seconds, so a stubbed sleep
+    // keeps tests instant while production polls are ~1s apart.
     let logText = '';
+    for (let poll = 0; poll < 30; poll++) {
+      let done = false;
+      try {
+        const tailRes = await execRaw(huntId, `tail -c 256 ${shellQuote(logFile)} 2>/dev/null || true`, 15000, { bypassTmux: true });
+        done = parseTerminalExit(String((tailRes && tailRes.stdout) || '')) !== null;
+      } catch { /* a failed tail read is just "not finished yet" */ }
+      if (done) break;
+      await sleep(1000);
+    }
     try {
       const logRes = await execRaw(huntId, `cat ${shellQuote(logFile)} 2>/dev/null || echo __DT_NO_LOG__`, 15000, { bypassTmux: true });
       logText = String((logRes && logRes.stdout) || '');
