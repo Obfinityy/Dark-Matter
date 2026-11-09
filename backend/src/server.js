@@ -32,6 +32,7 @@ import pluginsRouter from './routes/plugins.js';
 import modelsRouter from './routes/models.js';
 import voiceRouter from './routes/voice.js';
 import paymentsRouter from './routes/payments.js';
+import razorpayRouter from './routes/razorpay.js';
 import notificationsRouter from './routes/notifications.js';
 import { backfillAllHunts, episodeLedgerEnabled, runEmbeddingBackfill, backfillRuledOutFromEpisodes } from './episodeStore.js';
 import { resolveTtydPort, checkChromiumWatchdog, CHROMIUM_WATCHDOG_MS } from './huntRunner.js';
@@ -85,6 +86,12 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
+
+// Razorpay auto-payment (#491): mounted BEFORE the global express.json()
+// because the webhook route must read the RAW request body to verify the
+// HMAC signature — express.json() would consume it. The router parses its
+// own bodies per route (raw for /webhook, json for /create-order).
+app.use('/api/v1/payments/razorpay', razorpayRouter);
 
 app.use(express.json({ limit: '1mb' }));
 
