@@ -4324,3 +4324,60 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .auth-pending-divider { border-top: 1px solid var(--dm-border); margin: 16px 0; padding-top: 16px; }
 
 .auth-pending-divider .auth-sub { margin-bottom: 8px; }
+
+/* --- Top bar (hunter badge, burn pill, notification bell) --- */
+.topbar-left, .topbar-right { position: relative; }
+
+.bell-wrap { position: relative; }
+
+.hunter-badge {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.55;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 1px 7px;
+  margin-left: 2px;
+  white-space: nowrap;
+}
+
+.hunter-badge.history {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  margin-left: 0;
+  margin-right: 6px;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.burn-pill { display: inline-flex; align-items: center; gap: 4px; }
+
+.burn-pill svg { flex: none; }
+
+.unread-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--dm-danger);
+  color: var(--dm-paper);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+.model-menu.bell-menu { right: 0; left: auto; width: 340px; max-width: 80vw; }
+
+.bell-menu-empty { padding: 10px 12px; }
+
+.model-option.bell-item { align-items: flex-start; text-align: left; }
+
+.model-option.read { opacity: 0.65; }
