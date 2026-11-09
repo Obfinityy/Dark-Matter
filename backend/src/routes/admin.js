@@ -88,12 +88,14 @@ router.get('/hunts', requireAdmin, async (req, res) => {
     if (rank(a.state) !== rank(b.state)) return rank(a.state) - rank(b.state);
     return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
   });
-  // Also get queue
-  let queue = [];
-  try {
-    const { getQueue } = await import('../store.js');
-    queue = getQueue() || [];
-  } catch { /* no queue */ }
+  // Also get queue. FIX (#347): this used to import a nonexistent
+  // `getQueue` from the store — the TypeError was swallowed by the
+  // catch below, so the admin hunts view ALWAYS showed an empty
+  // queue. The real reader is `readQueue` (same as the admin
+  // /queue route right below, same sort, no swallowing catch).
+  const { readQueue } = await import('../store.js');
+  const queue = readQueue()
+    .sort((a, b) => (b.priority - a.priority) || (a.createdAt < b.createdAt ? -1 : 1));
   res.json({ ok: true, hunts, queue, queueCount: queue.length });
 });
 
