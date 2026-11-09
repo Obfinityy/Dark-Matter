@@ -46,6 +46,14 @@ function statusLabel(status) {
   }
 }
 
+function IconFlame() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5Z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function statusText(status, target) {
   switch (status) {
     case 'running': return `Hunting ${target}…`;
@@ -794,17 +802,17 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         <span className="hunt-status-text">{statusText(status, hunt.target)}</span>
         {brainMode === 'parent' && (
           <span className="brain-mode-badge" role="status" title={isPaused ? "The AI loop is paused — you are driving this hunt from the Brain Console" : "Parent-brain mode — the hunt loop is live; you supply each turn's decision from the Brain Console"}>
-            🧠 You are the brain
+            You are the brain
           </span>
         )}
         {(brainMode === 'scanner' || (!brainMode && hunt.brainMode === 'scanner')) && (
           <span className="brain-mode-badge" role="status" title="Infinity Autonomous — rule-based scan, no AI, $0">
-            ⚡ Autonomous
+            Autonomous
           </span>
         )}
         {(brainMode === 'ai' || (hunt.brainMode && hunt.brainMode !== 'scanner')) && (
           <span className="brain-mode-badge" role="status" title="Infinity AI — AI agent hunts autonomously">
-            🤖 AI
+            AI
           </span>
         )}
         {brainMode === 'parent' && liveProc && liveProc.activity && (
@@ -851,12 +859,12 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         <>
         {!isScanner && (
         <div className="hunt-money-strip" title="Wallet balance, money burnt on this hunt, and burn rate per iteration">
-          <span className="hunt-money">💰 {balance === null ? '…' : `$${Number(balance).toFixed(2)}`} balance</span>
-          <span className="hunt-money">🔥 ${cost && cost.totalUsd ? cost.totalUsd.toFixed(2) : '0.00'} burnt</span>
+          <span className="hunt-money">Balance {balance === null ? '…' : `$${Number(balance).toFixed(2)}`}</span>
+          <span className="hunt-money"><IconFlame /> ${cost && cost.totalUsd ? cost.totalUsd.toFixed(2) : '0.00'} burnt</span>
           {budgetUsd !== null && (
-            <span className="hunt-money" title="Spend cap for this hunt — the hunt auto-pauses at the budget">🎯 Budget ${budgetUsd.toFixed(2)}</span>
+            <span className="hunt-money" title="Spend cap for this hunt — the hunt auto-pauses at the budget">Budget ${budgetUsd.toFixed(2)}</span>
           )}
-          <span className="hunt-money hunt-burn-rate">⚡ ${perIter.toFixed(2)}/iter</span>
+          <span className="hunt-money hunt-burn-rate">${perIter.toFixed(2)}/iter</span>
         </div>
         )}
         {!isScanner && (
@@ -892,7 +900,18 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         </div>
         )}
         <div className="hunt-feed" ref={logEndRef} aria-live="polite">
-          {logs.length === 0 && <div className="empty-hint">{historyLoaded ? 'Waiting for hunt output…' : 'Loading hunt history…'}</div>}
+          {logs.length === 0 && !historyLoaded && (
+            <div className="hunt-feed-skeleton" aria-label="Loading hunt history">
+              <span className="skeleton skeleton-line" />
+              <span className="skeleton skeleton-line short" />
+            </div>
+          )}
+          {logs.length === 0 && historyLoaded && (
+            <div className="empty-state compact">
+              <p className="empty-state-title">No output yet</p>
+              <p className="empty-state-text">The hunter is still starting up. Tool calls and findings will stream in here as the hunt runs.</p>
+            </div>
+          )}
           {logs.map((entry, idx) => (
             <div key={idx} className={`log-line${entry.kind === 'tool' ? ' log-tool' : entry.kind === 'finding' ? ' log-finding' : ' log-think'}`}>
               <span className="log-time">[{elapsedStamp(entry.at)}]</span>
@@ -917,9 +936,9 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
           </div>
           {totalFindings === 0 && (
             <div className="hunt-no-confirmed">
-              No confirmed vulnerabilities yet
-              {unverifiedCount > 0 && ` — ${unverifiedCount} lead${unverifiedCount === 1 ? '' : 's'} under investigation`}
-              .
+              No confirmed vulnerabilities yet — nothing has passed verification so far
+              {unverifiedCount > 0 && `; ${unverifiedCount} lead${unverifiedCount === 1 ? '' : 's'} still under investigation`}
+              . Keep the hunt running: verified findings appear here as soon as they land.
             </div>
           )}
           {totalFindings > 0 && !isSiteScope && (
@@ -966,7 +985,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
             spend UI — hide the burnt-money pill like the money strip. */}
         {!isScanner && cost && cost.totalUsd > 0 && (
           <span className="hunt-cost" title="Money burnt on this hunt (AWS)">
-            🔥 ${cost.totalUsd.toFixed(2)}
+            <IconFlame /> ${cost.totalUsd.toFixed(2)}
           </span>
         )}
         {isPaused ? (
@@ -1039,7 +1058,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
             aria-expanded={agentChatOpen}
             title="Chat with the scan agent about this hunt's findings — answers from the scan data, stays on topic"
           >
-            💬 {agentChatOpen ? 'Hide Agent Chat' : 'Chat with Agent'}
+            {agentChatOpen ? 'Hide Agent Chat' : 'Chat with Agent'}
           </button>
         )}
         {onGetReport && (
@@ -1077,7 +1096,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
               ? 'Open the Brain Console — you are already the brain'
               : 'Become the brain: pause the AI loop and drive the next actions yourself'}
           >
-            {brainModeBusy ? 'Taking over…' : brainMode === 'parent' ? '🧠 Open Brain Console' : '🧠 Be a Brain'}
+            {brainModeBusy ? 'Taking over…' : brainMode === 'parent' ? 'Open Brain Console' : 'Be a Brain'}
           </button>
         )}
         {brain && !isScanner && (
@@ -1092,7 +1111,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
               {/* BRAIN JSON: the parent as a selectable "model" — same
                   takeover as the gold "Be a Brain" button. While the
                   parent is the brain this option stays selected. */}
-              <option value={PARENT_BRAIN_VALUE}>🧠 Be a Brain (you)</option>
+              <option value={PARENT_BRAIN_VALUE}>Be a Brain (you)</option>
               {(brain.models || []).map((m) => (
                 <option key={m.id} value={m.id} disabled={!m.available} title={m.available ? m.blurb : 'Not available — the Meta API key is not configured on the backend'}>
                   {m.label}{m.available ? '' : ' (unavailable)'}
@@ -1113,7 +1132,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
           for Autonomous hunts — scoped to this hunt's findings. */}
       {isScanner && agentChatOpen && (
         <div className="hunt-agent-chat">
-          <div className="hunt-agent-chat-title">💬 Agent chat — is scan ke findings pe sawal poocho</div>
+          <div className="hunt-agent-chat-title">Agent chat — is scan ke findings pe sawal poocho</div>
           <div className="hunt-agent-chat-feed">
             {agentChatMsgs.length === 0 && (
               <div className="hunt-agent-chat-empty">
@@ -1156,12 +1175,15 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
           findings, and never counted in the findings totals above. */}
       {isScanner && aiAnalysis && (
         <div className="hunt-agent-chat">
-          <div className="hunt-agent-chat-title">🤖 AI analysis — behaviour se nayi leads</div>
+          <div className="hunt-agent-chat-title">AI analysis — behaviour se nayi leads</div>
           {aiAnalysis.state === 'loading' && (
-            <div className="hunt-agent-chat-empty">AI analysis chal rahi hai…</div>
+            <div className="hunt-feed-skeleton" aria-label="AI analysis in progress">
+              <span className="skeleton skeleton-line" />
+              <span className="skeleton skeleton-line short" />
+            </div>
           )}
           {aiAnalysis.state === 'ready' && aiAnalysis.suggestions.length === 0 && (
-            <div className="hunt-agent-chat-empty">AI ko behaviour se koi nayi lead nahi mili.</div>
+            <div className="hunt-agent-chat-empty">The AI found no new leads in this hunt&apos;s behaviour — the scan battery already covered the surface it could see.</div>
           )}
           {aiAnalysis.state === 'ready' && aiAnalysis.suggestions.length > 0 && (
             <div className="hunt-agent-chat-feed">
@@ -1229,7 +1251,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
 
       {isActive && (
         <div className="hunt-steer">
-          <div className="hunt-steer-title">💬 Steer the hunter</div>
+          <div className="hunt-steer-title">Steer the hunter</div>
           <div className="hunt-steer-row">
             <input
               className="hunt-steer-input"
@@ -1271,10 +1293,13 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
       {/* Plain-English activity: what the agent is doing, in words anyone
           can understand. Below the controls so it's always visible. */}
       <div className="hunt-human-log">
-        <div className="hunt-human-title">🤖 Agent activity</div>
+        <div className="hunt-human-title">Agent activity</div>
         <div className="hunt-human-feed">
           {humanLogEntries.length === 0 && (
-            <div className="hunt-human-empty">Waking up the agent…</div>
+            <div className="hunt-feed-skeleton" aria-label="Waking up the agent">
+              <span className="skeleton skeleton-line" />
+              <span className="skeleton skeleton-line short" />
+            </div>
           )}
           {humanLogEntries.map((entry, idx) => (
             <div key={idx} className="hunt-human-line">
