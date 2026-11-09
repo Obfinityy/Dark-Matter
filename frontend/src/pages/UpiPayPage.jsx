@@ -14,6 +14,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode-generator';
 import {
   getUpiDetails, getPaymentStatus, getMyClaims, submitPaymentClaim,
+  createRazorpayOrder, getRazorpayOrderStatus,
 } from '../lib/api';
 import { useAuth } from '../lib/auth';
 
@@ -55,6 +56,9 @@ export default function UpiPayPage() {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
+  // Razorpay instant checkout (issue #491, test mode) — ADDITION alongside
+  // the manual UPI flow below. States: idle | creating | checkout | verifying | done | error
+  const [rzp, setRzp] = useState({ state: 'idle', orderId: null, accessUntil: null, error: null });
 
   const refresh = useCallback(async () => {
     const u = await getUpiDetails();
@@ -136,6 +140,82 @@ export default function UpiPayPage() {
     }
   }
 
+
+  // ---- Razorpay instant checkout (issue #491) ---------------------------
+  function loadRazorpayScript() {
+    return new Promise((resolve, reject) => {
+      if (window.Razorpay) return resolve();
+      const s = document.createElement('script');
+      s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Could not load the Razorpay checkout script. Check your connection and try again.'));
+      document.head.appendChild(s);
+    });
+  }
+
+  // Poll the order status until Razorpay reports it paid (self-healing
+  // when the webhook is missed). 30 attempts x 2s = ~60s of polling.
+  async function pollRazorpayOrder(orderId, attempts = 30) {
+    for (let i = 0; i < attempts; i++) {
+      const r = await getRazorpayOrderStatus(orderId);
+      if (r.ok && r.data && r.data.paid) return r.data;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+    return null;
+  }
+
+  async function payWithRazorpay() {
+    setRzp({ state: 'creating', orderId: null, accessUntil: null, error: null });
+    try {
+      if (!user && (!form.username.trim() || !form.password)) {
+        setRzp({ state: 'error', orderId: null, accessUntil: null, error: 'Enter your signup username and password so we can match the payment to your account.' });
+        return;
+      }
+      const res = await createRazorpayOrder(user ? {} : { username: form.username.trim(), password: form.password });
+      if (!res.ok || !res.data || !res.data.orderId) {
+        setRzp({ state: 'error', orderId: null, accessUntil: null, error: res.error || 'Could not start the payment. The manual UPI payment below still works.' });
+        return;
+      }
+      const { orderId, keyId, amountPaise, currency } = res.data;
+      await loadRazorpayScript();
+      setRzp({ state: 'checkout', orderId, accessUntil: null, error: null });
+      const options = {
+        key: keyId,
+        amount: amountPaise,
+        currency: currency || 'INR',
+        name: 'Dark Matter',
+        description: '1 day of access — ₹10,000',
+        order_id: orderId,
+        prefill: { ...(form.phone ? { contact: form.phone } : {}) },
+        theme: { color: '#C9A227' },
+        modal: {
+          ondismiss: () => {
+            setRzp((prev) => (prev.state === 'checkout' ? { state: 'idle', orderId: null, accessUntil: null, error: null } : prev));
+          },
+        },
+        handler: async () => {
+          setRzp({ state: 'verifying', orderId, accessUntil: null, error: null });
+          const done = await pollRazorpayOrder(orderId);
+          if (done && done.paid) {
+            setRzp({ state: 'done', orderId, accessUntil: done.accessUntil, error: null });
+            refresh();
+          } else {
+            setRzp({ state: 'error', orderId, accessUntil: null, error: `Payment received but activation is still pending — wait a minute and refresh this page. If it stays pending, keep your order id ${orderId} for support.` });
+          }
+        },
+      };
+      const rzpCheckout = new window.Razorpay(options);
+      rzpCheckout.on('payment.failed', (resp) => {
+        const reason = (resp && resp.error && resp.error.description) || 'Payment failed.';
+        setRzp({ state: 'error', orderId, accessUntil: null, error: `${reason} No money was taken. You can retry, or use the manual UPI payment below.` });
+      });
+      rzpCheckout.open();
+    } catch (err) {
+      setRzp({ state: 'error', orderId: null, accessUntil: null, error: err.message || 'Could not start the payment. The manual UPI payment below still works.' });
+    }
+  }
+
   const accessActive = status && status.accessActive;
 
   return (
@@ -160,6 +240,48 @@ export default function UpiPayPage() {
           )}
         </div>
       )}
+
+      {/* Razorpay instant checkout (issue #491, test mode) — ADDITION alongside the manual UPI flow below. */}
+      <div className="rzp-box">
+        <h3>Pay instantly with Razorpay</h3>
+        <p className="page-sub">
+          Pay ₹10,000 via UPI in the Razorpay checkout and your account activates automatically — no waiting for admin verification.
+        </p>
+        {!user && (
+          <>
+            <input
+              className="text-input"
+              placeholder="Signup username"
+              value={form.username}
+              onChange={(e) => setForm({ ...form, username: e.target.value })}
+              autoComplete="username"
+            />
+            <input
+              className="text-input"
+              type="password"
+              placeholder="Signup password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              autoComplete="current-password"
+            />
+          </>
+        )}
+        {rzp.state === 'done' ? (
+          <div className="msg-ok">Access active until {fmtDate(rzp.accessUntil)}</div>
+        ) : (
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={payWithRazorpay}
+            disabled={rzp.state === 'creating' || rzp.state === 'verifying' || rzp.state === 'checkout'}
+          >
+            {rzp.state === 'creating' ? 'Starting payment…' : rzp.state === 'verifying' ? 'Verifying payment…' : rzp.state === 'checkout' ? 'Checkout open…' : 'Pay ₹10,000 with Razorpay'}
+          </button>
+        )}
+        {rzp.state === 'verifying' && <p className="muted">Payment received — confirming with the bank, this takes a few seconds…</p>}
+        {rzp.state === 'error' && rzp.error && <p className="msg-error">{rzp.error}</p>}
+        <p className="muted" style={{ fontSize: 13 }}>Instant activation is new — if anything fails, the manual UPI payment below still works as before.</p>
+      </div>
 
       {view === 'failed' ? (
         <div className="pay-fail">
@@ -313,6 +435,8 @@ export default function UpiPayPage() {
       <style>{`
         .balance-card { border: 1px solid #e0e0e0; border-radius: 12px; padding: 16px; background: #fff; margin: 16px 0; max-width: 640px; }
         .balance-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+        .rzp-box { border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; background: #fff; max-width: 860px; margin: 16px 0; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+        .rzp-box h3 { margin: 0; }
         .pay-grid { display: grid; grid-template-columns: 300px 1fr; gap: 24px; max-width: 860px; margin-top: 8px; align-items: start; }
         @media (max-width: 720px) { .pay-grid { grid-template-columns: 1fr; } }
         .qr-box { border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; background: #fff; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
