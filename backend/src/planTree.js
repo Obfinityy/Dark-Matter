@@ -198,7 +198,7 @@ export function renderPlanTree(huntId, { budgetChars = 1800 } = {}) {
     }
   }
   for (const t of getReplanTriggers(hid)) {
-    lines.push(`⚠ RE-PLAN (${t.phase}): ${t.reason}.`);
+    lines.push(`RE-PLAN (${t.phase}): ${t.reason}.`);
   }
   let out = '';
   for (const l of lines) {

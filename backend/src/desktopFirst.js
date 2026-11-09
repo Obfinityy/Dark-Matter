@@ -1,53 +1,24 @@
 // Visible-desktop-first routing (27 Oct 2026, owner order).
 //
-// ROOT CAUSE (measured live, 22:56 IST 27 Oct 2026): the brain does
+// Why it exists (measured live, 22:56 IST 27 Oct 2026): the brain did
 // its work via headless shell curls, which are INVISIBLE — the live
-// desktop sat on the DVWA login page for hours while the owner
-// watched the screen and saw nothing move. The brain HAS desktop
-// actions (browser_open, see_screen, desktop_click_at,
-// desktop_click_control, desktop_key, desktop_terminal) but barely
-// uses them (0 see_screen / 0 desktop_click_at as of 21:19 IST).
-// The gap was NOT missing actions — it was a routing gap:
+// desktop sat on the DVWA login page for hours while the owner watched
+// and saw nothing move. Five stacked causes: shell is listed first and
+// is the fastest path; no per-turn desktop heartbeat (the loop
+// snapshotted the browser once per session); the desktop nudge fired
+// only after a surface was exhausted; loop counters did not count
+// see_screen / desktop_click_at / desktop_terminal; and a shell login
+// stores cookies in curl's jar, leaving the visible browser logged out.
 //
-//   1. Shell is listed FIRST in the action list ("run any shell
-//      command... curl, nmap, python3, anything installed") and is
-//      the fastest path: one curl returns a full page; the desktop
-//      path needs open -> snapshot -> click -> type -> snapshot.
-//      The desktop was described as an OPTION ("you CAN open
-//      pages..."), never as a routing rule, so the brain's
-//      economics rationally picked shell every time.
-//   2. No per-turn desktop heartbeat: the loop snapshots the
-//      browser ONCE per session and takes machine state via shell
-//      `pwd; ls`; the DESKTOP block on the screen only updates when
-//      the brain itself takes desktop_snapshot — which it never
-//      does. The brain never gets a fresh picture of its screen.
-//   3. The desktop nudge fired too late: only when a browser
-//      surface was exhausted AND the desktop was never used — never
-//      for the common case of interactive work done via shell turn
-//      after turn.
-//   4. The counters did not see screen-seeing: loopCounters counted
-//      desktop clicks/keys/control-clicks but NOT see_screen,
-//      desktop_click_at or desktop_terminal, so a brain that looked
-//      at the screen and clicked coordinates still counted as
-//      "desktop never used".
-//   5. A shell login leaves the visible browser logged out: a curl
-//      login stores cookies in curl's jar, not the container
-//      Chromium's cookie jar. Nothing in the loop said so.
+// Owner rule (27 Oct ~23:08 IST): the agent controls the WHOLE Kali
+// Linux OS, not just the browser. ALL interactive work happens on the
+// visible desktop, exactly like a human; shell is only for work that
+// needs no screen (probes, scans, scripts, downloads/installs).
 //
-// FULL-OS CONTROL (owner clarification, 27 Oct ~23:08 IST): the
-// agent controls the WHOLE Kali Linux OS, not just the browser —
-// the browser is one app on the desktop. Commands/scripts may run
-// in the background, but ALL interactive work happens on the
-// visible desktop, exactly like a human: launching tools (Burp
-// Suite, Wireshark, ZAP, any tool the brain wants), operating
-// their GUIs, downloading/installing tools itself, opening any
-// app, switching windows, using the whole OS.
-//
-// This module is the routing layer: pure helpers the human loop
-// wires in. It routes HOW an action is performed, never WHICH
-// vulnerability to try — the brain still chooses its targets and
-// probes; nothing here is predefined. Shell probe paths (SQLi/XSS
-// via curl) are untouched: the rule covers INTERACTIVE steps only.
+// This module is the routing layer: pure helpers the human loop wires
+// in. It routes HOW an action is performed, never WHICH vulnerability
+// to try — the brain still chooses; nothing here is predefined, and
+// shell probe paths (SQLi/XSS via curl) are untouched.
 //
 //   DESKTOP_FIRST_RULE — the prompt section (whole-OS wording)
 //   isDesktopAction / isShellAction — the action-kind classifier
@@ -97,16 +68,12 @@ export function isDesktopAction(kind) {
   return DESKTOP_ACTION_KINDS.has(String(kind || '').toLowerCase());
 }
 
-// ---------------------------------------------------------------------------
 // The prompt section — whole-OS desktop-first routing.
-// ---------------------------------------------------------------------------
 
 export const DESKTOP_FIRST_RULE =
   'VISIBLE DESKTOP FIRST — the owner watches your whole desktop live, and this is how he sees you hunt. You control the WHOLE Kali Linux OS, not just the browser — the browser is one app on the desktop. ALL interactive work happens ON the visible desktop, exactly like a human at the machine: opening pages, logging in, filling forms, clicking through the app, exploring modules, launching tools (Burp Suite, Wireshark, ZAP, any tool you want), operating their GUIs, switching windows, opening any app. Use shell only for work that needs no screen: probes (curl payloads), scans, scripts, downloads and installs — those may run in the background, but the moment you USE a tool, you use it on the desktop where the owner can see it. A curl login does NOT log the visible browser in — if you log in, do it in the browser so the owner sees the authenticated surface. Launch a tool\'s GUI with launch_tool when it is listed among your actions, otherwise start it in desktop_terminal so the owner watches it open; then see_screen to find its window, desktop_click / desktop_click_control to work it (named controls first, screen-map coordinates as the fallback), desktop_key to type. Look, then act, then look again — your thinking is visible through what you do on screen.';
 
-// ---------------------------------------------------------------------------
 // Shell-login detection — a curl/wget login POST.
-// ---------------------------------------------------------------------------
 
 const LOGIN_URL_RE = /(login|signin|sign-in|auth|session)/i;
 const CREDENTIAL_FIELD_RE = /(user(name)?|pass(word)?|login|email)/i;
@@ -121,10 +88,6 @@ export function looksLikeShellLogin(command) {
   const cmd = String(command || '');
   if (!/^\s*(curl|wget)\b/i.test(cmd)) return false;
   if (!LOGIN_URL_RE.test(cmd)) return false;
-  // A POST body (-d/--data/--data-*/--post-data) or a form post
-  // (-F/--form) carrying credential fields, or basic auth (-u
-  // user:pass). A plain GET of a login page is NOT a login
-  // attempt — reading the form is fine.
   const hasBody = /(-d\b|--data(-\w+)?\b|--post-data\b)/i.test(cmd);
   const hasForm = /(-F\b|--form\b)/i.test(cmd);
   const hasBasicAuth = /\s-u\s+\S+:\S+/.test(cmd) || /--user\s+\S+:\S+/.test(cmd);
@@ -133,14 +96,9 @@ export function looksLikeShellLogin(command) {
   return false;
 }
 
-// ---------------------------------------------------------------------------
 // Interactive-task heuristic — the task text, not the action.
-// ---------------------------------------------------------------------------
 
 const INTERACTIVE_TASK_RE = /\b(log ?in(?:to)?|sign ?in|sign ?up|log ?out|password|forms?|fill\w*|click\w*|open\w*|navigat\w*|explor\w*|brows\w*|module\w*|click through|walk through|poke around|look around)\b/i;
-// A task that SAYS probe/test/scan is a probe task, even when it
-// names a login endpoint ("probe SQLi on /login.php" mentions
-// login, but it is a curl probe, not interactive work).
 const PROBE_TASK_RE = /\b(probe|probing|test|testing|scan|scanning|fuzz|fuzzing|inject|payload|bypass|enumerat\w*)\b/i;
 
 /**
@@ -157,9 +115,7 @@ export function isInteractiveTask(task) {
   return INTERACTIVE_TASK_RE.test(t);
 }
 
-// ---------------------------------------------------------------------------
 // Turn classification + the next-turn nudge.
-// ---------------------------------------------------------------------------
 
 /**
  * Classify one turn's executed action kinds. shellOnly is true
@@ -202,9 +158,7 @@ export function desktopFirstNudge(prev) {
   return `Your last turn did interactive work ("${task.slice(0, 80)}") via shell only — the owner could not see it. Do the next interactive step on the visible desktop (browser_open / browser_click / browser_type / see_screen / desktop_click_at), so he watches you hunt.`;
 }
 
-// ---------------------------------------------------------------------------
 // Per-turn desktop heartbeat — the screen read every turn starts with.
-// ---------------------------------------------------------------------------
 
 export const DESKTOP_HEARTBEAT_BUDGET = 600; // chars of screen text per turn
 

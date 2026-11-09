@@ -184,7 +184,6 @@ export function parseChatAnswerLines(replyText) {
   return out;
 }
 
-// ---------------------------------------------------------------------------
 // The honest acknowledgement — REAL-HUMAN lane.
 //
 // While the brain is mid-turn, the instant reply must be HONEST
@@ -199,7 +198,6 @@ export function parseChatAnswerLines(replyText) {
 // the question stays pending until the loop delivers an answer.
 // The caller supplies the record facts; this function only
 // renders them in the user's language. Pure.
-// ---------------------------------------------------------------------------
 
 const BUSY_ACK = {
   english: ({ doing, page, age, pendingCount }) =>

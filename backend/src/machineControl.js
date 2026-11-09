@@ -40,9 +40,7 @@ export const CONTROL_TTL_MS = 30 * 60 * 1000; // 30 minutes
 export const CONTROL_VNC_PID_FILE = '/tmp/dm-control-vnc.pid';
 export const CONTROL_VNC_LOG = '/tmp/dm-control-vnc.log';
 
-// ---------------------------------------------------------------------------
 // Control lock (per hunt, single holder).
-// ---------------------------------------------------------------------------
 
 // huntId -> { userId, username, takenAt }
 const controlLocks = new Map();
@@ -122,9 +120,7 @@ export function resetControlLocks() {
   controlLocks.clear();
 }
 
-// ---------------------------------------------------------------------------
 // Interactive VNC inside the hunt container (loopback-only, port 5901).
-// ---------------------------------------------------------------------------
 
 const VNC_START_CMD =
   `if [ -f ${CONTROL_VNC_PID_FILE} ] && kill -0 "$(cat ${CONTROL_VNC_PID_FILE})" 2>/dev/null; then echo running; ` +
@@ -176,9 +172,7 @@ export async function stopControlDesktop(huntId, deps = {}) {
   return { ok: true };
 }
 
-// ---------------------------------------------------------------------------
 // RFB tunnel: backend WS <-> container-loopback VNC, via docker exec stdio.
-// ---------------------------------------------------------------------------
 
 // Tiny stdio<->TCP forwarder, run as `python3 -c` INSIDE the container.
 // It connects to the loopback VNC from inside the container's own

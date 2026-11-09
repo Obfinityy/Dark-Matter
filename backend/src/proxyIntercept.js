@@ -1,6 +1,6 @@
 // Dark Matter — Proxy Intercept via mitmproxy (Lane U, 23 Oct 2026).
 //
-// Burp-style intercept workflow for the human-mode hunter, built on
+// Why: the hunter must inspect and change requests in flight (Burp-style) — built on
 // the topology the product actually has:
 //
 //   The hunter's browser lives INSIDE its per-hunt container, so the
@@ -70,9 +70,7 @@ const clip = (s, n) => {
   return t.length > n ? `${t.slice(0, n)}…` : t;
 };
 
-// ---------------------------------------------------------------------------
 // Pure capture shaping (unit-tested without Docker)
-// ---------------------------------------------------------------------------
 
 /** Parse one capture line; null when the line is not a flow record. */
 export function parseCaptureLine(line) {
@@ -165,9 +163,7 @@ export function shapeInterceptRead(entry) {
   return lines.join('\n');
 }
 
-// ---------------------------------------------------------------------------
 // Replay construction (pure)
-// ---------------------------------------------------------------------------
 
 const HOP_BY_HOP = new Set([
   'host', 'content-length', 'connection', 'keep-alive', 'proxy-connection',
@@ -243,10 +239,8 @@ export function replaySignature(action) {
   return JSON.stringify({ i: Number.isFinite(idx) ? idx : null, u: a.url ? String(a.url) : '', h, b: a.body == null ? '' : String(a.body) });
 }
 
-// ---------------------------------------------------------------------------
 // Container operations. `exec` has the execInHuntContainer signature
 // (huntId, cmd, timeoutMs, opts) — injectable, like guiTools.
-// ---------------------------------------------------------------------------
 
 let addonCache = null; // { b64, size } — the repo file, read once
 function addonPayload() {

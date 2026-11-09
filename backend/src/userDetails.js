@@ -233,7 +233,6 @@ export function scrubDetailValues(text, secrets) {
   return scrubSecrets(text, secrets);
 }
 
-// ---------------------------------------------------------------------------
 // Screen lines for the hunt loop (mirrors chatQueue.js's
 // chatQuestionScreenLines). Called once per turn from humanLoop.js.
 //
@@ -245,7 +244,6 @@ export function scrubDetailValues(text, secrets) {
 //     never in events, reasoning rows, or the session log.
 //   - A recently declined request (resolved within 3h) says so once,
 //     so the brain moves on instead of re-asking.
-// ---------------------------------------------------------------------------
 export function detailsRequestScreenLines(huntId, sessionSecrets) {
   const lines = [];
   let pending = [];

@@ -617,7 +617,6 @@ export function parseHumanAction(reply) {
   return null;
 }
 
-// ---------------------------------------------------------------------------
 // MEMORY BRIEFING (Lane G, 21 Oct 2026 — owner order: "it HAS memory, so it
 // must never redo work it already did").
 //
@@ -762,7 +761,6 @@ export function researchedNotProbedLines({ events = [], reasoningRows = [] } = {
     .map((s) => `- ${s.topic.label}: researched ×${s.n} in your searches/notes, never probed — candidate next action: send ONE real probe for this at the target now instead of researching it again.`);
 }
 
-// ---------------------------------------------------------------------------
 // UNPROBED LEADS + ENDPOINT COVERAGE (Lane J, 22 Oct 2026)
 //
 // Live diagnosis on the Ezviz hunt (iter 148, 2,121 events, 633 tool
@@ -787,7 +785,6 @@ export function researchedNotProbedLines({ events = [], reasoningRows = [] } = {
 // endpoint × the input it takes × the canonical first test value.
 // Pure perception — nothing is executed, injected or staged; the
 // hunter remains the sole decision-maker.
-// ---------------------------------------------------------------------------
 
 const URL_IN_TEXT = /https?:\/\/[^\s'"<>)\]|]+/gi;
 
@@ -968,7 +965,6 @@ export function unprobedLeadLines({ events = [], reasoningRows = [], target = ''
   return lines.slice(0, limit);
 }
 
-// ---------------------------------------------------------------------------
 // COVERAGE LEDGER + SESSION RECONCILIATION (Lane L, 22 Oct 2026)
 //
 // Lane J made researched-but-unprobed classes concrete for the
@@ -1003,7 +999,6 @@ export function unprobedLeadLines({ events = [], reasoningRows = [], target = ''
 // happened. DOSSIER.md is deliberately NOT written here:
 // consolidation.js owns it and regenerates it wholesale, so open
 // items live in leftOff + the ledger instead of fighting it.
-// ---------------------------------------------------------------------------
 
 /** The topic a Lane J lead line belongs to, when it names one. */
 function leadTopicOf(line) {
@@ -1164,7 +1159,6 @@ export function memoryHeadLength({ deadEnds = [], unprobed = [], globalLessons =
   return assembleMemoryBriefing({ deadEnds, unprobed, globalLessons, dossierText, ledgerText: '', budgetChars: Number.MAX_SAFE_INTEGER }).length;
 }
 
-// ---------------------------------------------------------------------------
 // WORKING MEMORY (Lane I, 21 Oct 2026 — owner order: "make it like a
 // human — when he is thinking he knows his past, what he has done
 // already, and what he is doing now").
@@ -1181,7 +1175,6 @@ export function memoryHeadLength({ deadEnds = [], unprobed = [], globalLessons =
 //     the dossier's Confirmed-facts section can still carry
 //     pre-retraction pollution, so it is never surfaced here.
 //   * CONTINUITY + JOURNAL + RECALL live in humanIteration below.
-// ---------------------------------------------------------------------------
 
 // applyRetractions / retractedFindingCount live in huntMemory.js
 // since Lane O (imported + re-exported above).
@@ -1389,7 +1382,6 @@ function findingsFromEvents(deps, huntId) {
   }
 }
 
-// ---------------------------------------------------------------------------
 // COMPLETE-THE-PROOF GATE (Lane N, 22 Oct 2026 — Lane K's Strix P3,
 // re-implemented by reference; no Strix code copied)
 //
@@ -1431,7 +1423,6 @@ function findingsFromEvents(deps, huntId) {
 // monitors, so the bounce rate is measurable). The gate injects no
 // actions and adds no stages — it only shapes a filing the hunter
 // chose to make.
-// ---------------------------------------------------------------------------
 
 export const CLAIM_EVIDENCE_MIN = 30; // chars of real output, not an assertion
 export const CLAIM_COUNTER_MIN = 10; // chars — more than "n/a" or "checked"
@@ -1535,7 +1526,6 @@ export function leftOffLines(leftOff) {
   return lines.length > 1 ? lines : [];
 }
 
-// ---------------------------------------------------------------------------
 // FAILED-ACTION FOLLOW-THROUGH (Lane T, 23 Oct 2026)
 //
 // Lane P stopped a session hand-off from presenting a dedup-BLOCKED
@@ -2028,7 +2018,6 @@ export function repetitionLines(events) {
   ];
 }
 
-// ---------------------------------------------------------------------------
 // ALREADY-DONE GATE (Lane F, 21 Oct 2026)
 //
 // The Repetition Check above only SHOWS the hunter its repeats, and
@@ -2067,7 +2056,6 @@ export function repetitionLines(events) {
 // only read the hunter's own capture file — reading the same page
 // of your notebook twice harms nothing, exactly like
 // browser_snapshot.
-// ---------------------------------------------------------------------------
 
 export const GATED_TOOLS = new Set(['shell', 'search', 'browser_open', 'browser_click', 'browser_type', 'intercept_replay', 'desktop_click', 'desktop_key', 'desktop_click_control', 'desktop_click_at', 'launch_tool', 'download_tool']);
 const DEDUP_THRESHOLD = 2; // an action already run this many times is not run again
@@ -2312,7 +2300,6 @@ export const GUI_CONTROL_KINDS = new Set([
   'desktop_terminal',
 ]);
 
-// ---------------------------------------------------------------------------
 // DEDUP FRESH-ATTEMPT EXEMPTION (dedup-submit lane, 28 Oct 2026)
 //
 // Live failure (DVWA hunt h_830317bdc184, 28 Oct 2026): the exact-repeat
@@ -2374,7 +2361,6 @@ export const GUI_CONTROL_KINDS = new Set([
 // so a claim proven PROOF_THRESHOLD times is still nudged to file
 // instead of re-proved. Without an events record (ctx absent) the
 // old behaviour holds unchanged.
-// ---------------------------------------------------------------------------
 
 // The screen reads that prove the brain looked at the page again
 // (the same read set the auth gate's FRESH_ATTEMPT_TOOLS carries).
@@ -2457,7 +2443,6 @@ export function dedupeGateHit(kind, action, history, ctx) {
   return { tool: cand.tool, detail: entry.detail, count: entry.count, fullCount, degradedStreak, lastResult: entry.lastResult || '' };
 }
 
-// ---------------------------------------------------------------------------
 // NEAR-DUPLICATE SEARCH GATE (REAL-HUMAN, 26 Oct 2026 — owner
 // clarification 14:18 IST: the repeated-search loop is the same
 // disease as the repeated skill-load loop).
@@ -2486,7 +2471,6 @@ export function dedupeGateHit(kind, action, history, ctx) {
 // tolerance; the third asking is blocked. (A single-run family
 // must never block: the coverage-ledger and working-memory suites
 // legitimately re-run a search once across sessions.)
-// ---------------------------------------------------------------------------
 
 const SEARCH_STOPWORDS = new Set([
   'the', 'a', 'an', 'and', 'or', 'of', 'on', 'in', 'to', 'for', 'how',
@@ -2565,7 +2549,6 @@ export function searchRepeatHit(query, history) {
   return { ...best, familyCount };
 }
 
-// ---------------------------------------------------------------------------
 // AUTH-LOOP GATE (Lane AJ, 24 Oct 2026)
 //
 // Observed failure (Infomaniak hunt, live): the hunter saved a vault
@@ -2619,7 +2602,6 @@ export function searchRepeatHit(query, history) {
 //     form. The dedupe gate (Lane F, threshold 2) stays the
 //     backstop: even a fresh attempt is never executed a third
 //     time, so the worst case is one extra type, never a loop.
-// ---------------------------------------------------------------------------
 
 const LOGIN_PAGE_RE = /\/login|\/authorize|login\.|sign[\s-]?in/i;
 
@@ -2718,7 +2700,6 @@ export function authGateHit(kind, action, history, lastObservation, ctx) {
   return null;
 }
 
-// ---------------------------------------------------------------------------
 // EXHAUSTED SURFACES (Infinity level, 26 Oct 2026)
 //
 // Root cause (Infomaniak hunt, live, iter 108): the dedupe gate keys
@@ -2748,7 +2729,6 @@ export function authGateHit(kind, action, history, lastObservation, ctx) {
 //
 // This is a gate, in the Lane F/AJ shape — it stops traffic, never
 // picks a replacement action (owner order 20 Oct stands).
-// ---------------------------------------------------------------------------
 
 export const EXHAUSTED_MIN_BLOCKS = 3; // blocks before a surface closes
 
@@ -2975,7 +2955,6 @@ export function exhaustedBlockObservation(hit, { target = '', credential = null,
   return out;
 }
 
-// ---------------------------------------------------------------------------
 // PROOF-COMPLETE GATE (gate-replay lane, 28 Oct 2026)
 //
 // The re-proof-without-filing loop (live DVWA hunt h_830317bdc184):
@@ -3007,7 +2986,6 @@ export function exhaustedBlockObservation(hit, { target = '', credential = null,
 // backstop when filed. This gate is a nudge, not a verdict: it can
 // only ever direct the brain to file, and assessResult still
 // decides whether the filing is true.
-// ---------------------------------------------------------------------------
 
 export const PROOF_THRESHOLD = 3; // consistent re-proofs before the loop demands a filing
 
@@ -3088,7 +3066,6 @@ export function proofFileObservation(hit) {
   return `PROOF COMPLETE — FILE IT NOW: you have already proven ${hit.payloadClass.toUpperCase()} on ${hit.endpoint} ${hit.count} times with consistent evidence. A fourth probe of the same claim proves nothing new — it only burns a turn. It was NOT executed. File it now with claim_finding: title the vulnerability, class "${hit.payloadClass}", evidence the exact output that proves it (the reflected marker / dumped rows, pasted raw, not a summary), command the exact reproduction that produced that evidence, and counterevidence the control/baseline result beside it. If the verifier rejects the filing, gather NEW evidence for it — the proof count restarts from the rejection.`;
 }
 
-// ---------------------------------------------------------------------------
 // SETTLED ACTIONS + FAILED-SKILL MEMORY (Lane AD, 24 Oct 2026)
 //
 // The gate above stops repeat TRAFFIC, but the live audit behind
@@ -3130,7 +3107,6 @@ export function proofFileObservation(hit) {
 // cards) WITHOUT re-running the lookup. Only the exact repeat of
 // a name that already failed is gated — every other load_skill
 // behaves exactly as Lane M built it.
-// ---------------------------------------------------------------------------
 
 const SETTLED_MIN_BLOCKS = 3; // gate blocks before an action is carried as settled
 const SETTLED_LIMIT = 5; // settled entries on screen, most-blocked first
@@ -3242,7 +3218,6 @@ function settledFacts({ events = [], history = null } = {}) {
   return rows;
 }
 
-// ---------------------------------------------------------------------------
 // SETTLED-EVIDENCE PERSISTENCE (Lane AH, 24 Oct 2026)
 //
 // Lane AG put the counter-evidence where the brain demonstrably
@@ -3262,7 +3237,6 @@ function settledFacts({ events = [], history = null } = {}) {
 // evidence-carrying line clips at SETTLED_EVIDENCE_LINE_CAP
 // instead. The gate is untouched — this lane changes only how
 // long the evidence LIVES.
-// ---------------------------------------------------------------------------
 
 /**
  * The SETTLED block for the hunter's screen, or [] when nothing
@@ -3300,7 +3274,6 @@ export function settledActionLines({ events = [], history = null } = {}) {
   return lines;
 }
 
-// ---------------------------------------------------------------------------
 // SETTLED BLOCK EVIDENCE (Lane AG, 24 Oct 2026)
 //
 // Lane AD put the settled facts in the screen preamble — and the
@@ -3322,7 +3295,6 @@ export function settledActionLines({ events = [], history = null } = {}) {
 // blocks return '' here and keep the existing observation
 // byte-for-byte. The block stays a block — this lane changes
 // only what the block SAYS.
-// ---------------------------------------------------------------------------
 
 // The evidence snippet caps (SETTLED_EVIDENCE_DETAIL_CAP /
 // SETTLED_EVIDENCE_OUTCOME_CAP) live with the settled constants

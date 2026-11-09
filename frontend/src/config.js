@@ -1,9 +1,7 @@
-// ============================================================================
 // Dark Matter frontend — backend endpoint configuration.
 //
 // The app always uses the hosted ("Cloud") backend. There is no backend
 // switcher in the UI.
-// ============================================================================
 
 // eslint-disable-next-line no-undef
 const env = (typeof import.meta !== 'undefined' && import.meta.env) || {};

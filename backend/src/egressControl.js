@@ -37,9 +37,7 @@ import { isPrivateIP } from './scopeParser.js';
 
 const execFileAsync = promisify(execFile);
 
-// ---------------------------------------------------------------------------
 // Naming (length-limited by kernel: ipset ≤31 chars, iptables chain ≤29)
-// ---------------------------------------------------------------------------
 
 export function sanitizeHuntId(huntId) {
   return String(huntId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32);
@@ -114,9 +112,7 @@ export function tupleEntry(ip, proto, port) {
   return `${ip},${normProto(proto)}:${Number(port)}`;
 }
 
-// ---------------------------------------------------------------------------
 // DNS upstream discovery (pure over injected resolv.conf text)
-// ---------------------------------------------------------------------------
 
 /** First non-localhost nameserver from resolv.conf text; null if none.
  *  FIX (#369, gap 4): only valid IPv4 nameservers count — this layer
@@ -130,9 +126,7 @@ export function resolveUpstreamDns(resolvConfText) {
   return null;
 }
 
-// ---------------------------------------------------------------------------
 // Plan builder (PURE — no side effects; returns exact command strings)
-// ---------------------------------------------------------------------------
 
 /**
  * Build the full egress plan for a hunt.
@@ -343,9 +337,7 @@ export function buildRemoveEgress(huntId, opts = {}) {
   };
 }
 
-// ---------------------------------------------------------------------------
 // Appliers (thin; side effects only through the injected runner)
-// ---------------------------------------------------------------------------
 
 function defaultRunner(argv) {
   const useSudo = process.env.EGRESS_USE_SUDO === '1';
@@ -673,10 +665,8 @@ export async function setupHuntEgress(
   return { netName, gatewayIp, proxyPort, resolverIp, proxyHandle, resolved, scope };
 }
 
-// ---------------------------------------------------------------------------
 // Proxy registry (host-local; the proxy dies with the backend process, so
 // the reconciler re-creates it — see ensureHuntEgressAlive)
-// ---------------------------------------------------------------------------
 
 const proxyRegistry = new Map();
 

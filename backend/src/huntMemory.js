@@ -115,11 +115,9 @@ export function isErrorPageFinding(f) {
   return isHttpErrorPage(ev.response) || isHttpErrorPage(ev.poc_output) || isHttpErrorPage(ev.impact_demo);
 }
 
-// ---------------------------------------------------------------------------
 // Pure record helpers (canonical home — humanLoop re-exports these;
 // they lived there until Lane O and the briefing/tests import them
 // from both places).
-// ---------------------------------------------------------------------------
 
 const eventTs = (e) => (e && (e.cachedAt || e.ts || e.at)) || '';
 
@@ -470,11 +468,9 @@ export function deadEndLines({ ruledOut = [], events = [] } = {}, { limit = 8 } 
   return lines.slice(0, cap);
 }
 
-// ---------------------------------------------------------------------------
 // Left-off derivation (deficit: the persisted hand-off exists only
 // when a session ended cleanly — a hunt with a long record but no
 // persisted leftOff started cold).
-// ---------------------------------------------------------------------------
 
 /**
  * Rebuild a leftOff hand-off from the hunt's permanent record when
@@ -555,9 +551,7 @@ export function deriveLeftOffFromRecord({ reasoningRows = [], events = [], cover
   };
 }
 
-// ---------------------------------------------------------------------------
 // The single read path.
-// ---------------------------------------------------------------------------
 
 function readDossierText(huntId) {
   try {
@@ -705,9 +699,7 @@ export function loadHuntMemory(huntId, { target = '', meta = null } = {}) {
   return out;
 }
 
-// ---------------------------------------------------------------------------
 // State of mind — the hierarchical rendering of the snapshot.
-// ---------------------------------------------------------------------------
 
 function rowOutcome(r) {
   const res = String((r && r.result) || '');

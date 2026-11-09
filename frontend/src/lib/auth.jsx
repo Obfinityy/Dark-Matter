@@ -1,9 +1,7 @@
-// ============================================================================
 // Dark Matter frontend — auth context.
 // Token lives in localStorage (`dm_token`); on boot we validate it with
 // GET /api/v1/auth/me. Hunting requires a logged-in user; browsing and
 // chatting stay open to everyone.
-// ============================================================================
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import {
   login as apiLogin,

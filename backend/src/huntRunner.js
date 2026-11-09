@@ -655,7 +655,6 @@ export async function copyFileFromHuntContainer(huntId, containerPath, hostPath)
   }
 }
 
-// ---------------------------------------------------------------------------
 // Live Machine desktop (GUI the agent drives; the owner watches).
 //
 // The desktop stack (Xvfb + XFCE + Chromium + view-only x11vnc +
@@ -666,7 +665,6 @@ export async function copyFileFromHuntContainer(huntId, containerPath, hostPath)
 // plumbing inside the container is the documented v2 upgrade path to
 // true streaming; its ports are container-loopback only and are NOT
 // published by spawnHuntContainer.
-// ---------------------------------------------------------------------------
 
 const DESKTOP_READY_FILE = '/tmp/dm-desktop.ready';
 const DESKTOP_SHOT_PATH = '/tmp/dm-desktop.jpg';
@@ -990,7 +988,6 @@ export async function execInHuntContainer(huntId, cmd, timeoutMs = 120000, opts 
   }
 }
 
-// ---------------------------------------------------------------------------
 // Container self-heal (Lane E, 21 Oct 2026).
 //
 // Pipeline mode has always respawned a missing hunt container before
@@ -1004,7 +1001,6 @@ export async function execInHuntContainer(huntId, cmd, timeoutMs = 120000, opts 
 // callers), then retry the exec exactly once. They NEVER throw — a
 // failed spawn returns the original container-missing result with the
 // spawn error attached, so the brain sees one clear observation.
-// ---------------------------------------------------------------------------
 
 const containerSpawnsInFlight = new Map(); // huntId -> Promise<ensure result>
 

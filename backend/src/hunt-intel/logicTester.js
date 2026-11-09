@@ -130,10 +130,8 @@ export const INVARIANT_CHECKS = {
   },
 };
 
-// ---------------------------------------------------------------------------
 // BLFinder 21-module business-logic taxonomy (integrated by technique, MIT).
 // Each module: detection strategy + canary verification to kill false positives.
-// ---------------------------------------------------------------------------
 
 export const BL_MODULES = [
   {

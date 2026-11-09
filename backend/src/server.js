@@ -205,7 +205,7 @@ const TERM_VIEWERS = new Map(); // huntId -> Set<ws>
 // forever — no heartbeat, so a browser window abandoned with its
 // terminal open (or a crashed check window) held its slot until a
 // backend restart. The 3rd viewer then got 1013 'too many viewers'
-// and the frontend retried into ⚠ ERROR, which is exactly what the
+// and the frontend retried into ERROR, which is exactly what the
 // 24 Oct evening checks hit (a probe was 1013-rejected while 2 stale
 // check windows still held Infomaniak's slots; closing those windows
 // freed them and a 90s public-path probe then stayed open with

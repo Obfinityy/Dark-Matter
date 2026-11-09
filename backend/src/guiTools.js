@@ -51,7 +51,6 @@ const NOT_AVAILABLE =
 // for a Chromium that was already installed. Fallback text must state
 // plainly: look-only, environment-fixed, not hunter-fixable.
 
-// ---------------------------------------------------------------------------
 // Click-target resolution (Lane R, 23 Oct 2026).
 //
 // Live evidence it answers: on the lab hunt (Juice Shop /ftp listing)
@@ -89,7 +88,6 @@ const NOT_AVAILABLE =
 // so the logic the unit tests exercise is byte-identical to the logic
 // that runs inside the page. Keep it free of closures/imports and of
 // syntax newer than ES2019.
-// ---------------------------------------------------------------------------
 export function resolveClickTarget(requested, labels) {
   const norm = (s) => String(s == null ? '' : s).trim().replace(/\s+/g, ' ');
   const req = norm(requested);
@@ -174,7 +172,7 @@ export function resolveClickTarget(requested, labels) {
           const sub = prev[j - 1] + cost;
           cur[j] = del < ins ? (del < sub ? del : sub) : (ins < sub ? ins : sub);
         }
-        const tmp = prev; prev = cur; cur = tmp;
+        const previous = prev; prev = cur; cur = previous;
       }
       return prev[y.length];
     };
@@ -202,11 +200,9 @@ export function resolveClickTarget(requested, labels) {
   return none;
 }
 
-// ---------------------------------------------------------------------------
 // In-container CDP driver (written on first use). Zero-dependency: Node's
 // global fetch + WebSocket. Params arrive base64-encoded in DMGUI_P64 so
 // shell quoting can never corrupt them.
-// ---------------------------------------------------------------------------
 export const CDP_SCRIPT = `
 const act = process.argv[2];
 const params = JSON.parse(Buffer.from(process.env.DMGUI_P64 || 'e30=', 'base64').toString('utf8'));
@@ -430,11 +426,9 @@ console.log(JSON.stringify(out));
 if (ws) ws.close();
 `;
 
-// ---------------------------------------------------------------------------
 // Probe + per-hunt cache. The desktop may appear after the hunt starts
 // (the desktop lane starts it on demand), so a 'none' result is only
 // cached briefly.
-// ---------------------------------------------------------------------------
 const probeCache = new Map(); // huntId -> { at, mode, chrome, display, scriptInstalled }
 const PROBE_TTL_MS = 60 * 1000;
 
@@ -478,7 +472,6 @@ export function resetGuiProbeCache() {
   probeCache.clear();
 }
 
-// ---------------------------------------------------------------------------
 // Desktop recovery (Lane Z, 24 Oct 2026).
 //
 // Live evidence: on the DVWA hunt (h_bfb7a3a66bc8) the desktop's first
@@ -499,7 +492,6 @@ export function resetGuiProbeCache() {
 // stall on every action, and the poller and the action path never race
 // two starters. When the desktop is healthy (probe says CDP) nothing
 // here runs at all.
-// ---------------------------------------------------------------------------
 function resolveStartDesktop(deps) {
   // Injectable for tests, like the exec seam.
   return (deps && deps.startDesktop) || startHuntDesktop;
@@ -604,10 +596,8 @@ function desktopRecoveryNote(rec) {
   return ' The desktop browser is still down (an automatic restart was already attempted moments ago and failed).';
 }
 
-// ---------------------------------------------------------------------------
 // Snapshot shaping — the model's "eyes". Same output shape for CDP and
 // headless snapshots.
-// ---------------------------------------------------------------------------
 function formatSnapshot(snap, budgetChars = 4200) {
   if (!snap) return '(empty page snapshot)';
   const lines = [`Page: ${snap.title || '(untitled)'} — ${snap.url || ''}`, '--- visible text ---'];
@@ -666,9 +656,7 @@ function snapshotFromHtml(html, url) {
   return { url, title, text: text.slice(0, 6000), elements: elements.slice(0, 60) };
 }
 
-// ---------------------------------------------------------------------------
 // CDP plumbing
-// ---------------------------------------------------------------------------
 async function ensureCdpScript(huntId, exec, probe) {
   if (probe.scriptInstalled) return true;
   const b64 = Buffer.from(CDP_SCRIPT, 'utf8').toString('base64');
@@ -745,10 +733,8 @@ async function savePngArtifact(huntId, b64) {
   return name;
 }
 
-// ---------------------------------------------------------------------------
 // Public actions. Every one returns { ok, observation, artifact? } and
 // NEVER throws — a broken desktop must degrade to text, not kill a hunt.
-// ---------------------------------------------------------------------------
 
 // WRONG-PAGE FIX (25 Oct 2026): the honest refusal when the live
 // desktop's current tab is not the target. Names the actual URL the

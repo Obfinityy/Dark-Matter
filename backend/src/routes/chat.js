@@ -94,7 +94,6 @@ export function clipClean(text, max = 200) {
   return cut + '…';
 }
 
-// ---------------------------------------------------------------------------
 // Off-topic guard for hunt-scoped chat (Lane S, 23 Oct 2026).
 //
 // Owner requirement: a hunt's chat answers ONLY hunt-related things.
@@ -112,7 +111,6 @@ export function clipClean(text, max = 200) {
 // false decline of a real hunt question is worse than a missed
 // off-topic, because the LLM path is hunt-scoped by its system
 // prompt anyway.
-// ---------------------------------------------------------------------------
 
 const HUNT_ANCHOR_PATTERNS = [
   /\bhunt(ing|er)?\b/, /\bscan(ning)?\b/, /\btarget\b/, /finding/,
@@ -277,7 +275,6 @@ export function offTopicDecline(message) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Recent-attempts narration (Lane S, 23 Oct 2026). The deterministic
 // summary answered counts and titles but never WHAT THE HUNTER TRIED —
 // asked "Abhi tak tumne kya kya try kiya hai aur FTP par kya mila?" it
@@ -288,7 +285,6 @@ export function offTopicDecline(message) {
 // "tool: detail" as their action and the observation as their
 // result). No matching row -> the attempt is stated without an
 // outcome; nothing is invented.
-// ---------------------------------------------------------------------------
 
 function commonPrefixLen(a, b) {
   const n = Math.min(a.length, b.length);
