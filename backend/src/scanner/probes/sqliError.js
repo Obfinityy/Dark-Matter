@@ -1,7 +1,13 @@
 // Dark Matter rule-based scanner — error-based SQLi probe with benign control.
-// Oracle: DB error appears on the malicious input AND disappears on the
-// benign input (errorCorrelated) — the differential control from hunt-intel.
-import { detectDbFamily } from '../fingerprint.js';
+// Oracle: a GENUINE DB error appears on the malicious input AND
+// disappears on the benign input (errorCorrelated) — the differential
+// control from hunt-intel. Genuine means a real DB error phrase
+// (detectDbError): a bare engine word inside a random token is never
+// an error (9 Nov 2026, Zerodha FP fix — a Cloudflare cookie
+// containing "psql" was confirmed as "postgres"). An engine-specific
+// signature that contradicts the fingerprinted stack (opts.tech —
+// e.g. postgres on WordPress/MySQL) never confirms either.
+import { detectDbError, engineForTech } from '../fingerprint.js';
 import { mutateUrl, probePointName, probePointParameter } from '../probePoints.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
@@ -34,8 +40,14 @@ export async function probeSqliError(url, params, opts = {}) {
     const malicious = await get(mutateUrl(url, param, "1'"), opts).catch(() => null);
     if (!benign || !malicious) continue;
 
-    const dbFamily = detectDbFamily(malicious.text);
-    const benignDb = detectDbFamily(benign.text);
+    const dbFamily = detectDbError(malicious.text);
+    const benignDb = detectDbError(benign.text);
+    // Stack gate: an engine-specific error that contradicts the
+    // fingerprinted stack (WordPress runs MySQL — a postgres error
+    // there is impossible) is a misread, not a finding. A 'generic'
+    // (SQLSTATE-only) signature contradicts no engine.
+    const stackEngine = engineForTech(opts.tech);
+    if (dbFamily && dbFamily !== 'generic' && stackEngine && dbFamily !== stackEngine) continue;
     if (dbFamily && !benignDb) {
       findings.push({
         class: 'sqli_error',

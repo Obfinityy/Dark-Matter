@@ -1076,7 +1076,10 @@ export async function runScan(
     const points = extractProbePoints(u, pathParamsByUrl.get(u));
     if (points.length === 0) continue;
     paramBatteryRan = true;
-    await step('sqli-error', () => probeSqliError(u, points, opts));
+    // Stack gate input (9 Nov 2026, Zerodha FP fix): the error-SQLi
+    // probe needs the fingerprinted tech so an engine-specific error
+    // contradicting the stack (postgres on WordPress) never confirms.
+    await step('sqli-error', () => probeSqliError(u, points, { ...opts, tech: fp?.tech }));
     await step('sqli-blind', () =>
       probeBlindSqli(u, points, { ...opts, dbHint: fp?.dbHint })
     );
@@ -1926,7 +1929,9 @@ export async function runScan(
   // timing attacks are out of scope.
   await step('timing-side-channel', () => probeTimingSideChannel(forms, url, opts));
   await step('csrf', () => probeCsrf(forms, url));
-  await step('post-forms', () => probePostForms(postForms, opts));
+  // Stack gate input (9 Nov 2026, Zerodha FP fix): same as sqli-error
+  // — the POST form battery needs the fingerprinted tech.
+  await step('post-forms', () => probePostForms(postForms, { ...opts, tech: fp?.tech }));
   // SMTP CANARY INBOX (8 Nov 2026, row #43 T2): the smtp-injection
   // probe's Bcc-relay variant confirms ONLY by received mail at OUR
   // canary inbox — a local SMTP sink started here for the duration of

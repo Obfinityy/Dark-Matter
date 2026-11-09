@@ -3,7 +3,12 @@
 // This battery submits each POST form with injected values and applies the
 // same differential oracles as the URL-param probes.
 import { randomBytes } from 'node:crypto';
-import { detectDbFamily } from '../fingerprint.js';
+// Strict DB-error matcher (9 Nov 2026, Zerodha FP fix): the POST
+// form battery is the variant that actually fired the false
+// positive — a Cloudflare cookie containing "psql" read as a
+// "postgres" error on wp-comments-post.php. Confirmation needs a
+// genuine DB error phrase (detectDbError), never a bare engine word.
+import { detectDbError, dbErrorWindow, engineForTech } from '../fingerprint.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -53,24 +58,10 @@ async function postFormTimed(form, inputName, payload, opts = {}) {
   return { ms: Date.now() - start, ok };
 }
 
-// DB-error signature per family (mirrors detectDbFamily in fingerprint.js)
-// so the finding quotes the matched error window, not just the family name.
-const DB_ERROR_RES = {
-  mysql: /you have an error in your sql syntax|mysql|mariadb/i,
-  mssql: /microsoft ole db|odbc sql server|unclosed quotation mark/i,
-  postgres: /pg_query|postgresql|psql/i,
-  sqlite: /sqlite/i,
-  oracle: /ora-\d{5}/i,
-};
-
-function dbErrorWindow(text, family) {
-  const re = DB_ERROR_RES[family];
-  if (!re) return text.slice(0, 200);
-  const m = text.match(re);
-  if (!m) return text.slice(0, 200);
-  const idx = text.indexOf(m[0]);
-  return text.slice(Math.max(0, idx - 60), idx + 140);
-}
+// The error window is quoted from the shared strict matcher in
+// fingerprint.js (dbErrorWindow) — one source of truth for what
+// counts as a DB error phrase, so the POST battery cannot drift
+// back to bare-word matching.
 
 function withEvidence(form, input, extra) {
   return {
@@ -95,8 +86,13 @@ export async function probePostForms(forms, opts = {}) {
       try {
         const benign = await postForm(form, input, '1', opts);
         const malicious = await postForm(form, input, "1'", opts);
-        const dbFamily = detectDbFamily(malicious);
-        if (dbFamily && !detectDbFamily(benign)) {
+        const dbFamily = detectDbError(malicious);
+        // Stack gate (same rule as sqliError.js): an engine-specific
+        // error contradicting the fingerprinted stack never confirms.
+        const stackEngine = engineForTech(opts.tech);
+        const stackMismatch =
+          dbFamily && dbFamily !== 'generic' && stackEngine && dbFamily !== stackEngine;
+        if (dbFamily && !stackMismatch && !detectDbError(benign)) {
           findings.push({
             class: 'sqli_error',
             id: `sqli-error-post-${input}`,

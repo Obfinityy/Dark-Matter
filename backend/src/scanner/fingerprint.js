@@ -70,6 +70,79 @@ export function detectDbFamily(text) {
   return null;
 }
 
+// Genuine DB error phrases ONLY (9 Nov 2026, Zerodha FP fix). A finding
+// may confirm on a database error only when the response carries real
+// DB error TEXT. Bare engine words ("mysql", "psql", "sqlite",
+// "postgresql") are NOT error proof — they occur inside unrelated
+// tokens (a Cloudflare bot-management cookie containing "psql" was
+// confirmed as a "postgres" error) and in ordinary page text. Every
+// pattern below is a phrase with spaces or punctuation that a random
+// token cannot spell, or a versioned error code (ORA-xxxxx,
+// SQLSTATE). detectDbFamily above stays loose on purpose: it only
+// picks a payload family, where a wrong hint costs a probe, never a
+// finding.
+export const DB_ERROR_PATTERNS = {
+  mysql:
+    /you have an error in your sql syntax|warning:\s*mysql_|mysql_fetch|mysqli?_query|mysql_num_rows|mysql_result|check the manual that corresponds to your (mysql|mariadb) server version|supplied argument is not a valid mysql|mysql server has gone away/i,
+  mssql:
+    /unclosed quotation mark|microsoft ole db|odbc sql server|incorrect syntax near|conversion failed when converting/i,
+  postgres:
+    /pg_query|pg_exec|warning:\s*pg_|syntax error at or near|unterminated quoted string|psql:\s*(error|fatal)/i,
+  sqlite:
+    /sqlite3?[\s.]\w*error|unrecognized token|no such (table|column)|sqlite3?\.operationalerror/i,
+  oracle: /ora-\d{5}|\boci_[a-z_]+\(\)/i,
+};
+
+// Engine-neutral but unmistakable SQL error text: a SQLSTATE code.
+const DB_ERROR_GENERIC_RE = /\bSQLSTATE\s*[[=: ]?\s*[A-Z0-9]{5}/i;
+
+// Strict DB-error matcher for CONFIRMATION paths (sqliError,
+// postForms). Returns the engine family ('mysql' | 'mssql' |
+// 'postgres' | 'sqlite' | 'oracle' | 'generic') or null. A long
+// random/token-looking string never matches: every pattern needs a
+// genuine error phrase, not a bare engine word.
+export function detectDbError(text) {
+  const t = String(text || '');
+  for (const [family, re] of Object.entries(DB_ERROR_PATTERNS)) {
+    if (re.test(t)) return family;
+  }
+  if (DB_ERROR_GENERIC_RE.test(t)) return 'generic';
+  return null;
+}
+
+// Quote window around the matched error phrase for finding evidence.
+// Falls back to the response head when no phrase matches (the
+// 'generic' family, or a caller quoting a non-matching body).
+export function dbErrorWindow(text, family) {
+  const s = String(text || '');
+  const re = DB_ERROR_PATTERNS[family] || (family === 'generic' ? DB_ERROR_GENERIC_RE : null);
+  if (!re) return s.slice(0, 200);
+  const m = s.match(re);
+  if (!m) return s.slice(0, 200);
+  const idx = s.indexOf(m[0]);
+  return s.slice(Math.max(0, idx - 60), idx + 140);
+}
+
+// Stack → database engine for stacks that run exactly one engine in
+// practice (9 Nov 2026, Zerodha FP fix). A postgres-flavoured error
+// on a WordPress target (MySQL; comment_post_ID is cast to int) is
+// impossible — an engine-specific signature that contradicts the
+// fingerprinted stack must never confirm. Only unambiguous stacks
+// are mapped; anything else returns null (no gate).
+const STACK_DB_ENGINE = {
+  wordpress: 'mysql',
+  drupal: 'mysql',
+  joomla: 'mysql',
+  magento: 'mysql',
+};
+export function engineForTech(tech) {
+  for (const t of tech || []) {
+    const engine = STACK_DB_ENGINE[String(t || '').toLowerCase()];
+    if (engine) return engine;
+  }
+  return null;
+}
+
 export async function fingerprint(url, opts = {}) {
   const page = await fetchPage(url, opts);
   return {
