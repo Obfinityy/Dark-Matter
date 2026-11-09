@@ -33,6 +33,9 @@ import {
   ClaimValidationError,
 } from '../paymentClaims.js';
 import { notifyAccount } from '../notifications.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('payments');
 
 const router = Router();
 
@@ -138,7 +141,7 @@ router.post('/claims', limitClaimAttempts, optionalAuth, (req, res) => {
     if (err instanceof ClaimValidationError) {
       return res.status(400).json({ ok: false, error: err.code, message: err.message });
     }
-    console.error('[payments] claim failed:', err.message);
+    log.error('[payments] claim failed:', err.message);
     res.status(502).json({ ok: false, error: 'claim_failed', message: err.message || 'Could not submit the claim.' });
   }
 });
@@ -167,14 +170,14 @@ router.post('/claims/:id/verify', requireAdmin, (req, res) => {
           kind: 'activation',
         });
       } catch { /* notification is best-effort; the activation already happened */ }
-      console.log(`[payments] VERIFIED claim ${req.params.id} for ${result.claim.username}, access until ${result.accessUntil}`);
+      log.info(`[payments] VERIFIED claim ${req.params.id} for ${result.claim.username}, access until ${result.accessUntil}`);
     }
     res.json({ ok: true, claim: result.claim, accessUntil: result.accessUntil, alreadyHandled: !!result.alreadyHandled });
   } catch (err) {
     if (err.message === 'user_not_found') {
       return res.status(410).json({ ok: false, error: 'user_gone', message: 'The claim user no longer exists.' });
     }
-    console.error('[payments] verify failed:', err.message);
+    log.error('[payments] verify failed:', err.message);
     res.status(502).json({ ok: false, error: 'verify_failed', message: err.message || 'Could not verify the claim.' });
   }
 });
@@ -184,11 +187,11 @@ router.post('/claims/:id/reject', requireAdmin, (req, res) => {
     const result = rejectClaim(req.params.id, req.user);
     if (!result) return res.status(404).json({ ok: false, error: 'not_found', message: 'Claim not found.' });
     if (!result.alreadyHandled) {
-      console.log(`[payments] REJECTED claim ${req.params.id} for ${result.claim.username}`);
+      log.info(`[payments] REJECTED claim ${req.params.id} for ${result.claim.username}`);
     }
     res.json({ ok: true, claim: result.claim, alreadyHandled: !!result.alreadyHandled });
   } catch (err) {
-    console.error('[payments] reject failed:', err.message);
+    log.error('[payments] reject failed:', err.message);
     res.status(502).json({ ok: false, error: 'reject_failed', message: err.message || 'Could not reject the claim.' });
   }
 });

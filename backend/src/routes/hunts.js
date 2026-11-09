@@ -66,6 +66,9 @@ import { validateBrainReply, brainReplyToAction } from '../brainReply.js';
 import { recallByHash, recallById, formatFullRecord } from '../actionIndex.js';
 import { getAllReasoning } from '../reasoningMemory.js';
 import { listDetailRequests, submitDetailRequest, cancelDetailRequest, getDetailRequest } from '../userDetails.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('hunts');
 
 /** Reject unless the hunt belongs to the authenticated user.
  *  Hunts without a userId are orphaned (pre-isolation) — admin only. */
@@ -262,7 +265,7 @@ router.post('/', requireAuth, async (req, res) => {
   // unit-tested in one place — see hunts.create.test.js.)
   const { brainMode: reqBrainMode, scanDepth: reqScanDepth, scanScope: reqScanScope } = normalizeHuntCreate(req.body);
   // The AI option stays — the frontend asks "Infinity AI or Infinity Autonomous?".
-  console.log(`[hunts] CREATE attempt by ${req.user.username} (${req.user.id}): target=${target}, mode=${mode}, brainMode=${reqBrainMode}, scanDepth=${reqScanDepth}, scanScope=${reqScanScope}, confirmed=${confirmedAuthorized}`);
+  log.info(`[hunts] CREATE attempt by ${req.user.username} (${req.user.id}): target=${target}, mode=${mode}, brainMode=${reqBrainMode}, scanDepth=${reqScanDepth}, scanScope=${reqScanScope}, confirmed=${confirmedAuthorized}`);
   if (typeof target !== 'string' || !target.trim()) {
     return res.status(400).json({
       ok: false,
@@ -271,7 +274,7 @@ router.post('/', requireAuth, async (req, res) => {
     });
   }
   if (confirmedAuthorized !== true) {
-    console.warn(`[hunts] REJECTED create: confirmedAuthorized missing for target "${target}"`);
+    log.warn(`[hunts] REJECTED create: confirmedAuthorized missing for target "${target}"`);
     return res.status(403).json({
       ok: false,
       error: 'authorization_not_confirmed',
@@ -296,7 +299,7 @@ router.post('/', requireAuth, async (req, res) => {
     if (!isLabTarget) {
       const ssrfCheck = await validateTargetAsync(target);
       if (!ssrfCheck.valid) {
-        console.warn(`[hunts] REJECTED create: SSRF blocked for target "${target}": ${ssrfCheck.reason}`);
+        log.warn(`[hunts] REJECTED create: SSRF blocked for target "${target}": ${ssrfCheck.reason}`);
         return res.status(403).json({
           ok: false,
           error: 'ssrf_blocked',
@@ -304,10 +307,10 @@ router.post('/', requireAuth, async (req, res) => {
         });
       }
     } else {
-      console.log(`[hunts] Lab target authorized, SSRF check skipped: "${target}"`);
+      log.info(`[hunts] Lab target authorized, SSRF check skipped: "${target}"`);
     }
   } catch (err) {
-    console.error('[hunts] SSRF check failed:', err.message);
+    log.error('[hunts] SSRF check failed:', err.message);
     // Fail closed on SSRF check error
     return res.status(500).json({
       ok: false,
@@ -338,10 +341,10 @@ router.post('/', requireAuth, async (req, res) => {
   // Admins (owner) hunt free, and so does a user inside a paid access
   // window (UPI activation: Rs 10,000 = 1 day, already paid for).
   if (req.user.role !== 'admin' && !hasActiveAccessById(req.user.id)) {
-    console.log(`[hunts] Checking credits for ${req.user.username}...`);
+    log.info(`[hunts] Checking credits for ${req.user.username}...`);
     const priceCents = iterationPriceCents(huntMode.id);
     const balanceCents = getBalanceCents(req.user.id);
-    console.log(`[hunts] Balance: $${balanceCents / 100}, required: $${priceCents/100}`);
+    log.info(`[hunts] Balance: $${balanceCents / 100}, required: $${priceCents/100}`);
     if (balanceCents < priceCents) {
       return res.status(402).json({
         ok: false,
@@ -351,7 +354,7 @@ router.post('/', requireAuth, async (req, res) => {
       });
     }
   }
-  console.log(`[hunts] Credits OK, checking dedupe...`);
+  log.info(`[hunts] Credits OK, checking dedupe...`);
   // DEDUPE (owner rule): if this user already hunted this target, redirect to
   // that hunt instead of creating a duplicate — and if it is paused, resume
   // it from its checkpoint. Matching is (user, canonical target, brainMode):
@@ -386,10 +389,10 @@ router.post('/', requireAuth, async (req, res) => {
             state = 'running';
             resumed = true;
           } catch (err) {
-            console.warn(`[hunts] dedupe resume failed for ${existingId}: ${err.message}`);
+            log.warn(`[hunts] dedupe resume failed for ${existingId}: ${err.message}`);
           }
         }
-        console.log(`[hunts] REUSE existing hunt ${existingId} for target "${target}" (user ${req.user.username}, state=${state}, resumed=${resumed})`);
+        log.info(`[hunts] REUSE existing hunt ${existingId} for target "${target}" (user ${req.user.username}, state=${state}, resumed=${resumed})`);
         return res.json({
           ok: true,
           reused: true,
@@ -403,7 +406,7 @@ router.post('/', requireAuth, async (req, res) => {
         });
       }
     } catch (err) {
-      console.warn('[hunts] dedupe check failed:', err.message);
+      log.warn('[hunts] dedupe check failed:', err.message);
     }
   }
   // CONCURRENCY CAP with QUEUE: up to MAX_CONCURRENT_HUNTS hunts (env,
@@ -457,28 +460,28 @@ router.post('/', requireAuth, async (req, res) => {
       });
     }
   } catch (err) {
-    console.error('[hunts] queue check failed:', err.message);
+    log.error('[hunts] queue check failed:', err.message);
     /* fall through to direct creation on queue failure */
   }
   try {
     let huntId;
-    console.log(`[hunts] Creating engine hunt for target "${target}"...`);
+    log.info(`[hunts] Creating engine hunt for target "${target}"...`);
     try {
       ({ huntId } = await createEngineHunt(target, scope));
-      console.log(`[hunts] Engine hunt created: ${huntId}`);
+      log.info(`[hunts] Engine hunt created: ${huntId}`);
     } catch (err) {
       if (!(err instanceof EngineUnreachableError)) throw err;
       // No PentAGI engine on this box — the host agent loop (runAutonomousHunt)
       // is the real hunter, so mint a local hunt id and run fully host-side.
       const { randomBytes } = await import('node:crypto');
       huntId = 'h_' + randomBytes(6).toString('hex');
-      console.warn(`[hunts] engine unreachable — hunt ${huntId} runs host-side only`);
+      log.warn(`[hunts] engine unreachable — hunt ${huntId} runs host-side only`);
     }
     // Parse scope: agent auto-understands what's in/out of scope, program rules,
     // custom User-Agent, etc. This is how it hunts like a human who read the brief.
     const { parseScope } = await import('../scopeParser.js');
     const parsedScope = parseScope(target, scope);
-    console.log(`[hunts] Scope parsed for ${huntId}: UA=${parsedScope.rules.customUserAgent || 'default'}, noHeavyScan=${parsedScope.rules.noHeavyScan}`);
+    log.info(`[hunts] Scope parsed for ${huntId}: UA=${parsedScope.rules.customUserAgent || 'default'}, noHeavyScan=${parsedScope.rules.noHeavyScan}`);
     // P1 SCOPE ENFORCEMENT (31 Oct 2026, AUD-H1): immutable per-hunt scope
     // for the app-layer guard (scopeGuard.js) and P2's network-layer egress
     // control. FAIL-CLOSED (#339): a build failure used to store
@@ -535,7 +538,7 @@ router.post('/', requireAuth, async (req, res) => {
         const { startHumanLoop } = await import('../humanLoopDriver.js');
         startHumanLoop(huntId);
       } catch (err) {
-        console.warn(`[hunts] could not enable human loop for ${huntId}: ${err.message}`);
+        log.warn(`[hunts] could not enable human loop for ${huntId}: ${err.message}`);
       }
     }
     // AI understands the target first (async, non-blocking): tech stack,
@@ -678,7 +681,7 @@ router.get('/:id/terminal/ticket', requireAuth, async (req, res) => {
     
     res.json({ ok: true, ticket });
   } catch (err) {
-    console.error('[terminal] ticket error:', err.message);
+    log.error('[terminal] ticket error:', err.message);
     res.status(500).json({ ok: false, error: 'ticket_failed' });
   }
 });
@@ -963,7 +966,7 @@ router.get('/:id/report', requireAuth, async (req, res) => {
       res.setHeader('Content-Disposition', `attachment; filename="hunt-${huntId}.pdf"`);
       return res.send(pdf);
     } catch (err) {
-      console.warn(`[hunts] pdf render failed for ${huntId}: ${err.message}; falling back to markdown`);
+      log.warn(`[hunts] pdf render failed for ${huntId}: ${err.message}; falling back to markdown`);
       res.setHeader('X-Report-Note', 'pdf-render-failed; markdown returned instead');
       return res.type('text/markdown').send(md);
     }
@@ -1116,21 +1119,21 @@ router.post('/:id/control/take', requireAuth, async (req, res) => {
   const taken = takeControl(req.params.id, user);
   if (!taken.ok) {
     if (taken.error === 'control_restricted') {
-      console.warn(`[control] take DENIED hunt=${req.params.id} user=${user.username} error=control_restricted`);
+      log.warn(`[control] take DENIED hunt=${req.params.id} user=${user.username} error=control_restricted`);
       return res.status(403).json({ ok: false, error: 'control_restricted', message: 'Taking control of a machine requires maximum control. Your admin set your level to minimal.' });
     }
-    console.warn(`[control] take DENIED hunt=${req.params.id} user=${user.username} error=already_controlled holder=${taken.holder}`);
+    log.warn(`[control] take DENIED hunt=${req.params.id} user=${user.username} error=already_controlled holder=${taken.holder}`);
     return res.status(409).json({ ok: false, error: 'already_controlled', holder: taken.holder });
   }
   const started = await startControlDesktop(req.params.id);
   if (!started.ok) {
     // Honest failure: the lock is freed again so a retry is possible,
     // and the frontend shows the real reason instead of a fake control.
-    console.warn(`[control] take FAILED hunt=${req.params.id} user=${user.username} error=${started.error} (lock freed)`);
+    log.warn(`[control] take FAILED hunt=${req.params.id} user=${user.username} error=${started.error} (lock freed)`);
     releaseControl(req.params.id, user);
     return res.status(503).json({ ok: false, error: 'control_unavailable', detail: started.error });
   }
-  console.log(`[control] take OK hunt=${req.params.id} user=${user.username} vncAlreadyRunning=${Boolean(started.alreadyRunning)}`);
+  log.info(`[control] take OK hunt=${req.params.id} user=${user.username} vncAlreadyRunning=${Boolean(started.alreadyRunning)}`);
   // WRONG-PAGE GUARD (fix 6): Take Control sessions are hunt events
   // now, not just journal lines — the loop's history and the
   // monitors can see them. Best-effort: a failed write must never
@@ -1150,11 +1153,11 @@ router.post('/:id/control/release', requireAuth, async (req, res) => {
   const user = { id: req.user.id || req.user.sub, username: req.user.username, role: req.user.role };
   const rel = releaseControl(req.params.id, user);
   if (!rel.ok) {
-    console.warn(`[control] release DENIED hunt=${req.params.id} user=${user.username} error=${rel.error}`);
+    log.warn(`[control] release DENIED hunt=${req.params.id} user=${user.username} error=${rel.error}`);
     const status = rel.error === 'not_controlled' ? 409 : 403;
     return res.status(status).json({ ok: false, error: rel.error });
   }
-  console.log(`[control] release OK hunt=${req.params.id} user=${user.username}`);
+  log.info(`[control] release OK hunt=${req.params.id} user=${user.username}`);
   // WRONG-PAGE GUARD (fix 6): see the take handler above. Only the
   // route records the event — the WS-close release in server.js
   // must NOT, or every normal Done would double-record (Done calls
@@ -1193,7 +1196,7 @@ router.get('/:id/control/ticket', requireAuth, (req, res) => {
     // the take POST was still in flight, so the lock was not held yet
     // and the first attempt failed with "Could not open the control
     // channel". Log it so a recurrence is visible in the journal.
-    console.warn(`[control] ticket DENIED hunt=${req.params.id} user=${req.user.username} lockHeld=${Boolean(lock)}`);
+    log.warn(`[control] ticket DENIED hunt=${req.params.id} user=${req.user.username} lockHeld=${Boolean(lock)}`);
     return res.status(403).json({ ok: false, error: 'not_controlling' });
   }
   const ticket = issueControlTicket(req.user.id || req.user.sub, req.user.username, req.params.id);

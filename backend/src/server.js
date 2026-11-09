@@ -37,6 +37,9 @@ import { backfillAllHunts, episodeLedgerEnabled, runEmbeddingBackfill, backfillR
 import { resolveTtydPort, checkChromiumWatchdog, CHROMIUM_WATCHDOG_MS } from './huntRunner.js';
 import { maybeConsolidateAll } from './consolidation.js';
 import { evaluatePromotions } from './playbook.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('server');
 
 const app = express();
 app.disable('x-powered-by');
@@ -304,7 +307,7 @@ wssTerm.on('connection', async (ws, req, huntId, ticket) => {
     // that crashes the process. The 'close' handler below does the
     // cleanup; this only keeps the error from being fatal.
     guardStreamError(ws, (err) => {
-      console.warn(`[terminal] WS error hunt=${huntId} error=${err && err.message ? err.message : err}`);
+      log.warn(`[terminal] WS error hunt=${huntId} error=${err && err.message ? err.message : err}`);
     });
 
     ws.on('close', () => {
@@ -386,7 +389,7 @@ wssControl.on('connection', async (ws, req, huntId, ticket) => {
     // One viewer: the holder. A second socket for the same hunt is a
     // stale tab, not a second driver.
     if (CONTROL_VIEWERS.has(huntId)) {
-      console.warn(`[control] WS DENIED hunt=${huntId} user=${payload.username || payload.sub} error=already_controlling`);
+      log.warn(`[control] WS DENIED hunt=${huntId} user=${payload.username || payload.sub} error=already_controlling`);
       ws.close(1013, 'already controlling');
       return;
     }
@@ -398,7 +401,7 @@ wssControl.on('connection', async (ws, req, huntId, ticket) => {
     // 'close' handler below does the cleanup (kills the tunnel,
     // releases the lock); this only keeps the error from being fatal.
     guardStreamError(ws, (err) => {
-      console.warn(`[control] WS error hunt=${huntId} error=${err && err.message ? err.message : err}`);
+      log.warn(`[control] WS error hunt=${huntId} error=${err && err.message ? err.message : err}`);
     });
 
     // Heartbeat (same discipline as the terminal proxy): a missed pong
@@ -423,17 +426,17 @@ wssControl.on('connection', async (ws, req, huntId, ticket) => {
     try {
       tunnel = spawnControlTunnel(huntId);
     } catch (err) {
-      console.error(`[control] tunnel spawn FAILED hunt=${huntId} error=${err.message || err}`);
+      log.error(`[control] tunnel spawn FAILED hunt=${huntId} error=${err.message || err}`);
       ws.close(1011, 'control unreachable');
       return;
     }
-    console.log(`[control] WS open hunt=${huntId} user=${payload.username || payload.sub}`);
+    log.info(`[control] WS open hunt=${huntId} user=${payload.username || payload.sub}`);
     tunnel.on('error', (err) => {
-      console.error(`[control] tunnel error hunt=${huntId} error=${err && err.message ? err.message : err}`);
+      log.error(`[control] tunnel error hunt=${huntId} error=${err && err.message ? err.message : err}`);
       if (ws.readyState === ws.OPEN) ws.close(1011, 'control unreachable');
     });
     tunnel.on('close', (code, signal) => {
-      console.warn(`[control] tunnel exit hunt=${huntId} code=${code} signal=${signal || '-'}`);
+      log.warn(`[control] tunnel exit hunt=${huntId} code=${code} signal=${signal || '-'}`);
       if (ws.readyState === ws.OPEN) ws.close(1011, 'control closed');
     });
 
@@ -449,11 +452,11 @@ wssControl.on('connection', async (ws, req, huntId, ticket) => {
     // exit 1). Close honestly (1011); the 'close' handler below kills
     // the tunnel and releases the lock via the existing close path.
     guardStreamError(tunnel.stdin, (err) => {
-      console.error(`[control] tunnel stdin error hunt=${huntId} error=${err && err.message ? err.message : err}`);
+      log.error(`[control] tunnel stdin error hunt=${huntId} error=${err && err.message ? err.message : err}`);
       if (ws.readyState === ws.OPEN) ws.close(1011, 'control unreachable');
     });
     guardStreamError(tunnel.stdout, (err) => {
-      console.error(`[control] tunnel stdout error hunt=${huntId} error=${err && err.message ? err.message : err}`);
+      log.error(`[control] tunnel stdout error hunt=${huntId} error=${err && err.message ? err.message : err}`);
       if (ws.readyState === ws.OPEN) ws.close(1011, 'control unreachable');
     });
 
@@ -471,7 +474,7 @@ wssControl.on('connection', async (ws, req, huntId, ticket) => {
     });
 
     ws.on('close', async (code, reason) => {
-      console.log(`[control] WS close hunt=${huntId} code=${code} reason=${String(reason || '')}`);
+      log.info(`[control] WS close hunt=${huntId} code=${code} reason=${String(reason || '')}`);
       CONTROL_VIEWERS.delete(huntId);
       if (tunnel) {
         try { tunnel.kill('SIGTERM'); } catch { /* already dead */ }
@@ -483,14 +486,14 @@ wssControl.on('connection', async (ws, req, huntId, ticket) => {
     // so the machine returns to the AI instead of sitting locked.
     const idleTimer = setTimeout(() => {
       if (ws.readyState === ws.OPEN) {
-        console.warn(`[control] WS idle timeout hunt=${huntId}`);
+        log.warn(`[control] WS idle timeout hunt=${huntId}`);
         ws.close(1000, 'control idle timeout');
       }
     }, CONTROL_TTL_MS);
     ws.on('close', () => clearTimeout(idleTimer));
 
   } catch (err) {
-    console.warn(`[control] WS auth FAILED hunt=${huntId} error=${err.message || err}`);
+    log.warn(`[control] WS auth FAILED hunt=${huntId} error=${err.message || err}`);
     if (ws.readyState === ws.OPEN) ws.close(1008, 'auth failed');
     if (tunnel) {
       try { tunnel.kill('SIGTERM'); } catch { /* already dead */ }
@@ -642,10 +645,10 @@ function streamEvent(ev) {
 // ---- Boot -------------------------------------------------------------------
 
 server.listen(config.port, () => {
-  console.log(`[backend] listening on :${config.port}`);
-  console.log(`[backend] engine -> ${config.engineUrl}`);
-  console.log(`[backend] voice  -> ${config.voiceUrl}`);
-  console.log(
+  log.info(`[backend] listening on :${config.port}`);
+  log.info(`[backend] engine -> ${config.engineUrl}`);
+  log.info(`[backend] voice  -> ${config.voiceUrl}`);
+  log.info(
     `[backend] allowlist -> ${config.allowedTargets.length ? config.allowedTargets.join(', ') : '(empty — hunt creation is disabled until ALLOWED_TARGETS is set)'}`
   );
 
@@ -674,12 +677,12 @@ server.listen(config.port, () => {
         const n =
           healed.completed.length + healed.requeued.length + healed.failed.length;
         if (n) {
-          console.log(
+          log.info(
             `[resume:${tag}] queue hygiene: ${healed.completed.length} completed, ${healed.requeued.length} requeued, ${healed.failed.length} failed`
           );
         }
       } catch (err) {
-        console.error(`[resume:${tag}] queue hygiene failed:`, err.message || err);
+        log.error(`[resume:${tag}] queue hygiene failed:`, err.message || err);
       }
       // EGRESS TEARDOWN (6 Nov 2026, h_fc3861b36b82 leak): a finished
       // hunt's iptables chain + ipsets + network survived for days
@@ -694,12 +697,12 @@ server.listen(config.port, () => {
         const { reconcileStaleEgressState } = await import('./huntRunner.js');
         const stale = await reconcileStaleEgressState();
         if (stale.reconciled.length) {
-          console.log(
+          log.info(
             `[resume:${tag}] egress teardown: removed stale kernel state for ${stale.reconciled.length} finished hunt(s): ${stale.reconciled.join(', ')}`
           );
         }
       } catch (err) {
-        console.error(`[resume:${tag}] egress teardown reconcile failed:`, err.message || err);
+        log.error(`[resume:${tag}] egress teardown reconcile failed:`, err.message || err);
       }
       const { listHuntMetas } = await import('./store.js');
       const { resumeInterruptedHunt } = await import('./huntAgent.js');
@@ -716,28 +719,28 @@ server.listen(config.port, () => {
           // recovery; see resumeInterruptedScannerHunt.
           if (meta.brainMode === 'scanner') {
             const ok = await resumeInterruptedScannerHunt(meta.huntId).catch((err) => {
-              console.error(`[resume:${tag}] ${meta.huntId} scanner resume failed:`, err.message || err);
+              log.error(`[resume:${tag}] ${meta.huntId} scanner resume failed:`, err.message || err);
               return false;
             });
             if (ok) {
               resumed++;
-              console.log(`[resume:${tag}] ${meta.huntId} scanner scan resumed after restart`);
+              log.info(`[resume:${tag}] ${meta.huntId} scanner scan resumed after restart`);
             }
             continue;
           }
           const ok = await resumeInterruptedHunt(meta.huntId).catch((err) => {
-            console.error(`[resume:${tag}] ${meta.huntId} failed:`, err.message || err);
+            log.error(`[resume:${tag}] ${meta.huntId} failed:`, err.message || err);
             return false;
           });
           if (ok) {
             resumed++;
-            console.log(`[resume:${tag}] ${meta.huntId} resumed from checkpoint`);
+            log.info(`[resume:${tag}] ${meta.huntId} resumed from checkpoint`);
           }
         }
       }
-      if (resumed) console.log(`[resume:${tag}] ${resumed} interrupted hunt(s) resumed`);
+      if (resumed) log.info(`[resume:${tag}] ${resumed} interrupted hunt(s) resumed`);
     } catch (err) {
-      console.error(`[resume:${tag}] scan failed:`, err.message || err);
+      log.error(`[resume:${tag}] scan failed:`, err.message || err);
     }
   }
   setTimeout(() => scanAndResumeRunningHunts('boot'), BOOT_HUNT_RESUME_DELAY_MS);
@@ -759,11 +762,11 @@ server.listen(config.port, () => {
         try {
           await ensureHuntEgressAlive(meta.huntId);
         } catch (err) {
-          console.error(`[egress:${tag}] ${meta.huntId}:`, err && err.message ? err.message : err);
+          log.error(`[egress:${tag}] ${meta.huntId}:`, err && err.message ? err.message : err);
         }
       }
     } catch (err) {
-      console.error(`[egress:${tag}] scan failed:`, err && err.message ? err.message : err);
+      log.error(`[egress:${tag}] scan failed:`, err && err.message ? err.message : err);
     }
   }
 
@@ -782,10 +785,10 @@ server.listen(config.port, () => {
     try {
       const r = await checkChromiumWatchdog();
       if (r.revived) {
-        console.log(`[desktop:watchdog:${tag}] revived Chromium for ${r.revived} hunt(s)`);
+        log.info(`[desktop:watchdog:${tag}] revived Chromium for ${r.revived} hunt(s)`);
       }
     } catch (err) {
-      console.error(`[desktop:watchdog:${tag}] check failed:`, err.message || err);
+      log.error(`[desktop:watchdog:${tag}] check failed:`, err.message || err);
     }
   }
   setTimeout(() => checkChromiumWatchdogTick('boot'), BOOT_CHROMIUM_WATCHDOG_DELAY_MS);
@@ -799,21 +802,21 @@ server.listen(config.port, () => {
   function flushEpisodeLedgers(tag) {
     try {
       if (!episodeLedgerEnabled()) {
-        console.log('[episodes] ledger disabled (node:sqlite unavailable on this runtime)');
+        log.info('[episodes] ledger disabled (node:sqlite unavailable on this runtime)');
         return;
       }
       const r = backfillAllHunts();
       if (r.inserted) {
-        console.log(`[episodes:${tag}] mirrored ${r.inserted} new episode(s); ${r.total} total across ${r.hunts} hunt(s)`);
+        log.info(`[episodes:${tag}] mirrored ${r.inserted} new episode(s); ${r.total} total across ${r.hunts} hunt(s)`);
       }
       // Job 6 stage 4: seed the dead-end registry from historical
       // validator-rejected findings (boot only; idempotent).
       if (tag === 'boot') {
         const ro = backfillRuledOutFromEpisodes();
-        if (ro.recorded) console.log(`[episodes:boot] dead-end registry seeded with ${ro.recorded} historical validator lesson(s)`);
+        if (ro.recorded) log.info(`[episodes:boot] dead-end registry seeded with ${ro.recorded} historical validator lesson(s)`);
       }
     } catch (err) {
-      console.error(`[episodes:${tag}] flush failed:`, err.message || err);
+      log.error(`[episodes:${tag}] flush failed:`, err.message || err);
     }
   }
   setTimeout(() => flushEpisodeLedgers('boot'), BOOT_EPISODE_FLUSH_DELAY_MS);
@@ -827,10 +830,10 @@ server.listen(config.port, () => {
       if (!episodeLedgerEnabled()) return;
       const r = await runEmbeddingBackfill({ maxEpisodes: 64 });
       if (r.embedded > 0 && r.remaining === 0) {
-        console.log(`[episodes:${tag}] embedding index complete`);
+        log.info(`[episodes:${tag}] embedding index complete`);
       }
     } catch (err) {
-      console.error(`[episodes:${tag}] embedding backfill failed:`, err.message || err);
+      log.error(`[episodes:${tag}] embedding backfill failed:`, err.message || err);
     }
   }
   setTimeout(() => backfillEpisodeEmbeddings('boot'), BOOT_EMBEDDING_BACKFILL_DELAY_MS);
@@ -844,16 +847,16 @@ server.listen(config.port, () => {
     try {
       const r = maybeConsolidateAll();
       if (r.done) {
-        console.log(`[consolidation:${tag}] ${r.huntId}: episodes ${r.covered[0]}–${r.covered[1]} -> DOSSIER.md`);
+        log.info(`[consolidation:${tag}] ${r.huntId}: episodes ${r.covered[0]}–${r.covered[1]} -> DOSSIER.md`);
       }
       // Job 6 stage 5: the playbook promotion gate — a proposal becomes
       // a live rule only on validator-confirmed evidence.
       const pr = evaluatePromotions();
       if (pr.promoted) {
-        console.log(`[playbook:${tag}] promoted ${pr.promoted} proposal(s) on validator-confirmed evidence`);
+        log.info(`[playbook:${tag}] promoted ${pr.promoted} proposal(s) on validator-confirmed evidence`);
       }
     } catch (err) {
-      console.error(`[consolidation:${tag}] failed:`, err.message || err);
+      log.error(`[consolidation:${tag}] failed:`, err.message || err);
     }
   }
   setTimeout(() => consolidateOnce('boot'), BOOT_CONSOLIDATION_DELAY_MS);

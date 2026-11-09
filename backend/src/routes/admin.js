@@ -20,6 +20,9 @@ import { flipcheckSummary } from '../brain/oneLoopFlipcheck.js';
 import { config } from '../config.js';
 // P0 (31 Oct 2026): probe/test names are never confirmed findings.
 import { isProbeNameTitle } from '../claimTitleGuard.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('admin');
 
 const router = Router();
 
@@ -269,7 +272,7 @@ router.post('/users/:id/approve', requireAdmin, (req, res) => {
   user.approved = true;
   user.approvedAt = new Date().toISOString();
   writeUsers(users);
-  console.log(`[admin] APPROVED user: ${user.username}`);
+  log.info(`[admin] APPROVED user: ${user.username}`);
   res.json({ ok: true, user: publicUser(user) });
 });
 
@@ -287,7 +290,7 @@ router.post('/users/:id/reject', requireAdmin, (req, res) => {
   }
   delete users[username];
   writeUsers(users);
-  console.log(`[admin] REJECTED signup: ${username}`);
+  log.info(`[admin] REJECTED signup: ${username}`);
   res.json({ ok: true, message: `Signup rejected for ${username}.` });
 });
 

@@ -37,6 +37,9 @@ import {
   busyAck,
   queueFullLine,
 } from '../chatQueue.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('chat');
 
 /**
  * The confirmed findings of a hunt, as UNIQUE titles. Findings must
@@ -520,7 +523,7 @@ router.post(
   const lang = detectChatLanguage(message);
   let chatRoute = 'unknown';
   res.on('finish', () => {
-    console.log(`[chat] route=${chatRoute} lang=${lang} ms=${Date.now() - startedAt} hunt=${huntId || '-'} status=${res.statusCode}`);
+    log.info(`[chat] route=${chatRoute} lang=${lang} ms=${Date.now() - startedAt} hunt=${huntId || '-'} status=${res.statusCode}`);
   });
 
   // Ownership check for hunt-scoped chat: your hunts are yours alone.

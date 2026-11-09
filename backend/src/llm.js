@@ -34,6 +34,9 @@ import https from 'node:https';
 // entire backend on startup if the exports don't exist.
 import { recordCost, recordCostSafe } from './costTracker.js';
 import { config } from './config.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('llm');
 
 const PROVIDER = String(process.env.LLM_PROVIDER || 'bedrock').toLowerCase();
 
@@ -312,7 +315,7 @@ async function chatWithOllama(messages, system, ctx, opts = {}) {
     throw err;
   } finally {
     try {
-      console.error(`[llm] ollama call hunt=${huntId} advisory=${advisory} outcome=${outcome} duration_ms=${Date.now() - callStart}`);
+      log.error(`[llm] ollama call hunt=${huntId} advisory=${advisory} outcome=${outcome} duration_ms=${Date.now() - callStart}`);
     } catch { /* logging never breaks the call */ }
   }
 }
@@ -453,7 +456,7 @@ async function chatWithOllamaInner(messages, system, ctx, opts = {}) {
       try {
         result = await ollamaChatOnce(attemptMs);
       } catch (err) {
-        console.error(`[llm] advisory call failed fast at ${OLLAMA_URL}: ${err.message} — skipping advice`);
+        log.error(`[llm] advisory call failed fast at ${OLLAMA_URL}: ${err.message} — skipping advice`);
         return null;
       }
       if (!result || !result.ok) return null;
@@ -467,16 +470,16 @@ async function chatWithOllamaInner(messages, system, ctx, opts = {}) {
     try {
       result = await ollamaChatOnce(hbTimeoutMs);
     } catch (err) {
-      console.error(`[llm] Ollama attempt 1 failed at ${OLLAMA_URL}: ${err.message}`);
+      log.error(`[llm] Ollama attempt 1 failed at ${OLLAMA_URL}: ${err.message}`);
       if (isOllamaConnectionError(err)) {
         // The server is (re)starting — wait for it to answer again
         // before the retry (readiness note above). An immediate
         // retry here is the old bug: ECONNREFUSED while the model
         // reloads, then null, then a no-reply turn.
-        console.error('[llm] Ollama connection failed — waiting for the server to come back before retrying');
+        log.error('[llm] Ollama connection failed — waiting for the server to come back before retrying');
         const ready = await waitForOllamaReady();
         if (!ready) {
-          console.error('[llm] Ollama never came back within the readiness wait');
+          log.error('[llm] Ollama never came back within the readiness wait');
           return null;
         }
         writeHeartbeat(); // extend the deadline across the wait
@@ -485,12 +488,12 @@ async function chatWithOllamaInner(messages, system, ctx, opts = {}) {
       try {
         result = await ollamaChatOnce(hbTimeoutMs);
       } catch (err2) {
-        console.error(`[llm] Ollama unreachable at ${OLLAMA_URL} after retry: ${err2.message}`);
+        log.error(`[llm] Ollama unreachable at ${OLLAMA_URL} after retry: ${err2.message}`);
         return null;
       }
     }
     if (!result.ok) {
-      console.error(`[llm] Ollama HTTP ${result.status} for model ${OLLAMA_MODEL}: ${result.body || ''}`);
+      log.error(`[llm] Ollama HTTP ${result.status} for model ${OLLAMA_MODEL}: ${result.body || ''}`);
       // RETRY ON 5xx (19 Oct 2026): HTTP 500 "unexpected EOF" is transient —
       // it fires while the model is (re)loading after a watchdog kill or an
       // OOM crash. The old fixed 15s wait assumed the watchdog's ~15-30s
@@ -499,21 +502,21 @@ async function chatWithOllamaInner(messages, system, ctx, opts = {}) {
       // soon as the server answers (fast for a quick reload) and waits
       // out a slow one, bounded.
       if (result.status >= 500) {
-        console.error('[llm] Ollama 5xx — waiting for the server to be ready again, then one retry');
+        log.error('[llm] Ollama 5xx — waiting for the server to be ready again, then one retry');
         const ready = await waitForOllamaReady();
         if (!ready) {
-          console.error('[llm] Ollama never came back after 5xx');
+          log.error('[llm] Ollama never came back after 5xx');
           return null;
         }
         writeHeartbeat(); // extend the deadline across the wait
         try {
           result = await ollamaChatOnce(hbTimeoutMs);
         } catch (err3) {
-          console.error(`[llm] Ollama retry after 5xx failed: ${err3.message}`);
+          log.error(`[llm] Ollama retry after 5xx failed: ${err3.message}`);
           return null;
         }
         if (!result.ok) {
-          console.error(`[llm] Ollama still HTTP ${result.status} after 5xx retry: ${result.body || ''}`);
+          log.error(`[llm] Ollama still HTTP ${result.status} after 5xx retry: ${result.body || ''}`);
           return null;
         }
       } else {
@@ -555,7 +558,7 @@ async function chatWithOllamaInner(messages, system, ctx, opts = {}) {
 async function chatWithOpenRouter(messages, system, ctx) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    console.error('[llm] OpenRouter API key not configured (OPENROUTER_API_KEY)');
+    log.error('[llm] OpenRouter API key not configured (OPENROUTER_API_KEY)');
     return null;
   }
   const model = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
@@ -569,7 +572,7 @@ async function chatWithOpenRouter(messages, system, ctx) {
     });
   }
   try {
-    console.log('[llm] OpenRouter calling model:', model);
+    log.info('[llm] OpenRouter calling model:', model);
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -589,7 +592,7 @@ async function chatWithOpenRouter(messages, system, ctx) {
     if (res.status === 429) {
       // Rate limited — wait and retry once
       const retryAfter = parseInt(res.headers.get('retry-after') || '5', 10);
-      console.log(`[llm] OpenRouter rate limited, waiting ${retryAfter}s...`);
+      log.info(`[llm] OpenRouter rate limited, waiting ${retryAfter}s...`);
       await new Promise((r) => setTimeout(r, retryAfter * 1000));
       // Retry once
       const retryRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -609,7 +612,7 @@ async function chatWithOpenRouter(messages, system, ctx) {
         signal: AbortSignal.timeout(120000),
       });
       if (!retryRes.ok) {
-        console.error(`[llm] OpenRouter retry HTTP ${retryRes.status}`);
+        log.error(`[llm] OpenRouter retry HTTP ${retryRes.status}`);
         return null;
       }
       const retryData = await retryRes.json();
@@ -618,7 +621,7 @@ async function chatWithOpenRouter(messages, system, ctx) {
       return (retryText || '').trim() || null;
     }
     if (!res.ok) {
-      console.error(`[llm] OpenRouter HTTP ${res.status}`);
+      log.error(`[llm] OpenRouter HTTP ${res.status}`);
       return null;
     }
     const data = await res.json();
@@ -626,7 +629,7 @@ async function chatWithOpenRouter(messages, system, ctx) {
       ? data.choices[0].message.content : null;
     return (text || '').trim() || null;
   } catch (err) {
-    console.error('[llm] OpenRouter error:', err.message);
+    log.error('[llm] OpenRouter error:', err.message);
     return null;
   }
 }
@@ -651,7 +654,7 @@ export async function chatWithAI(messages, system, ctx, opts = {}) {
 async function chatWithKaggle(messages, system, ctx) {
   const baseUrl = (process.env.KAGGLE_GRADIO_URL || '').replace(/\/$/, '');
   if (!baseUrl) {
-    console.error('[llm] Kaggle Gradio URL not configured (KAGGLE_GRADIO_URL)');
+    log.error('[llm] Kaggle Gradio URL not configured (KAGGLE_GRADIO_URL)');
     return null;
   }
   const clean = (t) => sanitizeForModel(String(t || ''));
@@ -667,7 +670,7 @@ async function chatWithKaggle(messages, system, ctx) {
       signal: AbortSignal.timeout(60000),
     });
     if (!res.ok) {
-      console.error(`[llm] Kaggle submit HTTP ${res.status}`);
+      log.error(`[llm] Kaggle submit HTTP ${res.status}`);
       return null;
     }
     const { event_id } = await res.json();
@@ -689,10 +692,10 @@ async function chatWithKaggle(messages, system, ctx) {
       }
       if (/event:\s*complete/.test(text) && !m) return null;
     }
-    console.error('[llm] Kaggle poll timed out');
+    log.error('[llm] Kaggle poll timed out');
     return null;
   } catch (err) {
-    console.error('[llm] Kaggle error:', err.message);
+    log.error('[llm] Kaggle error:', err.message);
     return null;
   }
 }
@@ -708,7 +711,7 @@ async function chatWithKaggle(messages, system, ctx) {
  */
 async function chatWithSageMaker(messages, system, ctx) {
   if (!SAGEMAKER_ENDPOINT) {
-    console.error('[llm] SageMaker endpoint not configured (SAGEMAKER_ENDPOINT_NAME)');
+    log.error('[llm] SageMaker endpoint not configured (SAGEMAKER_ENDPOINT_NAME)');
     return null;
   }
 
@@ -724,7 +727,7 @@ async function chatWithSageMaker(messages, system, ctx) {
       throw new Error('SageMaker SDK exports not found');
     }
   } catch (err) {
-    console.error('[llm] SageMaker SDK load failed:', err.message);
+    log.error('[llm] SageMaker SDK load failed:', err.message);
     return null;
   }
 
@@ -798,7 +801,7 @@ async function chatWithSageMaker(messages, system, ctx) {
 
     return text;
   } catch (err) {
-    console.error(`[llm] SageMaker failed: ${err.message}`);
+    log.error(`[llm] SageMaker failed: ${err.message}`);
     return null;
   }
 }
