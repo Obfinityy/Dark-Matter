@@ -1112,9 +1112,13 @@ router.post('/:id/control/take', requireAuth, async (req, res) => {
   if (!['running', 'paused'].includes(meta.state)) {
     return res.status(400).json({ ok: false, error: 'hunt_not_active' });
   }
-  const user = { id: req.user.id || req.user.sub, username: req.user.username, role: req.user.role };
+  const user = { id: req.user.id || req.user.sub, username: req.user.username, role: req.user.role, control: req.user.control };
   const taken = takeControl(req.params.id, user);
   if (!taken.ok) {
+    if (taken.error === 'control_restricted') {
+      console.warn(`[control] take DENIED hunt=${req.params.id} user=${user.username} error=control_restricted`);
+      return res.status(403).json({ ok: false, error: 'control_restricted', message: 'Taking control of a machine requires maximum control. Your admin set your level to minimal.' });
+    }
     console.warn(`[control] take DENIED hunt=${req.params.id} user=${user.username} error=already_controlled holder=${taken.holder}`);
     return res.status(409).json({ ok: false, error: 'already_controlled', holder: taken.holder });
   }

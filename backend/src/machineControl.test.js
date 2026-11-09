@@ -23,7 +23,8 @@ import {
 } from './machineControl.js';
 
 const OWNER = { id: 'u-owner', username: 'bhavesh189', role: 'admin' };
-const OTHER = { id: 'u-other', username: 'someone', role: 'user' };
+const OTHER = { id: 'u-other', username: 'someone', role: 'user', control: 'maximum' };
+const MINIMAL = { id: 'u-min', username: 'minimal', role: 'user', control: 'minimal' };
 
 test('MC-1: take succeeds and the lock reports the holder', () => {
   resetControlLocks();
@@ -297,4 +298,15 @@ test('MC-17: a 12-byte VNC reply reaches the forwarder stdout immediately', asyn
     try { child.kill('SIGKILL'); } catch { /* already dead */ }
     await new Promise((resolve) => server.close(resolve));
   }
+});
+
+test('MC-10: minimal-control user cannot take control (#346)', () => {
+  resetControlLocks();
+  const r = takeControl('h1', MINIMAL, 1000);
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'control_restricted');
+  assert.equal(isMachineControlled('h1', 1000), false);
+  // ...and the denial takes no lock: a maximum user can still take it.
+  const r2 = takeControl('h1', OTHER, 1000);
+  assert.ok(r2.ok);
 });
