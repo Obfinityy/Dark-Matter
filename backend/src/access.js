@@ -35,16 +35,21 @@ export function hasActiveAccessById(userId) {
 
 /**
  * Grant (or renew) an access window: approves the account and sets
- * accessUntil to now + days. Returns the new accessUntil ISO string.
+ * accessUntil. Returns the new accessUntil ISO string.
  * Callers must persist via writeUsers — this helper mutates the record
  * object in place and returns it; it does NOT write the store itself,
  * so tests can assert the mutation without touching the file.
+ * FIX (#345): renewals STACK onto a still-active window instead of
+ * discarding it — a user with 20h left who pays again keeps those 20h
+ * plus the new days. An expired (or invalid) window restarts from now.
  */
 export function grantAccess(userRecord, days = 1) {
   if (!userRecord) throw new Error('No user record to activate.');
   const n = Number(days);
   if (!Number.isFinite(n) || n <= 0) throw new Error('Access days must be positive.');
-  const until = new Date(Date.now() + n * ACCESS_DAY_MS).toISOString();
+  const existing = new Date(userRecord.accessUntil || 0).getTime();
+  const base = Number.isFinite(existing) && existing > Date.now() ? existing : Date.now();
+  const until = new Date(base + n * ACCESS_DAY_MS).toISOString();
   userRecord.approved = true;
   userRecord.approvedAt = new Date().toISOString();
   userRecord.accessUntil = until;
