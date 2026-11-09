@@ -7,10 +7,10 @@ and nothing is claimed without evidence.
 
 ## Live status (9 Nov 2026, ~08:48 IST)
 
-- Coverage: **306/478 = 64.0% LIVE**, 95 phases in `backend/src/scanner/index.js`
-- HEAD: `5f3ecf64` (CAPTCHA feedback-route fix, phase 95, row #40), **72nd deploy verified** (workflow
-  42554014971, backend PID 2121362, health ok, all 6 labs up)
-- Suites at HEAD: src 2492/2481/0/11, plain 2556/2545/0/11
+- Coverage: **307/478 = 64.2% LIVE**, 96 phases in `backend/src/scanner/index.js`
+- HEAD: `c5b25f26` (CSS injection probe, phase 96, row #194), **73rd deploy verified** (workflow
+  42562053237, backend PID 2177079, health ok, all 6 labs up)
+- Suites at HEAD: src 2517/2506/0/11, plain 2581/2570/0/11
 - AI hunt `h_7d49c6ef7447` paused at iter 296 (owner zero-Meta order, 3 Nov 2026);
   spend frozen $38.4952 / 4661 entries
 - Baselines: DVWA **20** titles, Juice Shop **25** titles (listed below)
@@ -58,6 +58,7 @@ and nothing is claimed without evidence.
 | 23 | 9 Nov ~06:25 | 70th `e3eac1e2` | `h_8009e3793f25` {20,0} | `h_b13b38519fc1` {25,0} | PASS, 0 retractions. **Row #190 AIB to LIVE — proven true negative** (two-tier oracle: tier-1 static mine found ZERO runtime template-engine calls in Juice first-party bundles + inline blocks, `engines=0, enginesNearSink=0, driveAttempted=false` — no drive needed; DVWA `csti` phase skipped 'no script targets'). Coverage 305/478. Baselines unchanged: DVWA 20, Juice 25. `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
 | 24 | 9 Nov ~07:45 | 71st `cdf4a2d7` | `h_1487805ad95e` {20,0} | `h_a6eb0c43fde8` {25,0} | INCONCLUSIVE for row #40, 0 retractions. Both legs baseline-exact, but the Juice captcha drive never ran (`feedbackRoutes=0, controlOk=false, attempts=0` — the miner's templated write target `/api/Feedbacks/dmprobe4_2e69` was rejected by the probe's exact-end matcher). DVWA captcha phase skipped 'no script targets' (designed). Coverage stays 305/478. |
 | 25 | 9 Nov ~08:47 | 72nd `5f3ecf64` | `h_e49818888c34` {20,0} | `h_6c10630921ab` {25,0} | PASS, 0 retractions. **Row #40 AIB to LIVE — proven true negative** (feedback-route fix: the probe now resolves the templated write target to the collection URL; Juice captcha drive RAN: `feedbackRoutes=1, controlOk=true, attempts=2`, control accepted; manual repro: missing-captcha POST → HTTP 500, wrong-answer POST → HTTP 401, neither created feedback — bypass refuted on both variants. DVWA captcha phase skipped 'no script targets', designed). Coverage 306/478. Baselines unchanged: DVWA 20, Juice 25. `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
+| 26 | 9 Nov ~10:15 | 73rd `c5b25f26` | `h_a59ff524bb70` {20,0} | `h_07048340864f` {25,0} | PASS, 0 retractions. **Row #194 AIB to LIVE — proven true negative** (two-tier oracle: tier-1 mines the served page HTML + first-party JS for CSS contexts; DVWA `css-injection` phase ok:true, 1ms, `cssSinks=0, cssNearSink=0, driveAttempted=false` — zero CSS contexts on the served page, no drive needed; Juice `css-injection` phase ok:true, 82s, `cssSinks=1, cssNearSink=0, driveAttempted=true, driveExecuted=false` — one `<style>` block mined, tier-2 CDP drive RAN with the canary marker colour, no execution observed. DVWA phases 96/86/10/0/0, 142 events; Juice phases 531/531/0/0/0, 589 events). Coverage 307/478. Baselines unchanged: DVWA 20, Juice 25. `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
 
 ## Behaviour-analysis live proof (60th deploy `203c6d44`)
 
@@ -176,6 +177,7 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 | 70th | `e3eac1e2` | 42538535922 | CSTI probe, phase 94 (row #190) |
 | 71st | `cdf4a2d7` | 42548297209 | CAPTCHA bypass probe, phase 95 (row #40) |
 | 72nd | `5f3ecf64` | 42554014971 | CAPTCHA feedback-route fix (row #40) |
+| 73rd | `c5b25f26` | 42562053237 | CSS injection probe, phase 96 (row #194) |
 
 ## Screenshots
 
