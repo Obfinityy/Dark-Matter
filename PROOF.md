@@ -5,12 +5,12 @@ target on EC2, verified first-hand (direct EC2 read, never a relay), with hunt I
 title-exact baselines and zero retractions. Nothing here is a unit-test result alone
 and nothing is claimed without evidence.
 
-## Live status (9 Nov 2026, ~13:20 IST)
+## Live status (9 Nov 2026, ~15:00 IST)
 
-- Coverage: **308/478 = 64.4% LIVE**, 98 phases in `backend/src/scanner/index.js`
-- HEAD: `ee975835` (Mutation XSS probe, phase 98, row #116), **75th deploy verified** (workflow
-  42579566956, backend PID 2295016, health ok, all 6 labs up)
-- Suites at HEAD: src 2562/2551/0/11, plain 2626/2615/0/11
+- Coverage: **313/478 = 65.5% LIVE**, 102 phases in `backend/src/scanner/index.js`
+- HEAD: `e0ef10a4` (DOM trio probes, phase 102, rows #91/#89/#90), **78th deploy verified** (workflow
+  42587796527, backend PID 2353219, health ok, all 6 labs up)
+- Suites at HEAD: src 2687/2676/0/11, plain 2751/2740/0/11
 - AI hunt `h_7d49c6ef7447` paused at iter 296 (owner zero-Meta order, 3 Nov 2026);
   spend frozen $38.4952 / 4661 entries
 - Baselines: DVWA **20** titles, Juice Shop **26** titles (listed below)
@@ -61,6 +61,8 @@ and nothing is claimed without evidence.
 | 26 | 9 Nov ~10:15 | 73rd `c5b25f26` | `h_a59ff524bb70` {20,0} | `h_07048340864f` {25,0} | PASS, 0 retractions. **Row #194 AIB to LIVE — proven true negative** (two-tier oracle: tier-1 mines the served page HTML + first-party JS for CSS contexts; DVWA `css-injection` phase ok:true, 1ms, `cssSinks=0, cssNearSink=0, driveAttempted=false` — zero CSS contexts on the served page, no drive needed; Juice `css-injection` phase ok:true, 82s, `cssSinks=1, cssNearSink=0, driveAttempted=true, driveExecuted=false` — one `<style>` block mined, tier-2 CDP drive RAN with the canary marker colour, no execution observed. DVWA phases 96/86/10/0/0, 142 events; Juice phases 531/531/0/0/0, 589 events). Coverage 306/478 (count corrected 9 Nov ~11:10 IST — ledger recount: 306 unique LIVE ids). Baselines unchanged: DVWA 20, Juice 25. `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
 | 27 | 9 Nov ~12:15 | 74th `a8e5b276` | `h_29263e3fb529` {20,0} | `h_a9d50377d29f` {26,0} | PASS, 0 retractions. **NEW [High] on Juice: 'BFLA — admin endpoint callable by low-privilege user'** (GET `/api/Users` with a low-privilege Bearer token → HTTP 200, 64264 bytes vs admin control 64264 bytes, same admin data; no-token 401; class `bfla_bypass`; `bfla` phase `findingsCount=1, adminRoutes=2, registerOk=true, controlOk=true, attempts=1, bypassKind='low-priv-admin-route'`). Row #340 AIB to LIVE. Coverage 307/478. Juice baseline becomes 26. DVWA `bfla` honest no-op (0 admin routes mined; `adminRoutes=0, registerOk=false, controlOk=false, attempts=0`). DVWA phases 97/87/10/0/0, 143 events; Juice phases 532/532/0/0/0, 591 events. `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
 | 28 | 9 Nov ~13:20 | 75th `ee975835` | `h_a19f89014171` {20,0} | `h_77808a4ab3e9` {26,0} | PASS, 0 retractions. **Row #116 AIB to LIVE — proven true negative** (two-tier DOM-sink oracle: tier-1 mined first-party JS for HTML-write assignments; DVWA `mutation-xss` phase skipped 'no script targets' by design, 0ms — DVWA serves no JS; Juice `mxssSinks=1, mxssNearSink=1, driveAttempted=true, driveExecuted=false` — tier-2 CDP drive RAN all renders (control + 2 canary shapes x 2 vectors), control clean, canary inert in every render = proven true negative, no #116 finding). Coverage 308/478. Baselines unchanged: DVWA 20, Juice 26. DVWA phases 98/87/11/0/0, 144 events; Juice phases 533/533/0/0/0, 592 events. `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
+| 29 | 9 Nov ~14:05 | 77th `18900b2f` | `h_7fb2db4ca4f4` {20,0} | `h_a02f5b2ea2b5` {26,0} | INCONCLUSIVE for rows #78 + #371, 0 retractions. Both legs baseline-exact, but the Juice coupon drive never ran (`couponRoutes=1, couponCodes=0, controlOk=false, attempts=0` — this Juice Shop build (v17.3.0) has NO coupon-list endpoint: GET /api/Coupons returns HTTP 500, and the bundle publishes no codes; the probe never guesses codes by design). DVWA `coupon-abuse` phase ok:true, 0ms, `couponRoutes=0, couponCodes=0, attempts=0` — DVWA has no coupon surface at all. Coverage stays 308/478. Fix: a dedicated coupon lab (port 3610) is built and parent-verified; re-proof runs on it. |
+| 30 | 9 Nov ~14:46 | 78th `e0ef10a4` | `h_0f285f54870d` {20,0} | `h_b03922828348` {26,0} | PASS, 0 retractions. **Rows #91 + #89 + #90 AIB to LIVE — proven true negatives** (three two-tier DOM-sink oracles sharing the #275/#274 CDP harness; DVWA trio phases all skipped 'no script targets' by design — DVWA serves no JS; Juice `dom-open-redirect` ok:true, 8s, `redirectSinks=11, redirectNearSink=0, driveAttempted=true, driveExecuted=false` — CDP drive RAN (control + canary shapes, generic params redirect/next), canary never navigated; `dom-clobbering` ok:true, 19ms, `clobberSinks=0, clobberNearSink=0, driveAttempted=false` — ZERO sink-feeding global reads, no drive needed; `dom-cookie-manipulation` ok:true, 15ms, `cookieSinks=0, cookieNearSink=0, sessionOk=false, driveAttempted=false` — ZERO document.cookie writes, no drive needed; sessionOk false is the early-return artifact, the lab session existed (dom-render authDom true, token)). Coverage 313/478. Baselines unchanged: DVWA 20, Juice 26. DVWA phases 102/88/14/0/0, 148 events; Juice phases 537/537/0/0/0, 596 events. `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
 
 ## Behaviour-analysis live proof (60th deploy `203c6d44`)
 
@@ -183,6 +185,9 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 | 73rd | `c5b25f26` | 42562053237 | CSS injection probe, phase 96 (row #194) |
 | 74th | `a8e5b276` | 42572310222 | BFLA probe, phase 97 (row #340) |
 | 75th | `ee975835` | 42579566956 | Mutation XSS probe, phase 98 (row #116) |
+| 76th | `0eee858b` | 42582266153 | Site-crawl mode (scanScope page/site, route-grouped reporting; both proof legs baseline-exact with findingsByRoute live, but multi-page crawl NOT yet proven live — both legs crawled 1 page: Juice is an SPA with no <a> links, DVWA hits the login wall) |
+| 77th | `18900b2f` | 42585263008 | Coupon-abuse probe, phase 99 (rows #78/#371, unproven — proof #29 INCONCLUSIVE) |
+| 78th | `e0ef10a4` | 42587796527 | DOM trio probes, phase 102 (rows #91/#89/#90) |
 
 ## Screenshots
 

@@ -4493,3 +4493,18 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .empty-state-text { font-size: 13px; color: var(--dm-secondary); margin: 0 0 12px; max-width: 520px; }
 
 .empty-state-text:last-child { margin-bottom: 0; }
+
+/* SEO landing copy (merged from main 2026-11-09, commit e2ac2f6e): visible section
+   under the hero quick actions — restyled from main's light card to the dark
+   token system. Rules live here (not design-system.css) per the redesign token rule. */
+.dm-seo { width: 100%; margin: 8px 0 24px; text-align: left; }
+.dm-seo h2 { margin: 0 0 10px; color: var(--dm-text); font-size: 17px; font-weight: 700; line-height: 1.4; }
+.dm-seo > p { margin: 0 0 18px; color: var(--dm-secondary); font-size: 13.5px; line-height: 1.65; }
+.dm-seo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.dm-seo-item { border: 1px solid var(--dm-border); border-radius: 12px; background: var(--dm-raised); padding: 14px; }
+.dm-seo-item h3 { margin: 0 0 6px; color: var(--dm-text); font-size: 13.5px; font-weight: 650; }
+.dm-seo-item p { margin: 0; color: var(--dm-secondary); font-size: 12.5px; line-height: 1.55; }
+@media (max-width: 768px) {
+  .dm-seo-grid { grid-template-columns: 1fr; gap: 8px; }
+  .dm-seo h2 { font-size: 15.5px; }
+}
