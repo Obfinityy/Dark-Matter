@@ -1,8 +1,8 @@
 /* Landing page (issue 489, tranche 2). Token-driven only: every color,
    surface, border, and shadow below is a var(--dm-*) token from
    design-system.css. No hardcoded colors, no gradients, no glassmorphism.
-   The page scrolls inside the app shell (.main is a flex column); .lp is
-   the scroll container so the sidebar/topbar stay fixed around it. */
+   The page is rendered WITHOUT the app shell (App.jsx returns it alone
+   for logged-out "/"); .lp is the full-page scroll container. */
 
 .lp {
   flex: 1;
@@ -294,7 +294,7 @@
 
 /* --- Pricing --- */
 .lp-price-card {
-  max-width: 520px;
+  max-width: 640px;
   margin: 36px auto 0;
   background: var(--dm-surface);
   border: 1px solid var(--dm-border-strong);
@@ -302,6 +302,26 @@
   padding: 36px 32px;
   text-align: center;
   box-shadow: var(--dm-shadow-md);
+}
+
+.lp-price-includes {
+  margin: 24px auto 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 460px;
+  text-align: left;
+}
+
+.lp-price-includes li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--dm-text);
 }
 
 .lp-price-amount {
@@ -393,10 +413,10 @@
 .lp-footer-inner {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 28px 24px;
+  padding: 40px 24px 32px;
   display: flex;
-  align-items: center;
-  gap: 24px;
+  align-items: flex-start;
+  gap: 48px;
   flex-wrap: wrap;
 }
 
@@ -404,6 +424,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1 1 280px;
 }
 
 .lp-footer-wordmark {
@@ -417,25 +438,48 @@
   color: var(--dm-faint);
 }
 
-.lp-footer-links {
+.lp-footer-col {
   display: flex;
-  gap: 4px;
-  margin-left: auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 140px;
+}
+
+.lp-footer-heading {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dm-faint);
 }
 
 .lp-footer-link {
   background: none;
   border: none;
-  padding: 8px 10px;
+  padding: 6px 0;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--dm-secondary);
   border-radius: 8px;
+  text-align: left;
 }
 
 .lp-footer-link:hover {
   color: var(--dm-text);
-  background: var(--dm-surface);
+}
+
+.lp-footer-bottom {
+  border-top: 1px solid var(--dm-border);
+}
+
+.lp-footer-bottom p {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  font-size: 12px;
+  color: var(--dm-faint);
 }
 
 /* --- Mobile: 390px single column, nav collapses to wordmark + actions --- */
@@ -505,13 +549,17 @@
   }
 
   .lp-footer-inner {
-    padding: 24px 16px;
+    padding: 32px 16px 24px;
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: 28px;
   }
 
-  .lp-footer-links {
-    margin-left: 0;
+  .lp-footer-brand {
+    flex: none;
+  }
+
+  .lp-footer-bottom p {
+    padding: 14px 16px;
   }
 }

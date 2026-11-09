@@ -800,6 +800,28 @@ function AppInner() {
     );
   }
 
+  // Logged-out landing: the public front door renders with NO app shell —
+  // no sidebar, no app topbar — only the landing page's own marketing
+  // header (QA on PR #490: the shell's Log in / Request access buttons
+  // duplicated the landing nav's and pushed its content off-centre).
+  // Logged-in "/" renders the shell exactly as before.
+  if (page === 'chat' && !user) {
+    return (
+      <div className="app">
+        <LandingPage onNavigate={navigate} onRequestAccess={() => openAuthModal('login')} />
+        {authModal && (
+          <AuthModal
+            mode={authModal}
+            onClose={() => setAuthModal(null)}
+            onDone={() => setPage('chat')}
+            onNavigate={navigate}
+          />
+        )}
+        <ToastHost />
+      </div>
+    );
+  }
+
   return (
     <div className={`app${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
       <Sidebar
@@ -837,9 +859,6 @@ function AppInner() {
         <ActivityDrawer open={activityOpen} onClose={() => setActivityOpen(false)} />
         {(page === 'privacy' || page === 'terms') && (
           <LegalPage type={page} onNavigate={navigate} />
-        )}
-        {page === 'chat' && !user && (
-          <LandingPage onNavigate={navigate} onRequestAccess={() => openAuthModal('login')} />
         )}
         {page === 'chat' && user && (
           <ChatPage

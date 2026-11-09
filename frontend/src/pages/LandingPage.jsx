@@ -1,6 +1,9 @@
 // Landing page — the logged-out front door of Dark Matter (issue 489).
-// Rendered by App.jsx in place of ChatPage when page === 'chat' and there
-// is no logged-in user. The sidebar/topbar shell around it is unchanged.
+// Rendered by App.jsx INSTEAD of the app shell when page === 'chat' and
+// there is no logged-in user: no sidebar, no app topbar — the landing
+// page's own marketing header is the only header on the screen (QA fix
+// on PR #490: the shell duplicated the landing nav's Log in /
+// Request access buttons and pushed the content off-centre).
 // Everything on this page is honest about the product: the app mock below
 // the hero is a static illustration built from the real hunt-card classes
 // with clearly labelled sample data — not a screenshot, not real findings.
@@ -227,13 +230,13 @@ export default function LandingPage({ onNavigate, onRequestAccess }) {
               <div className="lp-mock-findings">
                 <div className="finding sev-high">
                   <span className="finding-sev">High</span>
-                  <span className="finding-title">Reflected XSS — Verified</span>
+                  <span className="finding-title">Reflected XSS</span>
                   <span className="finding-badge finding-verified">Verified</span>
                   <div className="finding-detail">/search?q= reflects input without encoding. Payload executes in the victim&apos;s browser. Reproduction steps included in the report.</div>
                 </div>
                 <div className="finding sev-medium">
                   <span className="finding-sev">Medium</span>
-                  <span className="finding-title">Missing security headers — Verified</span>
+                  <span className="finding-title">Missing security headers</span>
                   <span className="finding-badge finding-verified">Verified</span>
                   <div className="finding-detail">Content-Security-Policy and X-Frame-Options are not set on the main application.</div>
                 </div>
@@ -288,10 +291,24 @@ export default function LandingPage({ onNavigate, onRequestAccess }) {
 
         <section className="lp-section" id="pricing">
           <h2>Pricing</h2>
-          <p className="lp-section-sub">One flat price. No tiers.</p>
+          <p className="lp-section-sub">One flat price. No tiers, no subscription — one payment, one day.</p>
           <div className="lp-price-card">
             <p className="lp-price-amount">₹10,000</p>
             <p className="lp-price-term">1 day of access</p>
+            <ul className="lp-price-includes">
+              <li>
+                <span className="lp-check" aria-hidden="true"><Icon>{ICONS.check}</Icon></span>
+                <span>Full access for 1 day — every feature in the product</span>
+              </li>
+              <li>
+                <span className="lp-check" aria-hidden="true"><Icon>{ICONS.check}</Icon></span>
+                <span>Pay through any UPI app — no card, no gateway</span>
+              </li>
+              <li>
+                <span className="lp-check" aria-hidden="true"><Icon>{ICONS.check}</Icon></span>
+                <span>Admin-verified activation within 24 hours of verification</span>
+              </li>
+            </ul>
             <p className="lp-price-detail">
               Pay through any UPI app, then submit the payment details. An admin
               verifies the payment and activates your account within 24 hours of
@@ -299,8 +316,8 @@ export default function LandingPage({ onNavigate, onRequestAccess }) {
             </p>
             <button type="button" className="btn btn-primary lp-cta" onClick={requestAccess}>Request access</button>
             <p className="lp-price-note">
-              Access is granted by an admin after review. The ₹10,000 UPI payment is
-              the fast path to one day of access.
+              One payment activates one day. Need another day? Renew the same way —
+              each verified payment activates one more day.
             </p>
           </div>
         </section>
@@ -325,10 +342,22 @@ export default function LandingPage({ onNavigate, onRequestAccess }) {
             <span className="lp-footer-wordmark">DARK MATTER</span>
             <span className="lp-footer-sub">Infinity AI · Built by Obfinity</span>
           </div>
-          <nav className="lp-footer-links" aria-label="Legal">
+          <nav className="lp-footer-col" aria-label="Product">
+            <p className="lp-footer-heading">Product</p>
+            <button type="button" className="lp-footer-link" onClick={() => scrollToSection('how-it-works')}>How it works</button>
+            <button type="button" className="lp-footer-link" onClick={() => scrollToSection('features')}>Features</button>
+            <button type="button" className="lp-footer-link" onClick={() => scrollToSection('security')}>Security</button>
+            <button type="button" className="lp-footer-link" onClick={() => scrollToSection('pricing')}>Pricing</button>
+            <button type="button" className="lp-footer-link" onClick={() => scrollToSection('faq')}>FAQ</button>
+          </nav>
+          <nav className="lp-footer-col" aria-label="Legal">
+            <p className="lp-footer-heading">Legal</p>
             <button type="button" className="lp-footer-link" onClick={() => onNavigate && onNavigate('privacy')}>Privacy Policy</button>
             <button type="button" className="lp-footer-link" onClick={() => onNavigate && onNavigate('terms')}>Terms of Service</button>
           </nav>
+        </div>
+        <div className="lp-footer-bottom">
+          <p>© 2026 Obfinity · Dark Matter / Infinity AI — authorized testing only.</p>
         </div>
       </footer>
     </div>
