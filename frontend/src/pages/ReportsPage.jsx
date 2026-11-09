@@ -126,7 +126,10 @@ export default function ReportsPage({ preselectedHuntId }) {
             </button>
           </div>
           {hunts.length === 0 && (
-            <div className="empty-hint">No hunts yet. Start one from the chat page.</div>
+            <div className="empty-state">
+              <p className="empty-state-title">No hunts yet</p>
+              <p className="empty-state-text">Start your first hunt from the chat page and its report will appear here, ready to generate.</p>
+            </div>
           )}
           {hunts.map((h) => (
             <button
@@ -145,7 +148,12 @@ export default function ReportsPage({ preselectedHuntId }) {
         </div>
 
         <div className="reports-detail">
-          {!selectedId && <div className="empty-hint">Select a hunt to view or generate its report.</div>}
+          {!selectedId && (
+            <div className="empty-state">
+              <p className="empty-state-title">No hunt selected</p>
+              <p className="empty-state-text">Pick a hunt from the list to view its report, or load one by ID above.</p>
+            </div>
+          )}
           {selectedId && (
             <>
               <div className="report-actions">
@@ -168,7 +176,12 @@ export default function ReportsPage({ preselectedHuntId }) {
                   <Markdown text={markdown} />
                 </div>
               ) : (
-                !error && <div className="empty-hint">No report generated yet for this hunt.</div>
+                !error && (
+                  <div className="empty-state">
+                    <p className="empty-state-title">No report yet for this hunt</p>
+                    <p className="empty-state-text">Reports build automatically as the hunt progresses. Press Generate report above, or wait a little and it will appear here.</p>
+                  </div>
+                )
               )}
             </>
           )}
