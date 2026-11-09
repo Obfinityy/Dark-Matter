@@ -176,7 +176,11 @@ test('(a) a missing per-type field names that field', () => {
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: -1, y: 1 } })), 'action.x'));
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: 10000, y: 1 } })), 'action.x'));
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: 1, y: null } })), 'action.y'));
-  assert.deepEqual(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: 9999, y: 800 } })), { ok: true });
+  assert.deepEqual(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: 1279, y: 799 } })), { ok: true });
+  // FIX (#370): the validator mirrors parseClickAt's per-axis bounds
+  // (1280x800 desktop) — a point the dispatch refuses must fail here too.
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: 1280, y: 1 } })), 'action.x'));
+  assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'desktop_click_at', x: 1, y: 800 } })), 'action.y'));
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'intercept_read', index: 'abc' } })), 'action.index'));
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'intercept_read', index: -1 } })), 'action.index'));
   assert.ok(hasField(validateBrainReply(shellReply({ action: { type: 'intercept_read', index: 1.5 } })), 'action.index'));

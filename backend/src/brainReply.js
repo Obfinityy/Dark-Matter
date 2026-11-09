@@ -30,7 +30,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MAX_CLICK_COORD } from './screenMap.js';
+import { MAX_CLICK_X, MAX_CLICK_Y } from './screenMap.js';
 
 const SCHEMA_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), 'brainReply.schema.json');
 
@@ -154,12 +154,14 @@ export function validateBrainReply(reply) {
       // FIX (#366): presence-only let strings ("left") and absurd
       // coordinates pass validation and fail at dispatch. Mirror
       // parseClickAt (screenMap.js) exactly: integer NUMBERS in
-      // [0, MAX_CLICK_COORD). The bound is imported, not copied, so
+      // [0, MAX_CLICK_X) for x and [0, MAX_CLICK_Y) for y (the fixed
+      // 1280x800 desktop). The bounds are imported, not copied, so
       // #370's bound fix moves validator and dispatch together.
       for (const axis of ['x', 'y']) {
         const v = action[axis];
+        const bound = axis === 'x' ? MAX_CLICK_X : MAX_CLICK_Y;
         if (!Number.isInteger(v)) bad(`action.${axis}`, `"action.${axis}" must be an integer point from the see_screen map — got ${JSON.stringify(v)} (a string like "left" is not a point).`);
-        else if (v < 0 || v >= MAX_CLICK_COORD) bad(`action.${axis}`, `"action.${axis}" must be in range 0–${MAX_CLICK_COORD - 1} — got ${v}; take see_screen again and use a point from the map.`);
+        else if (v < 0 || v >= bound) bad(`action.${axis}`, `"action.${axis}" must be in range 0–${bound - 1} — got ${v}; take see_screen again and use a point from the map.`);
       }
     }
     if (type === 'desktop_click_control') need('control', "the control's visible name (e.g. \"Repeater\")");
