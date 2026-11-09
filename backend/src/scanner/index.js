@@ -53,6 +53,7 @@ import { probeTwoFaBruteForce } from './probes/twoFaBruteForce.js';
 import { probeCredentialStuffing } from './probes/credentialStuffing.js';
 import { probeBfla } from './probes/bfla.js';
 import { probeCouponAbuse } from './probes/couponAbuse.js';
+import { probeApiTokenAuth } from './probes/apiTokenAuth.js';
 import { probeDomPostMessage } from './probes/domPostMessage.js';
 import { probeDomOpenRedirect } from './probes/domOpenRedirect.js';
 import { probeDomClobbering } from './probes/domClobbering.js';
@@ -168,6 +169,7 @@ export const DEFAULT_PHASES = [
   'credential-stuffing',
   'bfla',
   'coupon-abuse',
+  'api-token-auth',
   'dom-open-redirect',
   'dom-clobbering',
   'dom-cookie-manipulation',
@@ -2041,6 +2043,42 @@ export async function runScan(
       controlOk: Boolean(couponDiag.controlOk),
       attempts: couponDiag.attempts || 0,
       bypassKind: couponDiag.bypassKind || null,
+    })
+  );
+  // API TOKEN AUTH (9 Nov 2026, row #342 [High] API — Broken
+  // authentication (token in URL / weak tokens), CWE-287 | OWASP
+  // API02:2023): an API token the app itself puts in a URL query
+  // string, or a token the server issues weak — static across
+  // logins, short numeric, or a trivial derivation of the
+  // username. The probe mines token-param API routes and runs a
+  // three-way differential (no-token must refuse, header-token is
+  // the control, query-token confirms only when granted with a
+  // substantive body), then logs in twice and judges the issued
+  // tokens (opaque only — JWTs are jwt.js territory; see
+  // apiTokenAuth.js). Same apiRoutes wiring as bfla. Diagnostics
+  // ride the phase extras (tokenUrlRoutes, tokenKind, tokenLen,
+  // tokensCompared, controlOk, attempts, bypassKind) so a live
+  // proof can tell "no surface" from "oracle uncalibrated"
+  // without re-running the scan.
+  const apiTokenDiag = {};
+  await step(
+    'api-token-auth',
+    () =>
+      probeApiTokenAuth(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: apiTokenDiag,
+      }),
+    () => ({
+      tokenUrlRoutes: apiTokenDiag.tokenUrlRoutes || 0,
+      tokenKind: apiTokenDiag.tokenKind || null,
+      tokenLen: apiTokenDiag.tokenLen || 0,
+      tokensCompared: apiTokenDiag.tokensCompared || 0,
+      controlOk: Boolean(apiTokenDiag.controlOk),
+      attempts: apiTokenDiag.attempts || 0,
+      bypassKind: apiTokenDiag.bypassKind || null,
     })
   );
   await step('user-enumeration', () => probeUserEnum(forms, url, opts));
