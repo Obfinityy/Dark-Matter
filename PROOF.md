@@ -5,13 +5,13 @@ target on EC2, verified first-hand (direct EC2 read, never a relay), with hunt I
 title-exact baselines and zero retractions. Nothing here is a unit-test result alone
 and nothing is claimed without evidence.
 
-## Live status (9 Nov 2026, ~17:15 IST)
+## Live status (9 Nov 2026, ~18:10 IST)
 
 - Coverage: **318/478 = 66.5% LIVE**, 110 phases in `backend/src/scanner/index.js`
-- HEAD: `619a8ba8` (batch of 9 lanes, rows #92/#375/#479-#484), **80th deploy verified** (workflow 42608825763, backend PID 2468062, health ok, LAB_TARGETS 8/8, PHASES 110)
-- Suites at HEAD: src 2911/2900/0/11, plain 2975/2964/0/11
+- HEAD: `75f12de9` (#81 quota-bypass calibration fix), **81st deploy verified** (workflow 42614065567, backend PID 2499755, health ok, LAB_TARGETS 8/8, PHASES 110)
+- Suites at HEAD: src 2916/2905/0/11, plain 2980/2969/0/11
 - AI hunt `h_7d49c6ef7447` paused at iter 296 (owner zero-Meta order, 3 Nov 2026);
-  spend frozen $38.4952 / 4661 entries
+  spend frozen $38.5251 / 4662 entries
 - Baselines: DVWA **20** titles, Juice Shop **27** titles (listed below)
 
 ## How a proof works
@@ -65,6 +65,7 @@ and nothing is claimed without evidence.
 | 31 | 9 Nov ~15:50 | coupon lab `6e29eff5` (no backend deploy — labs-only) | `h_f9aac40ba461` {13,0} | `h_980af7709347` {13,0} | PASS, 0 retractions. **Rows #78 + #371 AIB to LIVE** (coupon-lab re-proof, port 3610 — both legs on the coupon lab, not DVWA/Juice: leg 1 default mode, `coupon-abuse` ok:true, `couponRoutes=1, couponCodes=2, controlOk=true, attempts=2, bypassKind='stacked'`, finding 'Business logic — two coupons stacked for a double discount (MEDIUM)'; leg 2 `COUPON_STACKING=fixed`, `coupon-abuse` ok:true, `couponRoutes=1, couponCodes=2, controlOk=true, attempts=3, bypassKind='reuse'`, finding 'Business logic — coupon code accepted again on a fresh basket (MEDIUM)'; other 12 titles identical across legs, stacking swapped for reuse exactly as designed; both legs 251 events). Coverage 315/478. Coupon lab is not a baseline lab. |
 | 32 | 9 Nov ~16:35 | 79th `1fee5101` | `h_92b4e76cba79` {20,0} | `h_53e217a8729d` {26,0} | PASS, 0 retractions. **Row #342 GAP to LIVE — proven true negative** (api-token-auth probe: three-way differential on mined token-param API routes + two-login weak-token judgement, opaque tokens only; DVWA `api-token-auth` ok:true, `tokenUrlRoutes=0, tokenKind=null, tokenLen=0, tokensCompared=0, controlOk=false, attempts=0, bypassKind=null` — ZERO token-param routes on DVWA; Juice `api-token-auth` ok:true, `tokenUrlRoutes=0, tokenKind='jwt', tokenLen=732, tokensCompared=2, controlOk=false, attempts=0, bypassKind=null` — issued token is a JWT, leg silent by design (jwt.js owns those). Coverage 316/478. Baselines unchanged: DVWA 20, Juice 26. DVWA phases 103/89/0/14/0, 149 events; Juice phases 538/538/0/0/0, 597 events; scan errors []). |
 | 33 | 9 Nov ~17:15 | 80th `619a8ba8` | `h_11df879eed51` {20,0} | `h_cbb5b38267b5` {27,0} | PASS, 0 retractions. **Batch of 9 lanes live-proven: #92 + #375 AIB to LIVE; scout rows #479-#484 to LIVE (extended 324/515).** DVWA phases 110/95/15/0/0, 156 events; Juice phases 110/110/0/0/0, 621 events. Juice baseline 26 -> 27: NEW title 'JWT payload carries sensitive data in its claims (MEDIUM)' (#481, tier secret, 2 sensitive fields, 15 claims scanned). Per-row: #92 CSWSH true negative both legs (wsSinks 0, wsEndpoints 0, driveAttempted true); #375 DVWA uncalibrated (workflowRoutes 0) + Juice calibrated silent (3 routes, controlOk true, 4 steps inspected); #479 calibrated true negative both legs (DVWA 4 params/40 attempts/0 oracle, Juice 2 params/20 attempts/0 oracle); #480 DVWA never ran (0 WS endpoints) + Juice 1 replay attempt, before==after==1, replayConfirmed false - snapshot oracle works live, WS title stays INTERMITTENT; #481 FIRED on Juice, DVWA true negative; #482 DVWA uncalibrated + Juice calibrated silent (controlOk true, attempts 5, failOpenKind null); #483 DVWA true negative (4 inputs, 1 sensitive, 0 unprotected - password input carries AUTOCOMPLETE='off', verified by direct curl; the lane's 'DVWA will fire' expectation was WRONG) + Juice 0 inputs (SPA shell); #484 DVWA skipped 'no script targets' + Juice ran (0 relaxations). #81 quota-bypass UNPROVEN - uncalibrated both legs (DVWA apiRoutes 0; Juice apiRoutes 2, controlOk false, attempts 0); feed is [...scanTargets, ...jsWriteTargets] so only templated write-targets were mined while /api/Products + /api/Feedbacks grant 200 JSON unauthenticated - fix lane: derive collection URLs from templated write targets. Coverage 318/478 = 66.5%. Baselines: DVWA 20, Juice 27. |
+| 34 | 9 Nov ~18:10 | 81st `75f12de9` | `h_3446ed656867` {20,0} | `h_7a1342904b11` {27,0} | INCONCLUSIVE for row #81, 0 retractions. Both legs baseline-exact, but the quota-bypass drive never calibrated (DVWA `quota-bypass` ok:true, `apiRoutes=0, controlOk=false, attempts=0` - DVWA has no API surface at all; Juice `quota-bypass` ok:true, `apiRoutes=2, controlOk=false, attempts=0, throttled=false, bypassKind=null` - the control GET granted on NEITHER candidate, so no burst ran). The 81st-deploy fix (derive collection URLs from templated write targets) is live on EC2 (HEAD 75f12de9, PID 2499755, probe file carries deriveCollectionUrl), but the live record cannot show whether derivation ran: the new `derivedCollections` diagnostic was never wired into the phase extras in index.js (extras list only apiRoutes/controlOk/attempts/throttled/bypassKind). Decisive counter-evidence to the fix premise: the captcha probe in the SAME Juice hunt found `feedbackRoutes=1` from the identical feed ([...scanTargets, ...jsWriteTargets]), so a feedbacks-segment route WAS mined - the quota probe still did not calibrate. Next: a follow-up lane must reproduce the live feed, name the actual 2 candidates, fix the root cause (cap-2 cut, template shape, or wiring), wire the diagnostic into extras, and re-proof. Coverage stays 318/478 = 66.5%. Baselines unchanged: DVWA 20, Juice 27. DVWA phases 110/95/15/0/0, 156 events; Juice phases 110/110/0/0/0 (560 phase records), 621 events. |
 
 ## Behaviour-analysis live proof (60th deploy `203c6d44`)
 
@@ -193,6 +194,7 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 | 78th | `e0ef10a4` | 42587796527 | DOM trio probes, phase 102 (rows #91/#89/#90) |
 | 79th | `1fee5101` | 42601378551 | API token auth probe, phase 103 (row #342) |
 | 80th | `619a8ba8` | 42608825763 | Batch of 9 lanes (rows #92/#375/#479-#484), phase 110 |
+| 81st | `75f12de9` | 42614065567 | Quota-bypass calibration fix (row #81, derive collection URLs from templated write targets; proof #34 INCONCLUSIVE - probe still uncalibrated live) |
 
 ## Screenshots
 
