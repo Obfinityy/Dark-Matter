@@ -4381,3 +4381,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .model-option.bell-item { align-items: flex-start; text-align: left; }
 
 .model-option.read { opacity: 0.65; }
+
+/* --- Sidebar (nav icons, history menu, section label) --- */
+.sidebar-section-label-row { display: flex; align-items: center; justify-content: space-between; }
+
+.sidebar-search-btn { width: 30px; height: 30px; }
+
+.history-menu-wrap { position: relative; }
+
+.history-dots svg { display: block; }
