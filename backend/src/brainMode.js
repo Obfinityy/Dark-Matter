@@ -510,7 +510,9 @@ async function defaultAssess(deps) {
  *
  * GATE LIST (explicit — see the module header for the reasons):
  *   APPLY: scope (scopeViolation on shell commands / browser_open
- *     URLs — out-of-scope is refused, nothing is sent or opened);
+ *     URLs / the current page URL for browser_click / browser_type
+ *     — out-of-scope is refused, nothing is sent, opened, clicked
+ *     or typed);
  *     claim completeness gate (claimGateCheck); the pipeline
  *     verifier (assessResult — evidenceReproduced, verifyPipeline,
  *     and its 404 error-page protection, exactly as for an AI
@@ -692,11 +694,17 @@ export async function executeBrainAction(huntId, action, deps = {}) {
   };
 
   if (kind === 'shell') {
-    const command = String(action.command || '').slice(0, COMMAND_CAP);
-    if (!command.trim()) { failProcess('empty_command', 'shell needs a command.'); return { ok: false, error: 'empty_command', message: 'shell needs a command.' }; }
+    const fullCommand = String(action.command || '');
+    if (!fullCommand.trim()) { failProcess('empty_command', 'shell needs a command.'); return { ok: false, error: 'empty_command', message: 'shell needs a command.' }; }
+    // FIX (#367, gap 1): the scope check used to run on the command
+    // AFTER truncation to COMMAND_CAP, so an out-of-scope URL past
+    // 4000 chars evaded the gate — and the executed command was
+    // silently truncated. Now the FULL command is scope-checked
+    // first; over-long commands are refused outright (naming the
+    // cap) instead of silently truncated.
     const badUrl = (() => {
       try {
-        const urls = command.match(/(?:[a-z][a-z0-9+.-]*:)?\/\/[^\s'"<>)|\]]+/gi) || [];
+        const urls = fullCommand.match(/(?:[a-z][a-z0-9+.-]*:)?\/\/[^\s'"<>)|\]]+/gi) || [];
         for (const u of urls) {
           const v = scopeViolation(u, target, parsedScope);
           if (v) return v;
@@ -706,10 +714,16 @@ export async function executeBrainAction(huntId, action, deps = {}) {
     })();
     if (badUrl) {
       const msg = `BLOCKED — OUT OF SCOPE: ${badUrl} is not part of this programme. Only test ${target} and its listed assets. Nothing was sent.`;
-      try { record(huntId, { type: 'scope_block', tool: 'shell', detail: command.slice(0, 300), via: 'be-a-brain' }); } catch { /* best-effort */ }
+      try { record(huntId, { type: 'scope_block', tool: 'shell', detail: fullCommand.slice(0, 300), via: 'be-a-brain' }); } catch { /* best-effort */ }
       failProcess('out_of_scope', msg);
       return { ok: false, error: 'out_of_scope', output: msg };
     }
+    if (fullCommand.length > COMMAND_CAP) {
+      const msg = `Command too long (${fullCommand.length} chars; max ${COMMAND_CAP}) — split it into smaller commands. Nothing was run.`;
+      failProcess('command_too_long', msg);
+      return { ok: false, error: 'command_too_long', message: msg };
+    }
+    const command = fullCommand;
     // The tool_call + note are recorded AFTER execution (recordExecuted
     // below), so the note carries the real result.
     let result;
@@ -763,6 +777,30 @@ export async function executeBrainAction(huntId, action, deps = {}) {
       }
     }
     const gui = await defaultGui(huntId, target, parsedScope, d);
+    // FIX (#367, gap 2): clicks/types had no scope gate — they act on
+    // the CURRENT page, so gate on the current page's URL (from a
+    // snapshot) before acting, mirroring browser_open's gate. The CDP
+    // layer's wrong_page guard stays the backstop for tabs it picks.
+    // When the current URL cannot be determined (a stub gui without
+    // snapshot, or a snapshot failure), the gate is skipped and the
+    // backstop is the only guard — the click then still refuses via
+    // wrong_page when no tab is on target.
+    let currentUrl = null;
+    try {
+      if (typeof gui.snapshot === 'function') {
+        const snap = await gui.snapshot(huntId);
+        currentUrl = (snap && snap.snapshot && snap.snapshot.url) || null;
+      }
+    } catch { currentUrl = null; }
+    if (currentUrl) {
+      const bad = scopeViolation(currentUrl, target, parsedScope);
+      if (bad) {
+        const msg = `BLOCKED — OUT OF SCOPE: ${bad} is not part of this programme. Nothing was clicked or typed.`;
+        try { record(huntId, { type: 'scope_block', tool: kind, detail: String(currentUrl).slice(0, 300), via: 'be-a-brain' }); } catch { /* best-effort */ }
+        failProcess('out_of_scope', msg);
+        return { ok: false, error: 'out_of_scope', output: msg };
+      }
+    }
     let res = null;
     try {
       res = kind === 'browser_click'
@@ -926,9 +964,17 @@ export async function executeBrainAction(huntId, action, deps = {}) {
     // known, so the note carries it.
     const assess = await defaultAssess(d);
     if (!assess) {
+      // FIX (#367, gap 3): the recorded severity/class used to be
+      // hardcoded medium/agent_finding whatever the brain reported.
+      // Now they reflect the claim: the brain's severity when it is
+      // a valid enum value, else medium; the gate's class resolution
+      // (explicit class, else title-matched, else agent_finding).
+      const sev = String(action.severity || '').trim().toLowerCase();
+      const recordedSeverity = ['critical', 'high', 'medium', 'low'].includes(sev) ? sev : 'medium';
+      const recordedClass = normaliseCoverageClass(action.class) || claimClassFromTitle(rawTitle) || 'agent_finding';
       try {
         record(huntId, {
-          type: 'finding', class: 'agent_finding', title, severity: 'medium', url: target,
+          type: 'finding', class: recordedClass, title, severity: recordedSeverity, url: target,
           evidence: { request: command, response: evidence.slice(0, 3000) },
           verified: false, verification: 'be-a-brain parent claim — pending pipeline verification', via: 'be-a-brain',
         });
