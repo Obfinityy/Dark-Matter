@@ -484,17 +484,17 @@ export default function ChatPage({
               <p className="dm-tagline">An authorized security research workspace</p>
               <div className="dm-quick-actions">
                 <button className="dm-action-card" onClick={() => { if (ensureHuntAuth()) setHuntModalOpen(true); }}>
-                  <span className="dm-action-icon" aria-hidden="true">01</span>
+                  <span className="dm-action-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg></span>
                   <span className="dm-action-title">Start a hunt</span>
                   <span className="dm-action-sub">Point the hunter at a target</span>
                 </button>
                 <button className="dm-action-card" onClick={() => onOpenReports && onOpenReports()}>
-                  <span className="dm-action-icon" aria-hidden="true">02</span>
+                  <span className="dm-action-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" /><path d="M14 2v6h6M9 13h6M9 17h6" /></svg></span>
                   <span className="dm-action-title">Reports</span>
                   <span className="dm-action-sub">Findings & hunt history</span>
                 </button>
                 <button className="dm-action-card" onClick={() => document.querySelector('.chat-page .composer input, .chat-page .composer textarea')?.focus()}>
-                  <span className="dm-action-icon" aria-hidden="true">03</span>
+                  <span className="dm-action-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.5 0-2.9-.4-4.1-1L3 20l1-5.4A8.5 8.5 0 1 1 21 11.5z" /></svg></span>
                   <span className="dm-action-title">Ask the AI</span>
                   <span className="dm-action-sub">Strategy, recon, technique</span>
                 </button>
