@@ -131,14 +131,22 @@ export default function PluginsPage() {
           </p>
         </header>
         {loading ? (
-          <p className="page-sub">Loading…</p>
+          <div className="provider-list" aria-label="Loading integrations">
+            <span className="skeleton skeleton-card" />
+            <span className="skeleton skeleton-card" />
+            <span className="skeleton skeleton-card" />
+          </div>
         ) : loadError ? (
           <p className="page-sub">
             {loadError}{' '}
             <button className="btn btn-ghost btn-sm" onClick={load}>Retry</button>
           </p>
         ) : providers.length === 0 ? (
-          <p className="page-sub">No integrations are available on the server right now.</p>
+          <div className="empty-state">
+            <p className="empty-state-title">No integrations available</p>
+            <p className="empty-state-text">No integrations are available on the server right now. Check your connection and try again, or ask an admin whether the provider service is running.</p>
+            <button className="btn btn-ghost btn-sm" onClick={load}>Retry</button>
+          </div>
         ) : (
           <div className="provider-list">
             {providers.map((p) => (
