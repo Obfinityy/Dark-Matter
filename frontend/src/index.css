@@ -4472,3 +4472,24 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 /* Re-assert the <=900px single-column pay grid (this section loads after
    the earlier media rule, so the base .pay-grid above must not win). */
 @media (max-width: 900px) { .pay-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* --- Skeleton lines + real empty states (hunt card, reports, plugins, machines) --- */
+.skeleton-line { display: block; height: 14px; border-radius: 6px; margin: 6px 0; }
+
+.skeleton-line.short { width: 55%; }
+
+.skeleton-card { display: block; height: 96px; border-radius: 12px; }
+
+.skeleton-machine { display: block; height: 220px; border-radius: 12px; }
+
+.hunt-feed-skeleton { padding: 4px 0; }
+
+.empty-state { padding: 20px 4px; }
+
+.empty-state.compact { padding: 8px 0; }
+
+.empty-state-title { font-size: 15px; font-weight: 600; color: var(--dm-text); margin: 0 0 4px; }
+
+.empty-state-text { font-size: 13px; color: var(--dm-secondary); margin: 0 0 12px; max-width: 520px; }
+
+.empty-state-text:last-child { margin-bottom: 0; }
