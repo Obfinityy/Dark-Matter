@@ -4393,3 +4393,82 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 
 /* --- New hunt modal (field validation) --- */
 .text-input.input-error { border-color: var(--dm-danger); }
+
+/* --- Pay page (UpiPayPage — moved from its inline <style> block) --- */
+.balance-card {
+  border: 1px solid var(--dm-border);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--dm-surface);
+  margin: 16px 0;
+  max-width: 640px;
+}
+
+.pay-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 24px;
+  max-width: 860px;
+  margin-top: 8px;
+  align-items: start;
+}
+
+.qr-box {
+  border: 1px solid var(--dm-border);
+  border-radius: 12px;
+  padding: 20px;
+  background: var(--dm-surface);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.upi-id-row code { font-size: 15px; background: var(--dm-raised); padding: 6px 10px; border-radius: 8px; }
+
+.pay-form {
+  border: 1px solid var(--dm-border);
+  border-radius: 12px;
+  padding: 20px;
+  background: var(--dm-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pay-form h3 { margin: 0; }
+
+.pay-fail {
+  border: 1px solid var(--dm-danger);
+  border-radius: 12px;
+  padding: 20px;
+  background: var(--dm-danger-soft);
+  color: var(--dm-text);
+  font-size: 14px;
+  max-width: 640px;
+  margin-top: 8px;
+}
+
+.pay-fail h3 { margin: 0 0 8px 0; }
+
+.pay-fail-note { margin-top: 12px; }
+
+.pay-credit { margin-top: 6px; }
+
+.pay-section { margin-top: 24px; }
+
+.txn-list { list-style: none; padding: 0; margin: 8px 0; max-width: 640px; }
+
+.txn-list li {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--dm-border);
+  font-size: 14px;
+}
+
+/* Re-assert the <=900px single-column pay grid (this section loads after
+   the earlier media rule, so the base .pay-grid above must not win). */
+@media (max-width: 900px) { .pay-grid { grid-template-columns: minmax(0, 1fr); } }
