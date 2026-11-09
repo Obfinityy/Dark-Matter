@@ -42,9 +42,9 @@ function stubPage(html) {
 }
 
 describe('param battery skipped records (35/63 fix)', () => {
-  it('PARAM_BATTERY_PHASES is exactly the 29 loop phases, all in DEFAULT_PHASES', () => {
-    assert.equal(PARAM_BATTERY_PHASES.length, 29);
-    assert.equal(new Set(PARAM_BATTERY_PHASES).size, 29);
+  it('PARAM_BATTERY_PHASES is exactly the 30 loop phases, all in DEFAULT_PHASES', () => {
+    assert.equal(PARAM_BATTERY_PHASES.length, 30);
+    assert.equal(new Set(PARAM_BATTERY_PHASES).size, 30);
     for (const name of PARAM_BATTERY_PHASES) {
       assert.ok(DEFAULT_PHASES.includes(name), `${name} missing from DEFAULT_PHASES`);
     }
@@ -121,10 +121,15 @@ describe('param battery skipped records (35/63 fix)', () => {
     // always-run as an honest no-op: no coupon routes on a bare
     // page; lab-gated, control apply first, then reuse on a fresh
     // basket and stacking against the single-coupon floor).
-    // (103 since 9 Nov 2026 (autocomplete): 'autocomplete' joins
+    // (104 since 9 Nov 2026 (autocomplete): 'autocomplete' joins
     // as a standalone phase (one record per scan, always-run as an
     // honest no-op: no sensitive inputs on a bare page; static
     // served-HTML check, no lab gate, no drive).
+    // (105 since 9 Nov 2026 (blind XPath): 'blind-xpath' joins
+    // the battery as a loop phase (one record per param target —
+    // TRUE/FALSE substring() differential + second witness; the
+    // general XPath row #215 is covered by 'xpathi', this is the
+    // blind variant #479).
     // (100-102 since 9 Nov 2026 (DOM trio): 'dom-open-redirect',
     // 'dom-clobbering' and 'dom-cookie-manipulation' join as
     // standalone gated phases (one record per scan, skipped with
@@ -167,10 +172,10 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 104);
+    assert.equal(DEFAULT_PHASES.length, 105);
   });
 
-  it('zero param targets: all 29 param phases emit skipped records, rollup reports them', async () => {
+  it('zero param targets: all 30 param phases emit skipped records, rollup reports them', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -181,7 +186,7 @@ describe('param battery skipped records (35/63 fix)', () => {
         },
         { timeoutMs: 5000 }
       );
-      assert.equal(result.phases.length, 29);
+      assert.equal(result.phases.length, 30);
       assert.deepEqual(
         result.phases.map((p) => p.name),
         PARAM_BATTERY_PHASES
@@ -194,12 +199,12 @@ describe('param battery skipped records (35/63 fix)', () => {
         assert.equal(p.findingsCount, 0);
         assert.equal(p.durationMs, 0);
       }
-      // The rollup must NOT read this as a pass: 0 ok, 29 skipped.
+      // The rollup must NOT read this as a pass: 0 ok, 30 skipped.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 29,
+        total: 30,
         ok: 0,
         failed: 0,
-        skipped: 29,
+        skipped: 30,
         timedOut: 0,
       });
     } finally {
@@ -388,23 +393,25 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     })),
   ];
 
-  it('35/29 case renders the split with the shared skip reason — never 64/64 ok', () => {
+  it('35/30 case renders the split with the shared skip reason — never 65/65 ok', () => {
     const phases = skippedBattery();
     // Skipped records still carry ok:true by design (see skipPhase) — the
     // line must read the rollup's skipped count, never ok:true.
     assert.ok(phases.filter((p) => p.skipped).every((p) => p.ok === true));
     assert.equal(
       buildPhaseSummaryLine(phases),
-      'Phases: 35 ran ok, 29 skipped (no param targets), 0 failed, 0 timed out.'
+      'Phases: 35 ran ok, 30 skipped (no param targets), 0 failed, 0 timed out.'
     );
   });
 
-  // 60/44 since 9 Nov 2026 (API token auth + autocomplete):
+  // 60/45 since 9 Nov 2026 (API token auth + autocomplete + blind XPath):
   // 'api-token-auth' adds a 59th ok record (always-run as an honest
   // no-op: no token-param routes and no lab login on a bare page)
   // and 'autocomplete' adds a 60th ok record (always-run as an
-  // honest no-op: no sensitive inputs on a bare page), so the
-  // bare-page line reads 60 ran ok, 44 skipped.
+  // honest no-op: no sensitive inputs on a bare page), and
+  // 'blind-xpath' adds a 45th skipped record (battery skip: no
+  // param targets on a bare page), so the bare-page line reads 60
+  // ran ok, 45 skipped.
   // 58/40 since 9 Nov 2026 (coupon abuse): 'coupon-abuse' adds a
   // 58th ok record (always-run as an honest no-op: no coupon routes
   // on a bare page), so the bare-page line reads 58 ran ok, 40 skipped.
@@ -471,7 +478,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // 44/33 before xml-injection and untrusted-js-inclusion;
   // 46/34 before session-token-in-url; 47/34 before credential-disclosure;
   // 48/34 before sqli-oob.)
-  it('real runScan on a bare page renders the 59/44 line end to end', async () => {
+  it('real runScan on a bare page renders the 60/45 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -483,15 +490,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 104,
+        total: 105,
         ok: 60,
         failed: 0,
-        skipped: 44,
+        skipped: 45,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 60 ran ok, 44 skipped, 0 failed, 0 timed out.'
+        'Phases: 60 ran ok, 45 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

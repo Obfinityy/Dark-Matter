@@ -20,5 +20,7 @@ Per URL parameter (max 10), against a benign baseline:
 The three breakout shapes above.
 
 ## Limits
-- Blind XPath (no output difference) is not confirmed.
+- Blind XPath is covered by the sibling probe `blind-xpath`
+  (phase 103, row #479): a TRUE/FALSE substring() differential
+  with a second witness, no error text needed.
 - Only URL params today.

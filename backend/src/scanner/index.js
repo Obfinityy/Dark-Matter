@@ -73,6 +73,7 @@ import { probeDanglingMarkup } from './probes/danglingMarkup.js';
 import { probePaddingOracle } from './probes/paddingOracle.js';
 import { probeArgInjection } from './probes/argInjection.js';
 import { probeXpathInjection } from './probes/xpathi.js';
+import { probeBlindXpath } from './probes/blindXpath.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
 import { probeCachePoisoning } from './probes/cachePoison.js';
@@ -185,6 +186,7 @@ export const DEFAULT_PHASES = [
   'padding-oracle',
   'arg-injection',
   'xpathi',
+  'blind-xpath',
   'ssi',
   'file-upload',
   'cache-poisoning',
@@ -225,7 +227,7 @@ export const DEFAULT_PHASES = [
   'nuclei',
 ];
 
-// PARAM BATTERY (5 Nov 2026, 35/63 fix): the 28 injection-class phases
+// PARAM BATTERY (5 Nov 2026, 35/63 fix): the 30 injection-class phases
 // below run per URL inside the param loop in runScan. When a scan has ZERO
 // param-bearing targets (bare-root paste on a POST-login page, SPA with no
 // links/forms), the loop body never executes and step() is never invoked
@@ -243,6 +245,7 @@ export const PARAM_BATTERY_PHASES = [
   'ldapi',
   'ldap-blind',
   'xpathi',
+  'blind-xpath',
   'xml-injection',
   'ssi',
   'cmdi',
@@ -1052,7 +1055,7 @@ export async function runScan(
   );
   // 35/63 FIX: track whether the param battery ran at all. If no scan
   // target carried a single parameter, the loop body below never executes
-  // and the 28 phases inside it would vanish in silence — record each of
+  // and the 30 phases inside it would vanish in silence — record each of
   // them as skipped instead (after the loop).
   let paramBatteryRan = false;
   for (const u of scanTargets) {
@@ -1075,6 +1078,32 @@ export async function runScan(
     await step('ldapi', () => probeLdapInjection(u, points, opts));
     await step('ldap-blind', () => probeLdapBlind(u, points, opts));
     await step('xpathi', () => probeXpathInjection(u, points, opts));
+    // BLIND XPATH INJECTION (9 Nov 2026, row #479 [High], CWE-643):
+    // the sink evaluates injected XPath but suppresses engine
+    // errors and caps the result set, so xpathi's widening/error
+    // oracle never fires. This probe proves the boolean channel
+    // instead: a TRUE/FALSE substring() pair differing only in the
+    // compared character must diverge reproducibly, plus a second
+    // independent witness (further substring() extraction, or a
+    // string-length() pair when the equality fallback fires). See
+    // blindXpath.js. Diagnostics ride the phase extras so a live
+    // proof can tell "no oracle" from "oracle without witness".
+    const blindXpathDiag = {};
+    await step(
+      'blind-xpath',
+      () =>
+        probeBlindXpath(u, points, {
+          ...opts,
+          diagnostics: blindXpathDiag,
+        }),
+      () => ({
+        paramsTried: blindXpathDiag.paramsTried || 0,
+        oracleParams: blindXpathDiag.oracleParams || 0,
+        shape: blindXpathDiag.shape || null,
+        extracted: blindXpathDiag.extracted || null,
+        attempts: blindXpathDiag.attempts || 0,
+      })
+    );
     // XML INJECTION (7 Nov 2026, row #214): a parameter spliced
     // raw into an XML document lets the attacker break out of the
     // element it sits in (structure breakout with a unique marker
