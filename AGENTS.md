@@ -2,17 +2,19 @@
 
 > **For AI agents**: Read this file first. It explains the entire project so you can work on it without asking questions.
 > Rebuilt from scratch on 13 Oct 2026 (commit `cabd537`). Anything describing the pre-rebuild app is obsolete.
+>
+> **Workflow (owner rule): issues first, then pull requests, never merge without review.** Never push directly to `main`. The old "push completed work directly to main" rule is retired, and the old wave-pipeline lane protocol is dead (see below).
 
 ## What is Dark-Matter?
 
-**Dark Matter** (company: **Obfinity**) is an autonomous AI bug-bounty agent with a ChatGPT-like interface. The agent thinks, hunts, verifies, and writes reports autonomously — an Obfinity operator can also chat with it mid-hunt and steer it.
+**Dark Matter** (company: **Obfinity**) is an autonomous AI bug-bounty agent with a chat-style interface. The agent thinks, hunts, verifies, and writes reports autonomously — an Obfinity operator can also chat with it mid-hunt and steer it.
 
 Product UI branding: **Dark Matter / Infinity AI**. Never expose "PentAGI" in the UI (it's the integrated engine, MIT-licensed, credited in `third_party/pentagi/`).
 
 ## Topology (13 Oct 2026 rebuild)
 
 ```
-┌─ frontend/          Vite + React — ChatGPT-exact dark UI (#212121/#171717).
+┌─ frontend/          Vite + React — chat-style operator UI (dark theme).
 │                      Sidebar (New chat, history, profile menu), top bar
 │                      ("Dark Matter ▾"), composer ("Ask anything"), hunt cards.
 │                      Deploys: Vercel (dark-matter-frontend) + Cloudflare Pages
@@ -107,7 +109,7 @@ For the PentAGI Docker sandbox (agents invoke via shell; see
 
 ## Frontend notes (13 Oct 2026)
 
-- ChatGPT-light theme; sidebar: New hunt / Plugins / Reports / Settings.
+- Chat-style theme; sidebar: New hunt / Plugins / Reports / Settings.
 - Auth required for hunts; pending-hunt intent opens the hunt setup after login.
 - Plugins page: AWS Bedrock only. Reports page merges backend + local hunts.
 - HuntCard has Pause/Resume/Stop. Mid-hunt chat via composer.
@@ -116,10 +118,17 @@ For the PentAGI Docker sandbox (agents invoke via shell; see
 ## Conventions
 
 - **Language**: User speaks Hindi/Hinglish — match their register. GitHub/README/product UI = professional English only.
-- **Git**: push completed work directly to `main` (token in `~/.git-credentials`; push via `git -c credential.helper= push "https://Obfinity:${TOKEN}@github.com/Obfinityy/Dark-Matter.git" main`). NEVER commit secrets — GitHub push protection (GH013) blocks the push.
-- **Shared clone**: `~/workspace/dm-v2/work/repo` is shared with other agents — verify `git branch --show-current` in the SAME shell command before any checkout/merge/reset.
-- **Frontend**: ChatGPT-exact visual language. Verify every flow in the real browser UI (desktop + mobile); never say "done" until it's visibly working.
+- **Git**: work via GitHub issues first, then a branch, then a pull request. Never push directly to `main`, never force-push, never merge without review. NEVER commit secrets — GitHub push protection (GH013) blocks the push.
+- **Frontend**: the UI is currently chat-style; the owner has decided to move away from the ChatGPT-clone look (see issue #489) — do not add new ChatGPT-clone chrome. Verify every flow in the real browser UI (desktop + mobile); never say "done" until it's visibly working.
 - **No mock UI**: real loops only, no simulate buttons.
 - **Security**: authorized targets only, non-destructive. Never invent user facts (names, tools, experience) when representing the user.
 - **Rebrand rule**: third-party software integrated by reference is 100% rebranded in product UI; LICENSE/NOTICE kept in-repo.
-- **Lane labeling** (19 Oct 2026 — two lanes, one clone): the **continuous solver** (5-min loop) and the **elite-gap thinker** (10-min loop) both commit to `main` and both write `solver-state.md`. Every commit message MUST end with a `Lane:` trailer — `Lane: continuous-solver` or `Lane: elite-gap`. The old parenthetical style ("(solver #127)") is deprecated: it was copy-pasted across lanes (a06bdb7, 19 Oct 2026) and broke attribution. Before implementing a playbook item, CLAIM it in `solver-state.md` (blockers_queue) or `COORDINATION.md` so the other lane doesn't build the same thing convergently.
+
+## Retired: the wave pipeline (owner order, 11 Oct 2026)
+
+The Infinity One / Infinity Two wave pipeline (idea-bank waves, lane claims,
+`solver-state.md`, the `Lane:` commit trailer) is **stopped**. Do not claim work
+in `COORDINATION.md`, do not follow the lane protocol, and do not start new
+waves. The coordination log is frozen history at
+`docs/archive/COORDINATION.md`. New work goes through GitHub Issues and pull
+requests — see `CONTRIBUTING.md`.
