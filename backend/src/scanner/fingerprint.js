@@ -89,7 +89,7 @@ export const DB_ERROR_PATTERNS = {
   postgres:
     /pg_query|pg_exec|warning:\s*pg_|syntax error at or near|unterminated quoted string|psql:\s*(error|fatal)/i,
   sqlite:
-    /sqlite3?[\s.]\w*error|unrecognized token|no such (table|column)|sqlite3?\.operationalerror/i,
+    /sqlite3?[_\s.]\w*error|unrecognized token|no such (table|column)|sqlite3?\.operationalerror/i,
   oracle: /ora-\d{5}|\boci_[a-z_]+\(\)/i,
 };
 

@@ -12,6 +12,12 @@
 // (detectDbError) on the malicious input, absent on the benign one,
 // and an engine-specific signature that contradicts the fingerprinted
 // stack (opts.tech) never confirms.
+//
+// Follow-up (9 Nov 2026, Zerodha-fix lab proof): the strict sqlite
+// pattern missed the canonical `SQLITE_ERROR` form — its separator
+// class `[\s.]` does not match the underscore — so the genuine Juice
+// Shop SQLi (hunt h_5c95162cf81e, proof #34's {27,0} baseline) was
+// lost. The pattern now allows `_` as a separator (SQLi-0, SQLi-9).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { probeSqliError } from './sqliError.js';
@@ -39,14 +45,24 @@ const PG_ERROR =
   'Warning: pg_query(): Query failed: ERROR: syntax error at or near "\'" at character 8';
 const ORA_ERROR = 'ORA-00933: SQL command not properly ended';
 const SQLSTATE_ERROR = 'SQLSTATE[HY000]: General error';
+// The recorded Juice Shop error page (proof #34 hunt h_7a1342904b11):
+// GET /rest/products/search?q=1' returns a real SQLite syntax error.
+const SQLITE_ERROR_PLAIN = 'Error: SQLITE_ERROR: near "\'": syntax error';
+const SQLITE_ERROR_HTML =
+  "<html><head><title>Error: SQLITE_ERROR: near &quot;&#39;%&#39;&quot;: syntax error</title></head>" +
+  '<body><h1>Error</h1></body></html>';
+// Bare engine mentions with no error phrase — must never detect.
+const BARE_SQLITE_TOKEN = 'cf9d2a-sqlite-7b3e1f8a4c6d';
+const BARE_SQLITE_MENTION = 'sqlite3 database version 3.40.1';
 
 const TARGET = 'https://zerodha.com/varsity/wp-comments-post.php?comment_post_ID=1';
+const JUICE_TARGET = 'http://172.17.0.1:3000/rest/products/search?q=dmprobe7_9b8a';
 
 // Route by the injected value: a quote in the param means the
 // malicious request, anything else is the benign control.
-function makeFetch({ benign, malicious }) {
+function makeFetch({ benign, malicious }, param = 'comment_post_ID') {
   return async (url) => {
-    const value = new URL(String(url)).searchParams.get('comment_post_ID') || '';
+    const value = new URL(String(url)).searchParams.get(param) || '';
     const body = value.includes("'") ? malicious : benign;
     return { status: 200, text: async () => body };
   };
@@ -59,6 +75,12 @@ test('SQLi-0: the old matcher fires on the token, the strict one does not', () =
   assert.equal(detectDbError(PG_ERROR), 'postgres');
   assert.equal(detectDbError(ORA_ERROR), 'oracle');
   assert.equal(detectDbError(SQLSTATE_ERROR), 'generic');
+  // The canonical SQLite error code uses an underscore separator.
+  assert.equal(detectDbError(SQLITE_ERROR_PLAIN), 'sqlite');
+  assert.equal(detectDbError(SQLITE_ERROR_HTML), 'sqlite');
+  // A bare engine mention with no error phrase is not a DB error.
+  assert.equal(detectDbError(BARE_SQLITE_TOKEN), null);
+  assert.equal(detectDbError(BARE_SQLITE_MENTION), null);
 });
 
 test('SQLi-1: Cloudflare token page (Zerodha FP) — no finding', async () => {
@@ -124,4 +146,15 @@ test('SQLi-8: Oracle and SQLSTATE errors still confirm', async () => {
   const state = await probeSqliError(TARGET, ['comment_post_ID'], {});
   assert.equal(state.length, 1);
   assert.equal(state[0].dbFamily, 'generic');
+});
+
+test('SQLi-9: genuine SQLite error (Juice Shop shape) — one critical finding', async () => {
+  globalThis.fetch = makeFetch({ benign: NORMAL_PAGE, malicious: SQLITE_ERROR_HTML }, 'q');
+  const findings = await probeSqliError(JUICE_TARGET, ['q'], { tech: ['node', 'express'] });
+  assert.equal(findings.length, 1, 'the real SQLITE_ERROR on q=1\' must confirm');
+  assert.equal(findings[0].class, 'sqli_error');
+  assert.equal(findings[0].severity, 'critical');
+  assert.equal(findings[0].dbFamily, 'sqlite');
+  assert.equal(findings[0].title, "Error-based SQL injection in parameter 'q'");
+  assert.equal(findings[0].evidence.errorCorrelated, true);
 });
