@@ -258,6 +258,19 @@ export async function rejectPaymentClaim(id) {
   return post(`/api/v1/payments/claims/${encodeURIComponent(id)}/reject`, {});
 }
 
+// --- Razorpay auto-payment (issue #491, test mode) --------------------------
+// Instant checkout alongside the manual UPI flow: the backend creates a
+// Razorpay order, the frontend opens Razorpay Checkout, and the webhook
+// (or the order-status poll) activates the account. The key secret never
+// reaches the frontend — only the public key_id comes back with the order.
+export async function createRazorpayOrder(payload) {
+  return post('/api/v1/payments/razorpay/create-order', payload || {});
+}
+
+export async function getRazorpayOrderStatus(orderId) {
+  return get(`/api/v1/payments/razorpay/order/${encodeURIComponent(orderId)}`);
+}
+
 // --- Hunts -----------------------------------------------------------------
 /** The user's hunts from the backend (survives browser close — re-attach). */
 export async function listHunts() {
