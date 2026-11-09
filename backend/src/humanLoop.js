@@ -4450,14 +4450,21 @@ export async function humanIteration(huntId, target, opts = {}) {
     } catch {
       reply = null;
     }
-    turnsRun++;
+    // FIX (#362): an empty reply must not consume a turn or end the
+    // hunt. Previously turnsRun++ ran BEFORE this check and the loop
+    // broke (or returned no_reply at once), so one transient empty
+    // response cost a turn and stopped the session. Now the empty
+    // turn is skipped (continue) without counting, and the loop
+    // retries with a fresh screen; the for loop's turn budget still
+    // bounds total attempts, and a persistently silent brain ends
+    // the run via the driver's fail-streak mechanism (the final
+    // return below still reports failKind 'no_reply' when no reply
+    // ever arrived, preserving LOOP-7's signal).
     if (!reply || !String(reply).trim()) {
       say('Brain gave no reply this turn.');
-      if (!aiOk) {
-        return { aiOk: false, failKind: 'no_reply', turnsRun, actionsRun: log.length, newFindings, log };
-      }
-      break;
+      continue;
     }
+    turnsRun++;
     aiOk = true;
     const replyText = String(reply);
     // Lane AI: parse BEFORE recording the reply. Total permanent
@@ -6397,5 +6404,9 @@ export async function humanIteration(huntId, target, opts = {}) {
     });
   } catch { /* checkpoint is best-effort */ }
 
-  return { aiOk, turnsRun, actionsRun: log.length, newFindings, log };
+  // FIX (#362, companion): aiOk is set only on a non-empty reply, so
+  // !aiOk here means the brain never replied all session — report
+  // failKind 'no_reply' (the signal the old early return carried)
+  // so the driver still ends a dead-brain run with the streak.
+  return { aiOk, failKind: aiOk ? null : 'no_reply', turnsRun, actionsRun: log.length, newFindings, log };
 }
