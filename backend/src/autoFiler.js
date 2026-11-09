@@ -119,15 +119,31 @@ function detectEvidence(text) {
   // STRICT: Only trigger on UNDENIABLE exploit evidence.
   // Brain saying "I'll try SQLi" is NOT evidence.
   // We need actual dumped data, hashes, errors, etc.
+  //
+  // COMMAND POLICY (#359): every branch below returns command: ''.
+  // The detector sees only text — it does NOT know the vulnerable
+  // path or the session, so any replay command it invented would be
+  // a lie. The old commands hardcoded DVWA paths
+  // (/vulnerabilities/...) with PHPSESSID=test, and <TARGET> was
+  // never substituted anywhere in the backend, so a filed claim
+  // carried a literal "<TARGET>" replay against the lab with a fake
+  // session. Worse, the non-empty fake command SHADOWED the callers'
+  // real-command fallback (lastShellCommand — the shell command that
+  // actually produced the evidence). Empty command lets the caller
+  // fall back to that real command; if no real command exists, the
+  // claim gate correctly bounces the claim (no reproducer, no
+  // filing) instead of filing a lab replay.
 
-  // SQLi: MD5 hash (32 hex chars) = undeniable proof of dump
-  const md5Match = text.match(/\b[a-f0-9]{32}\b/);
+  // SQLi: MD5 hash (32 hex chars) = undeniable proof of dump.
+  // FIX (#358): /i — the old case-sensitive regex missed uppercase
+  // hashes while SQLI_HASH_PATTERN in this same file uses /i.
+  const md5Match = text.match(/\b[a-f0-9]{32}\b/i);
   if (md5Match) {
     return {
       class: 'sqli',
       title: 'SQL Injection (auto-detected)',
       evidence: `MD5 hash found in output: ${md5Match[0]} - indicates successful data dump`,
-      command: 'curl -s "<TARGET>/vulnerabilities/sqli/?id=1%27%20UNION%20SELECT%20user%2Cpassword%20FROM%20users%23&Submit=Submit" -b "PHPSESSID=test; security=low"',
+      command: '',
       counterevidence: 'Hash pattern could be coincidental; verifier will confirm via UNION query.',
       confidence: 'high',
     };
@@ -139,31 +155,40 @@ function detectEvidence(text) {
       class: 'sqli',
       title: 'SQL Injection (auto-detected)',
       evidence: `SQL syntax error in output indicates injection point`,
-      command: 'curl -s "<TARGET>/vulnerabilities/sqli/?id=1%27&Submit=Submit" -b "PHPSESSID=test; security=low"',
+      command: '',
       counterevidence: 'Error could be from invalid input; verifier will confirm.',
       confidence: 'medium',
     };
   }
 
-  // XSS: script alert in output
-  if (lower.includes('<script>alert') || lower.includes('xss confirmed')) {
+  // XSS: a real payload marker reflected in output — NOT the bare words
+  // "xss confirmed". FIX (#358): words alone filed claims with no
+  // payload and no sink. The markers are this file's own XSS_INDICATORS
+  // (the same set detectXss uses).
+  if (XSS_INDICATORS.some((ind) => lower.includes(ind))) {
     return {
       class: 'xss',
       title: 'Cross-Site Scripting (auto-detected)',
       evidence: `XSS payload reflected in output`,
-      command: 'curl -s "<TARGET>/vulnerabilities/xss_r/?name=%3Cscript%3Ealert(1)%3C%2Fscript%3E" -b "PHPSESSID=test; security=low"',
+      command: '',
       counterevidence: 'Reflection needs verifier confirmation of execution.',
       confidence: 'medium',
     };
   }
 
-  // CMDI: uid= output
-  if (lower.includes('uid=') && (lower.includes('gid=') || lower.includes('groups='))) {
+  // CMDI: real `id` output shape, not bare markers. FIX (#358): bare
+  // `uid=` + `gid=` fire on prose quoting them ("the output was uid=0
+  // gid=0") and on tutorial text. Actual `id` output carries the
+  // parenthesized names — uid=0(root) gid=0(root) — so require that
+  // shape. Residual: prose quoting FULL id output still matches;
+  // the claim stays medium-confidence and the verifier must confirm
+  // via command execution before anything ships.
+  if (/uid=\d+\([^)]+\)/.test(lower) && (/gid=\d+\([^)]+\)/.test(lower) || lower.includes('groups='))) {
     return {
       class: 'cmdi',
       title: 'Command Injection (auto-detected)',
       evidence: `Command output (uid=) found in response`,
-      command: 'curl -s "<TARGET>/vulnerabilities/exec/" --data "ip=127.0.0.1%3B+id&Submit=Submit" -b "PHPSESSID=test; security=low"',
+      command: '',
       counterevidence: 'Output could be static; verifier will confirm via command execution.',
       confidence: 'medium',
     };

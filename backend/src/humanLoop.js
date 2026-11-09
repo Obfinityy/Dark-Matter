@@ -4510,7 +4510,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       const c = getStuckCount() + 1;
       setStuckCount(c);
       if (c >= 5) {
-        observation = 'STOP RECALLING. You have repeated recall ' + c + ' times across sessions. You already have the evidence on screen (password hashes dumped via SQLi). FILE THE CLAIM NOW using {"action":"claim_finding","title":"SQL Injection in DVWA","class":"sqli","evidence":"<the hashes you saw>","command":"<your replay command>","counterevidence":"<normal query returns no hashes>","confidence":"high"}. Do NOT recall again. FILE NOW.';
+        observation = 'STOP RECALLING. You have repeated recall ' + c + ' times across sessions. If you already have evidence on screen for a finding on ' + String(target).slice(0, 80) + ', FILE THE CLAIM NOW using {"action":"claim_finding","title":"<the finding you actually observed>","class":"<its class>","evidence":"<what you actually observed>","command":"<your replay command>","counterevidence":"<what normal behavior shows>","confidence":"high"}. Do NOT invent evidence you did not see. If you have NO finding evidence, say so and move to a new test instead of recalling. FILE what you saw, or MOVE ON. Do NOT recall again.';
         try { deps.record(huntId, { type: 'stuck_detector_triggered', count: c, via: 'human-mode' }); } catch {}
         setStuckCount(0);
       }
@@ -4570,9 +4570,14 @@ export async function humanIteration(huntId, target, opts = {}) {
           evidence: detected.class === 'sqli' && recallLoopProof
             ? recallLoopProof.evidence
             : detected.evidence,
+          // FIX (#359): the detector returns command: '' (it cannot
+          // ground a replay — see autoFiler.js), so fall back to the
+          // real shell command that produced this evidence, mirroring
+          // the post-dispatch sweep. Without a real command the claim
+          // gate bounces the claim instead of filing a lab replay.
           command: detected.class === 'sqli' && recallLoopProof
             ? recallLoopProof.command
-            : detected.command,
+            : (detected.command || lastShellCommand || ''),
           counterevidence: detected.counterevidence,
           confidence: detected.confidence,
           confidence_rationale: 'Auto-detected by pattern matcher from brain output; brain has not manually filed this claim',
@@ -4603,7 +4608,7 @@ export async function humanIteration(huntId, target, opts = {}) {
       thinkingLower.includes('breaking out') ||
       thinkingLower.includes('break this login loop');
     if (isStuckTalk) {
-      observation = 'YOU SAID YOU ARE STUCK LOOPING. STOP. You have SQLi evidence (password hashes dumped). FILE THE CLAIM NOW: {"action":"claim_finding","title":"SQL Injection in DVWA User ID","class":"sqli","evidence":"First name: admin, Surname: 5f4dcc3b5aa765d61d8327deb882c (MD5 of password)","command":"curl -s http://172.17.0.1:3100/vulnerabilities/sqli/?id=1%27+UNION+SELECT+user%2Cpassword+FROM+users%23&Submit=Submit","counterevidence":"Normal id=1 returns only first name Gordon, no hashes","confidence":"high"}. FILE NOW, DO NOT RECALL.';
+      observation = 'YOU SAID YOU ARE STUCK LOOPING. STOP. If you have observed evidence for a finding on ' + String(target).slice(0, 80) + ', FILE THE CLAIM NOW with ONLY the evidence you actually saw: {"action":"claim_finding","title":"<the finding you observed>","class":"<its class>","evidence":"<what you observed>","command":"<your replay command>","counterevidence":"<what normal behavior shows>","confidence":"high"}. Do NOT file a claim about anything you did not observe. If you have NO finding evidence, stop this line of testing and try a different approach. FILE what you saw, or MOVE ON — DO NOT RECALL.';
       try { deps.record(huntId, { type: 'stuck_detector_v3_triggered', via: 'human-mode' }); } catch {}
     }
 
