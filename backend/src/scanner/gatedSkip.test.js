@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 98/57/41 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 99/58/41 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -278,24 +278,26 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // no-op alongside them (no admin routes on a bare page —
       // 9 Nov 2026, 97th phase), and mutation-xss SKIPS with 'no
       // script targets' alongside dom-xss-location-hash (a bare page
-      // carries no bundles — 9 Nov 2026, 98th phase).
+      // carries no bundles — 9 Nov 2026, 98th phase), and coupon-abuse
+      // RUNS as an honest no-op alongside them (no coupon routes on a
+      // bare page — 9 Nov 2026, 99th phase).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 98,
-        ok: 57,
+        total: 99,
+        ok: 58,
         failed: 0,
         skipped: 41,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 57 ran ok, 41 skipped, 0 failed, 0 timed out.'
+        'Phases: 58 ran ok, 41 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 126/126/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 128/128/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -391,17 +393,20 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // labCreds, so the lab gate fails before the mine runs — and
       // mutation-xss, the 98th phase, runs as an honest no-op
       // alongside them for the same reason: the stub carries no
+      // labCreds, so the lab gate fails before the mine runs — and
+      // coupon-abuse, the 99th phase, runs as an honest no-op
+      // alongside them for the same reason: the stub carries no
       // labCreds, so the lab gate fails before the mine runs).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 127,
-        ok: 127,
+        total: 128,
+        ok: 128,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 127 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 128 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -607,7 +612,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 98);
+      assert.equal(DEFAULT_PHASES.length, 99);
     } finally {
       teardown();
     }

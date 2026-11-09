@@ -52,6 +52,7 @@ import { probeWorkflowSkip } from './probes/workflowSkip.js';
 import { probeTwoFaBruteForce } from './probes/twoFaBruteForce.js';
 import { probeCredentialStuffing } from './probes/credentialStuffing.js';
 import { probeBfla } from './probes/bfla.js';
+import { probeCouponAbuse } from './probes/couponAbuse.js';
 import { probeDomPostMessage } from './probes/domPostMessage.js';
 import { probeCsti } from './probes/csti.js';
 import { probeCaptcha } from './probes/captcha.js';
@@ -163,6 +164,7 @@ export const DEFAULT_PHASES = [
   'twofa-bruteforce',
   'credential-stuffing',
   'bfla',
+  'coupon-abuse',
   'user-enumeration',
   'rfi',
   'xslt',
@@ -1877,6 +1879,37 @@ export async function runScan(
       controlOk: Boolean(bflaDiag.controlOk),
       attempts: bflaDiag.attempts || 0,
       bypassKind: bflaDiag.bypassKind || null,
+    })
+  );
+  // COUPON ABUSE (9 Nov 2026, rows #78 [Medium] Coupon / Discount /
+  // Referral Abuse and #371 [Medium] Logic — Coupon / voucher reuse
+  // abuse, CWE-840 | OWASP A04:2021): a coupon the server applies
+  // more than it should — the same single-use code discounting a
+  // fresh basket again, or a second code stacking on top of the
+  // first. The probe calibrates with a control apply first (the
+  // total must drop), then tests reuse on a fresh basket and
+  // stacking against the single-coupon floor (see couponAbuse.js).
+  // Same apiRoutes wiring as bfla. Diagnostics ride the phase
+  // extras (couponRoutes, couponCodes, controlOk, attempts,
+  // bypassKind) so a live proof can tell "no surface" from
+  // "oracle uncalibrated" without re-running the scan.
+  const couponDiag = {};
+  await step(
+    'coupon-abuse',
+    () =>
+      probeCouponAbuse(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: couponDiag,
+      }),
+    () => ({
+      couponRoutes: couponDiag.couponRoutes || 0,
+      couponCodes: couponDiag.couponCodes || 0,
+      controlOk: Boolean(couponDiag.controlOk),
+      attempts: couponDiag.attempts || 0,
+      bypassKind: couponDiag.bypassKind || null,
     })
   );
   await step('user-enumeration', () => probeUserEnum(forms, url, opts));

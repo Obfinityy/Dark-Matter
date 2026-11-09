@@ -116,6 +116,11 @@ describe('param battery skipped records (35/63 fix)', () => {
     // 'no script targets' when the page carries no script; lab-gated,
     // drives a mutation canary in a real browser only when an
     // HTML-write assignment exists in first-party code).
+    // (99 since 9 Nov 2026 (coupon abuse): 'coupon-abuse'
+    // joins as a standalone gated phase (one record per scan,
+    // always-run as an honest no-op: no coupon routes on a bare
+    // page; lab-gated, control apply first, then reuse on a fresh
+    // basket and stacking against the single-coupon floor).
     // (97 since 9 Nov 2026 (BFLA): 'bfla' joins as a standalone
     // gated phase (one record per scan, always-run as an honest
     // no-op: no admin routes on a bare page; lab-gated, three-way
@@ -140,7 +145,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 98);
+    assert.equal(DEFAULT_PHASES.length, 99);
   });
 
   it('zero param targets: all 29 param phases emit skipped records, rollup reports them', async () => {
@@ -372,6 +377,9 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
+  // 58/40 since 9 Nov 2026 (coupon abuse): 'coupon-abuse' adds a
+  // 58th ok record (always-run as an honest no-op: no coupon routes
+  // on a bare page), so the bare-page line reads 58 ran ok, 40 skipped.
   // 57/40 since 9 Nov 2026 (BFLA): 'bfla' adds a
   // 57th ok record (always-run as an honest no-op: no admin routes
   // on a bare page), so the bare-page line reads 57 ran ok, 40 skipped.
@@ -435,7 +443,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // 44/33 before xml-injection and untrusted-js-inclusion;
   // 46/34 before session-token-in-url; 47/34 before credential-disclosure;
   // 48/34 before sqli-oob.)
-  it('real runScan on a bare page renders the 57/41 line end to end', async () => {
+  it('real runScan on a bare page renders the 58/41 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -447,15 +455,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 98,
-        ok: 57,
+        total: 99,
+        ok: 58,
         failed: 0,
         skipped: 41,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 57 ran ok, 41 skipped, 0 failed, 0 timed out.'
+        'Phases: 58 ran ok, 41 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
