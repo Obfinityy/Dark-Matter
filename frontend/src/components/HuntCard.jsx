@@ -93,6 +93,21 @@ import FindingDetail from './FindingDetail';
 
 export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, onTalkWithAI, onGetReport }) {
   const [status, setStatus] = useState(hunt.status || 'idle');
+  // FIX (#448): status used to come from the useState initial value
+  // only, so a NEW hunt snapshot for the same card (parent refetch:
+  // 'starting' -> 'running') never moved the card. Adopt genuine
+  // prop changes — the ref tracks the prop, not the local state, so
+  // stream/control updates to local status are never clobbered by
+  // this effect; only a changed prop value is adopted. Plain
+  // setStatus, not updateStatus: echoing the parent's own value
+  // back through onStatusChange would be noise.
+  const prevHuntStatusRef = useRef(hunt.status);
+  useEffect(() => {
+    if (hunt.status && hunt.status !== prevHuntStatusRef.current) {
+      prevHuntStatusRef.current = hunt.status;
+      setStatus(hunt.status);
+    }
+  }, [hunt.status]);
   // MODEL-SWITCHER: model id -> display label. The loaded brain
   // state carries the list; the static map covers the render
   // before it arrives (and any id the list does not know).
@@ -143,8 +158,12 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   const [brainModeBusy, setBrainModeBusy] = useState(false);
   // Button visibility rule (owner's spec): a live hunt shows Pause + Stop;
   // a paused hunt shows Resume + Stop. Terminal hunts show nothing clickable.
+  // FIX (#454): 'unknown' is terminal too — App builds cards with
+  // `status || 'unknown'` when the backend sent no status, and the old
+  // list left Pause + Stop clickable on a hunt whose state is
+  // unknown (and may not be controllable at all).
   const isPaused = status === 'paused' || status === 'out_of_credits';
-  const isTerminal = ['done', 'stopped', 'failed', 'error'].includes(status);
+  const isTerminal = ['done', 'stopped', 'failed', 'error', 'unknown'].includes(status);
   const isActive = ['running', 'paused'].includes(status);
   const isRunning = status === 'running' || status === 'starting';
   // LIVE MACHINE GATE (27 Oct 2026, live-machine fix): the live panel
@@ -207,6 +226,8 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   const [phase, setPhase] = useState(hunt.phase || '');
   const [busy, setBusy] = useState(false);
   const [streamError, setStreamError] = useState(false);
+  const [streamReconnecting, setStreamReconnecting] = useState(false);
+  const streamRef = useRef(null);
   const [showFeed, setShowFeed] = useState(true);
   const [resolvedCreatedAt, setResolvedCreatedAt] = useState(hunt.createdAt || null);
   // Lane P: until the history fetch settles, the card cannot tell a
@@ -391,13 +412,22 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
     findingsTimerRef.current = setTimeout(refreshFindings, 800);
   };
   useEffect(() => {
-    if (hunt.createdAt) { setResolvedCreatedAt(hunt.createdAt); return; }
+    // FIX (#448): the old effect early-returned when createdAt was
+    // set — which is the common case for hunts from history — so the
+    // status refresh inside it NEVER ran for those hunts, and the
+    // card kept its mount-time status. The createdAt resolution
+    // keeps its fast path, but the status refresh now runs
+    // regardless, via a single listHunts call. The functional
+    // setStatus also drops the stale-closure comparison against
+    // the mount-time status value.
+    if (hunt.createdAt) setResolvedCreatedAt(hunt.createdAt);
     let cancelled = false;
     listHunts().then((r) => {
       if (cancelled || !r.ok) return;
       const found = (r.data.hunts || []).find((h) => h.huntId === hunt.huntId);
-      if (found && found.createdAt) setResolvedCreatedAt(found.createdAt);
-      if (found && found.status && found.status !== status) setStatus(found.status);
+      if (!found) return;
+      if (!hunt.createdAt && found.createdAt) setResolvedCreatedAt(found.createdAt);
+      if (found.status) setStatus((s) => (found.status !== s ? found.status : s));
     });
     return () => { cancelled = true; };
   }, [hunt.huntId]);
@@ -535,6 +565,9 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   useEffect(() => {
     const handlers = {
       onEvent: (type, payload) => {
+        // A live event means the socket is back: clear the
+        // reconnecting banner (FIX #443).
+        setStreamReconnecting(false);
         if (type === 'thinking') {
           setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: payload.text || payload.message || '', at: eventTimeMs(payload) }]);
         } else if (type === 'tool_call') {
@@ -596,7 +629,18 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         setStreamError(true);
         setStatus((s) => (s === 'idle' ? 'error' : s));
       },
-      onClose: () => {},
+      // FIX (#443): the client now auto-reconnects on a transient
+      // drop (up to 5 attempts, backoff). Show "reconnecting"
+      // instead of the error banner; only a final close after
+      // exhausted retries surfaces the error + Retry button.
+      onReconnecting: () => {
+        setStreamReconnecting(true);
+        setStreamError(false);
+      },
+      onClose: (reason) => {
+        setStreamReconnecting(false);
+        if (reason === 'exhausted') setStreamError(true);
+      },
     };
 
     let stream;
@@ -604,12 +648,16 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
       stream = isDemoMode()
         ? createSimulatedStream(hunt.huntId, handlers)
         : new HuntStreamClient(hunt.huntId, handlers);
+      streamRef.current = stream;
       stream.connect();
     } catch (err) {
       setStreamError(true);
       setStatus('error');
     }
-    return () => stream && stream.disconnect();
+    return () => {
+      streamRef.current = null;
+      stream && stream.disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hunt.huntId]);
 
@@ -660,6 +708,11 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
     });
     return c;
   }, [uniqueVerifiedFindings]);
+
+  // FIX (#454): Stop is destructive (ends the hunt; only a fresh
+  // re-run can follow), so it confirms first — mirroring App's
+  // delete-chat confirm — instead of firing on a single click.
+  const [confirmingStop, setConfirmingStop] = useState(false);
 
   async function runControl(action, fn, successMsg) {
     setBusy(true);
@@ -838,10 +891,16 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         </div>
       )}
 
+      {streamReconnecting && (
+        <div className="hunt-stream-warning">
+          Live stream reconnecting — live output will resume automatically.
+        </div>
+      )}
+
       {streamError && (
         <div className="hunt-stream-warning">
           Live stream unavailable — control buttons still work, but live output will not update.
-          <button className="btn btn-ghost btn-sm" onClick={() => window.location.reload()}>
+          <button className="btn btn-ghost btn-sm" onClick={() => { setStreamError(false); const s = streamRef.current; if (s) { if (s.reconnect) s.reconnect(); else s.connect(); } }}>
             Retry
           </button>
         </div>
@@ -989,10 +1048,36 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         <button
           className="hunt-pill-btn danger"
           disabled={busy || isTerminal}
-          onClick={() => runControl('stop', stopHunt, 'Hunt stopped.')}
+          onClick={() => setConfirmingStop(true)}
         >
           ■ Stop
         </button>
+        {confirmingStop && (
+          <div className="modal-backdrop" onClick={() => setConfirmingStop(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Stop hunt?</h3>
+              <p className="modal-sub">
+                This ends the hunt against {hunt.target}. Its findings and report stay available,
+                but the hunt itself cannot be resumed — only a fresh re-run can follow.
+              </p>
+              <div className="modal-actions">
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setConfirmingStop(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn-danger"
+                  disabled={busy}
+                  onClick={() => { setConfirmingStop(false); runControl('stop', stopHunt, 'Hunt stopped.'); }}
+                >
+                  Stop hunt
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {isTerminal && onRerun && (
           <button
             className="hunt-pill-btn"
@@ -1244,7 +1329,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
                   steerHunt(hunt.huntId, steerMsg.trim()).then((r) => {
                     setSteerBusy(false);
                     if (r.ok) { setSteerSent(true); setSteerMsg(''); }
-                    else toast.error(r.error || 'Could not send instruction');
+                    else toast(r.error || 'Could not send instruction', 'error');
                   });
                 }
               }}
@@ -1257,7 +1342,7 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
                 steerHunt(hunt.huntId, steerMsg.trim()).then((r) => {
                   setSteerBusy(false);
                   if (r.ok) { setSteerSent(true); setSteerMsg(''); }
-                  else toast.error(r.error || 'Could not send instruction');
+                  else toast(r.error || 'Could not send instruction', 'error');
                 });
               }}
             >
