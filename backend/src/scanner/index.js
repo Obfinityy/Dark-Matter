@@ -55,6 +55,7 @@ import { probeDomPostMessage } from './probes/domPostMessage.js';
 import { probeCsti } from './probes/csti.js';
 import { probeCaptcha } from './probes/captcha.js';
 import { probeCssInjection } from './probes/cssInjection.js';
+import { probeMutationXss } from './probes/mutationXss.js';
 import { probeUserEnum } from './probes/userEnum.js';
 import { probeRfi } from './probes/rfi.js';
 import { probeXslt } from './probes/xslt.js';
@@ -207,6 +208,7 @@ export const DEFAULT_PHASES = [
   'csti',
   'captcha',
   'css-injection',
+  'mutation-xss',
   'nuclei',
 ];
 
@@ -1423,6 +1425,51 @@ export async function runScan(
       driveExecuted: Boolean(cssDiag.driveExecuted),
     })
   );
+  // MUTATION XSS (9 Nov 2026, row #116 [High] CWE-79): sanitizer-
+  // approved markup re-parsed by the browser into executable
+  // markup. This phase mines first-party code for HTML-write
+  // assignments (innerHTML / outerHTML / insertAdjacentHTML /
+  // document.write) and, only when one exists, navigates the pasted
+  // page in a real browser (transient container + fixed CDP
+  // endpoint, same pattern as renderDomAuthenticated) with a
+  // mutation canary in the query string and then in the fragment,
+  // and confirms ONLY when the canary executes in two renders with
+  // a clean control — see mutationXss.js. The canaries are inert
+  // under a single conforming HTML parse, so execution implies the
+  // page's handling re-parsed them (a sanitizer round-trip). Sink
+  // presence alone never fires. Lab-gated like css-injection
+  // (labCreds + allowWrite + lab host + depth !== 'quick'), so the
+  // drive never runs outside the lab gate; zero HTML-write sinks
+  // is a proven true negative with no drive at all. Unlike
+  // css-injection this step IS gated on secretTargets: the probe
+  // mines JS only (no served-HTML surface), so a script-less page
+  // has nothing to mine and the phase skips with 'no script
+  // targets' instead of running an empty mine. The probe needs no
+  // apiRoutes — it navigates the pasted page URL only and fetches
+  // the page's own script bundles.
+  const mxssDiag = {};
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step(
+      'mutation-xss',
+      () =>
+        probeMutationXss(url, secretTargets, {
+          ...opts,
+          allowWrite,
+          labTargets,
+          pageBody,
+          diagnostics: mxssDiag,
+          ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+        }),
+      () => ({
+        mxssSinks: mxssDiag.mxssSinks || 0,
+        mxssNearSink: mxssDiag.mxssNearSink || 0,
+        driveAttempted: Boolean(mxssDiag.driveAttempted),
+        driveExecuted: Boolean(mxssDiag.driveExecuted),
+      })
+    );
+  } else {
+    skipPhase('mutation-xss', 'no script targets');
+  }
   // ERROR DISCLOSURE (7 Nov 2026, rows #175 + #176): trigger
   // errors with read-only GETs on the same GET probe targets as
   // verb-tampering (non-existent paths + malformed query values)

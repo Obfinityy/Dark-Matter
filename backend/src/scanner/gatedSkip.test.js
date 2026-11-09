@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 97/57/40 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 98/57/41 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -276,17 +276,19 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // honest no-op alongside them (no style contexts on a bare
       // page — 9 Nov 2026, 96th phase), and bfla RUNS as an honest
       // no-op alongside them (no admin routes on a bare page —
-      // 9 Nov 2026, 97th phase).
+      // 9 Nov 2026, 97th phase), and mutation-xss SKIPS with 'no
+      // script targets' alongside dom-xss-location-hash (a bare page
+      // carries no bundles — 9 Nov 2026, 98th phase).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 97,
+        total: 98,
         ok: 57,
         failed: 0,
-        skipped: 40,
+        skipped: 41,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 57 ran ok, 40 skipped, 0 failed, 0 timed out.'
+        'Phases: 57 ran ok, 41 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
@@ -386,17 +388,20 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // carries no labCreds, so the lab gate fails before the mine
       // runs — and bfla, the 97th phase, runs as an honest no-op
       // alongside them for the same reason: the stub carries no
+      // labCreds, so the lab gate fails before the mine runs — and
+      // mutation-xss, the 98th phase, runs as an honest no-op
+      // alongside them for the same reason: the stub carries no
       // labCreds, so the lab gate fails before the mine runs).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 126,
-        ok: 126,
+        total: 127,
+        ok: 127,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 126 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 127 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -602,7 +607,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 97);
+      assert.equal(DEFAULT_PHASES.length, 98);
     } finally {
       teardown();
     }
