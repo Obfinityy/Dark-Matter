@@ -16,7 +16,7 @@ export default function ToastHost() {
   return (
     <div className="toast-host" aria-live="polite">
       {items.map((t) => (
-        <div key={t.id} className={`toast toast-${t.kind}`}>
+        <div key={t.id} className={`toast toast-${t.kind}`} role="status">
           {t.message}
         </div>
       ))}
