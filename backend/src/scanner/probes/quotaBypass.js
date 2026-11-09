@@ -41,7 +41,16 @@
 // basket-logic #82 / coupon-abuse #78's, and admin endpoints are
 // BFLA #340's. A candidate that 404s or needs auth fails the
 // control and is skipped, so a templated mined route can never
-// confirm.
+// confirm — which is why findApiRoutes derives the parent
+// COLLECTION of a templated write target first (whole-segment
+// match, the 1418d921 feedback-route pattern): the JS miner
+// hands the probe write targets with a filler id
+// (/api/Feedbacks/dmprobe4_2e69), and only the collection
+// (/api/Feedbacks) can grant a control GET. Without the
+// derivation the probe stays uncalibrated on SPA labs (proof
+// #33: Juice apiRoutes 2, controlOk false, attempts 0 — the two
+// mined routes were templated write targets, while /api/Products
+// and /api/Feedbacks grant 200 JSON unauthenticated).
 //
 // GATES: labCreds + allowWrite + isLabTargetHost (same lab gate
 // as basket-logic / workflow-skip / bfla / coupon-abuse — volume
@@ -62,6 +71,19 @@ const EXCLUDED_SEGMENT_RE =
   /(?:^|\/)(login|logon|signin|sign-in|register|signup|sign-up|basket|baskets|cart|carts|checkout|coupon|coupons|discount|discounts|voucher|vouchers|admin|administrator)(?:\/|$)/i;
 const THROTTLE_TEXT_RE =
   /rate[ -]?limit|too many requests|slow down|quota exceeded|request limit|try again later|throttl|exceeded.*(limit|quota)/i;
+// A mined route's last segment looks like a generated filler id when
+// it matches one of these: the JS miner's own filler marker
+// (dmprobe<n>_<hex>, e.g. dmprobe4_2e69), a numeric id, a UUID, a
+// long hex token, or a long mixed letter+digit token. A plain word
+// (letters only, e.g. 'search', 'apple-juice') is a real resource
+// name, never a filler.
+const FILLER_SEGMENT_RES = [
+  /^dmprobe/i,
+  /^\d+$/,
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  /^[0-9a-f]{8,}$/i,
+  /^(?=.*[a-z])(?=.*\d)[a-z0-9]{8,}$/i,
+];
 
 function rand() {
   return Math.random().toString(36).slice(2, 10);
@@ -84,14 +106,55 @@ function stripQuery(u) {
 // ---- pure helpers (exported for unit tests) ---------------------------------
 
 /**
+ * Derive the parent collection URL of a templated write target:
+ * when a route's last path segment is a generated filler id (the
+ * JS miner fills template path params with dmprobe<n>_<hex>, e.g.
+ * /api/Feedbacks/dmprobe4_2e69), the item URL can never grant a
+ * control GET — the filler id does not exist — so the collection
+ * (the path up to the last segment) is the usable candidate. This
+ * is the whole-segment-match pattern from the CAPTCHA feedback
+ * fix (1418d921): never the templated item URL, always the
+ * collection base. Returns the collection URL, or null when the
+ * last segment is not a filler id, or when the parent is not a
+ * real collection (fewer than 2 segments, no api/rest segment,
+ * or an excluded segment such as basket/admin). Pure.
+ */
+export function deriveCollectionUrl(route) {
+  let u;
+  try {
+    u = new URL(String(route));
+  } catch {
+    return null;
+  }
+  const segments = u.pathname.split('/').filter(Boolean);
+  if (segments.length < 2) return null;
+  const last = segments[segments.length - 1];
+  if (!FILLER_SEGMENT_RES.some((re) => re.test(last))) return null;
+  const parent = `/${segments.slice(0, -1).join('/')}`;
+  if (segments.length - 1 < 2) return null;
+  if (!API_SEGMENT_RE.test(parent)) return null;
+  if (EXCLUDED_SEGMENT_RE.test(parent)) return null;
+  return `${u.origin}${parent}`;
+}
+
+/**
  * Mine data-API candidate routes from the discovered route set: a
  * route qualifies when its pathname carries a whole 'api' or
  * 'rest' segment and no excluded segment (auth, basket/cart/
  * checkout/coupon, admin). Same-origin only, deduped, query
- * stripped. Pure.
+ * stripped. Derived collections come FIRST, in a separate pass
+ * (see deriveCollectionUrl): the item URL itself can never grant
+ * a control, so every templated route yields its cap slot to its
+ * collection before any item URL is kept — with two templated
+ * mined routes the cap holds both collections, never one
+ * collection plus one dead item URL. Pure.
  */
 export function findApiRoutes(routes, origin) {
   const out = [];
+  const push = (s) => {
+    if (!out.includes(s)) out.push(s);
+  };
+  const valid = [];
   for (const r of routes || []) {
     try {
       const u = new URL(String(r));
@@ -99,12 +162,16 @@ export function findApiRoutes(routes, origin) {
       const p = u.pathname;
       if (!API_SEGMENT_RE.test(p)) continue;
       if (EXCLUDED_SEGMENT_RE.test(p)) continue;
-      const s = stripQuery(u.toString());
-      if (!out.includes(s)) out.push(s);
+      valid.push(stripQuery(u.toString()));
     } catch {
       // ignore malformed route entries
     }
   }
+  for (const s of valid) {
+    const collection = deriveCollectionUrl(s);
+    if (collection) push(collection);
+  }
+  for (const s of valid) push(s);
   return out.slice(0, MAX_API_ROUTES);
 }
 
@@ -242,6 +309,15 @@ export async function probeQuotaBypass(url, opts = {}) {
   const routes = (opts.apiRoutes || []).map(String);
   const candidates = findApiRoutes(routes, origin);
   setDiag('apiRoutes', candidates.length);
+  // How many candidates are collections derived from templated
+  // write targets (never mined directly) — the live-proof signal
+  // that the derivation ran (proof #33: apiRoutes 2, controlOk
+  // false, because only templated targets were mined).
+  const inputStripped = new Set(routes.map((r) => stripQuery(r)));
+  setDiag(
+    'derivedCollections',
+    candidates.filter((c) => !inputStripped.has(c) && routes.some((r) => deriveCollectionUrl(r) === c)).length
+  );
   if (!candidates.length) return findings;
 
   for (const route of candidates) {

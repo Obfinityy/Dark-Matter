@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import {
   probeQuotaBypass,
   findApiRoutes,
+  deriveCollectionUrl,
   hasRetryAfter,
   assessApiResponse,
   assessQuotaBurst,
@@ -167,6 +168,67 @@ describe('findApiRoutes', () => {
   });
 });
 
+describe('deriveCollectionUrl', () => {
+  it('QB-17: a filler last segment yields the parent collection; real names, bare collections and non-API parents yield null', () => {
+    assert.equal(
+      deriveCollectionUrl('http://lab.local/api/Feedbacks/dmprobe4_2e69'),
+      'http://lab.local/api/Feedbacks'
+    );
+    assert.equal(deriveCollectionUrl('http://lab.local/api/Products/123'), 'http://lab.local/api/Products');
+    assert.equal(
+      deriveCollectionUrl('http://lab.local/api/Users/550e8400-e29b-41d4-a716-446655440000'),
+      'http://lab.local/api/Users'
+    );
+    assert.equal(deriveCollectionUrl('http://lab.local/rest/items/a1b2c3d4e5f6'), 'http://lab.local/rest/items');
+    assert.equal(deriveCollectionUrl('http://lab.local/api/Orders/x7k9m2pq'), 'http://lab.local/api/Orders');
+    assert.equal(
+      deriveCollectionUrl('http://lab.local/api/Feedbacks/dmprobe4_2e69?x=1'),
+      'http://lab.local/api/Feedbacks'
+    );
+    assert.equal(deriveCollectionUrl('http://lab.local/api/Products'), null);
+    assert.equal(deriveCollectionUrl('http://lab.local/api/Products/apple-juice'), null);
+    assert.equal(deriveCollectionUrl('http://lab.local/rest/products/search'), null);
+    assert.equal(deriveCollectionUrl('http://lab.local/shop/Feedbacks/dmprobe4_2e69'), null);
+    assert.equal(deriveCollectionUrl('http://lab.local/api/dmprobe4_2e69'), null);
+    assert.equal(deriveCollectionUrl('http://lab.local/api/Baskets/123'), null);
+    assert.equal(deriveCollectionUrl('not a url'), null);
+  });
+  it('QB-18: findApiRoutes puts derived collections first; the templated item URL yields its cap slot', () => {
+    assert.deepEqual(
+      findApiRoutes(
+        ['http://lab.local/api/Feedbacks/dmprobe4_2e69', 'http://lab.local/api/Products/123'],
+        ORIGIN
+      ),
+      ['http://lab.local/api/Feedbacks', 'http://lab.local/api/Products']
+    );
+    assert.deepEqual(
+      findApiRoutes(
+        ['http://lab.local/api/Products', 'http://lab.local/api/Feedbacks/dmprobe4_2e69'],
+        ORIGIN
+      ),
+      ['http://lab.local/api/Feedbacks', 'http://lab.local/api/Products']
+    );
+    assert.deepEqual(
+      findApiRoutes(
+        ['http://lab.local/api/Feedbacks', 'http://lab.local/api/Feedbacks/dmprobe4_2e69'],
+        ORIGIN
+      ),
+      ['http://lab.local/api/Feedbacks', 'http://lab.local/api/Feedbacks/dmprobe4_2e69']
+    );
+    assert.deepEqual(
+      findApiRoutes(
+        [
+          'http://lab.local/api/Feedbacks/dmprobe1_aa11',
+          'http://lab.local/api/Products/123',
+          'http://lab.local/rest/items/a1b2c3d4',
+        ],
+        ORIGIN
+      ),
+      ['http://lab.local/api/Feedbacks', 'http://lab.local/api/Products']
+    );
+  });
+});
+
 // ---- the probe, end to end against the fake ---------------------------------
 
 describe('probeQuotaBypass — vulnerable API', () => {
@@ -278,6 +340,61 @@ describe('probeQuotaBypass — uncalibrated and multi-candidate', () => {
     assert.equal(findings[0].url, 'http://lab.local/rest/products/search');
     assert.equal(diag.throttled, true, 'the first route throttled');
     assert.equal(diag.bypassKind, 'no-rate-limit');
+  });
+
+  it('QB-19: Juice shape — only a templated write target is mined, its derived collection grants and the burst confirms', async () => {
+    const { state, fetchFn } = makeFakeApi({
+      '/api/Feedbacks/dmprobe4_2e69': { control404: true },
+    });
+    const diag = {};
+    const findings = await probeQuotaBypass('http://lab.local/', {
+      ...BASE_OPTS,
+      fetchFn,
+      apiRoutes: ['http://lab.local/api/Feedbacks/dmprobe4_2e69'],
+      diagnostics: diag,
+    });
+    assert.equal(findings.length, 1, `expected 1 finding, got: ${findings.map((f) => f.title).join(' | ')}`);
+    assert.equal(findings[0].url, 'http://lab.local/api/Feedbacks');
+    assert.equal(findings[0].class, 'business_logic');
+    assert.equal(diag.apiRoutes, 2, 'collection + templated item URL are both candidates');
+    assert.equal(diag.derivedCollections, 1, 'the collection was derived, never mined directly');
+    assert.equal(diag.controlOk, true);
+    assert.equal(diag.attempts, 15);
+    assert.equal(diag.bypassKind, 'no-rate-limit');
+    assert.equal(state.counts['/api/Feedbacks'], 16, '1 control + 15 burst GETs on the collection');
+    assert.equal(state.counts['/api/Feedbacks/dmprobe4_2e69'], undefined, 'the templated item URL is never fetched');
+  });
+  it('QB-20: a derived collection that also fails to grant stays uncalibrated — zero findings', async () => {
+    const { fetchFn } = makeFakeApi({
+      '/api/Feedbacks/dmprobe4_2e69': { control404: true },
+      '/api/Feedbacks': { control404: true },
+    });
+    const diag = {};
+    const findings = await probeQuotaBypass('http://lab.local/', {
+      ...BASE_OPTS,
+      fetchFn,
+      apiRoutes: ['http://lab.local/api/Feedbacks/dmprobe4_2e69'],
+      diagnostics: diag,
+    });
+    assert.deepEqual(findings, []);
+    assert.equal(diag.controlOk, undefined);
+    assert.equal(diag.derivedCollections, 1);
+  });
+  it('QB-21: a throttling derived collection proves the limit — zero findings, moves on', async () => {
+    const { fetchFn } = makeFakeApi({
+      '/api/Feedbacks': { throttleAt: 3 },
+      '/api/Feedbacks/dmprobe4_2e69': { control404: true },
+    });
+    const diag = {};
+    const findings = await probeQuotaBypass('http://lab.local/', {
+      ...BASE_OPTS,
+      fetchFn,
+      apiRoutes: ['http://lab.local/api/Feedbacks/dmprobe4_2e69'],
+      diagnostics: diag,
+    });
+    assert.deepEqual(findings, []);
+    assert.equal(diag.throttled, true);
+    assert.equal(diag.attempts, 2, 'control + 1 burst grant, then the 429 stops the burst');
   });
 });
 
