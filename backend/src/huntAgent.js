@@ -173,7 +173,6 @@ import { generateHypotheses, formatHypothesesForPrompt, scoreInterestingness, bu
 import { recordReasoning, formatReasoningForPrompt, formatLedgerForPrompt, getHypothesisLedger, getPremiseLedger, getVerifiedPairs, normalizeHypothesis, getAllReasoning, buildFullHistoryLedger, searchRecall } from './reasoningMemory.js';
 import { recordGlobalLearning, getRelevantMemories, formatGlobalMemoryForPrompt, inferTechnique, readAllGlobalMemories } from './globalMemory.js';
 import { webSearch, searchCVE } from './webSearch.js';
-import { runBrowserTask, crawlScript } from './browserAgent.js';
 import { getHuntCost } from './costTracker.js';
 import { checkBudget } from './budgetCap.js';
 import { appendHuntEvent, writeHuntMeta, writeHuntMetaCheckpoint, readHuntMeta, readHuntEvents, readUsers, readTargetIntel, writeTargetIntel, huntDir, ensureHuntDir } from './store.js';
@@ -507,27 +506,14 @@ async function reconPhase(huntId, target) {
     }
   }
 
-  // BROWSER EXPLORATION: use the site like a human would.
-  // A human hunter doesn't just curl — they click, fill forms, observe.
-  try {
-    think(huntId, 'Exploring the site in a real browser like a human would.');
-    const browserResult = await runBrowserTask(huntId, crawlScript(target), 45000);
-    if (browserResult && browserResult.result) {
-      const { forms, links } = browserResult.result;
-      think(huntId, `Browser found ${forms.length} forms and ${links.length} links.`);
-      // Add discovered endpoints from browser
-      for (const link of links.slice(0, 20)) {
-        if (link.startsWith(target) && !recon.endpoints.includes(link)) {
-          recon.endpoints.push(link);
-        }
-      }
-      // Record forms for later testing
-      recon.forms = forms;
-      appendHuntEvent(huntId, { type: 'tool_call', tool: 'browser', detail: `explored: ${forms.length} forms, ${links.length} links` });
-    }
-  } catch (err) {
-    think(huntId, 'Browser exploration failed, continuing with standard recon.');
-  }
+  // BROWSER EXPLORATION REMOVED (#348): the Playwright module was dead
+  // (Playwright is not installed, so every call failed), broken
+  // (shell `node -e` + `new Function` with interpolated target/payload),
+  // and latently injectable. Recon continues with the curl homepage
+  // fetch below, which is what actually worked. A browser capability
+  // may be re-added later as a properly built feature (installed
+  // dependency, file-based scripts, serialized args) — not by
+  // reviving this module (see git history if needed).
 
   // Fetch homepage HTML for JS mining + profiling + TECH DETECTION
   // bypassTmux: tmux truncates to 50 lines; we need the full HTML body.
