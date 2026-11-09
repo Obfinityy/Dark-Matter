@@ -63,6 +63,7 @@ import { probeDomOpenRedirect } from './probes/domOpenRedirect.js';
 import { probeDomClobbering } from './probes/domClobbering.js';
 import { probeDomCookieManipulation } from './probes/domCookieManipulation.js';
 import { probeDocumentDomain } from './probes/documentDomain.js';
+import { probeWebrtcLeak } from './probes/webrtcLeak.js';
 import { probeCsti } from './probes/csti.js';
 import { probeCaptcha } from './probes/captcha.js';
 import { probeCssInjection } from './probes/cssInjection.js';
@@ -185,6 +186,7 @@ export const DEFAULT_PHASES = [
   'dom-clobbering',
   'dom-cookie-manipulation',
   'document-domain',
+  'webrtc-leak',
   'quota-bypass',
   'provisioning',
   'user-enumeration',
@@ -1803,6 +1805,40 @@ export async function runScan(
   } else {
     skipPhase('document-domain', 'no script targets');
   }
+  // WEBRTC LOCAL IP LEAKAGE (9 Nov 2026, row #459 [Low] Browser —
+  // WebRTC local IP leakage, CWE-200): drive the pasted page in a
+  // real headless browser (same transient-container + fixed-loopback
+  // CDP pattern as the DOM trio) and gather ICE candidates with an
+  // RTCPeerConnection that uses NO STUN/TURN servers — host
+  // candidates only, so no public IP is ever exposed and no
+  // external server is contacted. Flag literal RFC1918 /
+  // link-local / IPv6-ULA host-candidate addresses (see
+  // webrtcLeak.js); mDNS-masked (.local) candidates are the
+  // modern-browser true negative. Lab-gated like the DOM trio
+  // (labCreds + allowWrite + lab host + depth !== 'quick'): the
+  // drive executes JS in the target page. Diagnostics ride the
+  // phase extras (candidatesCollected, rfc1918Found,
+  // mdnsCandidates, driveAttempted, driveExecuted) so a live proof
+  // can tell "no candidates gathered" (uncalibrated) from
+  // "gathered and clean" without re-running the scan.
+  const wrDiag = {};
+  await step(
+    'webrtc-leak',
+    () =>
+      probeWebrtcLeak(url, {
+        ...opts,
+        allowWrite,
+        labTargets,
+        diagnostics: wrDiag,
+      }),
+    () => ({
+      candidatesCollected: wrDiag.candidatesCollected || 0,
+      rfc1918Found: wrDiag.rfc1918Found || 0,
+      mdnsCandidates: wrDiag.mdnsCandidates || 0,
+      driveAttempted: Boolean(wrDiag.driveAttempted),
+      driveExecuted: Boolean(wrDiag.driveExecuted),
+    })
+  );
   // ERROR DISCLOSURE (7 Nov 2026, rows #175 + #176): trigger
   // errors with read-only GETs on the same GET probe targets as
   // verb-tampering (non-existent paths + malformed query values)
