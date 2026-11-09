@@ -55,6 +55,7 @@ import { probeBfla } from './probes/bfla.js';
 import { probeCouponAbuse } from './probes/couponAbuse.js';
 import { probeApiTokenAuth } from './probes/apiTokenAuth.js';
 import { probeExceptionalConditions } from './probes/exceptionalConditions.js';
+import { probeWorkflowDataExposure } from './probes/workflowDataExposure.js';
 import { probeDomPostMessage } from './probes/domPostMessage.js';
 import { probeDomOpenRedirect } from './probes/domOpenRedirect.js';
 import { probeDomClobbering } from './probes/domClobbering.js';
@@ -174,6 +175,7 @@ export const DEFAULT_PHASES = [
   'coupon-abuse',
   'api-token-auth',
   'exceptional-conditions',
+  'workflow-data-exposure',
   'dom-open-redirect',
   'dom-clobbering',
   'dom-cookie-manipulation',
@@ -2146,6 +2148,37 @@ export async function runScan(
       controlOk: Boolean(apiTokenDiag.controlOk),
       attempts: apiTokenDiag.attempts || 0,
       bypassKind: apiTokenDiag.bypassKind || null,
+    })
+  );
+  // WORKFLOW DATA EXPOSURE (9 Nov 2026, row #375 [Medium] Logic —
+  // Excessive data exposure in workflows, CWE-200 | OWASP
+  // A04:2021): a workflow step that returns more data than the
+  // step needs — credential/secret material, or another user's
+  // data, riding in a workflow response. The probe walks the
+  // authenticated workflow (login -> basket -> whoami -> address
+  // -> checkout) and inspects each step's genuine server response
+  // against a tight parent-defined allowlist (see
+  // workflowDataExposure.js). Same apiRoutes wiring as bfla.
+  // Diagnostics ride the phase extras (workflowRoutes, controlOk,
+  // stepsInspected, exposedKind) so a live proof can tell "no
+  // surface" from "oracle uncalibrated" without re-running the
+  // scan.
+  const wdeDiag = {};
+  await step(
+    'workflow-data-exposure',
+    () =>
+      probeWorkflowDataExposure(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: wdeDiag,
+      }),
+    () => ({
+      workflowRoutes: wdeDiag.workflowRoutes || 0,
+      controlOk: Boolean(wdeDiag.controlOk),
+      stepsInspected: wdeDiag.stepsInspected || 0,
+      exposedKind: wdeDiag.exposedKind || null,
     })
   );
   // EXCEPTIONAL CONDITIONS (9 Nov 2026, row #482 [Medium]
