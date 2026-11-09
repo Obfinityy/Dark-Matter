@@ -32,6 +32,14 @@ function IconActivity() {
   );
 }
 
+function IconFlame() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5Z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onActivity, onOpenHunt, hunter = 'scanner', onPickHunter }) {
   const { user } = useAuth();
   const [modelOpen, setModelOpen] = useState(false);
@@ -124,7 +132,7 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onA
 
   return (
     <header className="topbar">
-      <div className="topbar-left" ref={modelRef} style={{ position: 'relative' }}>
+      <div className="topbar-left" ref={modelRef}>
         <button className="icon-btn hamburger-btn" onClick={onMenu} aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}>
           <IconMenu />
         </button>
@@ -137,16 +145,7 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onA
           <img src="/dark-matter-symbol.png" alt="" className="brand-picker-symbol" aria-hidden="true" />
           Dark Matter
           <span
-            style={{
-              fontSize: 10,
-              fontWeight: 600,
-              opacity: 0.55,
-              border: '1px solid currentColor',
-              borderRadius: 999,
-              padding: '1px 7px',
-              marginLeft: 2,
-              whiteSpace: 'nowrap',
-            }}
+            className="hunter-badge"
             title={activeHunter === 'scanner' ? 'Infinity Autonomous — rule-based scan, no AI, $0' : 'Infinity AI — AI agent hunts autonomously'}
           >
             {activeHunter === 'scanner' ? 'Autonomous' : 'AI'}
@@ -192,10 +191,10 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onA
           </div>
         )}
       </div>
-      <div className="topbar-right" ref={profileRef} style={{ position: 'relative' }}>
+      <div className="topbar-right" ref={profileRef}>
         {user && burn !== null && burn > 0 && (
           <span className="burn-pill" title="Total AWS money burnt (Bedrock + EC2)">
-            🔥 ${burn.toFixed(2)}
+            <IconFlame /> ${burn.toFixed(2)}
           </span>
         )}
         {onActivity && (
@@ -204,30 +203,29 @@ export default function TopBar({ onMenu, sidebarOpen, showShare, onNavigate, onA
           </button>
         )}
         {user && (
-          <div ref={bellRef} style={{ position: 'relative' }}>
+          <div className="bell-wrap" ref={bellRef}>
             <button className="icon-btn" title="Finding notifications" aria-label="Finding notifications" onClick={() => setBellOpen((v) => !v)}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                 <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M13.7 21a2 2 0 0 1-3.4 0" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               {unread > 0 && (
-                <span style={{ position: 'absolute', top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, background: '#c00', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>
+                <span className="unread-badge">
                   {unread > 99 ? '99+' : unread}
                 </span>
               )}
             </button>
             {bellOpen && (
-              <div className="model-menu" role="menu" style={{ right: 0, left: 'auto', width: 340, maxWidth: '80vw' }}>
+              <div className="model-menu bell-menu" role="menu">
                 {notes.length === 0 && (
-                  <div className="model-option-sub" style={{ padding: '10px 12px' }}>No verified findings yet — you will be told instantly when one lands.</div>
+                  <div className="model-option-sub bell-menu-empty">No verified findings yet — you will be told instantly when one lands.</div>
                 )}
                 {notes.slice(0, 10).map((n) => {
                   const isUnread = !(n.readBy || []).includes(user.id);
                   return (
                     <button
                       key={n.id}
-                      className="model-option"
-                      style={{ alignItems: 'flex-start', textAlign: 'left', opacity: isUnread ? 1 : 0.65 }}
+                      className={`model-option bell-item${isUnread ? '' : ' read'}`}
                       onClick={() => {
                         markNotificationRead(n.id).catch(() => {});
                         setNotes((prev) => prev.map((x) => (x.id === n.id ? { ...x, readBy: [...(x.readBy || []), user.id] } : x)));
