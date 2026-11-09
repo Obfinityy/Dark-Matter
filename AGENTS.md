@@ -71,7 +71,7 @@ POST /api/v1/hunts/:id/pause|resume|stop
 WS   /api/v1/hunts/:id/stream            # live events: thinking|tool_call|finding|status|done
 GET  /api/v1/hunts/:id/report            # report anytime, incl. mid-hunt (?format=md|pdf)
 GET  /api/v1/hunts/:id/analysis?goal=rce # infinity analysis: chains, confirmation, next steps
-GET  /api/v1/plugins/providers           # AWS Bedrock only (owner connects it later)
+GET  /api/v1/plugins/providers           # built-in providers: github, shodan, virustotal, payloads (see backend/src/routes/plugins.js)
 PUT  /api/v1/plugins/providers/:id       # encrypted credential storage
 GET  /api/v1/models                      # downloadable models
 POST /api/v1/auth/signup|login           # JWT auth (hunting requires login)
@@ -111,7 +111,7 @@ For the PentAGI Docker sandbox (agents invoke via shell; see
 
 - Chat-style theme; sidebar: New hunt / Plugins / Reports / Settings.
 - Auth required for hunts; pending-hunt intent opens the hunt setup after login.
-- Plugins page: AWS Bedrock only. Reports page merges backend + local hunts.
+- Plugins page: built-in providers (github, shodan, virustotal, payloads). Reports page merges backend + local hunts.
 - HuntCard has Pause/Resume/Stop. Mid-hunt chat via composer.
 - API base: `frontend/src/config.js` → hosted backend only (no local switcher).
 
