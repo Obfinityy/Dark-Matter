@@ -54,6 +54,9 @@ import { probeCredentialStuffing } from './probes/credentialStuffing.js';
 import { probeBfla } from './probes/bfla.js';
 import { probeCouponAbuse } from './probes/couponAbuse.js';
 import { probeDomPostMessage } from './probes/domPostMessage.js';
+import { probeDomOpenRedirect } from './probes/domOpenRedirect.js';
+import { probeDomClobbering } from './probes/domClobbering.js';
+import { probeDomCookieManipulation } from './probes/domCookieManipulation.js';
 import { probeCsti } from './probes/csti.js';
 import { probeCaptcha } from './probes/captcha.js';
 import { probeCssInjection } from './probes/cssInjection.js';
@@ -165,6 +168,9 @@ export const DEFAULT_PHASES = [
   'credential-stuffing',
   'bfla',
   'coupon-abuse',
+  'dom-open-redirect',
+  'dom-clobbering',
+  'dom-cookie-manipulation',
   'user-enumeration',
   'rfi',
   'xslt',
@@ -1554,6 +1560,131 @@ export async function runScan(
     );
   } else {
     skipPhase('mutation-xss', 'no script targets');
+  }
+  // DOM-BASED OPEN REDIRECTION (9 Nov 2026, row #91 [Medium]
+  // CWE-601): dom-xss-sinks fingerprints sinks statically and the
+  // other DOM probes drive canaries at other DOM sources; this
+  // phase goes after the fifth DOM source — it mines first-party
+  // code for redirect sinks (location.assign / location.replace /
+  // location.href = / window.open) fed by a location parameter
+  // and, only when one exists, navigates the pasted page in a real
+  // browser (transient container + fixed CDP endpoint, same
+  // pattern as renderDomAuthenticated) with a control value and
+  // then a canary redirect target (https://evil.example/… — the
+  // .example TLD never resolves, so the navigation is observable
+  // without reaching a real server), and confirms ONLY when the
+  // browser navigates to the canary target — see
+  // domOpenRedirect.js. Sink presence alone never fires.
+  // Lab-gated like dom-postmessage (labCreds + allowWrite + lab
+  // host + depth !== 'quick'), so the drive never runs outside the
+  // lab gate; a sink fed by a hardcoded string drives but cannot
+  // navigate, and zero sinks is a proven true negative with no
+  // drive at all.
+  const orDiag = {};
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step(
+      'dom-open-redirect',
+      () =>
+        probeDomOpenRedirect(url, secretTargets, {
+          ...opts,
+          allowWrite,
+          labTargets,
+          diagnostics: orDiag,
+          ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+        }),
+      () => ({
+        redirectSinks: orDiag.redirectSinks || 0,
+        redirectNearSink: orDiag.redirectNearSink || 0,
+        driveAttempted: Boolean(orDiag.driveAttempted),
+        driveExecuted: Boolean(orDiag.driveExecuted),
+      })
+    );
+  } else {
+    skipPhase('dom-open-redirect', 'no script targets');
+  }
+  // DOM CLOBBERING (9 Nov 2026, row #89 [Medium] Technique (no
+  // single CVE) | PortSwigger DOM): this phase mines first-party
+  // code for global reads feeding a sink (a URL assignment, an
+  // HTML sink, an eval sink) and the served page for id=/name=
+  // attributes proving a global IS clobberable by markup, and,
+  // only when a sink-feeding read exists, loads the pasted page in
+  // a real browser (transient container + fixed CDP endpoint, same
+  // pattern as renderDomAuthenticated), injects a crafted element
+  // (`<a id="<global>" href="https://evil.example/…">`) the way
+  // attacker-injected markup would, and confirms ONLY when
+  // window.<global> resolves to the injected node AND a sink
+  // consumes it (the canary URL on another element, a navigation
+  // to the canary, or the element's markup re-inserted) — see
+  // domClobbering.js. Clobbering without consumption is NEVER a
+  // finding. Lab-gated like dom-open-redirect (labCreds +
+  // allowWrite + lab host + depth !== 'quick'), so the drive never
+  // runs outside the lab gate; zero sink-feeding reads is a proven
+  // true negative with no drive at all.
+  const clobDiag = {};
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step(
+      'dom-clobbering',
+      () =>
+        probeDomClobbering(url, secretTargets, {
+          ...opts,
+          allowWrite,
+          labTargets,
+          pageBody,
+          diagnostics: clobDiag,
+          ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+        }),
+      () => ({
+        clobberSinks: clobDiag.clobberSinks || 0,
+        clobberNearSink: clobDiag.clobberNearSink || 0,
+        driveAttempted: Boolean(clobDiag.driveAttempted),
+        driveExecuted: Boolean(clobDiag.driveExecuted),
+      })
+    );
+  } else {
+    skipPhase('dom-clobbering', 'no script targets');
+  }
+  // DOM-BASED COOKIE MANIPULATION (9 Nov 2026, row #90 [Medium]
+  // Technique (no single CVE) | PortSwigger DOM): this phase mines
+  // first-party code for document.cookie writes fed by a location
+  // parameter and, only when one exists, drives the pasted page in
+  // a real browser WITH the hunt's lab session (acquired once by
+  // the dom-render step — reusing it spends no extra login POST),
+  // navigating with a control value and then a canary value and
+  // snapshotting document.cookie after each navigation, and
+  // confirms ONLY when a sensitive cookie (session / auth / token
+  // / CSRF) carries the canary marker in the canary render and
+  // does not in the control render — the control render is the
+  // baseline differential that separates DOM-set cookies from
+  // server-set ones — see domCookieManipulation.js. A write into a
+  // non-sensitive cookie is never a finding. Lab-gated like
+  // dom-clobbering (labCreds + allowWrite + lab host + depth !==
+  // 'quick'); without a lab session the drive is not attempted
+  // (the authenticated surface was never reached, never a false
+  // true negative), and zero cookie writes is a proven true
+  // negative with no drive at all.
+  const ckDiag = {};
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step(
+      'dom-cookie-manipulation',
+      () =>
+        probeDomCookieManipulation(url, secretTargets, {
+          ...opts,
+          allowWrite,
+          labTargets,
+          session: authSession && authSession.ok ? authSession.session : null,
+          diagnostics: ckDiag,
+          ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+        }),
+      () => ({
+        cookieSinks: ckDiag.cookieSinks || 0,
+        cookieNearSink: ckDiag.cookieNearSink || 0,
+        sessionOk: Boolean(ckDiag.sessionOk),
+        driveAttempted: Boolean(ckDiag.driveAttempted),
+        driveExecuted: Boolean(ckDiag.driveExecuted),
+      })
+    );
+  } else {
+    skipPhase('dom-cookie-manipulation', 'no script targets');
   }
   // ERROR DISCLOSURE (7 Nov 2026, rows #175 + #176): trigger
   // errors with read-only GETs on the same GET probe targets as
