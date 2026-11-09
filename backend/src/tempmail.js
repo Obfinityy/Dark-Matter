@@ -155,13 +155,16 @@ export function extractVerificationCode(text) {
   return candidates[0].code;
 }
 
+// Default gap between inbox polls while waiting for a verification code.
+const DEFAULT_POLL_INTERVAL_MS = 15000;
+
 /**
  * Poll an inbox for a verification code. sleep injected (tests pass a
  * no-op; production passes the loop's sleep). Never loops forever:
  * maxPolls bounds it, and a timeout is a reportable blocker, not a
  * reason to keep polling.
  */
-export async function pollForCode(inbox, { maxPolls = 8, intervalMs = 15000, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), fetchFn = fetch } = {}) {
+export async function pollForCode(inbox, { maxPolls = 8, intervalMs = DEFAULT_POLL_INTERVAL_MS, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), fetchFn = fetch } = {}) {
   let polls = 0;
   let lastError = null;
   while (polls < maxPolls) {

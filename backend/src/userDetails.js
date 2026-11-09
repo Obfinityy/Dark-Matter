@@ -26,6 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { config } from './config.js';
+import { atomicWriteJson } from './atomicWrite.js';
 import { scrubSecrets } from './credentials.js';
 
 export const USER_DETAILS_VERSION = 1;
@@ -55,11 +56,7 @@ function readStore() {
 function writeStore(store) {
   const file = userDetailsFile();
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(store, null, 2));
-  try { fs.chmodSync(tmp, 0o600); } catch { /* best-effort */ }
-  fs.renameSync(tmp, file);
-  try { fs.chmodSync(file, 0o600); } catch { /* best-effort */ }
+  atomicWriteJson(file, store, { mode: 0o600 });
 }
 
 /**

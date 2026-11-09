@@ -37,6 +37,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { atomicWriteJson } from './atomicWrite.js';
 import { huntDir, ensureHuntDir } from './store.js';
 
 export const PAGE_STATE_VERSION = 1;
@@ -119,10 +120,7 @@ export function loadPageState(huntId) {
 export function savePageState(huntId, state) {
   try {
     ensureHuntDir(huntId);
-    const file = pageStateFile(huntId);
-    const tmp = `${file}.tmp-${process.pid}`;
-    fs.writeFileSync(tmp, JSON.stringify(state));
-    fs.renameSync(tmp, file);
+    atomicWriteJson(pageStateFile(huntId), state, { space: 0 });
     return true;
   } catch {
     return false;

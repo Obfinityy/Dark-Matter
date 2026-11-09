@@ -33,6 +33,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { atomicWriteJson } from './atomicWrite.js';
 
 import { huntDir, ensureHuntDir } from './store.js';
 
@@ -56,10 +57,7 @@ function readQueueFile(huntId) {
 
 function writeQueueFile(huntId, queue) {
   ensureHuntDir(huntId);
-  const file = chatQueuePath(huntId);
-  const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(queue, null, 2));
-  fs.renameSync(tmp, file);
+  atomicWriteJson(chatQueuePath(huntId), queue);
 }
 
 /**

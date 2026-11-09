@@ -17,6 +17,7 @@ import { Router } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { dataDir } from '../store.js';
+import { atomicWriteJson } from '../atomicWrite.js';
 import { requireAuth } from './auth.js';
 
 const router = Router();
@@ -38,9 +39,7 @@ function readTitles(userId) {
 function writeTitles(userId, list) {
   const dir = path.join(dataDir(), 'chats');
   fs.mkdirSync(dir, { recursive: true });
-  const tmp = path.join(dir, `${String(userId)}.json.tmp`);
-  fs.writeFileSync(tmp, JSON.stringify(list, null, 1));
-  fs.renameSync(tmp, chatsFile(userId));
+  atomicWriteJson(chatsFile(userId), list, { space: 1 });
 }
 
 function clean(c) {
@@ -149,9 +148,7 @@ function readMessages(userId, chatId) {
 function writeMessages(userId, chatId, messages, updatedAt) {
   const dir = path.join(dataDir(), 'chat-messages', String(userId));
   fs.mkdirSync(dir, { recursive: true });
-  const tmp = path.join(dir, `${safeChatId(chatId)}.json.tmp`);
-  fs.writeFileSync(tmp, JSON.stringify({ messages, updatedAt }, null, 1));
-  fs.renameSync(tmp, messagesFile(userId, chatId));
+  atomicWriteJson(messagesFile(userId, chatId), { messages, updatedAt }, { space: 1 });
 }
 
 /** Strip a message down to sync-safe fields. Hunt payloads keep only the reference. */

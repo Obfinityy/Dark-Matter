@@ -42,6 +42,12 @@ import { artifactsDir, ensureArtifactsDir } from './artifacts.js';
 
 const GUI_DIR = '/tmp/dm-gui';
 const CDP_PORT = 9222;
+// GUI-automation delays: how long a CDP call may run, and how long to
+// wait after an action before reading the page back.
+const CDP_TIMEOUT_MS = 20000;
+const NAVIGATE_SETTLE_MS = 1800;
+const CLICK_SETTLE_MS = 1200;
+const SUBMIT_SETTLE_MS = 1500;
 const NOT_AVAILABLE =
   'Desktop/browser not available on this machine (no Chromium, no display, no CDP endpoint). That is a fixed property of this environment — not something to install your way out of. Work through the shell instead — curl shows you the same pages as text.';
 // Lane D (21 Oct 2026, Ezviz audit): the earlier fallback wording said
@@ -292,7 +298,7 @@ function send(method, params2 = {}) {
   ws.send(JSON.stringify({ id, method, params: params2 }));
   return new Promise((res, rej) => {
     pending.set(id, { res, rej });
-    setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error('CDP timeout: ' + method)); } }, 20000);
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error('CDP timeout: ' + method)); } }, CDP_TIMEOUT_MS);
   });
 }
 async function evaluate(expr) {
@@ -309,7 +315,7 @@ if (page.wrongPage) {
   out = { ok: false, error: 'wrong_page', url: page.url || '', title: page.title || '' };
 } else if (act === 'navigate') {
   await send('Page.navigate', { url: params.url });
-  await new Promise((r) => setTimeout(r, 1800));
+  await new Promise((r) => setTimeout(r, NAVIGATE_SETTLE_MS));
   out = await evaluate(SNAP);
 } else if (act === 'snapshot') {
   out = await evaluate(SNAP);
@@ -348,7 +354,7 @@ if (page.wrongPage) {
     return { ok: true, clicked: (el.innerText || el.value || el.id || el.tagName || '').trim().slice(0, 80), url: location.href };
   })()\`;
   const clicked = await evaluate(expr);
-  await new Promise((r) => setTimeout(r, 1200));
+  await new Promise((r) => setTimeout(r, CLICK_SETTLE_MS));
   const snap = await evaluate(SNAP);
   out = { ...clicked, snapshot: snap };
 } else if (act === 'type') {
@@ -410,7 +416,7 @@ if (page.wrongPage) {
       if (params.submit) {
         await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
         await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-        await new Promise((r) => setTimeout(r, 1500));
+        await new Promise((r) => setTimeout(r, SUBMIT_SETTLE_MS));
       }
       const snap = await evaluate(SNAP);
       out = { ok: true, typed: params.text, field: check.field || typed.field, value: check.value, valueLength: String(check.value).length, url: snap.url, snapshot: snap };

@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { config } from './config.js';
 import { scheduleEpisodeFlush } from './episodeStore.js';
+import { atomicWriteJson } from './atomicWrite.js';
 
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
@@ -29,9 +30,7 @@ function readJson(file, fallback) {
 
 function writeJsonAtomic(file, obj) {
   ensureDir(path.dirname(file));
-  const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));
-  fs.renameSync(tmp, file);
+  atomicWriteJson(file, obj);
 }
 
 // ---- Plugin keys ---------------------------------------------------------

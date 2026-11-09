@@ -228,9 +228,12 @@ async function attemptDownload(jobId, model) {
   writeModelJobs(latest);
 }
 
+// How long a Hugging Face metadata fetch may run before it is aborted.
+const HF_FETCH_TIMEOUT_MS = 20000;
+
 async function hfResolve(repo) {
   const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), 20000);
+  const t = setTimeout(() => controller.abort(), HF_FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(`https://huggingface.co/api/models/${repo}`, { signal: controller.signal });
     if (!res.ok) throw new Error(`Hugging Face repo not found (${res.status})`);

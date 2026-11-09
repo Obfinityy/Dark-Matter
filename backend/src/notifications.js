@@ -26,6 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { config } from './config.js';
+import { atomicWriteJson } from './atomicWrite.js';
 
 function storePath() {
   try {
@@ -44,10 +45,7 @@ function readStore() {
 }
 
 function writeStore(obj) {
-  const p = storePath();
-  const tmp = `${p}.tmp-${process.pid}`;
-  fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));
-  fs.renameSync(tmp, p);
+  atomicWriteJson(storePath(), obj);
 }
 
 /**

@@ -111,6 +111,9 @@ export function checkTakeoverFingerprint(cname) {
  * Runs right after hunt creation; results become hunt context.
  * Never throws — failures are recorded as events, not errors.
  */
+// How long the initial target fetch may run before it is aborted.
+const FETCH_TIMEOUT_MS = 15000;
+
 export async function understandTarget(huntId, target) {
   appendHuntEvent(huntId, { type: 'thinking', text: `🔍 Understanding target: ${target}` });
   let url = target.trim();
@@ -129,7 +132,7 @@ export async function understandTarget(huntId, target) {
 
   try {
     const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 15000);
+    const timeout = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
     const res = await fetch(url, {
       signal: ctrl.signal,
       redirect: 'follow',

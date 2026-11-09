@@ -38,6 +38,11 @@ import { guardClaimTitle, isProbeNameTitle } from './claimTitleGuard.js';
 // findings to the head even though it doesn't receive it as a parameter.
 const orchestrators = new Map();
 
+// Pacing delays for the hunt loop: how often a paused hunt re-checks,
+// and the gentle gap between iterations so the target is not hammered.
+const PAUSE_POLL_MS = 5000;
+const PACING_DELAY_MS = 2000;
+
 // FIX (19 Oct 2026, solver #6): Loop-driver mutex. Prevents duplicate
 // runAutonomousHunt loops for the same hunt (e.g., backend auto-resume +
 // watchdog resume script both firing). Duplicate drivers clobber each other's
@@ -459,7 +464,7 @@ async function waitWhilePaused(huntId) {
       think(huntId, 'Hunt paused by user — holding position.');
       announced = true;
     }
-    await new Promise((r) => setTimeout(r, 5000));
+    await new Promise((r) => setTimeout(r, PAUSE_POLL_MS));
     waited += 5;
   }
 }
@@ -3093,7 +3098,7 @@ async function runAutonomousHuntInner(huntId, target, mode = 'normal', userId = 
       }
 
       // Gentle pacing — don't hammer the target
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, PACING_DELAY_MS));
     }
 
     // Final analysis over all findings

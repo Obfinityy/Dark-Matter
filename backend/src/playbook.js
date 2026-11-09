@@ -22,6 +22,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
+import { atomicWriteNdjson } from './atomicWrite.js';
 import { getVerifiedFindingsSince, flushHuntEpisodes } from './episodeStore.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -145,9 +146,7 @@ export function evaluatePromotions() {
   if (promoted) {
     // Persist status flips (small file; atomic rewrite).
     const file = proposalsFile();
-    const tmp = `${file}.${process.pid}.tmp`;
-    fs.writeFileSync(tmp, proposals.map((p) => JSON.stringify(p)).join('\n') + '\n');
-    fs.renameSync(tmp, file);
+    atomicWriteNdjson(file, proposals);
   }
   return { promoted };
 }

@@ -341,6 +341,15 @@ const wssControl = new WebSocketServer({ noServer: true });
 const CONTROL_VIEWERS = new Map(); // huntId -> ws (single holder)
 const CONTROL_HEARTBEAT_MS = 30000;
 
+// Staggered boot delays: each background job runs once shortly after
+// boot, then on its own periodic interval. Staggering keeps the jobs
+// from hitting the disk at the same instant on startup.
+const BOOT_HUNT_RESUME_DELAY_MS = 8000;
+const BOOT_CHROMIUM_WATCHDOG_DELAY_MS = 15000;
+const BOOT_EPISODE_FLUSH_DELAY_MS = 5000;
+const BOOT_EMBEDDING_BACKFILL_DELAY_MS = 20000;
+const BOOT_CONSOLIDATION_DELAY_MS = 35000;
+
 wssControl.on('connection', async (ws, req, huntId, ticket) => {
   let tunnel = null;
   let released = false;
@@ -731,7 +740,7 @@ server.listen(config.port, () => {
       console.error(`[resume:${tag}] scan failed:`, err.message || err);
     }
   }
-  setTimeout(() => scanAndResumeRunningHunts('boot'), 8000);
+  setTimeout(() => scanAndResumeRunningHunts('boot'), BOOT_HUNT_RESUME_DELAY_MS);
   setInterval(() => scanAndResumeRunningHunts('periodic'), 60000);
 
   // P2 — EGRESS RECONCILER (60s): for RUNNING hunts WITH egress state,
@@ -779,7 +788,7 @@ server.listen(config.port, () => {
       console.error(`[desktop:watchdog:${tag}] check failed:`, err.message || err);
     }
   }
-  setTimeout(() => checkChromiumWatchdogTick('boot'), 15000);
+  setTimeout(() => checkChromiumWatchdogTick('boot'), BOOT_CHROMIUM_WATCHDOG_DELAY_MS);
   setInterval(() => checkChromiumWatchdogTick('periodic'), CHROMIUM_WATCHDOG_MS);
 
   // EPISODE LEDGER (Job 6 stage 1) — boot backfill mirrors every hunt's
@@ -807,7 +816,7 @@ server.listen(config.port, () => {
       console.error(`[episodes:${tag}] flush failed:`, err.message || err);
     }
   }
-  setTimeout(() => flushEpisodeLedgers('boot'), 5000);
+  setTimeout(() => flushEpisodeLedgers('boot'), BOOT_EPISODE_FLUSH_DELAY_MS);
   setInterval(() => flushEpisodeLedgers('periodic'), 60000);
 
   // EPISODE EMBEDDINGS (Job 6 stage 2) — background backfill of the vector
@@ -824,7 +833,7 @@ server.listen(config.port, () => {
       console.error(`[episodes:${tag}] embedding backfill failed:`, err.message || err);
     }
   }
-  setTimeout(() => backfillEpisodeEmbeddings('boot'), 20000);
+  setTimeout(() => backfillEpisodeEmbeddings('boot'), BOOT_EMBEDDING_BACKFILL_DELAY_MS);
   setInterval(() => backfillEpisodeEmbeddings('periodic'), 60000);
 
   // CONSOLIDATION (Job 6 stage 3) — the "sleep" job: between phases it
@@ -847,6 +856,6 @@ server.listen(config.port, () => {
       console.error(`[consolidation:${tag}] failed:`, err.message || err);
     }
   }
-  setTimeout(() => consolidateOnce('boot'), 35000);
+  setTimeout(() => consolidateOnce('boot'), BOOT_CONSOLIDATION_DELAY_MS);
   setInterval(() => consolidateOnce('periodic'), 60000);
 });

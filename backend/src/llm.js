@@ -32,7 +32,7 @@ import https from 'node:https';
 // LLM_PROVIDER=sagemaker, because the installed SDK version may not export
 // the async APIs as named ESM exports. A static import here crashes the
 // entire backend on startup if the exports don't exist.
-import { recordCost } from './costTracker.js';
+import { recordCost, recordCostSafe } from './costTracker.js';
 import { config } from './config.js';
 
 const PROVIDER = String(process.env.LLM_PROVIDER || 'bedrock').toLowerCase();
@@ -47,6 +47,9 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'dolphin-mistral:7b';
 // each invocation is pay-per-use (~$4-5 per 3-hour hunt on 32B).
 const SAGEMAKER_ENDPOINT = process.env.SAGEMAKER_ENDPOINT_NAME || '';
 const SAGEMAKER_REGION = process.env.SAGEMAKER_REGION || process.env.AWS_REGION || 'us-east-1';
+
+// Kaggle Gradio poll: how long to wait between result polls.
+const KAGGLE_POLL_MS = 2000;
 
 // ---- Privacy gateway --------------------------------------------------------
 // Strip secrets, tokens, and PII before anything reaches the model.
@@ -142,7 +145,7 @@ async function chatWithBedrock(messages, system, ctx) {
   });
   const out = await client.send(cmd);
   // Burn tracking: every token has a price.
-  try {
+  recordCostSafe(() => {
     const usage = out.usage || {};
     if (usage.inputTokens || usage.outputTokens) {
       recordCost({
@@ -154,7 +157,7 @@ async function chatWithBedrock(messages, system, ctx) {
         outputTokens: usage.outputTokens || 0,
       });
     }
-  } catch (e) { try { console.warn('[cost] recordCost failed:', (e && e.message) || e); } catch {} /* cost tracking must never break chat */ }
+  });
   const blocks = (out.output && out.output.message && out.output.message.content) || [];
   return blocks.map((b) => b.text || '').join('').trim() || null;
 }
@@ -522,7 +525,7 @@ async function chatWithOllamaInner(messages, system, ctx, opts = {}) {
   }
   const text = String(result.text || '').trim();
   // Locally hosted = $0 marginal cost; still ledger the burn event for the UI.
-  try {
+  recordCostSafe(() => {
     recordCost({
       userId: ctx && ctx.userId,
       huntId: ctx && ctx.huntId,
@@ -533,7 +536,7 @@ async function chatWithOllamaInner(messages, system, ctx, opts = {}) {
       amountUsd: 0,
       note: 'self-hosted',
     });
-  } catch (e) { try { console.warn('[cost] recordCost failed:', (e && e.message) || e); } catch {} /* cost tracking must never break chat */ }
+  });
   return text || null;
 }
 
@@ -670,7 +673,7 @@ async function chatWithKaggle(messages, system, ctx) {
     const { event_id } = await res.json();
     // Poll the event stream for the result (Gradio 4/5 SSE format)
     for (let i = 0; i < 90; i++) {
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, KAGGLE_POLL_MS));
       const r2 = await fetch(`${baseUrl}/gradio_api/call/chat/${event_id}`, {
         signal: AbortSignal.timeout(30000),
       });
@@ -780,7 +783,7 @@ async function chatWithSageMaker(messages, system, ctx) {
     if (!text) return null;
 
     // Record cost (SageMaker 32B ~$0.50/hour pro-rated per request)
-    try {
+    recordCostSafe(() => {
       recordCost({
         userId: ctx && ctx.userId,
         huntId: ctx && ctx.huntId,
@@ -791,7 +794,7 @@ async function chatWithSageMaker(messages, system, ctx) {
         amountUsd: 0.01, // Estimated per-request cost
         note: 'sagemaker-async',
       });
-    } catch (e) { try { console.warn('[cost] recordCost failed:', (e && e.message) || e); } catch {} /* cost tracking must never break chat */ }
+    });
 
     return text;
   } catch (err) {

@@ -21,6 +21,10 @@ import { isIP } from 'node:net';
 import { validateDestinations } from './scopeGuard.js';
 import { isPrivateIP } from './scopeParser.js';
 
+// How long an orphaned proxied connection is left before the server side
+// is destroyed (the client socket is already gone by then).
+const ORPHAN_SERVER_SWEEP_MS = 120000;
+
 /**
  * Pick a dial address for a validated hostname/IP under the hunt scope.
  * Pure (unit-testable): `addresses` are lookup() results [{address, family}].
@@ -231,7 +235,7 @@ export async function startEgressProxy({ huntId, scope, port, bindIp = '127.0.0.
     clientSocket.on('error', () => srv.destroy());
     setTimeout(() => {
       if (!srv.destroyed && clientSocket.destroyed) srv.destroy();
-    }, 120000).unref?.();
+    }, ORPHAN_SERVER_SWEEP_MS).unref?.();
   });
 
   server.on('clientError', (err, socket) => {
