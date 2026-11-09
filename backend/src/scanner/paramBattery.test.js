@@ -168,6 +168,12 @@ describe('param battery skipped records (35/63 fix)', () => {
     // walks its claims for sensitive fields — confirms only when
     // a credential/secret or personal-data field carries a
     // non-empty value).
+    // (109 since 9 Nov 2026 (limit / quota bypass): 'quota-bypass'
+    // joins as a standalone gated phase (one record per scan,
+    // always-run as an honest no-op: no API routes on a bare
+    // page; lab-gated, control GET first, then the same GET 15
+    // times in rapid succession; confirms only when every burst
+    // answer is granted with no throttle signal).
     // (97 since 9 Nov 2026 (BFLA): 'bfla' joins as a standalone
     // gated phase (one record per scan, always-run as an honest
     // no-op: no admin routes on a bare page; lab-gated, three-way
@@ -192,7 +198,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 108);
+    assert.equal(DEFAULT_PHASES.length, 109);
   });
 
   it('zero param targets: all 30 param phases emit skipped records, rollup reports them', async () => {
@@ -424,7 +430,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
-  // 63/45 since 9 Nov 2026 (API token auth + autocomplete + blind XPath + exceptional conditions + workflow data exposure + JWT sensitive claims):
+  // 64/45 since 9 Nov 2026 (API token auth + autocomplete + blind XPath + exceptional conditions + workflow data exposure + JWT sensitive claims + limit / quota bypass):
   // 'api-token-auth' adds a 59th ok record (always-run as an honest
   // no-op: no token-param routes and no lab login on a bare page)
   // and 'autocomplete' adds a 60th ok record (always-run as an
@@ -436,7 +442,9 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // adds a 62nd ok record (always-run as an honest no-op: no
   // workflow routes on a bare page), and 'jwt-claims' adds a 63rd
   // ok record (always-run as an honest no-op: no issued token on
-  // a bare page), so the bare-page line reads 63 ran ok, 45 skipped.
+  // a bare page), and 'quota-bypass' adds a 64th ok record
+  // (always-run as an honest no-op: no API routes on a bare
+  // page), so the bare-page line reads 64 ran ok, 45 skipped.
   // 58/40 since 9 Nov 2026 (coupon abuse): 'coupon-abuse' adds a
   // 58th ok record (always-run as an honest no-op: no coupon routes
   // on a bare page), so the bare-page line reads 58 ran ok, 40 skipped.
@@ -503,7 +511,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // 44/33 before xml-injection and untrusted-js-inclusion;
   // 46/34 before session-token-in-url; 47/34 before credential-disclosure;
   // 48/34 before sqli-oob.)
-  it('real runScan on a bare page renders the 63/45 line end to end', async () => {
+  it('real runScan on a bare page renders the 64/45 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -515,15 +523,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 108,
-        ok: 63,
+        total: 109,
+        ok: 64,
         failed: 0,
         skipped: 45,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 63 ran ok, 45 skipped, 0 failed, 0 timed out.'
+        'Phases: 64 ran ok, 45 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

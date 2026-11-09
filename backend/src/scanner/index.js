@@ -56,6 +56,7 @@ import { probeCouponAbuse } from './probes/couponAbuse.js';
 import { probeApiTokenAuth } from './probes/apiTokenAuth.js';
 import { probeExceptionalConditions } from './probes/exceptionalConditions.js';
 import { probeWorkflowDataExposure } from './probes/workflowDataExposure.js';
+import { probeQuotaBypass } from './probes/quotaBypass.js';
 import { probeDomPostMessage } from './probes/domPostMessage.js';
 import { probeDomOpenRedirect } from './probes/domOpenRedirect.js';
 import { probeDomClobbering } from './probes/domClobbering.js';
@@ -180,6 +181,7 @@ export const DEFAULT_PHASES = [
   'dom-open-redirect',
   'dom-clobbering',
   'dom-cookie-manipulation',
+  'quota-bypass',
   'user-enumeration',
   'rfi',
   'xslt',
@@ -2150,6 +2152,36 @@ export async function runScan(
       controlOk: Boolean(apiTokenDiag.controlOk),
       attempts: apiTokenDiag.attempts || 0,
       bypassKind: apiTokenDiag.bypassKind || null,
+    })
+  );
+  // QUOTA BYPASS (9 Nov 2026, row #81 [Medium] Limit / Quota
+  // Bypass, WSTG-BUSL): an API that answers volume with success —
+  // the probe calibrates with a control GET first (2xx + JSON),
+  // then fires the same GET 15 times in rapid succession and
+  // confirms only when every burst answer is granted with no
+  // throttle signal (no 429, no Retry-After, no refusal text); a
+  // single throttle signal proves the limit exists (see
+  // quotaBypass.js). Same apiRoutes wiring as bfla. Diagnostics
+  // ride the phase extras (apiRoutes, controlOk, attempts,
+  // throttled, bypassKind) so a live proof can tell "no surface"
+  // from "oracle uncalibrated" without re-running the scan.
+  const quotaDiag = {};
+  await step(
+    'quota-bypass',
+    () =>
+      probeQuotaBypass(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: quotaDiag,
+      }),
+    () => ({
+      apiRoutes: quotaDiag.apiRoutes || 0,
+      controlOk: Boolean(quotaDiag.controlOk),
+      attempts: quotaDiag.attempts || 0,
+      throttled: Boolean(quotaDiag.throttled),
+      bypassKind: quotaDiag.bypassKind || null,
     })
   );
   // WORKFLOW DATA EXPOSURE (9 Nov 2026, row #375 [Medium] Logic —

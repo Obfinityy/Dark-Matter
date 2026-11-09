@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 108/63/45 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 109/64/45 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -295,24 +295,26 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // as an honest no-op alongside them (no workflow routes on a
       // bare page — 9 Nov 2026, 107th phase), and jwt-claims RUNS
       // as an honest no-op alongside them (no issued token on a
-      // bare page — 9 Nov 2026, 108th phase).
+      // bare page — 9 Nov 2026, 108th phase), and quota-bypass
+      // RUNS as an honest no-op alongside them (no API routes on
+      // a bare page — 9 Nov 2026, 109th phase).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 108,
-        ok: 63,
+        total: 109,
+        ok: 64,
         failed: 0,
         skipped: 45,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 63 ran ok, 45 skipped, 0 failed, 0 timed out.'
+        'Phases: 64 ran ok, 45 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 138/138/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 139/139/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -380,7 +382,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // 7 Nov 2026 —
       // all twenty run here because param targets exist and the shell
       // carries a script bundle), and the two discovery phases now RUN
-      // instead of skipping — 138 total, 138 ok, 0 skipped
+      // instead of skipping — 139 total, 139 ok, 0 skipped
       // (basket-logic, the 88th phase, runs as an honest no-op here:
       // the Juice-shape stub carries no basket routes, and
       // workflow-skip, the 89th phase, runs as an honest no-op
@@ -434,17 +436,20 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // gate fails before the mine runs), and jwt-claims, the 108th
       // phase, runs as an honest no-op alongside them for the same
       // reason: the stub carries no labCreds, so the lab gate fails
-      // before the mine runs).
+      // before the mine runs), and quota-bypass, the 109th phase,
+      // runs as an honest no-op alongside them for the same reason:
+      // the stub carries no labCreds, so the lab gate fails before
+      // the mine runs).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 138,
-        ok: 138,
+        total: 139,
+        ok: 139,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 138 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 139 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -650,7 +655,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 108);
+      assert.equal(DEFAULT_PHASES.length, 109);
     } finally {
       teardown();
     }
