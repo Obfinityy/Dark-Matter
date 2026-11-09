@@ -5,12 +5,12 @@ target on EC2, verified first-hand (direct EC2 read, never a relay), with hunt I
 title-exact baselines and zero retractions. Nothing here is a unit-test result alone
 and nothing is claimed without evidence.
 
-## Live status (9 Nov 2026, ~05:20 IST)
+## Live status (9 Nov 2026, ~06:25 IST)
 
-- Coverage: **304/478 = 63.6% LIVE**, 93 phases in `backend/src/scanner/index.js`
-- HEAD: `074e3623` (DOM XSS via postMessage probe, phase 93, row #274), **69th deploy verified** (workflow
-  42534525078, backend PID 1993213, health ok, all 6 labs up)
-- Suites at HEAD: src 2441/2430/0/11, plain 2505/2494/0/11
+- Coverage: **305/478 = 63.8% LIVE**, 94 phases in `backend/src/scanner/index.js`
+- HEAD: `e3eac1e2` (client-side template injection probe, phase 94, row #190), **70th deploy verified** (workflow
+  42538535922, backend PID 2023470, health ok, all 6 labs up)
+- Suites at HEAD: src 2467/2456/0/11, plain 2531/2520/0/11
 - AI hunt `h_7d49c6ef7447` paused at iter 296 (owner zero-Meta order, 3 Nov 2026);
   spend frozen $38.4952 / 4661 entries
 - Baselines: DVWA **20** titles, Juice Shop **25** titles (listed below)
@@ -32,7 +32,7 @@ and nothing is claimed without evidence.
    (meta state, `scannerSummary`, title extraction from `type:"finding"` events,
    retraction check). Worker relays are never trusted for a verdict.
 
-## Proof table — re-proofs #4 to #22
+## Proof table — re-proofs #4 to #23
 
 | # | Date (IST) | Deploy | DVWA leg | Juice leg | Verdict |
 |---|-----------|--------|----------|-----------|---------|
@@ -55,6 +55,7 @@ and nothing is claimed without evidence.
 | 20 | 9 Nov ~02:05 | 67th `07473376` | `h_77b886746f1a` {20,0} | `h_19732cd931c7` {24,0} | PASS, 0 retractions. **Row #275 AIB to LIVE — proven true negative** (two-tier oracle: tier-1 static mine found ZERO `location.hash` reads in Juice first-party bundles + inline blocks, `hashReads=0, hashNearSink=0, driveAttempted=false` — no drive needed; DVWA `dom-xss-location-hash` phase skipped 'no script targets'). Coverage 302/478. Baselines unchanged: DVWA 20, Juice 24. `authDom: true` again on Juice. |
 | 21 | 9 Nov ~03:35 | 68th `82132710` | `h_54fe3c4a646a` {20,0} | `h_9630c6259ee7` {25,0} | PASS, 0 retractions. **NEW [High] on Juice: 'Login accepts repeated wrong passwords without rate limiting'** (POST `/rest/user/login`, 10 distinct wrong passwords, all ordinary invalid-credential answers, no throttle signal, class `auth_bruteforce`; `credential-stuffing` phase `findingsCount=1, loginRoutes=1, controlOk=true, attempts=10`). Row #42 AIB to LIVE. Coverage 303/478. Juice baseline becomes 25. DVWA credential-stuffing honest no-op (form-only login, probe is JSON-only by design; `loginRoutes=1, controlOk=false, attempts=0`). `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
 | 22 | 9 Nov ~05:20 | 69th `074e3623` | `h_a6e97190c890` {20,0} | `h_22d5bfb65fb9` {25,0} | PASS, 0 retractions. **Row #274 AIB to LIVE — proven true negative** (two-tier oracle: tier-1 static mine found ZERO `message` listeners in Juice first-party bundles + inline blocks, `listeners=0, listenersNearSink=0, driveAttempted=false` — no drive needed; DVWA `dom-postmessage` phase skipped 'no script targets'). Coverage 304/478. Baselines unchanged: DVWA 20, Juice 25. `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
+| 23 | 9 Nov ~06:25 | 70th `e3eac1e2` | `h_8009e3793f25` {20,0} | `h_b13b38519fc1` {25,0} | PASS, 0 retractions. **Row #190 AIB to LIVE — proven true negative** (two-tier oracle: tier-1 static mine found ZERO runtime template-engine calls in Juice first-party bundles + inline blocks, `engines=0, enginesNearSink=0, driveAttempted=false` — no drive needed; DVWA `csti` phase skipped 'no script targets'). Coverage 305/478. Baselines unchanged: DVWA 20, Juice 25. `authDom: true` again on Juice (token, authInputs 1); scan errors []. |
 
 ## Behaviour-analysis live proof (60th deploy `203c6d44`)
 
@@ -123,7 +124,7 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 19. Session fixation — session ID not regenerated on login (MEDIUM, T1)
 20. Session fixation — planted session ID reaches authenticated state (HIGH, T2)
 
-### Juice Shop — 24 titles
+### Juice Shop — 25 titles
 
 1. HTTP request smuggling (CL.TE desync proven)
 2. Verb tampering — DELETE
@@ -149,6 +150,7 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 22. Business logic — negative quantity reduces the basket total (HIGH) (since live-proof #16, rows #82/#370/#374)
 23. Business logic — checkout accepted for an empty basket (HIGH) (since live-proof #17, row #87)
 24. 2FA verification accepts repeated wrong codes without rate limiting (HIGH) (since live-proof #18, row #326)
+25. Login accepts repeated wrong passwords without rate limiting (HIGH) (since live-proof #21, row #42)
 
 ## Deploy chain (recent)
 
@@ -168,6 +170,8 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 | 66th | `69bef482` | 42513286560 | SSTI/EL/eval 9352-oracle FP fix (0-row, shared oracleGuards.js) |
 | 67th | `07473376` | 42519158232 | DOM-XSS location.hash probe, phase 91 (row #275) |
 | 68th | `82132710` | 42523100239 | Credential stuffing probe, phase 92 (row #42) |
+| 69th | `074e3623` | 42534525078 | DOM postMessage probe, phase 93 (row #274) |
+| 70th | `e3eac1e2` | 42538535922 | CSTI probe, phase 94 (row #190) |
 
 ## Screenshots
 
