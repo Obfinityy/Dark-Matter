@@ -1,0 +1,4 @@
+# Cloudflare Pages SPA fallback: every client-side route serves the app shell.
+# Static files in dist/ (assets, robots.txt, sitemap.xml, images) are served
+# directly and never hit this rule.
+/* /index.html 200
