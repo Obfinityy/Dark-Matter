@@ -1,3 +1,11 @@
+// Dark Matter frontend — application shell.
+//
+// Owns the top-level layout (sidebar, top bar, toasts), the page router
+// (chat / plugins / reports / machines / settings / pay / admin / legal),
+// and the auth provider. Pages live in ./pages/, shared UI in
+// ./components/, API calls in ./lib/api.js. Styling comes from
+// ./design-system.css (tokens) and ./index.css (component rules).
+
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
