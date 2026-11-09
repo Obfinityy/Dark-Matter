@@ -624,7 +624,7 @@ describe('GS-7: Juice shape + mined API route — error-disclosure fires in-scan
   // Juice-like bundle: the search service calls /rest/products/search
   // with a q param, plus a param-less list endpoint.
   const GS7_BUNDLE = `// app bundle (stub)
-var searchService = {
+const searchService = {
   search: function(e) { return http.get("/rest/products/search?q=" + e); },
   list: function() { return http.get("/api/Products"); }
 };`;

@@ -40,9 +40,7 @@ const XSS_SNAP = {
   elements: [],
 };
 
-// ---------------------------------------------------------------------------
 // Pure: endpoint extraction, signature, proof judgement, gate, nudge.
-// ---------------------------------------------------------------------------
 
 test('proofEndpointOfCommand extracts host+path from a probe URL and strips the query', () => {
   assert.equal(
@@ -104,9 +102,7 @@ test('proofFileObservation names the claim and the filing move', () => {
   assert.match(obs, /3 times/);
 });
 
-// ---------------------------------------------------------------------------
 // Integration: stubbed humanIteration.
-// ---------------------------------------------------------------------------
 
 function stubProofSession(replies, { meta = {}, assessImpl = undefined } = {}) {
   const recorded = [];

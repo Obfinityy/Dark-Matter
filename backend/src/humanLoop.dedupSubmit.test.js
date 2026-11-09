@@ -63,9 +63,7 @@ const SHELL_CURL = tc('shell', "curl -sk 'http://172.17.0.1:3100/vulnerabilities
 const SEARCH = tc('search', 'DVWA SQL injection');
 const DEDUP_BLOCK = { type: 'dedup_block', tool: 'browser_click', detail: 'Submit', count: 2 };
 
-// ---------------------------------------------------------------------------
 // Pure: freshAttemptSinceAction.
-// ---------------------------------------------------------------------------
 
 test('freshAttemptSinceAction: a fresh screen read since the last Submit is fresh', () => {
   assert.equal(freshAttemptSinceAction([...SUBMIT_X2, SNAPSHOT], 'browser_click', 'Submit'), true);
@@ -122,9 +120,7 @@ test('freshAttemptSinceAction: only work AFTER the last identical type counts fo
   );
 });
 
-// ---------------------------------------------------------------------------
 // Pure: dedupeGateHit with the fresh-attempt exemption.
-// ---------------------------------------------------------------------------
 
 function historyOf(events) {
   return buildActionHistory(events);
@@ -184,9 +180,7 @@ test('FRESH_DEDUP_KINDS covers the GUI actions and excludes shell and search', (
   assert.ok(!FRESH_DEDUP_KINDS.has('launch_tool'), 'launch_tool stays under the old rule');
 });
 
-// ---------------------------------------------------------------------------
 // Integration: stubbed humanIteration, DVWA live shape.
-// ---------------------------------------------------------------------------
 
 function stubDedupSession(replies, seedEvents) {
   const events = [...(seedEvents || [])];
@@ -302,10 +296,7 @@ test('DS-5: a re-type after a reload executes, and the next identical re-type wi
   assert.match(res.log[1].observation, /BLOCKED — ALREADY DONE/);
 });
 
-// ---------------------------------------------------------------------------
-// The 404 protection is untouched: the verification path is not
-// modified by this lane, and these pins fail if anyone weakens it.
-// ---------------------------------------------------------------------------
+// The 404 protection is untouched: the verification path is not modified by this lane, and these pins fail if anyone weakens it.
 
 const NOT_FOUND_PAGE = '<!DOCTYPE HTML><html><head><title>404 Not Found</title></head><body><h1>Not Found</h1><p>The requested URL /rest/admin/application-version was not found on this server.</p></body></html>';
 
