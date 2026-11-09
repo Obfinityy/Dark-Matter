@@ -23,10 +23,32 @@ function IconPencilSquare() {
   );
 }
 
-function IconHexagon() {
+function IconPlug() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M12 2.7 20.1 7.4v9.2L12 21.3 3.9 16.6V7.4Z" strokeLinejoin="round" />
+      <path d="M9 7V3M15 7V3" strokeLinecap="round" />
+      <path d="M7 7h10v4a5 5 0 0 1-10 0V7Z" strokeLinejoin="round" />
+      <path d="M12 16v5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconServer() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="7" rx="2" />
+      <rect x="3" y="13" width="18" height="7" rx="2" />
+      <path d="M7 7.5h.01M7 16.5h.01" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconDots() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="5" cy="12" r="1.6" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+      <circle cx="19" cy="12" r="1.6" fill="currentColor" />
     </svg>
   );
 }
@@ -151,21 +173,7 @@ function HistoryItem({ chat, active, running, onSelect, onRename, onDelete, hunt
         <>
           {running && <span className="running-dot" aria-label="Running" title="Running" />}
           {hunterBadge && (
-            <span
-              title={hunterBadge.title}
-              style={{
-                fontSize: 9,
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                border: '1px solid currentColor',
-                borderRadius: 999,
-                padding: '1px 6px',
-                marginRight: 6,
-                opacity: 0.6,
-                flexShrink: 0,
-              }}
-            >
+            <span title={hunterBadge.title} className="hunter-badge history">
               {hunterBadge.label}
             </span>
           )}
@@ -173,7 +181,7 @@ function HistoryItem({ chat, active, running, onSelect, onRename, onDelete, hunt
         </>
       )}
       {!renaming && (
-        <div style={{ position: 'relative' }} ref={menuRef}>
+        <div className="history-menu-wrap" ref={menuRef}>
           <button
             className="history-dots"
             title="Chat options"
@@ -184,7 +192,7 @@ function HistoryItem({ chat, active, running, onSelect, onRename, onDelete, hunt
               setMenuOpen((v) => !v);
             }}
           >
-            •••
+            <IconDots />
           </button>
           {menuOpen && (
             <div className="history-menu" role="menu">
@@ -447,13 +455,13 @@ export default function Sidebar({
       <div className="sidebar-scroll">
         <nav aria-label="Primary">
           <button className={`nav-item${activePage === 'plugins' ? ' active' : ''}`} onClick={() => go('plugins')}>
-            <IconHexagon /> Plugins
+            <IconPlug /> Plugins
           </button>
           <button className={`nav-item${activePage === 'reports' ? ' active' : ''}`} onClick={() => go('reports')}>
             <IconChart /> Reports
           </button>
           <button className={`nav-item${activePage === 'machines' ? ' active' : ''}`} onClick={() => go('machines')}>
-            <IconHexagon /> Live machines
+            <IconServer /> Live machines
           </button>
           <button className={`nav-item${activePage === 'settings' ? ' active' : ''}`} onClick={() => go('settings')}>
             <IconGear /> Settings
@@ -465,11 +473,10 @@ export default function Sidebar({
           )}
         </nav>
 
-        <div className="sidebar-section-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="sidebar-section-label sidebar-section-label-row">
           <span>Chats</span>
           <button
             className="icon-btn sidebar-search-btn"
-            style={{ width: 30, height: 30 }}
             title="Search chats"
             aria-label="Search chats"
             onClick={() => {
