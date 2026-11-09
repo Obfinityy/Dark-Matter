@@ -79,12 +79,32 @@ export async function resolveHuntScanDepth(hunt, fetchHunt) {
   return 'standard';
 }
 
+// SCAN-SCOPE INHERITANCE (9 Nov 2026, /* owner order): same
+// authoritative resolution as scan depth — the card first, then
+// GET /:id (the stored meta), then the historical default 'page'
+// (one page deep). A Re-run of a whole-site hunt must crawl the
+// whole site again, never silently fall back to one page.
+export async function resolveHuntScanScope(hunt, fetchHunt) {
+  const ok = (s) => s === 'page' || s === 'site';
+  if (hunt && ok(hunt.scanScope)) return hunt.scanScope;
+  const huntId = hunt && hunt.huntId;
+  if (huntId) {
+    try {
+      const fetchFn = fetchHunt || (async (id) => (await import('./api.js')).getHunt(id));
+      const res = await fetchFn(huntId);
+      const scope = res && res.data && res.data.hunt && res.data.hunt.scanScope;
+      if (ok(scope)) return scope;
+    } catch { /* fall through to the default below */ }
+  }
+  return 'page';
+}
+
 // huntCardFromListEntry: the hunt object a restored chat card carries,
 // built from one GET /api/v1/hunts list entry. Must carry everything
-// Re-run / Start-from-scratch inherits — brainMode, scanDepth AND mode —
-// with the same historical defaults the backend list uses (ai / standard
-// / normal). A card missing any of these silently re-created the hunt in
-// the wrong lane (5 Nov 2026: scanner -> ai).
+// Re-run / Start-from-scratch inherits — brainMode, scanDepth, scanScope
+// AND mode — with the same historical defaults the backend list uses
+// (ai / standard / page / normal). A card missing any of these silently
+// re-created the hunt in the wrong lane (5 Nov 2026: scanner -> ai).
 export function huntCardFromListEntry(h) {
   const e = h || {};
   return {
@@ -96,5 +116,6 @@ export function huntCardFromListEntry(h) {
     mode: typeof e.mode === 'string' && e.mode ? e.mode : 'normal',
     brainMode: e.brainMode === 'scanner' ? 'scanner' : 'ai',
     scanDepth: e.scanDepth === 'quick' || e.scanDepth === 'deep' ? e.scanDepth : 'standard',
+    scanScope: e.scanScope === 'site' ? 'site' : 'page',
   };
 }

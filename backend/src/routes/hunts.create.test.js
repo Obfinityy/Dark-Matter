@@ -11,7 +11,7 @@
 //   POST { brainMode: 'scanner', forceNew: true } -> scanner hunt
 //   POST {} (no brainMode)                        -> ai hunt (default)
 //   GET / list item                               -> carries mode,
-//     brainMode AND scanDepth for every hunt.
+//     brainMode, scanDepth AND scanScope for every hunt.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,6 +23,7 @@ test('scanner stays scanner', () => {
   assert.deepEqual(normalizeHuntCreate({ brainMode: 'scanner', scanDepth: 'deep' }), {
     brainMode: 'scanner',
     scanDepth: 'deep',
+    scanScope: 'page',
   });
 });
 
@@ -30,13 +31,14 @@ test('ai stays ai', () => {
   assert.deepEqual(normalizeHuntCreate({ brainMode: 'ai', scanDepth: 'quick' }), {
     brainMode: 'ai',
     scanDepth: 'quick',
+    scanScope: 'page',
   });
 });
 
 test('omitted brainMode defaults to ai (Re-run must send it explicitly)', () => {
-  assert.deepEqual(normalizeHuntCreate({}), { brainMode: 'ai', scanDepth: 'standard' });
-  assert.deepEqual(normalizeHuntCreate(undefined), { brainMode: 'ai', scanDepth: 'standard' });
-  assert.deepEqual(normalizeHuntCreate(null), { brainMode: 'ai', scanDepth: 'standard' });
+  assert.deepEqual(normalizeHuntCreate({}), { brainMode: 'ai', scanDepth: 'standard', scanScope: 'page' });
+  assert.deepEqual(normalizeHuntCreate(undefined), { brainMode: 'ai', scanDepth: 'standard', scanScope: 'page' });
+  assert.deepEqual(normalizeHuntCreate(null), { brainMode: 'ai', scanDepth: 'standard', scanScope: 'page' });
 });
 
 test('junk brainMode falls back to ai, never throws', () => {
@@ -50,6 +52,13 @@ test('scanDepth: quick/deep pass through, anything else is standard', () => {
   assert.equal(normalizeHuntCreate({ scanDepth: 'deep' }).scanDepth, 'deep');
   for (const junk of ['standard', 'turbo', '', null, undefined, 0]) {
     assert.equal(normalizeHuntCreate({ scanDepth: junk }).scanDepth, 'standard');
+  }
+});
+
+test("scanScope: 'site' passes through, anything else is 'page'", () => {
+  assert.equal(normalizeHuntCreate({ scanScope: 'site' }).scanScope, 'site');
+  for (const junk of ['page', 'SITE', 'all', '', null, undefined, 0]) {
+    assert.equal(normalizeHuntCreate({ scanScope: junk }).scanScope, 'page');
   }
 });
 
@@ -74,8 +83,13 @@ test('list item carries mode + brainMode + scanDepth', () => {
   assert.equal(item.mode, 'infinity');
   assert.equal(item.brainMode, 'scanner');
   assert.equal(item.scanDepth, 'deep');
+  assert.equal(item.scanScope, 'page');
   assert.equal(item.createdAt, '2026-11-03T14:00:00.000Z');
   assert.equal('status' in item, false, 'status is added live by the handler, not the mapper');
+});
+
+test('list item carries a site scanScope when the meta recorded one', () => {
+  assert.equal(mapListHunt({ ...fullMeta, scanScope: 'site' }).scanScope, 'site');
 });
 
 test('legacy meta (nothing recorded) reports the historical defaults', () => {
@@ -83,6 +97,7 @@ test('legacy meta (nothing recorded) reports the historical defaults', () => {
   assert.equal(item.mode, 'normal');
   assert.equal(item.brainMode, 'ai');
   assert.equal(item.scanDepth, 'standard');
+  assert.equal(item.scanScope, 'page');
   assert.equal(item.scope, null);
   assert.equal(item.createdAt, null);
 });
@@ -90,6 +105,11 @@ test('legacy meta (nothing recorded) reports the historical defaults', () => {
 test('junk scanDepth on a meta normalizes to standard', () => {
   assert.equal(mapListHunt({ ...fullMeta, scanDepth: 'turbo' }).scanDepth, 'standard');
   assert.equal(mapListHunt({ ...fullMeta, scanDepth: null }).scanDepth, 'standard');
+});
+
+test('junk scanScope on a meta normalizes to page', () => {
+  assert.equal(mapListHunt({ ...fullMeta, scanScope: 'all' }).scanScope, 'page');
+  assert.equal(mapListHunt({ ...fullMeta, scanScope: null }).scanScope, 'page');
 });
 
 test('null meta does not throw', () => {

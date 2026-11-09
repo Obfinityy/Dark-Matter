@@ -212,6 +212,42 @@ export function analyzePage(body, baseUrl) {
 }
 
 /**
+ * Merge per-page analyses into one inventory (site crawl, 9 Nov 2026).
+ * Every element keeps its page of origin in a `page` field, and each
+ * form keeps its own `page` — so the battery knows which route an
+ * element came from and the report can say which route had what.
+ * Same shape as analyzePage, plus `pages`: one per-page count row.
+ * Elements are NOT deduplicated across pages: the same input name on
+ * two routes is two distinct probe points.
+ */
+export function mergePageAnalyses(analyses) {
+  const merged = { url: null, forms: [], inputs: [], textareas: [], selects: [], buttons: [], params: [], pages: [] };
+  for (const { url, analysis } of analyses || []) {
+    if (!analysis) continue;
+    if (!merged.url) merged.url = url;
+    const tag = (el) => ({ ...el, page: url });
+    for (const f of analysis.forms || []) merged.forms.push({ ...f, page: url });
+    for (const i of analysis.inputs || []) merged.inputs.push(tag(i));
+    for (const t of analysis.textareas || []) merged.textareas.push(tag(t));
+    for (const s of analysis.selects || []) merged.selects.push(tag(s));
+    for (const b of analysis.buttons || []) merged.buttons.push(tag(b));
+    for (const p of analysis.params || []) {
+      if (!merged.params.includes(p)) merged.params.push(p);
+    }
+    merged.pages.push({
+      url,
+      inputs: (analysis.inputs || []).length,
+      forms: (analysis.forms || []).length,
+      textareas: (analysis.textareas || []).length,
+      selects: (analysis.selects || []).length,
+      buttons: (analysis.buttons || []).length,
+      params: (analysis.params || []).length,
+    });
+  }
+  return merged;
+}
+
+/**
  * Expand the page analysis into the full predefined test plan:
  * [{ element, kind, classes }] — one entry per element, classes from the
  * matrix. This is the "ek ek test case predefined" list the owner asked

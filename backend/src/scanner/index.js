@@ -1,15 +1,16 @@
 // Dark Matter rule-based scanner — deterministic orchestrator.
-// paste link → scope check → recon/fingerprint → ONE-PAGE-DEEP element
-// analysis → probe battery → Nuclei → differential verification →
-// confirmed findings.
+// paste link → scope check → recon/fingerprint → element analysis
+// (one page deep, or the whole site with /* scope) → probe battery
+// → Nuclei → differential verification → confirmed findings.
 // No LLM, no API keys, no prompts. Same target + same code = same result.
 import { authorizeTarget } from './target.js';
 import { isLabTargetHost } from '../labCreds.js';
 import { randomBytes } from 'node:crypto';
 import { fingerprint, fetchPage } from './fingerprint.js';
-import { crawl, extractParams, extractForms } from './crawl.js';
+import { crawl, extractParams, extractForms, normalizeScanScope, siteMaxUrls } from './crawl.js';
 import { extractProbePoints } from './probePoints.js';
-import { analyzePage, planForPage } from './pageAnalyze.js';
+import { analyzePage, planForPage, mergePageAnalyses } from './pageAnalyze.js';
+import { groupFindingsByRoute } from './routeGroup.js';
 import { probeHeaders } from './probes/headers.js';
 import { probeSqliError } from './probes/sqliError.js';
 import { probeBlindSqli } from './probes/sqliBlind.js';
@@ -361,6 +362,11 @@ export async function runScan(
   // when the authorized host is listed in labTargets. Everywhere else the
   // probe returns [] without a single request.
   const allowWrite = isLabTargetHost(url, labTargets);
+  // SCAN SCOPE (9 Nov 2026, /* owner order): 'page' (default — the
+  // pasted page only, today's behaviour) or 'site' (recursive
+  // same-origin crawl). The scope flows through opts from the hunt
+  // route; anything else is 'page'.
+  const scanScope = normalizeScanScope(opts.scanScope);
   const all = [];
   const errors = [];
   let fp = null;
@@ -453,7 +459,19 @@ export async function runScan(
   };
 
   fp = await step('fingerprint', () => fingerprint(url, opts));
-  crawled = await step('crawl', () => crawl(url, opts));
+  // The crawl phase record carries the scope + how many pages the
+  // walk visited, so a finished scan shows its crawl footprint
+  // without re-reading the summary.
+  let crawlPagesScanned = 0;
+  crawled = await step(
+    'crawl',
+    async () => {
+      const res = await crawl(url, opts);
+      crawlPagesScanned = res && res.pagesScanned ? res.pagesScanned : 0;
+      return res;
+    },
+    () => ({ pagesScanned: crawlPagesScanned, scanScope })
+  );
 
   // ONE-PAGE-DEEP (3 Nov 2026, owner order): the pasted page is the primary
   // target. Inventory every element on it and map each to its predefined
@@ -475,7 +493,17 @@ export async function runScan(
     }
     if (!body) return null;
     pageBody = body;
-    pageAnalysis = analyzePage(body, url);
+    // SITE MODE (9 Nov 2026): every discovered page's body gets the
+    // same element inventory, merged with per-page provenance
+    // (mergePageAnalyses tags each element/form with its page URL).
+    // Page mode is unchanged: the pasted page only.
+    if (scanScope === 'site' && crawled && Array.isArray(crawled.pages) && crawled.pages.length) {
+      pageAnalysis = mergePageAnalyses(
+        crawled.pages.map((p) => ({ url: p.url, analysis: p.body ? analyzePage(p.body, p.url) : null }))
+      );
+    } else {
+      pageAnalysis = analyzePage(body, url);
+    }
     return pageAnalysis;
   });
 
@@ -649,7 +677,11 @@ export async function runScan(
   // Scan targets: the target URL plus every discovered same-origin link
   // (capped). Param probes run per URL — this is what makes the battery
   // cover the whole site, not just the landing page.
-  const maxUrls = opts.maxUrls || 10;
+  // SITE MODE (9 Nov 2026): the cap rises so discovered pages are
+  // never silently dropped — exact caps by scan depth: Quick 25,
+  // Standard 30, Deep 40 (page cap + 20 link slack; see
+  // SITE_MAX_URLS in crawl.js). Page mode keeps the caller's cap.
+  const maxUrls = scanScope === 'site' ? siteMaxUrls(opts.scanDepth) : (opts.maxUrls || 10);
   const scanTargets = [];
   // Path-param descriptors per OpenAPI-derived target URL ({ name,
   // segment } lists from extractOpenApiTargets). The battery loop
@@ -683,6 +715,13 @@ export async function runScan(
     }
   };
   pushTarget(url);
+  // SITE MODE (9 Nov 2026): every discovered page becomes a scan
+  // target FIRST (BFS order), so the battery tries each route even
+  // when the cap fills; their links follow after. Page mode pushes
+  // the pasted page's links only, unchanged.
+  if (scanScope === 'site' && crawled && Array.isArray(crawled.pages)) {
+    for (const p of crawled.pages) pushTarget(p.url);
+  }
   for (const l of crawled ? crawled.links : []) pushTarget(l);
   const forms = [...(crawled ? crawled.forms : []), ...domForms];
   // Form-derived GET URLs get a separate allowance beyond maxUrls — they
@@ -702,9 +741,23 @@ export async function runScan(
 
   // Forms also live on discovered pages, not just the landing page —
   // fetch every scan target (already capped by maxUrls) and merge forms.
+  // SITE MODE (9 Nov 2026): pages the crawl already fetched are read
+  // from its cache instead of re-fetched — the body is the same one
+  // page-analyze inventoried, and a large site is not fetched twice.
+  const crawledBodyByUrl = new Map();
+  if (crawled && Array.isArray(crawled.pages)) {
+    for (const p of crawled.pages) {
+      try {
+        crawledBodyByUrl.set(new URL(p.url).toString().split('#')[0], { body: p.body, url: p.url });
+      } catch {
+        // ignore malformed page URLs
+      }
+    }
+  }
   for (const u of scanTargets) {
     try {
-      const p = await fetchPage(u, opts);
+      const cached = crawledBodyByUrl.get(u);
+      const p = cached || (await fetchPage(u, opts));
       for (const f of extractForms(p.body, p.url)) forms.push(f);
     } catch {
       // ignore per-page fetch failures
@@ -1160,10 +1213,40 @@ export async function runScan(
   // from the page body page-analyze already fetched, so a script-less
   // page records a skip instead of fetching (gated-skip pattern).
   // opts.jsRoutesFetcher is the test seam, mirroring js-api-routes.
-  const secretTargets =
-    pageBody && typeof pageBody === 'string'
+  // SITE MODE (9 Nov 2026): mine every discovered page's bundles +
+  // inline scripts, merged under the same caps as the single-page
+  // path (5 bundles, 10 inline blocks — the probes slice to these
+  // anyway), so secrets-in-js / browser-storage / DOM-sink tier-1 /
+  // captcha mining covers the whole site, not just the landing page.
+  // KNOWN LIMIT: js-api-routes still mines the pasted page's bundles
+  // only — discovered pages' API routes are covered because their
+  // links/forms join scanTargets and the param battery tries them.
+  const secretTargets = (() => {
+    if (scanScope === 'site' && crawled && Array.isArray(crawled.pages) && crawled.pages.length > 1) {
+      const bundles = [];
+      const inline = [];
+      for (const p of crawled.pages) {
+        if (!p.body) continue;
+        const t = extractSecretTargets(p.body, p.url);
+        for (const b of t.bundles || []) if (!bundles.includes(b)) bundles.push(b);
+        for (const s of t.inline || []) inline.push(s);
+      }
+      return { bundles: bundles.slice(0, 5), inline: inline.slice(0, 10) };
+    }
+    return pageBody && typeof pageBody === 'string'
       ? extractSecretTargets(pageBody, url)
       : { bundles: [], inline: [] };
+  })();
+  // SITE MODE (9 Nov 2026): the CSS probe mines page HTML for inline
+  // styles — in site mode it gets every discovered page's HTML,
+  // joined with a per-page marker comment. The ±300-char near-sink
+  // window can in theory span a page boundary; a sink still only
+  // confirms via the tier-2 CDP drive on the pasted page, so no false
+  // finding can come from the merge — at most a diagnostics count.
+  const sitePageBody =
+    scanScope === 'site' && crawled && Array.isArray(crawled.pages) && crawled.pages.length > 1
+      ? crawled.pages.map((p) => `<!-- site-crawl page: ${p.url} -->\n${p.body || ''}`).join('\n')
+      : null;
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
     await step('secrets-in-js', () =>
       probeSecretsInJs(url, secretTargets, {
@@ -1414,7 +1497,7 @@ export async function runScan(
         ...opts,
         allowWrite,
         labTargets,
-        pageBody,
+        pageBody: sitePageBody || pageBody,
         diagnostics: cssDiag,
         ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
       }),
@@ -1935,6 +2018,16 @@ export async function runScan(
   );
 
   const { confirmed, unconfirmed } = verifyFindings(all);
+  // PER-ROUTE ROLLUP (9 Nov 2026, /* scope): the report must answer
+  // "which route had what" — findingsByRoute groups confirmed
+  // finding titles by route (origin + pathname, query stripped).
+  // routesScanned is the number of pages the crawl visited (1 in
+  // page mode); pagesCrawled keeps its old meaning (crawled links
+  // count) so existing reporting does not shift.
+  const scannedPages =
+    crawled && Array.isArray(crawled.pages) && crawled.pages.length
+      ? crawled.pages.map((p) => p.url)
+      : [url];
   return {
     target: url,
     host,
@@ -1945,6 +2038,10 @@ export async function runScan(
       ? { status: fp.status, server: fp.server, tech: fp.tech, dbHint: fp.dbHint }
       : null,
     pagesCrawled: crawled ? crawled.links.length : 0,
+    scanScope,
+    routesScanned: scannedPages.length,
+    scannedPages,
+    findingsByRoute: groupFindingsByRoute(confirmed, url),
     pageAnalysis: pageAnalysis
       ? {
           inputs: pageAnalysis.inputs.length,

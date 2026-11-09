@@ -382,8 +382,9 @@ export function writeQueue(queue) {
  * {userId, username, target, scope, mode}, so a drained scanner
  * re-run would have restarted in the wrong lane. Normalization mirrors
  * normalizeHuntCreate in routes/hunts.js ('scanner' stays scanner,
- * anything else is 'ai'; scanDepth quick/deep, else 'standard'). */
-export function enqueueHunt({ userId, username, target, scope, mode, brainMode, scanDepth }) {
+ * anything else is 'ai'; scanDepth quick/deep, else 'standard';
+ * scanScope 'site', else 'page'). */
+export function enqueueHunt({ userId, username, target, scope, mode, brainMode, scanDepth, scanScope }) {
   const queue = readQueue();
   const queueId = 'q_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const entry = {
@@ -396,6 +397,10 @@ export function enqueueHunt({ userId, username, target, scope, mode, brainMode, 
     brainMode: brainMode === 'scanner' ? 'scanner' : 'ai',
     scanDepth:
       scanDepth === 'quick' || scanDepth === 'deep' ? scanDepth : 'standard',
+    // SCAN SCOPE (9 Nov 2026, /* owner order): a drained entry
+    // restarts in the scope the user asked for — 'site' crawls the
+    // whole site, anything else (incl. legacy entries) is 'page'.
+    scanScope: scanScope === 'site' ? 'site' : 'page',
     priority: 0, // admin can raise (higher = sooner)
     status: 'queued',
     createdAt: new Date().toISOString(),

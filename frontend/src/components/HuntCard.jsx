@@ -7,6 +7,7 @@ import { HuntStreamClient, createSimulatedStream, isDemoMode } from '../lib/hunt
 import { normalizeAiAnalysis, shouldAutoAnalyze } from '../lib/aiAnalysis';
 import { toast } from '../lib/toast';
 import { processSummary } from '../lib/brainActions';
+import { groupFindingsByRoute } from '../lib/routeGroup';
 
 const SEVERITY_CLASS = {
   critical: 'sev-critical',
@@ -676,6 +677,60 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
 
   const totalFindings = uniqueVerifiedFindings.length;
 
+  // FINDINGS BY ROUTE (9 Nov 2026, /* scope): a whole-site hunt
+  // groups its findings under the route each was found on, so the
+  // panel answers "which route had what". Page-scope hunts keep the
+  // flat list. The route comes from the panel row's url (the backend
+  // carries the verified stamp's URL on the row); rows without one
+  // group under the hunt target.
+  const isSiteScope = hunt.scanScope === 'site';
+  const verifiedByRoute = isSiteScope ? groupFindingsByRoute(uniqueVerifiedFindings, hunt.target) : null;
+  const leadsByRoute = isSiteScope ? groupFindingsByRoute(unverifiedFindings, hunt.target) : null;
+
+  // Row renderers shared by the flat list and the per-route groups —
+  // row content is unchanged in both layouts.
+  const verifiedRow = (f, idx) => (
+    <li key={idx} className="finding-item">
+      {/* FINDING DETAIL (28 Oct 2026): rows are buttons —
+          clicking one opens the detail modal for that
+          title. Row content is unchanged. */}
+      <button
+        type="button"
+        className={`finding finding-row ${SEVERITY_CLASS[f.severity] || 'sev-low'}`}
+        onClick={() => setSelectedFindingTitle(f.title)}
+        title={`View detail — ${f.title}`}
+        aria-label={`View detail for ${f.title}`}
+      >
+        <span className="finding-sev">{f.severity}</span>
+        <span className="finding-title">{f.title}</span>
+        <span className="finding-badge finding-verified" title={f.verification || 'Verified'}>
+          ✓ verified
+        </span>
+        <span className="finding-view-hint" aria-hidden="true">View detail →</span>
+        {f.detail && <span className="finding-detail">{f.detail}</span>}
+      </button>
+    </li>
+  );
+  const leadRow = (f, idx) => (
+    <li key={`lead-${idx}`} className="finding-item">
+      <button
+        type="button"
+        className={`finding finding-row finding-lead ${SEVERITY_CLASS[f.severity] || 'sev-low'}`}
+        onClick={() => setSelectedFindingTitle(f.title)}
+        title={`View detail — ${f.title}`}
+        aria-label={`View detail for ${f.title}`}
+      >
+        <span className="finding-sev">{f.severity}</span>
+        <span className="finding-title">{f.title}</span>
+        <span className="finding-badge finding-unverified" title={f.verification || 'Under investigation'}>
+          under investigation
+        </span>
+        <span className="finding-view-hint" aria-hidden="true">View detail →</span>
+        {f.detail && <span className="finding-detail">{f.detail}</span>}
+      </button>
+    </li>
+  );
+
   // AUTONOMOUS MODE (3 Nov 2026, owner order): the rule-based scanner hunt
   // ("Infinity Autonomous") spends $0 and has no brain to take over — so the
   // Brain button, Brain model selector, money strip and budget controls are
@@ -867,55 +922,32 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
               .
             </div>
           )}
-          {totalFindings > 0 && (
+          {totalFindings > 0 && !isSiteScope && (
           <ul className="findings-list">
-            {uniqueVerifiedFindings.map((f, idx) => (
-              <li key={idx} className="finding-item">
-                {/* FINDING DETAIL (28 Oct 2026): rows are buttons —
-                    clicking one opens the detail modal for that
-                    title. Row content is unchanged. */}
-                <button
-                  type="button"
-                  className={`finding finding-row ${SEVERITY_CLASS[f.severity] || 'sev-low'}`}
-                  onClick={() => setSelectedFindingTitle(f.title)}
-                  title={`View detail — ${f.title}`}
-                  aria-label={`View detail for ${f.title}`}
-                >
-                  <span className="finding-sev">{f.severity}</span>
-                  <span className="finding-title">{f.title}</span>
-                  <span className="finding-badge finding-verified" title={f.verification || 'Verified'}>
-                    ✓ verified
-                  </span>
-                  <span className="finding-view-hint" aria-hidden="true">View detail →</span>
-                  {f.detail && <span className="finding-detail">{f.detail}</span>}
-                </button>
-              </li>
-            ))}
+            {uniqueVerifiedFindings.map((f, idx) => verifiedRow(f, idx))}
           </ul>
           )}
-          {unverifiedCount > 0 && (
+          {totalFindings > 0 && isSiteScope && verifiedByRoute.map((g) => (
+            <div key={g.route} className="findings-route-group">
+              <div className="findings-route-title">{g.route}</div>
+              <ul className="findings-list">
+                {g.findings.map((f, idx) => verifiedRow(f, `${g.route}-${idx}`))}
+              </ul>
+            </div>
+          ))}
+          {unverifiedCount > 0 && !isSiteScope && (
           <ul className="findings-list findings-leads">
-            {unverifiedFindings.map((f, idx) => (
-              <li key={`lead-${idx}`} className="finding-item">
-                <button
-                  type="button"
-                  className={`finding finding-row finding-lead ${SEVERITY_CLASS[f.severity] || 'sev-low'}`}
-                  onClick={() => setSelectedFindingTitle(f.title)}
-                  title={`View detail — ${f.title}`}
-                  aria-label={`View detail for ${f.title}`}
-                >
-                  <span className="finding-sev">{f.severity}</span>
-                  <span className="finding-title">{f.title}</span>
-                  <span className="finding-badge finding-unverified" title={f.verification || 'Under investigation'}>
-                    under investigation
-                  </span>
-                  <span className="finding-view-hint" aria-hidden="true">View detail →</span>
-                  {f.detail && <span className="finding-detail">{f.detail}</span>}
-                </button>
-              </li>
-            ))}
+            {unverifiedFindings.map((f, idx) => leadRow(f, idx))}
           </ul>
           )}
+          {unverifiedCount > 0 && isSiteScope && leadsByRoute.map((g) => (
+            <div key={g.route} className="findings-route-group">
+              <div className="findings-route-title">{g.route}</div>
+              <ul className="findings-list findings-leads">
+                {g.findings.map((f, idx) => leadRow(f, `${g.route}-${idx}`))}
+              </ul>
+            </div>
+          ))}
         </div>
       )}
 

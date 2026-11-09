@@ -194,7 +194,7 @@ export function panelFindings(findings) {
     let slot = byKey.get(key);
     if (!slot) {
       slot = {
-        row: { title, severity: 'low', verified: false, detail: '', verification: '', stamps: 0 },
+        row: { title, severity: 'low', verified: false, detail: '', verification: '', url: '', stamps: 0 },
         sevFromVerified: false,
         sevSet: false,
       };
@@ -210,6 +210,11 @@ export function panelFindings(findings) {
     // vulnerability, until the finding is retracted or re-proven.
     // P0 (31 Oct 2026): probe/test names never count as verified.
     let countsAsVerified = Boolean(f.verified) && !isErrorPageFinding(f);
+    // URL (9 Nov 2026, /* scope): the row carries the URL it was
+    // observed at — the verified stamp's URL when one exists, else
+    // the first stamp's — so the panel and the report can group
+    // findings by route. A row with no URL on any stamp keeps ''.
+    if (f && f.url && (!row.url || countsAsVerified)) row.url = String(f.url);
     try {
       if (countsAsVerified && isProbeNameTitle(title)) countsAsVerified = false;
     } catch { /* probe check is best-effort */ }

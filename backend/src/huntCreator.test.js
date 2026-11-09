@@ -99,11 +99,13 @@ test('createHuntFromQueue creates a scanner hunt in the stored lane and depth', 
     huntId: 'h_qc_scanner',
     brainMode: 'scanner',
     scanDepth: 'deep',
+    scanScope: 'page',
     reused: false,
   });
   const meta = readHuntMeta('h_qc_scanner');
   assert.equal(meta.brainMode, 'scanner');
   assert.equal(meta.scanDepth, 'deep');
+  assert.equal(meta.scanScope, 'page');
   assert.equal(meta.mode, 'infinity');
   assert.equal(meta.userId, 'u1');
   assert.equal(meta.authorized, true);
@@ -111,11 +113,46 @@ test('createHuntFromQueue creates a scanner hunt in the stored lane and depth', 
   assert.deepEqual(deps.calls.scanner[0], {
     huntId: 'h_qc_scanner',
     target: 'http://example.com/',
-    opts: { scope: null, userId: 'u1', scanDepth: 'deep' },
+    opts: { scope: null, userId: 'u1', scanDepth: 'deep', scanScope: 'page' },
   });
   assert.equal(deps.calls.ai.length, 0);
   const events = readHuntEvents('h_qc_scanner');
   assert.ok(events.some((e) => e.type === 'status' && e.state === 'created'));
+});
+
+// SITE CRAWL (9 Nov 2026, /* owner order): a queued whole-site entry
+// drains as a whole-site hunt — the scope survives the queue.
+test('createHuntFromQueue carries scanScope site through the drain', async () => {
+  const deps = baseDeps({
+    createEngineHunt: async () => ({ huntId: 'h_qc_site' }),
+  });
+  const created = await createHuntFromQueue(
+    {
+      queueId: 'q_site',
+      userId: 'u1',
+      username: 'alice',
+      target: 'http://example.com/',
+      scope: null,
+      mode: 'infinity',
+      brainMode: 'scanner',
+      scanDepth: 'standard',
+      scanScope: 'site',
+    },
+    deps
+  );
+  assert.deepEqual(created, {
+    huntId: 'h_qc_site',
+    brainMode: 'scanner',
+    scanDepth: 'standard',
+    scanScope: 'site',
+    reused: false,
+  });
+  assert.equal(readHuntMeta('h_qc_site').scanScope, 'site');
+  assert.deepEqual(deps.calls.scanner[0], {
+    huntId: 'h_qc_site',
+    target: 'http://example.com/',
+    opts: { scope: null, userId: 'u1', scanDepth: 'standard', scanScope: 'site' },
+  });
 });
 
 test('createHuntFromQueue creates an AI hunt for brainMode ai', async () => {
@@ -198,6 +235,7 @@ test('createHuntFromQueue reuses a paused hunt instead of duplicating it', async
     huntId: 'h_old_paused',
     brainMode: 'scanner',
     scanDepth: 'standard',
+    scanScope: 'page',
     reused: true,
     resumed: true,
   });
@@ -245,6 +283,7 @@ test('createHuntFromQueue ignores a stopped match and creates a fresh hunt', asy
     huntId: 'h_qc_fresh_stopped',
     brainMode: 'scanner',
     scanDepth: 'standard',
+    scanScope: 'page',
     reused: false,
   });
   assert.equal(engineCalls, 1);
@@ -353,6 +392,7 @@ test('createHuntFromQueue reuses a running match instead of duplicating it', asy
     huntId: 'h_live_running',
     brainMode: 'scanner',
     scanDepth: 'standard',
+    scanScope: 'page',
     reused: true,
     resumed: false,
   });

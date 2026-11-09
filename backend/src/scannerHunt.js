@@ -3,6 +3,7 @@
 // vulnerability scanner (no AI, no API spend) and records findings as hunt
 // events, instead of launching the AI agent loop.
 import { runScan, buildPhaseRollup, buildPhaseSummaryLine } from './scanner/index.js';
+import { normalizeScanScope, siteMaxUrls } from './scanner/crawl.js';
 import { buildBehaviourBundleFromScan } from './scanner/behaviourBundle.js';
 import { NUCLEI_TIMEOUT_MS } from './scanner/nuclei.js';
 import { appendHuntEvent, readHuntEvents, readHuntMeta, writeHuntBehaviour, writeHuntMeta } from './store.js';
@@ -58,7 +59,7 @@ async function drainNextQueuedHunt(opts) {
  * Run the rule-based scanner for a hunt.
  * @param {string} huntId
  * @param {string} target
- * @param {object} opts - { scope, userId, scanDepth }
+ * @param {object} opts - { scope, userId, scanDepth, scanScope }
  *
  * scanDepth (3 Nov 2026, owner order): 'quick' | 'standard' | 'deep'.
  * Every depth runs the full predefined battery — depth only changes how
@@ -143,6 +144,14 @@ export async function runScannerHunt(huntId, target, opts = {}) {
 async function runScannerHuntInner(huntId, target, opts = {}) {
   const startedAt = new Date().toISOString();
   const scanDepth = opts.scanDepth === 'quick' || opts.scanDepth === 'deep' ? opts.scanDepth : 'standard';
+  // SCAN SCOPE (9 Nov 2026, /* owner order): 'page' (default) or
+  // 'site' (recursive same-origin crawl). In site mode the
+  // scan-target cap rises so discovered pages are never silently
+  // dropped — Quick 25, Standard 30, Deep 40 (SITE_MAX_URLS,
+  // crawl.js). Page mode keeps the old caps (8/15/40).
+  const scanScope = normalizeScanScope(opts.scanScope);
+  const maxUrls = scanScope === 'site' ? siteMaxUrls(scanDepth)
+    : scanDepth === 'quick' ? 8 : scanDepth === 'deep' ? 40 : 15;
   // Depth → real runScan knobs. Quick trims the slowest phases (blind
   // SQLi / nuclei) and the crawl budget; deep widens both. Standard is
   // the full battery at the default budget.
@@ -150,20 +159,21 @@ async function runScannerHuntInner(huntId, target, opts = {}) {
     scanDepth === 'quick'
       ? {
           timeoutMs: 8000,
-          maxUrls: 8,
+          maxUrls,
           phases: [
             'fingerprint', 'crawl', 'page-analyze', 'headers', 'sqli-error', 'xss', 'cmdi',
             'traversal', 'redirect', 'csrf', 'post-forms', 'cors', 'cookies',
           ],
         }
       : scanDepth === 'deep'
-        ? { timeoutMs: 30000, maxUrls: 40 }
-        : { timeoutMs: 15000, maxUrls: 15 };
+        ? { timeoutMs: 30000, maxUrls }
+        : { timeoutMs: 15000, maxUrls };
   record(huntId, {
     type: 'status',
     state: 'scanner_started',
-    message: `Rule-based automation scan started (no AI) — depth: ${scanDepth}.`,
+    message: `Rule-based automation scan started (no AI) — depth: ${scanDepth}.${scanScope === 'site' ? ' Whole-site (/*) crawl.' : ''}`,
     scanDepth,
+    scanScope,
   });
 
   // Mark the hunt as running in scanner mode.
@@ -196,6 +206,7 @@ async function runScannerHuntInner(huntId, target, opts = {}) {
       {
         timeoutMs: depthOpts.timeoutMs,
         maxUrls: depthOpts.maxUrls,
+        scanScope,
         // Nuclei phase gets its own dedicated timeout (NUCLEI_TIMEOUT_MS,
         // 600s — raised from 300s 6 Nov 2026 after lab re-validation
         // measured 304–319s phases and VAmPI's main pass timing out at
@@ -268,6 +279,12 @@ async function runScannerHuntInner(huntId, target, opts = {}) {
         errors: result.errors || [],
         fingerprint: result.fingerprint || null,
         pagesCrawled: result.pagesCrawled || 0,
+        // SITE CRAWL (9 Nov 2026): which scope ran, how many routes
+        // were scanned, and which route each finding title came from
+        // — the report answers "which route had what" from this.
+        scanScope: result.scanScope || scanScope,
+        routesScanned: result.routesScanned || 0,
+        findingsByRoute: result.findingsByRoute || {},
         durationMs: result.durationMs || null,
         phases: phaseRollup,
       },
@@ -289,6 +306,7 @@ async function runScannerHuntInner(huntId, target, opts = {}) {
           confirmed: result.findings?.length || 0,
           unconfirmed: result.unconfirmed?.length || 0,
           scanDepth,
+          scanScope,
         },
       });
     } catch {

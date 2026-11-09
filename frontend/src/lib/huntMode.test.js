@@ -14,11 +14,12 @@ import {
   resolveHuntMode,
   resolveHuntBrainMode,
   resolveHuntScanDepth,
+  resolveHuntScanScope,
   huntCardFromListEntry,
 } from './huntMode.js';
 
-const scannerCard = { huntId: 'h_scan', target: 'http://172.17.0.1:3100', brainMode: 'scanner', scanDepth: 'deep', mode: 'infinity' };
-const aiCard = { huntId: 'h_ai', target: 'http://172.17.0.1:3100', brainMode: 'ai', scanDepth: 'quick', mode: 'infinity' };
+const scannerCard = { huntId: 'h_scan', target: 'http://172.17.0.1:3100', brainMode: 'scanner', scanDepth: 'deep', scanScope: 'site', mode: 'infinity' };
+const aiCard = { huntId: 'h_ai', target: 'http://172.17.0.1:3100', brainMode: 'ai', scanDepth: 'quick', scanScope: 'page', mode: 'infinity' };
 // A card minted before the fix (App.jsx syncHunts restore): no lane/depth.
 const legacyCard = { huntId: 'h_old', target: 'http://172.17.0.1:3100', status: 'stopped' };
 
@@ -82,6 +83,32 @@ test('unfetchable or junk depth falls back to standard', async () => {
   assert.equal(await resolveHuntScanDepth(null, failing), 'standard');
 });
 
+// --- resolveHuntScanScope (9 Nov 2026, /* owner order) -------------------
+// A Re-run of a whole-site hunt must crawl the whole site again, never
+// silently fall back to one page. Same resolution order as depth:
+// card value -> GET /:id meta -> historical default 'page'.
+
+test('card scope wins without a fetch', async () => {
+  assert.equal(await resolveHuntScanScope(scannerCard, neverCalled), 'site');
+  assert.equal(await resolveHuntScanScope(aiCard, neverCalled), 'page');
+});
+
+test('legacy card resolves scope from GET /:id meta', async () => {
+  const fetchHunt = async (id) => {
+    assert.equal(id, 'h_old');
+    return { ok: true, data: { hunt: { huntId: 'h_old', scanScope: 'site' } } };
+  };
+  assert.equal(await resolveHuntScanScope(legacyCard, fetchHunt), 'site');
+});
+
+test('unfetchable or junk scope falls back to page', async () => {
+  const failing = async () => { throw new Error('backend down'); };
+  assert.equal(await resolveHuntScanScope(legacyCard, failing), 'page');
+  const junk = async () => ({ ok: true, data: { hunt: { scanScope: 'all' } } });
+  assert.equal(await resolveHuntScanScope(legacyCard, junk), 'page');
+  assert.equal(await resolveHuntScanScope(null, failing), 'page');
+});
+
 // --- huntCardFromListEntry ---------------------------------------------------
 
 test('restored card carries everything Re-run inherits', () => {
@@ -92,6 +119,7 @@ test('restored card carries everything Re-run inherits', () => {
     mode: 'infinity',
     brainMode: 'scanner',
     scanDepth: 'deep',
+    scanScope: 'site',
     createdAt: '2026-11-03T14:00:00.000Z',
     status: 'stopped',
   });
@@ -104,6 +132,7 @@ test('restored card carries everything Re-run inherits', () => {
     mode: 'infinity',
     brainMode: 'scanner',
     scanDepth: 'deep',
+    scanScope: 'site',
   });
 });
 
@@ -112,6 +141,7 @@ test('legacy list entry reports the historical defaults', () => {
   assert.equal(card.mode, 'normal');
   assert.equal(card.brainMode, 'ai');
   assert.equal(card.scanDepth, 'standard');
+  assert.equal(card.scanScope, 'page');
   assert.equal(card.scope, '');
   assert.equal(card.status, 'unknown');
 });
@@ -120,6 +150,7 @@ test('null list entry does not throw', () => {
   const card = huntCardFromListEntry(null);
   assert.equal(card.brainMode, 'ai');
   assert.equal(card.scanDepth, 'standard');
+  assert.equal(card.scanScope, 'page');
   assert.equal(card.mode, 'normal');
 });
 

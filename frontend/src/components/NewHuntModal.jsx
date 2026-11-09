@@ -19,6 +19,17 @@ const SCAN_DEPTHS = [
   { id: 'deep', name: 'Deep', tagline: 'More pages, longer probes · slowest', tier: 'pro' },
 ];
 
+// Scan scope for the autonomous hunter (9 Nov 2026, /* owner order):
+// 'page' scans the pasted page only (the one-page-deep default);
+// 'site' follows every same-origin link recursively and tries the
+// battery on every discovered route. Wired end-to-end the same way
+// as scan depth: modal → POST /api/v1/hunts {scanScope} →
+// scannerHunt → runScan opts → stored on the hunt meta.
+const SCAN_SCOPES = [
+  { id: 'page', name: 'Single page', tagline: 'The pasted page only', tier: 'free' },
+  { id: 'site', name: 'Whole site (/*)', tagline: 'Every same-origin route, recursively', tier: 'free' },
+];
+
 // Default hunter shared with the TopBar hunter picker (localStorage
 // 'dm.hunter': 'ai' | 'scanner'). The dialog re-reads it every time it
 // opens so a top-bar change applies to the next hunt.
@@ -41,6 +52,7 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
   // rule-based automation (no AI, $0).
   const [brainMode, setBrainMode] = useState(defaultHunter);
   const [scanDepth, setScanDepth] = useState('standard');
+  const [scanScope, setScanScope] = useState('page');
   const [confirmed, setConfirmed] = useState(false);
 
   // Fresh dialog state on every open — picks up the top-bar hunter choice.
@@ -48,6 +60,7 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
     if (open) {
       setBrainMode(defaultHunter());
       setScanDepth('standard');
+      setScanScope('page');
     }
   }, [open ]);
 
@@ -56,7 +69,7 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
   function submit() {
     const t = target.trim();
     if (!t || !confirmed) return;
-    onSubmit(t, scope.trim(), mode, confirmed, brainMode, scanDepth);
+    onSubmit(t, scope.trim(), mode, confirmed, brainMode, scanDepth, scanScope);
   }
 
   return (
@@ -126,6 +139,25 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
                   <div className="mode-name">{d.name}</div>
                   <div className="mode-tag">{d.tagline}</div>
                   {d.tier !== 'free' && <div className="mode-tier">{d.tier}</div>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {brainMode === 'scanner' && (
+          <div className="field-label">
+            Scan scope
+            <div className="mode-grid">
+              {SCAN_SCOPES.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`mode-card${scanScope === s.id ? ' selected' : ''}`}
+                  onClick={() => setScanScope(s.id)}
+                  title={s.tagline}
+                >
+                  <div className="mode-name">{s.name}</div>
+                  <div className="mode-tag">{s.tagline}</div>
                 </button>
               ))}
             </div>

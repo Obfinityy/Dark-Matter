@@ -266,3 +266,56 @@ test('panelFindings: duplicate verified stamps deduplicate to one row', () => {
   assert.equal(rows[0].verified, true);
   assert.equal(rows[0].stamps, 2);
 });
+
+// FINDINGS BY ROUTE (9 Nov 2026, /* owner order): a panel row carries
+// the URL it was observed at — the verified stamp's URL when one
+// exists, else the first stamp's — so the panel and the report can
+// group findings by route.
+test('panelFindings: rows carry the observed URL (verified stamp wins)', () => {
+  const rows = panelFindings(liveShapeFindings());
+  const byTitle = new Map(rows.map((r) => [r.title, r]));
+  assert.equal(
+    byTitle.get('reflected xss in search parameter').url,
+    'http://172.17.0.1:3100/vulnerabilities/xss_r/?name=test'
+  );
+  assert.equal(byTitle.get('possible sqli in login form').url, 'http://172.17.0.1:3100/login.php');
+  // A 404-stamped false title keeps its first stamp's URL (a lead).
+  assert.equal(
+    byTitle.get('admin panel unauthenticated disclosure').url,
+    'http://172.17.0.1:3100/rest/admin/x'
+  );
+});
+
+test('panelFindings: a row with no URL on any stamp keeps an empty url', () => {
+  const rows = panelFindings([
+    { title: 'sql_injection_login', severity: 'medium', verified: true, type: 'finding' },
+  ]);
+  assert.equal(rows[0].url, '');
+});
+
+// FINDINGS BY ROUTE (9 Nov 2026, /* owner order): a whole-site hunt's
+// report groups confirmed titles under the route they were found on
+// and says so up front; a page-scope hunt renders no such section.
+test('buildReportMarkdown: site scope renders Findings by route', () => {
+  const events = liveShapeFindings();
+  const md = buildReportMarkdown({
+    huntId: 'h_site_report',
+    meta: { target: 'http://172.17.0.1:3100/', createdAt: '2026-10-27T15:00:00.000Z', scanScope: 'site' },
+    events,
+  });
+  assert.match(md, /\*\*Scan scope:\*\* Whole site \(\/\*\)/);
+  assert.match(md, /### Findings by route/);
+  assert.match(md, /#### http:\/\/172\.17\.0\.1:3100\/vulnerabilities\/xss_r\//);
+  assert.match(md, /- reflected xss in search parameter/);
+});
+
+test('buildReportMarkdown: page scope renders no Findings by route section', () => {
+  const events = liveShapeFindings();
+  const md = buildReportMarkdown({
+    huntId: 'h_page_report',
+    meta: { target: 'http://172.17.0.1:3100/', createdAt: '2026-10-27T15:00:00.000Z', scanScope: 'page' },
+    events,
+  });
+  assert.doesNotMatch(md, /Scan scope:/);
+  assert.doesNotMatch(md, /Findings by route/);
+});

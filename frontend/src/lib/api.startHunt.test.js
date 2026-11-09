@@ -31,13 +31,13 @@ const okJson = (body, status = 201) => ({
 });
 globalThis.fetch = async (url, init) => {
   lastCall = { url, method: init && init.method, body: init && init.body ? JSON.parse(init.body) : undefined };
-  return okJson({ huntId: 'h_new', brainMode: lastCall.body.brainMode, scanDepth: lastCall.body.scanDepth });
+  return okJson({ huntId: 'h_new', brainMode: lastCall.body.brainMode, scanDepth: lastCall.body.scanDepth, scanScope: lastCall.body.scanScope });
 };
 
 const { startHunt } = await import('./api.js');
 
 test('Re-run payload: scanner + deep + forceNew reach the backend verbatim', async () => {
-  const res = await startHunt('http://172.17.0.1:3100', 'lab', 'infinity', true, 'scanner', 'deep', true, false);
+  const res = await startHunt('http://172.17.0.1:3100', 'lab', 'infinity', true, 'scanner', 'deep', 'site', true, false);
   assert.equal(lastCall.url, 'https://api.thebhavesh.online/api/v1/hunts');
   assert.equal(lastCall.method, 'POST');
   assert.equal(lastCall.body.target, 'http://172.17.0.1:3100');
@@ -45,12 +45,14 @@ test('Re-run payload: scanner + deep + forceNew reach the backend verbatim', asy
   assert.equal(lastCall.body.confirmedAuthorized, true);
   assert.equal(lastCall.body.brainMode, 'scanner');
   assert.equal(lastCall.body.scanDepth, 'deep');
+  assert.equal(lastCall.body.scanScope, 'site');
   assert.equal(lastCall.body.forceNew, true);
   assert.equal('fresh' in lastCall.body, false);
   assert.equal(res.ok, true);
   assert.equal(res.data.huntId, 'h_new');
   assert.equal(res.data.brainMode, 'scanner');
   assert.equal(res.data.scanDepth, 'deep');
+  assert.equal(res.data.scanScope, 'site');
   assert.equal(res.data.reused, false);
 });
 
@@ -58,13 +60,15 @@ test('defaults: no brainMode/scanDepth args -> ai + standard, no bypass flags', 
   await startHunt('http://example.com/', '', 'infinity', true);
   assert.equal(lastCall.body.brainMode, 'ai');
   assert.equal(lastCall.body.scanDepth, 'standard');
+  assert.equal(lastCall.body.scanScope, 'page');
   assert.equal('forceNew' in lastCall.body, false);
   assert.equal('fresh' in lastCall.body, false);
 });
 
 test('Start-from-scratch payload carries fresh, not forceNew', async () => {
-  await startHunt('http://172.17.0.1:3100', '', 'infinity', true, 'scanner', 'standard', false, true);
+  await startHunt('http://172.17.0.1:3100', '', 'infinity', true, 'scanner', 'standard', 'page', false, true);
   assert.equal(lastCall.body.brainMode, 'scanner');
+  assert.equal(lastCall.body.scanScope, 'page');
   assert.equal(lastCall.body.fresh, true);
   assert.equal('forceNew' in lastCall.body, false);
 });
@@ -74,7 +78,7 @@ test('a dedupe (reused) response passes through untouched', async () => {
     lastCall = { url, method: init && init.method, body: JSON.parse(init.body) };
     return okJson({ huntId: 'h_old', reused: true, resumed: false, state: 'stopped', message: 'You already have a hunt for this target — opening it instead of creating a duplicate.' }, 200);
   };
-  const res = await startHunt('http://172.17.0.1:3100', '', 'infinity', true, 'scanner', 'standard', false, false);
+  const res = await startHunt('http://172.17.0.1:3100', '', 'infinity', true, 'scanner', 'standard', 'page', false, false);
   assert.equal(res.ok, true);
   assert.equal(res.data.reused, true);
   assert.equal(res.data.huntId, 'h_old');
@@ -87,7 +91,7 @@ test('a failed create passes the error through', async () => {
     status: 403,
     json: async () => ({ ok: false, error: 'authorization_not_confirmed', message: 'Hunt creation requires explicit authorization' }),
   });
-  const res = await startHunt('http://172.17.0.1:3100', '', 'infinity', false, 'scanner', 'standard', true, false);
+  const res = await startHunt('http://172.17.0.1:3100', '', 'infinity', false, 'scanner', 'standard', 'page', true, false);
   assert.equal(res.ok, false);
   assert.equal(res.status, 403);
 });

@@ -122,3 +122,53 @@ test('an already-gone container (teardown returns false) is a clean no-op', asyn
   assert.equal(readHuntMeta('h_cleanup_gone').state, 'finished');
   assert.equal(hasContainerDestroyedEvent('h_cleanup_gone'), false);
 });
+
+// SITE CRAWL (9 Nov 2026, /* owner order): a whole-site hunt records
+// its scope, the routes it scanned and the per-route finding rollup
+// in the scanner_finished summary, and the scope on the meta summary
+// — so the panel and the report can answer "which route had what".
+// The stub page has no links, so the walk visits 1 page; the quick
+// battery still finds the 5 missing-header findings on it, and the
+// rollup lists all 5 titles under the root route.
+const STUB_PAGE_TITLES = [
+  'Missing Strict-Transport-Security header',
+  'Missing Content-Security-Policy header',
+  'Missing X-Frame-Options header (clickjacking)',
+  'Missing X-Content-Type-Options header',
+  'Missing Referrer-Policy header',
+];
+test('site scope: finished summary carries scanScope + routesScanned + findingsByRoute', async () => {
+  const res = await runScannerHunt('h_site_scope', 'http://example.com/', {
+    scanDepth: 'quick',
+    scanScope: 'site',
+    drainQueue: async () => {},
+    teardownContainer: async () => true,
+  });
+  assert.equal(res.ok, true);
+  assert.equal(readHuntMeta('h_site_scope').state, 'finished');
+  assert.equal(readHuntMeta('h_site_scope').scannerSummary.scanScope, 'site');
+  const events = readHuntEvents('h_site_scope');
+  const finished = events.find((e) => e && e.type === 'status' && e.state === 'scanner_finished');
+  assert.ok(finished, 'scanner_finished event recorded');
+  assert.equal(finished.summary.scanScope, 'site');
+  assert.equal(finished.summary.routesScanned, 1);
+  assert.deepEqual(finished.summary.findingsByRoute, { 'http://example.com/': STUB_PAGE_TITLES });
+  const started = events.find((e) => e && e.type === 'status' && e.state === 'scanner_started');
+  assert.equal(started.scanScope, 'site');
+});
+
+test('page scope (default): finished summary carries scanScope page + 1 route', async () => {
+  const res = await runScannerHunt('h_page_scope', 'http://example.com/', {
+    scanDepth: 'quick',
+    drainQueue: async () => {},
+    teardownContainer: async () => true,
+  });
+  assert.equal(res.ok, true);
+  assert.equal(readHuntMeta('h_page_scope').scannerSummary.scanScope, 'page');
+  const events = readHuntEvents('h_page_scope');
+  const finished = events.find((e) => e && e.type === 'status' && e.state === 'scanner_finished');
+  assert.ok(finished, 'scanner_finished event recorded');
+  assert.equal(finished.summary.scanScope, 'page');
+  assert.equal(finished.summary.routesScanned, 1);
+  assert.deepEqual(finished.summary.findingsByRoute, { 'http://example.com/': STUB_PAGE_TITLES });
+});

@@ -40,12 +40,14 @@ test('enqueueHunt stores brainMode and scanDepth on the entry', () => {
     mode: 'infinity',
     brainMode: 'scanner',
     scanDepth: 'deep',
+    scanScope: 'site',
   });
   assert.equal(position, 1);
   const [entry] = readQueue();
   assert.equal(entry.queueId, queueId);
   assert.equal(entry.brainMode, 'scanner');
   assert.equal(entry.scanDepth, 'deep');
+  assert.equal(entry.scanScope, 'site');
   assert.equal(entry.mode, 'infinity');
   assert.equal(entry.status, 'queued');
 });
@@ -55,6 +57,7 @@ test('enqueueHunt normalizes omitted/garbage lane values', () => {
   enqueueHunt({ userId: 'u1', username: 'alice', target: 'http://example.com/' });
   assert.equal(readQueue()[0].brainMode, 'ai');
   assert.equal(readQueue()[0].scanDepth, 'standard');
+  assert.equal(readQueue()[0].scanScope, 'page');
   assert.equal(readQueue()[0].mode, 'normal');
   writeQueue([]);
   enqueueHunt({
@@ -63,9 +66,11 @@ test('enqueueHunt normalizes omitted/garbage lane values', () => {
     target: 'http://example.com/',
     brainMode: 'Scanner',
     scanDepth: 'turbo',
+    scanScope: 'all',
   });
   assert.equal(readQueue()[0].brainMode, 'ai');
   assert.equal(readQueue()[0].scanDepth, 'standard');
+  assert.equal(readQueue()[0].scanScope, 'page');
 });
 
 test('dequeueNextHunt marks the entry started and returns FIFO order', () => {

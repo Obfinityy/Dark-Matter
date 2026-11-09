@@ -67,9 +67,14 @@ export function normalizeQueueScanDepth(value) {
   return value === 'quick' || value === 'deep' ? value : 'standard';
 }
 
+/** Scan scope of a queued entry: 'site', anything else 'page'. */
+export function normalizeQueueScanScope(value) {
+  return value === 'site' ? 'site' : 'page';
+}
+
 /**
  * Create a hunt from a queue entry, the way POST /hunts would have.
- * Returns { huntId, brainMode, scanDepth, reused } — reused only when
+ * Returns { huntId, brainMode, scanDepth, scanScope, reused } — reused only when
  * the (user, target, brainMode) dedupe matched a paused hunt (resumed
  * from its checkpoint) or a running one (already live). A
  * stopped/finished/failed match is ignored and a fresh hunt is created
@@ -84,6 +89,7 @@ export async function createHuntFromQueue(entry, deps = {}) {
   if (!userId) throw new Error('queue entry has no userId');
   const brainMode = normalizeQueueBrainMode(entry.brainMode);
   const scanDepth = normalizeQueueScanDepth(entry.scanDepth);
+  const scanScope = normalizeQueueScanScope(entry.scanScope);
   const mode = String(entry.mode || 'normal');
   const scope = entry.scope ?? null;
 
@@ -134,7 +140,7 @@ export async function createHuntFromQueue(entry, deps = {}) {
           console.warn(`[queue] dedupe resume failed for ${existingId}: ${err.message}`);
         }
       }
-      return { huntId: existingId, brainMode, scanDepth, reused: true, resumed };
+      return { huntId: existingId, brainMode, scanDepth, scanScope, reused: true, resumed };
     }
     console.log(
       `[queue] dedupe match ${existingId} is ${state}; creating a fresh hunt instead`
@@ -184,6 +190,9 @@ export async function createHuntFromQueue(entry, deps = {}) {
     // hunt exactly as if it had been created directly.
     brainMode,
     scanDepth,
+    // SCAN SCOPE (9 Nov 2026, /* owner order): same field POST /hunts
+    // writes — a drained whole-site hunt crawls the site, not one page.
+    scanScope,
     ...(isHumanMode ? { humanMode: true } : {}),
     userId,
     createdAt: new Date().toISOString(),
@@ -208,7 +217,7 @@ export async function createHuntFromQueue(entry, deps = {}) {
   if (brainMode === 'scanner') {
     const runScannerHunt =
       deps.runScannerHunt || (await import('./scannerHunt.js')).runScannerHunt;
-    runScannerHunt(huntId, target, { scope, userId, scanDepth }).catch((err) => {
+    runScannerHunt(huntId, target, { scope, userId, scanDepth, scanScope }).catch((err) => {
       appendHuntEvent(huntId, {
         type: 'status',
         state: 'failed',
@@ -226,12 +235,12 @@ export async function createHuntFromQueue(entry, deps = {}) {
       });
     });
   }
-  return { huntId, brainMode, scanDepth, reused: false };
+  return { huntId, brainMode, scanDepth, scanScope, reused: false };
 }
 
 /**
  * Start the next queued hunt if a concurrency slot is free. Returns the
- * created hunt ({ huntId, brainMode, scanDepth, reused }) or null when
+ * created hunt ({ huntId, brainMode, scanDepth, scanScope, reused }) or null when
  * there is nothing to start (empty queue, cap reached) or the start
  * failed — a failed start requeues the entry (up to MAX_QUEUE_ATTEMPTS)
  * so the request is never silently lost.

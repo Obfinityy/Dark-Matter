@@ -41,6 +41,7 @@ import {
   listHuntMetas,
 } from '../store.js';
 import { requireAuth, issueTerminalTicket, issueControlTicket } from './auth.js';
+import { routeKeyForUrl } from '../scanner/routeGroup.js';
 import {
   takeControl,
   releaseControl,
@@ -193,19 +194,22 @@ export function isTargetAllowed(target) {
 
 // PURE HELPERS (5 Nov 2026, Re-run brainMode fix) — exported for tests.
 //
-// normalizeHuntCreate: the create handler's brainMode/scanDepth rules in
-// one place — 'scanner' stays scanner, anything else (incl. omitted) is
-// 'ai'; scanDepth is quick/standard/deep, anything else is 'standard'.
-// The frontend's Re-run / Start-from-scratch sends the source hunt's
-// values; the backend honours them verbatim here (stored on the meta
-// and echoed in the 201 response).
+// normalizeHuntCreate: the create handler's brainMode/scanDepth/
+// scanScope rules in one place — 'scanner' stays scanner, anything
+// else (incl. omitted) is 'ai'; scanDepth is quick/standard/deep,
+// anything else is 'standard'; scanScope is 'site' (/* whole-site
+// crawl) or 'page' (default — one page deep). The frontend's Re-run /
+// Start-from-scratch sends the source hunt's values; the backend
+// honours them verbatim here (stored on the meta and echoed in the
+// 201 response).
 export function normalizeHuntCreate(body) {
   const brainMode = body && body.brainMode === 'scanner' ? 'scanner' : 'ai';
   const scanDepth =
     body && (body.scanDepth === 'quick' || body.scanDepth === 'deep')
       ? body.scanDepth
       : 'standard';
-  return { brainMode, scanDepth };
+  const scanScope = body && body.scanScope === 'site' ? 'site' : 'page';
+  return { brainMode, scanDepth, scanScope };
 }
 
 // mapListHunt: the static fields of one GET / list item, from a hunt meta.
@@ -234,6 +238,12 @@ export function mapListHunt(m) {
     // SCAN DEPTH (5 Nov 2026): see header comment above.
     scanDepth:
       mm.scanDepth === 'quick' || mm.scanDepth === 'deep' ? mm.scanDepth : 'standard',
+    // SCAN SCOPE (9 Nov 2026, /* owner order): 'site' runs the
+    // recursive whole-site crawl, 'page' (default, incl. legacy
+    // metas) scans the pasted page only. The list carries it so a
+    // restored hunt card can inherit the source hunt's scope on
+    // Re-run / Start-from-scratch.
+    scanScope: mm.scanScope === 'site' ? 'site' : 'page',
     createdAt: mm.createdAt || null,
   };
 }
@@ -246,11 +256,13 @@ router.post('/', requireAuth, async (req, res) => {
   // brainMode: 'ai' (default) or 'scanner' (rule-based automation, no AI).
   // scanDepth: 'quick' | 'standard' (default) | 'deep' — autonomous hunter
   // only; validated, anything else falls back to 'standard'.
+  // scanScope: 'page' (default — pasted page only) | 'site' (/* —
+  // recursive same-origin crawl); validated by normalizeHuntCreate.
   // (5 Nov 2026: normalized by normalizeHuntCreate so the rule is
   // unit-tested in one place — see hunts.create.test.js.)
-  const { brainMode: reqBrainMode, scanDepth: reqScanDepth } = normalizeHuntCreate(req.body);
+  const { brainMode: reqBrainMode, scanDepth: reqScanDepth, scanScope: reqScanScope } = normalizeHuntCreate(req.body);
   // The AI option stays — the frontend asks "Infinity AI or Infinity Autonomous?".
-  console.log(`[hunts] CREATE attempt by ${req.user.username} (${req.user.id}): target=${target}, mode=${mode}, brainMode=${reqBrainMode}, scanDepth=${reqScanDepth}, confirmed=${confirmedAuthorized}`);
+  console.log(`[hunts] CREATE attempt by ${req.user.username} (${req.user.id}): target=${target}, mode=${mode}, brainMode=${reqBrainMode}, scanDepth=${reqScanDepth}, scanScope=${reqScanScope}, confirmed=${confirmedAuthorized}`);
   if (typeof target !== 'string' || !target.trim()) {
     return res.status(400).json({
       ok: false,
@@ -428,6 +440,7 @@ router.post('/', requireAuth, async (req, res) => {
         mode: huntMode.id,
         brainMode: reqBrainMode,
         scanDepth: reqScanDepth,
+        scanScope: reqScanScope,
       });
       // FIX (#335): the running hunt's id/target used to leak to any
       // user whose hunt queued behind it. Only the owner (or an admin)
@@ -499,6 +512,10 @@ router.post('/', requireAuth, async (req, res) => {
       // autonomous hunter only.
       brainMode: reqBrainMode,
       scanDepth: reqScanDepth,
+      // SCAN SCOPE (9 Nov 2026, /* owner order): stored on the meta
+      // so the panel, the report and Re-run can see whether this
+      // hunt crawled one page or the whole site.
+      scanScope: reqScanScope,
       // HUMAN MODE: flag both keys the human path checks
       // (huntAgent.js: meta.humanMode === true || mode/meta.mode ===
       // 'human'), matching drive-human.mjs + the lab scripts.
@@ -539,7 +556,7 @@ router.post('/', requireAuth, async (req, res) => {
         labTargets: process.env.LAB_TARGETS || '',
       });
       runScannerHunt(huntId, target, {
-        scope, userId: req.user.id, scanDepth: reqScanDepth,
+        scope, userId: req.user.id, scanDepth: reqScanDepth, scanScope: reqScanScope,
         ...(gatedLabCreds ? { labCreds: gatedLabCreds } : {}),
       }).catch((err) => {
         appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
@@ -552,7 +569,7 @@ router.post('/', requireAuth, async (req, res) => {
         appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
       });
     }
-    res.status(201).json({ ok: true, huntId, brainMode: reqBrainMode, scanDepth: reqScanDepth, ...(fresh === true ? { fresh: true } : {}) });
+    res.status(201).json({ ok: true, huntId, brainMode: reqBrainMode, scanDepth: reqScanDepth, scanScope: reqScanScope, ...(fresh === true ? { fresh: true } : {}) });
   } catch (err) {
     engineErrorResponse(res, err);
   }
@@ -614,6 +631,10 @@ router.get('/queue', requireAuth, async (req, res) => {
         // null here and drain as scanner (see huntCreator.js).
         brainMode: e.brainMode || null,
         scanDepth: e.scanDepth || null,
+        // SCAN SCOPE (9 Nov 2026): the scope a drained entry will
+        // crawl in — visible so a queued re-run's scope is never a
+        // surprise. Legacy entries report null and drain as 'page'.
+        scanScope: e.scanScope || null,
         createdAt: e.createdAt,
         isMine,
       };
@@ -1593,6 +1614,16 @@ export function buildReportMarkdown({ huntId, meta, events }) {
   lines.push('');
   lines.push(`- **Target:** ${target}`);
   lines.push(`- **Created:** ${createdAt}`);
+  // SCAN SCOPE (9 Nov 2026, /* owner order): a whole-site hunt says
+  // so up front, and the per-route section below answers "which route
+  // had what". Page-scope hunts (incl. legacy metas) carry no line.
+  if (meta && meta.scanScope === 'site') {
+    lines.push(`- **Scan scope:** Whole site (/*) — recursive same-origin crawl`);
+    const finished = statuses.find((s) => s.state === 'scanner_finished' && s.summary);
+    if (finished && finished.summary && finished.summary.routesScanned) {
+      lines.push(`- **Routes scanned:** ${finished.summary.routesScanned}`);
+    }
+  }
   lines.push(`- **Latest status:** ${lastStatus ? (lastStatus.state || JSON.stringify(lastStatus)) : 'n/a'}`);
   lines.push(`- **Events cached:** ${events.length} (${thinking.length} thinking, ${toolCalls.length} tool calls, ${rows.length} unique findings: ${confirmedRows.length} confirmed, ${leadRows.length} under investigation)`);
   lines.push(`- **Generated:** ${new Date().toISOString()} (report may reflect a mid-hunt snapshot)`);
@@ -1642,6 +1673,28 @@ export function buildReportMarkdown({ huntId, meta, events }) {
         if (stamp.evidence) lines.push('', '**Evidence:**', '', '```', String(typeof stamp.evidence === 'string' ? stamp.evidence : JSON.stringify(stamp.evidence)).slice(0, 2000), '```');
         const url = stamp.url || r.url;
         if (url) lines.push('', `**URL:** ${url}`);
+        lines.push('');
+      }
+    }
+    // FINDINGS BY ROUTE (9 Nov 2026, /* owner order): whole-site
+    // hunts group the confirmed titles under the route they were
+    // found on, so the report answers "which route had what" at a
+    // glance. Page-scope hunts render no section — their findings
+    // all come from the one pasted page.
+    if (meta && meta.scanScope === 'site' && confirmedRows.length) {
+      const byRoute = new Map();
+      for (const r of confirmedRows) {
+        const stamp = genuineByTitle.get(normTitle(r.title)) || {};
+        const route = routeKeyForUrl(stamp.url || r.url, target);
+        if (!byRoute.has(route)) byRoute.set(route, []);
+        const titles = byRoute.get(route);
+        if (!titles.includes(r.title)) titles.push(r.title);
+      }
+      lines.push('### Findings by route');
+      lines.push('');
+      for (const [route, titles] of [...byRoute.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+        lines.push(`#### ${route}`);
+        for (const t of titles) lines.push(`- ${t}`);
         lines.push('');
       }
     }
