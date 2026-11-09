@@ -5,14 +5,14 @@ target on EC2, verified first-hand (direct EC2 read, never a relay), with hunt I
 title-exact baselines and zero retractions. Nothing here is a unit-test result alone
 and nothing is claimed without evidence.
 
-## Live status (10 Nov 2026, ~00:43 IST)
+## Live status (10 Nov 2026, ~02:15 IST)
 
-- Coverage: **317/478 = 66.3% LIVE**, 110 phases in `backend/src/scanner/index.js`
-- HEAD: `74b3d733` (sqlite DB-error pattern `[_\s.]` fix), **87th deploy verified** (workflow 42678299299, backend PID 2729805, health ok, LAB_TARGETS 8/8, PHASES 110)
-- Suites at HEAD: src 2968/2956/1/11 (SS-4 desktop flake, green standalone 15/15), plain 3032/3021/0/11
+- Coverage: **318/478 = 66.5% LIVE**, 110 phases in `backend/src/scanner/index.js`
+- HEAD: `0f719c67` (quota-bypass calibration: control pass over all derived collections, row #81), **88th deploy verified** (workflow 42682163321, backend PID 2747042, health ok, LAB_TARGETS 8/8, PHASES 110)
+- Suites at HEAD: src 2973/2962/0/11, plain 3037/3026/0/11
 - AI hunt `h_7d49c6ef7447` paused at iter 296 (owner zero-Meta order, 3 Nov 2026);
   spend frozen $38.6028 / 4669 entries
-- Baselines: DVWA **20** titles, Juice Shop **25** titles (listed below)
+- Baselines: DVWA **20** titles, Juice Shop **26** titles (listed below)
 
 ## How a proof works
 
@@ -67,6 +67,7 @@ and nothing is claimed without evidence.
 | 33 | 9 Nov ~17:15 | 80th `619a8ba8` | `h_11df879eed51` {20,0} | `h_cbb5b38267b5` {27,0} | PASS, 0 retractions. **Batch of 9 lanes live-proven: #92 + #375 AIB to LIVE; scout rows #479-#484 to LIVE (extended 324/515).** DVWA phases 110/95/15/0/0, 156 events; Juice phases 110/110/0/0/0, 621 events. Juice baseline 26 -> 27: NEW title 'JWT payload carries sensitive data in its claims (MEDIUM)' (#481, tier secret, 2 sensitive fields, 15 claims scanned). Per-row: #92 CSWSH true negative both legs (wsSinks 0, wsEndpoints 0, driveAttempted true); #375 DVWA uncalibrated (workflowRoutes 0) + Juice calibrated silent (3 routes, controlOk true, 4 steps inspected); #479 calibrated true negative both legs (DVWA 4 params/40 attempts/0 oracle, Juice 2 params/20 attempts/0 oracle); #480 DVWA never ran (0 WS endpoints) + Juice 1 replay attempt, before==after==1, replayConfirmed false - snapshot oracle works live, WS title stays INTERMITTENT; #481 FIRED on Juice, DVWA true negative; #482 DVWA uncalibrated + Juice calibrated silent (controlOk true, attempts 5, failOpenKind null); #483 DVWA true negative (4 inputs, 1 sensitive, 0 unprotected - password input carries AUTOCOMPLETE='off', verified by direct curl; the lane's 'DVWA will fire' expectation was WRONG) + Juice 0 inputs (SPA shell); #484 DVWA skipped 'no script targets' + Juice ran (0 relaxations). #81 quota-bypass UNPROVEN - uncalibrated both legs (DVWA apiRoutes 0; Juice apiRoutes 2, controlOk false, attempts 0); feed is [...scanTargets, ...jsWriteTargets] so only templated write-targets were mined while /api/Products + /api/Feedbacks grant 200 JSON unauthenticated - fix lane: derive collection URLs from templated write targets. Coverage 318/478 = 66.5%. Baselines: DVWA 20, Juice 27. |
 | 34 | 9 Nov ~18:10 | 81st `75f12de9` | `h_3446ed656867` {20,0} | `h_7a1342904b11` {27,0} | INCONCLUSIVE for row #81, 0 retractions. Both legs baseline-exact, but the quota-bypass drive never calibrated (DVWA `quota-bypass` ok:true, `apiRoutes=0, controlOk=false, attempts=0` - DVWA has no API surface at all; Juice `quota-bypass` ok:true, `apiRoutes=2, controlOk=false, attempts=0, throttled=false, bypassKind=null` - the control GET granted on NEITHER candidate, so no burst ran). The 81st-deploy fix (derive collection URLs from templated write targets) is live on EC2 (HEAD 75f12de9, PID 2499755, probe file carries deriveCollectionUrl), but the live record cannot show whether derivation ran: the new `derivedCollections` diagnostic was never wired into the phase extras in index.js (extras list only apiRoutes/controlOk/attempts/throttled/bypassKind). Decisive counter-evidence to the fix premise: the captcha probe in the SAME Juice hunt found `feedbackRoutes=1` from the identical feed ([...scanTargets, ...jsWriteTargets]), so a feedbacks-segment route WAS mined - the quota probe still did not calibrate. Next: a follow-up lane must reproduce the live feed, name the actual 2 candidates, fix the root cause (cap-2 cut, template shape, or wiring), wire the diagnostic into extras, and re-proof. Coverage stays 318/478 = 66.5%. Baselines unchanged: DVWA 20, Juice 27. DVWA phases 110/95/15/0/0, 156 events; Juice phases 110/110/0/0/0 (560 phase records), 621 events. |
 | 35 | 10 Nov ~00:43 | 87th `74b3d733` | `h_a64dee98a867` {20,0} | `h_09574ffbb449` {25,0} | PASS, 0 retractions. **Zerodha FP-fix re-proof (sqlite regex `[_\s.]`): the genuine SQLi 'q' title is back on Juice; the 2 EL titles are confirmed old false positives and leave the baseline.** Row #197 (EL injection) LIVE to AIB — its only live evidence was those two titles (payload substring `dmElTesttoString` + SQLITE_ERROR echo, no evaluation; Juice is Node.js, no EL evaluator). Juice baseline 27 -> 25. Coverage 318 -> 317/478 = 66.3%. DVWA phases 110/95/15/0/0, 156 events; Juice phases 110/110/0/0/0 (560 phase records), 617 events. |
+| 36 | 10 Nov ~02:13 | 88th `0f719c67` | `h_699c88a9225a` {20,0} | `h_58f21daaf58f` {26,0} | PASS, 0 retractions. **Row #81 AIB to LIVE — quota-bypass calibration fix live-proven** (control pass over all derived collections, MAX_CANDIDATES=12: Juice `quota-bypass` ok:true, `apiRoutes=12, derivedCollections=7, controlOk=true, attempts=15, throttled=false, bypassKind='no-rate-limit'`, NEW title 'API endpoint accepts repeated requests without rate limiting (MEDIUM)' — control GET /api/Products HTTP 200 -> 15 identical GETs unauthenticated, all 15 answered HTTP 200, no 429, no Retry-After, no refusal text; class `business_logic`, verified:true. DVWA `quota-bypass` honest no-op (apiRoutes=0, controlOk=false, attempts=0 — DVWA has no API surface). Coverage 317 -> 318/478 = 66.5%. Juice baseline 25 -> 26. DVWA phases 110/95/15/0/0, 156 events; Juice phases 110/110/0/0/0 (560 phase records), 619 events. |
 
 ## Behaviour-analysis live proof (60th deploy `203c6d44`)
 
@@ -135,7 +136,7 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 19. Session fixation — session ID not regenerated on login (MEDIUM, T1)
 20. Session fixation — planted session ID reaches authenticated state (HIGH, T2)
 
-### Juice Shop — 25 titles
+### Juice Shop — 26 titles
 
 1. HTTP request smuggling (CL.TE desync proven)
 2. Verb tampering — DELETE
@@ -162,6 +163,7 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 23. Login accepts repeated wrong passwords without rate limiting (HIGH) (since live-proof #21, row #42)
 24. BFLA — admin endpoint callable by low-privilege user (HIGH) (since live-proof #27, row #340)
 25. JWT payload carries sensitive data in its claims (MEDIUM) (since live-proof #33, row #481)
+26. API endpoint accepts repeated requests without rate limiting (MEDIUM) (since proof #36, row #81)
 
 ## Deploy chain (recent)
 
@@ -200,6 +202,7 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 | 85th | `29368406` | 42656465347 | PR #402 merged — fix(#343): plugin-per-deployment-salt |
 | 86th | `963ddea1` | 42666109813 | Zerodha FP fix (SSRF+SQLi, EL+LDAP oracle hardening) + CI Node 24 |
 | 87th | `74b3d733` | 42678299299 | Sqlite DB-error regex fix `[_\s.]` (Zerodha re-proof #35) |
+| 88th | `0f719c67` | 42682163321 | Quota-bypass calibration fix (row #81, proof #36) |
 
 ## Screenshots
 
