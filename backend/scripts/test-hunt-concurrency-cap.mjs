@@ -75,9 +75,9 @@ check('the live 23 Oct shape: Ezviz running + lab running + paused bench → DVW
 // and on failure); the Lane X ternary shape this check used to grep for
 // in huntAgent.js never existed there. The behaviour the check pins is
 // unchanged: the cap decision runs BEFORE any dequeue.
-const huntsSrc = fs.readFileSync(new URL('../src/routes/hunts.js', import.meta.url), 'utf8');
+const huntsSrc = fs.readFileSync(new URL('../src/routes/hunts/create.js', import.meta.url), 'utf8');
 const creatorSrc = fs.readFileSync(new URL('../src/huntCreator.js', import.meta.url), 'utf8');
-const agentSrc = fs.readFileSync(new URL('../src/huntAgent.js', import.meta.url), 'utf8');
+const agentSrc = fs.readFileSync(new URL('../src/huntAgent/run.js', import.meta.url), 'utf8');
 check('POST /hunts route decides via huntQueueFull(metas)', huntsSrc.includes('huntQueueFull(metas)'));
 const gateIdx = creatorSrc.indexOf('if (store.huntQueueFull()) return null;');
 const dequeueIdx = creatorSrc.indexOf('store.dequeueNextHunt()');

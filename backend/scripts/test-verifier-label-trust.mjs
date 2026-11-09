@@ -113,7 +113,7 @@ check('genuine lab fixture: content-relevance still passes', labRel.relevant ===
 // probe, so text-level gates cannot see the flaw — this family is blocked
 // by the RETIRED_DET_IDS version gate in assessResult. Pin the gate's
 // presence so it cannot be removed silently.
-const huntAgentSrc = fs.readFileSync(new URL('../src/huntAgent.js', import.meta.url), 'utf8');
+const huntAgentSrc = fs.readFileSync(new URL('../src/huntAgent/verification.js', import.meta.url), 'utf8');
 check('v2 family: RETIRED_DET_IDS contains both superseded detIds',
   huntAgentSrc.includes("'ftp-kdbx-exposure'") && huntAgentSrc.includes("'ftp-kdbx-exposure-v2'"));
 check('v2 family: assessResult consults RETIRED_DET_IDS',
