@@ -4390,3 +4390,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .history-menu-wrap { position: relative; }
 
 .history-dots svg { display: block; }
+
+/* --- New hunt modal (field validation) --- */
+.text-input.input-error { border-color: var(--dm-danger); }
