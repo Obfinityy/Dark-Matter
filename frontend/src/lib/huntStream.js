@@ -2,9 +2,8 @@
  * Hunt live-stream client.
  *
  * Usage:
- *   const stream = new HuntStreamClient(huntId, handlers);
- *   stream.connect();      // opens WS /api/v1/hunts/:id/stream
- *   stream.disconnect();   // closes the socket
+ *   Create one client per hunt, connect it to open the socket, and
+ *   disconnect it to close the socket.
  *
  * handlers:
  *   onEvent(type, payload) — 'thinking' | 'tool_call' | 'finding' | 'status' | 'done'

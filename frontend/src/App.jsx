@@ -5,89 +5,14 @@
 // and the auth provider. Pages live in ./pages/, shared UI in
 // ./components/, API calls in ./lib/api.js. Styling comes from
 // ./design-system.css (tokens) and ./index.css (component rules).
+// The layout + page switch live in ./components/AppRoutes.jsx;
+// localStorage/route helpers live in ./lib/chatStorage.js.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import Sidebar from './components/Sidebar';
-import TopBar from './components/TopBar';
-import ActivityDrawer from './components/ActivityDrawer';
-import UpiPayPage from './pages/UpiPayPage';
-import AdminPage from './pages/AdminPage';
-import ChatPage from './pages/ChatPage';
-import PluginsPage from './pages/PluginsPage';
-import ReportsPage from './pages/ReportsPage';
-import LiveMachinesPage from './pages/LiveMachinesPage';
-import SettingsPage from './pages/SettingsPage';
-import AuthPage from './pages/AuthPage';
-import LegalPage from './pages/LegalPage';
-import AuthModal from './components/AuthModal';
-import ToastHost from './components/ToastHost';
+import AppRoutes from './components/AppRoutes';
 import { AuthProvider, useAuth } from './lib/auth';
 import { huntCardFromListEntry } from './lib/huntMode';
-
-const CHATS_KEY = 'dm.chats';
-const CHAT_WIPE_VERSION = '2026-10-16-wipe2';
-(function wipeStaleChatsOnce() {
-  try {
-    if (localStorage.getItem('dm.chatWipe') === CHAT_WIPE_VERSION) return;
-    const keys = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith(CHATS_KEY)) keys.push(k);
-    }
-    keys.forEach((k) => localStorage.removeItem(k));
-    // Also clear per-user deleted-chat tracking so resurrected IDs can't return.
-    const delKeys = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith('dm.deleted.')) delKeys.push(k);
-    }
-    delKeys.forEach((k) => localStorage.removeItem(k));
-    localStorage.setItem('dm.chatWipe', CHAT_WIPE_VERSION);
-  } catch { /* never break app load */ }
-})();
-// Per-user storage key — User A's chats must NEVER be visible to User B,
-// even on the same device. Logged-out state uses the legacy shared key
-// only as a migration source, never as the live store.
-function chatsKeyFor(user) {
-  const uid = user && (user.id || user.username);
-  return uid ? `${CHATS_KEY}.${String(uid)}` : CHATS_KEY;
-}
-const HUNTS_KEY = 'dm.hunts';
-
-function uid() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function loadJson(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function saveJson(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch { /* storage unavailable */ }
-}
-
-function deriveTitle(text) {
-  const t = String(text || '').trim().replace(/\s+/g, ' ');
-  return t.length > 42 ? `${t.slice(0, 42)}…` : t || 'Untitled chat';
-}
-
-function routeFromPath() {
-  try {
-    const p = window.location.pathname.replace(/\/+$/, '') || '/';
-    if (p === '/login') return 'login';
-    if (p === '/admin') return 'admin';
-    if (p === '/privacy') return 'privacy';
-    if (p === '/terms') return 'terms';
-  } catch { /* ignore */ }
-  return 'chat';
-}
+import { CHATS_KEY, chatsKeyFor, chatsKeyForUserKey, deriveTitle, routeFromPath, uid } from './lib/chatStorage';
 
 function AppInner() {
   const { ready, user } = useAuth();
@@ -133,14 +58,21 @@ function AppInner() {
   // whose chat carries no brainMode (restored / title-pulled chats).
   const [huntModes, setHuntModes] = useState({});
 
+  // Primitive identity for the user effect below: depending on the user
+  // object itself would re-run on every auth-context re-render, while
+  // these primitives change only when the account actually changes.
+  const userKey = user && (user.id || user.username);
+  const userId = user ? user.id : undefined;
+  const hasUser = !!user;
+
   // CHATS: Backend is the single source of truth. On login/account change,
   // fetch the chat list fresh from the backend. localStorage is NOT used for
   // chats anymore. Deleting a chat sends a tombstone to the backend immediately.
   // A logged-out session sees NO chats at all.
   useEffect(() => {
-    const key = chatsKeyFor(user);
+    const key = chatsKeyForUserKey(userKey);
     setChatsKey(key);
-    if (!user) {
+    if (!hasUser) {
       setChats([]);
       setDraftChat(null);
       setActiveChatId(null);
@@ -151,7 +83,7 @@ function AppInner() {
     try {
       localStorage.removeItem(key);
       localStorage.removeItem(CHATS_KEY);
-      localStorage.removeItem(`dm.deleted.${user.id}`);
+      localStorage.removeItem(`dm.deleted.${userId}`);
     } catch { /* ignore */ }
 
     let cancelled = false;
@@ -185,7 +117,7 @@ function AppInner() {
       }
     })();
     return () => { cancelled = true; };
-  }, [user && (user.id || user.username)]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userKey, userId, hasUser]);
 
   // NOTE: chats are NOT persisted to localStorage anymore — backend is the
   // single source of truth. Messages are pushed to the backend via the sync
@@ -587,7 +519,6 @@ function AppInner() {
 
   const deleteChat = useCallback(
     (chatId) => {
-      console.log('[delete] deleteChat called for:', chatId);
       // Show confirmation dialog first — user asked for explicit confirm
       setConfirmingDelete(chatId);
     },
@@ -596,7 +527,6 @@ function AppInner() {
 
   const confirmDeleteChat = useCallback(
     (chatId) => {
-      console.log('[delete] confirmDeleteChat called for:', chatId);
       setConfirmingDelete(null);
       // Record a tombstone so the delete syncs to the backend and the chat
       // doesn't resurrect on refresh/other devices.
@@ -747,158 +677,42 @@ function AppInner() {
     } catch { /* ignore */ }
   }
 
-  if (!ready) {
-    return (
-      <div className="app">
-        <main className="main" />
-        <ToastHost />
-      </div>
-    );
-  }
-
-  if (page === 'login') {
-    return (
-      <div className="app">
-        <AuthPage onDone={() => navigate('chat')} onNavigate={navigate} />
-        <ToastHost />
-      </div>
-    );
-  }
-
-  if (page === 'admin') {
-    return (
-      <div className={`app${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
-        <Sidebar
-          chats={chats}
-          runningHunts={runningHunts}
-          activeChatId={activeChatId}
-          activePage={page}
-          hunter={hunter}
-          huntModes={huntModes}
-          onSelectChat={setActiveChatId}
-          onNewHunt={requestHuntModal}
-          onNavigate={navigate}
-          onRenameChat={renameChat}
-          onDeleteChat={deleteChat}
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
-        {/* Backdrop stays mounted so its fade transition can play on close. */}
-        <button
-          className={`sidebar-backdrop${sidebarOpen ? ' open' : ''}`}
-          aria-label="Close sidebar"
-          onClick={() => setSidebarOpen(false)}
-        />
-        <main className="main">
-          <TopBar
-            onMenu={() => setSidebarOpen((v) => !v)}
-            sidebarOpen={sidebarOpen}
-            showShare={false}
-            hunter={hunter}
-            onPickHunter={pickHunter}
-            onNavigate={navigate}
-            onActivity={() => setActivityOpen(true)}
-            onOpenHunt={openHuntChat}
-          />
-          <AdminPage />
-        </main>
-        <ToastHost />
-      </div>
-    );
-  }
-
   return (
-    <div className={`app${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
-      <Sidebar
-        chats={chats}
-        runningHunts={runningHunts}
-        activeChatId={activeChatId}
-        activePage={page}
-        hunter={hunter}
-        huntModes={huntModes}
-        onSelectChat={setActiveChatId}
-        onNewHunt={requestHuntModal}
-        onNavigate={navigate}
-        onRenameChat={renameChat}
-        onDeleteChat={deleteChat}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-      {/* Backdrop stays mounted so its fade transition can play on close. */}
-      <button
-        className={`sidebar-backdrop${sidebarOpen ? ' open' : ''}`}
-        aria-label="Close sidebar"
-        onClick={() => setSidebarOpen(false)}
-      />
-      <main className="main">
-        <TopBar
-          onMenu={() => setSidebarOpen((v) => !v)}
-          sidebarOpen={sidebarOpen}
-          showShare={page === 'chat' && !!activeChat && (activeChat.messages || []).length > 0}
-          hunter={hunter}
-          onPickHunter={pickHunter}
-          onNavigate={navigate}
-          onActivity={() => setActivityOpen(true)}
-          onOpenHunt={openHuntChat}
-        />
-        <ActivityDrawer open={activityOpen} onClose={() => setActivityOpen(false)} />
-        {(page === 'privacy' || page === 'terms') && (
-          <LegalPage type={page} onNavigate={navigate} />
-        )}
-        {page === 'chat' && (
-          <ChatPage
-            chat={activeChat}
-            onAppendMessage={appendMessage}
-            onUpdateMessage={updateMessage}
-            onNewChat={createChat}
-            onRecordHunt={recordHunt}
-            onUpdateHunt={updateHunt}
-            onOpenReports={openReports}
-            onOpenHuntChat={openHuntChat}
-            huntModalTrigger={huntModalTrigger}
-          />
-        )}
-        {page === 'plugins' && <PluginsPage />}
-        {page === 'reports' && <ReportsPage preselectedHuntId={reportHuntId} />}
-        {page === 'machines' && <LiveMachinesPage onOpenHunt={openHuntChat} />}
-        {page === 'pay' && <UpiPayPage />}
-        {page === 'settings' && <SettingsPage onNavigate={navigate} />}
-      </main>
-      {authModal && (
-        <AuthModal
-          mode={authModal}
-          onClose={() => setAuthModal(null)}
-          onDone={() => setPage('chat')}
-          onNavigate={navigate}
-        />
-      )}
-      <ToastHost />
-      {confirmingDelete && (
-        <div className="modal-backdrop" onClick={() => setConfirmingDelete(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete chat?</h3>
-            <p className="modal-text">
-              This will permanently delete this chat from your view on all devices.
-              This action cannot be undone.
-            </p>
-            <div className="modal-actions">
-              <button
-                className="btn-secondary"
-                onClick={() => setConfirmingDelete(null)}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn-danger"
-                onClick={() => confirmDeleteChat(confirmingDelete)}
-              >
-                Permanently Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    <AppRoutes
+      ready={ready}
+      page={page}
+      navigate={navigate}
+      setPage={setPage}
+      sidebarOpen={sidebarOpen}
+      setSidebarOpen={setSidebarOpen}
+      chats={chats}
+      runningHunts={runningHunts}
+      activeChatId={activeChatId}
+      setActiveChatId={setActiveChatId}
+      hunter={hunter}
+      huntModes={huntModes}
+      requestHuntModal={requestHuntModal}
+      renameChat={renameChat}
+      deleteChat={deleteChat}
+      activeChat={activeChat}
+      activityOpen={activityOpen}
+      setActivityOpen={setActivityOpen}
+      openHuntChat={openHuntChat}
+      reportHuntId={reportHuntId}
+      huntModalTrigger={huntModalTrigger}
+      appendMessage={appendMessage}
+      updateMessage={updateMessage}
+      createChat={createChat}
+      recordHunt={recordHunt}
+      updateHunt={updateHunt}
+      openReports={openReports}
+      authModal={authModal}
+      setAuthModal={setAuthModal}
+      confirmingDelete={confirmingDelete}
+      setConfirmingDelete={setConfirmingDelete}
+      confirmDeleteChat={confirmDeleteChat}
+      pickHunter={pickHunter}
+    />
   );
 }
 

@@ -32,10 +32,12 @@ export default function ActivityDrawer({ open, onClose }) {
     listHunts().then((res) => {
       if (res.ok && res.data && Array.isArray(res.data.hunts)) {
         setHunts(res.data.hunts);
-        if (res.data.hunts.length && !activeId) setActiveId(res.data.hunts[0].huntId);
+        // Functional update: the effect only depends on `open` — the
+        // current selection is read from state, not the render scope.
+        if (res.data.hunts.length) setActiveId((prev) => prev || res.data.hunts[0].huntId);
       }
     }).catch(() => {});
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!open || !activeId) return;

@@ -7,6 +7,8 @@ import {
   getControlTicket,
   controlWsUrl,
 } from '../lib/api';
+import LiveMachineDock from './LiveMachineDock';
+import LiveMachineOverlay from './LiveMachineOverlay';
 
 /**
  * LiveMachine — picture-in-picture view of the hunt machine's GUI desktop.
@@ -361,6 +363,17 @@ export default function LiveMachine({ huntId, target, embedded = false }) {
     setControlState('off');
   }, [huntId, setControlState]);
 
+  // ✕ on the expanded overlay while driving is Cancel: end control
+  // AND close. Closing the overlay while still holding the lock
+  // would hide the desktop but keep the machine locked.
+  const closeExpanded = useCallback(() => {
+    if (controlRef.current === 'on' || controlRef.current === 'taking' || controlRef.current === 'taken') {
+      endControl().then(() => setExpanded(false));
+    } else {
+      setExpanded(false);
+    }
+  }, [endControl]);
+
   const shortTarget = target ? target.replace(/^https?:\/\//, '') : huntId;
   const controlBusy = control === 'taking' || control === 'taken' || control === 'on';
   const controlButtonLabel = control === 'on'
@@ -470,116 +483,30 @@ export default function LiveMachine({ huntId, target, embedded = false }) {
 
   return (
     <>
-      <div
-        className={`live-machine${embedded ? ' live-machine-embedded' : ''}`}
-        aria-label="Live machine view"
-        style={embedded ? undefined : { bottom: 16 + slot * STACK_STEP_PX }}
-      >
-        <div className="live-machine-header">
-          <span className={`live-machine-dot${available ? ' on' : ''}`} aria-hidden="true" />
-          <span className="live-machine-live">LIVE</span>
-          <span className="live-machine-target" title={target}>{shortTarget}</span>
-          <button
-            type="button"
-            className="live-machine-expand"
-            onClick={() => setExpanded(true)}
-            title="Expand machine view"
-          >
-            ⛶
-          </button>
-          {!embedded && (
-            <button
-              type="button"
-              className="live-machine-expand"
-              onClick={() => setMinimized(true)}
-              title="Minimize to a small chip"
-            >
-              ✕
-            </button>
-          )}
-        </div>
-        {control === 'error' && controlError && (
-          <div className="live-machine-control-error" role="alert">
-            {controlError}
-          </div>
-        )}
-        {control === 'on' && (
-          <div className="live-machine-control-banner" role="status">
-            <span aria-hidden="true">●</span> YOU ARE IN CONTROL — the AI&apos;s GUI actions are paused
-          </div>
-        )}
-        <div
-          className="live-machine-screen live-machine-screen-clickable"
-          onClick={() => setExpanded(true)}
-          title="Click to expand fullscreen"
-          role="button"
-          aria-label="Expand machine view fullscreen"
-        >
-          {frame}
-        </div>
-      </div>
+      <LiveMachineDock
+        available={available}
+        shortTarget={shortTarget}
+        target={target}
+        embedded={embedded}
+        control={control}
+        controlError={controlError}
+        frame={frame}
+        slotStyle={embedded ? undefined : { bottom: 16 + slot * STACK_STEP_PX }}
+        onExpand={() => setExpanded(true)}
+        onMinimize={() => setMinimized(true)}
+      />
 
       {expanded && (
-        <div className="live-machine-overlay" role="dialog" aria-label="Live machine view — expanded">
-          <div className="live-machine-overlay-bar">
-            <span className={`live-machine-dot${available ? ' on' : ''}`} aria-hidden="true" />
-            <span className="live-machine-live">LIVE</span>
-            <span className="live-machine-target" title={target}>{shortTarget}</span>
-            {control === 'on' ? (
-              <>
-                <span className="live-machine-control-banner" role="status">
-                  <span aria-hidden="true">●</span> YOU ARE IN CONTROL — the AI&apos;s GUI actions are paused
-                </span>
-                <button
-                  type="button"
-                  className="live-machine-done"
-                  onClick={endControl}
-                  title="Hand the machine back to the AI"
-                >
-                  Done
-                </button>
-                <button
-                  type="button"
-                  className="live-machine-cancel"
-                  onClick={endControl}
-                  title="Exit control mode and hand the machine back to the AI"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                <span className="live-machine-note">
-                  {control === 'taking' || control === 'taken' ? 'Connecting to the machine…' : 'View only — the hunter is driving'}
-                </span>
-                {controlButton}
-              </>
-            )}
-            <button
-              type="button"
-              className="live-machine-expand"
-              onClick={() => {
-                // ✕ while driving is Cancel: end control AND close.
-                // Closing the overlay while still holding the lock
-                // would hide the desktop but keep the machine locked.
-                if (controlRef.current === 'on' || controlRef.current === 'taking' || controlRef.current === 'taken') {
-                  endControl().then(() => setExpanded(false));
-                } else {
-                  setExpanded(false);
-                }
-              }}
-              title={control === 'on' || control === 'taking' || control === 'taken' ? 'Exit control mode and close' : 'Close expanded view'}
-            >
-              ✕
-            </button>
-          </div>
-          {control === 'error' && controlError && (
-            <div className="live-machine-control-error" role="alert">
-              {controlError}
-            </div>
-          )}
-          {overlayScreen}
-        </div>
+        <LiveMachineOverlay
+          available={available}
+          shortTarget={shortTarget}
+          control={control}
+          controlError={controlError}
+          controlButton={controlButton}
+          overlayScreen={overlayScreen}
+          onClose={closeExpanded}
+          onEndControl={endControl}
+        />
       )}
     </>
   );

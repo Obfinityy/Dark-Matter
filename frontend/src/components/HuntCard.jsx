@@ -1,65 +1,22 @@
 // Hunt card — ChatGPT idiom: an assistant message with a progress card.
 // Status line ("Hunting <target>…"), expandable event feed, findings stream,
 // and Pause/Resume/Stop pill buttons. All stream/control logic unchanged.
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { pauseHunt, resumeHunt, stopHunt, getHuntCost, setHuntBudget, getHuntEvents, steerHunt, listHunts, getHuntBrain, setHuntBrain, getHuntProcess, setBrainMode, agentChat, requestAiAnalysis } from '../lib/api';
+// Split (P6): status line -> huntcard/HuntStatusLine, money strip ->
+// huntcard/HuntMoneyStrip, findings -> huntcard/HuntFindings, controls +
+// steer -> huntcard/HuntControls, agent panels -> huntcard/HuntAgentPanels,
+// activity humanizer -> huntcard/humanizeActivity.
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { getHuntCost, setHuntBudget, getHuntEvents, listHunts, getHuntBrain, setHuntBrain, getHuntProcess, setBrainMode, agentChat, requestAiAnalysis } from '../lib/api';
 import { HuntStreamClient, createSimulatedStream, isDemoMode } from '../lib/huntStream';
 import { normalizeAiAnalysis, shouldAutoAnalyze } from '../lib/aiAnalysis';
 import { toast } from '../lib/toast';
 import { processSummary } from '../lib/brainActions';
-import { groupFindingsByRoute } from '../lib/routeGroup';
-
-const SEVERITY_CLASS = {
-  critical: 'sev-critical',
-  high: 'sev-high',
-  medium: 'sev-medium',
-  low: 'sev-low',
-};
-
-function statusClass(status) {
-  switch (status) {
-    case 'running': return 'status-pill status-running';
-    case 'idle':
-    case 'created':
-    case 'starting': return 'status-pill status-running';
-    case 'paused': return 'status-pill status-paused';
-    case 'out_of_credits': return 'status-pill status-paused';
-    case 'done': return 'status-pill status-completed';
-    case 'stopped': return 'status-pill status-stopped';
-    case 'error': return 'status-pill status-failed';
-    default: return 'status-pill status-paused';
-  }
-}
-
-function statusLabel(status) {
-  switch (status) {
-    case 'running': return 'Running';
-    case 'idle':
-    case 'created':
-    case 'starting': return 'Starting';
-    case 'paused': return 'Paused';
-    case 'out_of_credits': return 'Out of credits';
-    case 'done': return 'Completed';
-    case 'stopped': return 'Stopped';
-    case 'error': return 'Failed';
-    default: return status ? String(status) : 'Paused';
-  }
-}
-
-function statusText(status, target) {
-  switch (status) {
-    case 'running': return `Hunting ${target}…`;
-    case 'idle':
-    case 'created':
-    case 'starting': return 'Starting hunt…';
-    case 'paused': return 'Hunt paused';
-    case 'out_of_credits': return 'Out of credits — top up, then press Resume.';
-    case 'done': return 'Hunt completed';
-    case 'stopped': return 'Hunt stopped';
-    case 'error': return 'Stream unavailable';
-    default: return `Hunt ${status}`;
-  }
-}
+import { humanizeActivityLogs } from './huntcard/humanizeActivity';
+import HuntStatusLine from './huntcard/HuntStatusLine';
+import HuntMoneyStrip from './huntcard/HuntMoneyStrip';
+import HuntFindings from './huntcard/HuntFindings';
+import HuntControls from './huntcard/HuntControls';
+import HuntAgentPanels from './huntcard/HuntAgentPanels';
 
 // Lane V: a stream event's OWN time. Every recorded event carries
 // the stamp the backend wrote (cachedAt; some events also carry
@@ -282,7 +239,6 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
     // the work. Otherwise the mount load is enough.
     const timer = setInterval(() => { if (brainMode === 'parent') load(); }, 15000);
     return () => { cancelled = true; clearInterval(timer); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hunt.huntId, brainMode]);
 
   // BE A BRAIN: take over as the brain — POST brain-mode
@@ -311,6 +267,17 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
     setBrainModeState(mode);
     if (state) updateStatus(state);
   };
+
+  // MODEL-SWITCHER: load the hunt's brain state once (selected /
+  // active model, fallback, model list). Refreshed after a switch
+  // and whenever a model_switch event arrives on the stream.
+  // Stable per huntId (refs + setters only) so effects can list it
+  // as a dep instead of disabling exhaustive-deps.
+  const refreshBrain = useCallback(() => {
+    getHuntBrain(hunt.huntId).then((r) => {
+      if (r && r.ok && r.data && r.data.brain) setBrain(r.data.brain);
+    }).catch(() => {});
+  }, [hunt.huntId]);
 
   // BRAIN JSON (28 Oct 2026): the Brain/model dropdown's change.
   // Selecting "Be a Brain" does exactly what the gold button does
@@ -362,18 +329,9 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
       refreshBrain();
     }
   };
-  // MODEL-SWITCHER: load the hunt's brain state once (selected /
-  // active model, fallback, model list). Refreshed after a switch
-  // and whenever a model_switch event arrives on the stream.
-  const refreshBrain = () => {
-    getHuntBrain(hunt.huntId).then((r) => {
-      if (r && r.ok && r.data && r.data.brain) setBrain(r.data.brain);
-    }).catch(() => {});
-  };
   useEffect(() => {
     refreshBrain();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hunt.huntId]);
+  }, [refreshBrain]);
 
   // Lane V: keep the panel's findings on the reconciled snapshot
   // while the stream runs. A streamed 'finding'/'retraction' event
@@ -381,15 +339,15 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   // append raw — raw accumulation is what desynced the panel from
   // chat (dropped `verified`, no retractions, duplicate stamps).
   const findingsTimerRef = useRef(null);
-  const refreshFindings = () => {
+  const refreshFindings = useCallback(() => {
     getHuntEvents(hunt.huntId, 200).then((r) => {
       if (r && r.ok && r.data && Array.isArray(r.data.findings)) setFindings(r.data.findings);
     }).catch(() => {});
-  };
-  const refreshFindingsSoon = () => {
+  }, [hunt.huntId]);
+  const refreshFindingsSoon = useCallback(() => {
     if (findingsTimerRef.current) clearTimeout(findingsTimerRef.current);
     findingsTimerRef.current = setTimeout(refreshFindings, 800);
-  };
+  }, [refreshFindings]);
   useEffect(() => {
     if (hunt.createdAt) { setResolvedCreatedAt(hunt.createdAt); return; }
     let cancelled = false;
@@ -441,68 +399,8 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
   // moment (the 00:00:00 flash read as "the hunt restarted").
   const elapsedStr = resolvedCreatedAt ? elapsedStamp(now) : '--:--:--';
 
-  // Plain-English activity feed: translate technical log entries into
-  // "I did this" narration anyone can understand.
-  const humanLogEntries = (() => {
-    const out = [];
-    const seen = new Set();
-    for (const entry of logs) {
-      const text = entry.text || '';
-      let emoji = '💭';
-      let human = null;
-      if (entry.kind === 'finding') {
-        emoji = '🎯';
-        human = `I found something: ${text.slice(0, 120)}`;
-      } else if (entry.kind === 'tool') {
-        const t = text.toLowerCase();
-        // Human-mode GUI actions (Lane V): the line carries the tool
-        // name + detail ("browser_open http://…/ftp"), so name what
-        // the hunter actually did. These used to fall through to one
-        // generic line, deduped by text into invisibility — the
-        // activity feed showed nothing of human mode at all.
-        if (t.startsWith('browser_open')) {
-          const u = (text.match(/https?:\/\/\S+/) || [])[0];
-          emoji = '🌐'; human = u ? `I opened ${u.slice(0, 80)} in my browser` : 'I opened a page in my browser';
-        }
-        else if (t.startsWith('browser_click')) { emoji = '🖱️'; human = `I clicked ${text.replace(/^browser_click\s*/i, '').slice(0, 60) || 'a page element'}`; }
-        else if (t.startsWith('browser_type')) { emoji = '⌨️'; human = 'I typed into the page'; }
-        else if (t.startsWith('browser_snapshot')) { emoji = '👀'; human = 'I took a close look at the page'; }
-        else if (t.includes('nmap')) { emoji = '🔍'; human = 'I scanned the target for open ports'; }
-        else if (t.includes('subdomain') || t.includes('subfinder') || t.includes('amass')) { emoji = '🌐'; human = 'I enumerated subdomains'; }
-        else if (t.includes('nuclei')) { emoji = '🔬'; human = 'I ran vulnerability checks'; }
-        else if (t.includes('curl') || t.includes('wget')) { emoji = '📡'; human = 'I fetched a web page to inspect it'; }
-        else if (t.includes('sqlmap') || t.includes('sql')) { emoji = '💉'; human = 'I tested for SQL injection'; }
-        else if (t.includes('xss')) { emoji = '⚡'; human = 'I tested for cross-site scripting'; }
-        else if (t.startsWith('shell')) { emoji = '💻'; human = `I ran a command: ${text.replace(/^shell\s*/i, '').slice(0, 70)}`; }
-        else { emoji = '🔧'; human = `I ran a security test`; }
-      } else {
-        // thinking entries — make them first-person and friendly
-        const t = text.toLowerCase();
-        if (t.includes('dedup_block')) { emoji = '🛑'; human = 'I caught myself repeating an action — my own record stopped it'; }
-        else if (t.includes('reconnaissance') || t.includes('mapping the attack')) { emoji = '🗺️'; human = 'I started mapping the website'; }
-        else if (t.includes('understanding target')) { emoji = '👀'; human = `I'm looking at ${hunt.target}`; }
-        else if (t.includes('iteration')) { const m = text.match(/iteration\s+(\d+)/i); emoji = '🔄'; human = m ? `I'm on round ${m[1]} of testing` : 'I continued testing'; }
-        else if (t.includes('business-logic') || t.includes('bl module')) { emoji = '🧠'; human = 'I planned business-logic attack scenarios'; }
-        else if (t.includes('checkpoint') || t.includes('resum')) { emoji = '💾'; human = 'I picked up from where I left off'; }
-        else if (t.includes('finished')) { emoji = '✅'; human = 'I finished the hunt'; }
-        else if (t.includes('paused')) { emoji = '⏸️'; human = 'I paused — waiting for you'; }
-        else if (t.includes('stopped')) { emoji = '⏹️'; human = 'I stopped the hunt'; }
-        if (!human && text.trim()) {
-          // Lane V: human-mode thinking is free-form first-person
-          // reasoning that matches none of the pipeline-era patterns
-          // above; dropping it froze this feed at the last pipeline
-          // narration line while the hunter kept working. Show the
-          // reasoning itself, trimmed to a feed line.
-          human = text.replace(/\s+/g, ' ').trim().slice(0, 140);
-        }
-      }
-      if (human && !seen.has(human)) {
-        seen.add(human);
-        out.push({ emoji, text: human, at: entry.at });
-      }
-    }
-    return out.slice(-8);
-  })();
+  // Plain-English activity feed (see huntcard/humanizeActivity).
+  const humanLogEntries = humanizeActivityLogs(logs, hunt.target);
 
   const updateStatus = (next) => {
     setStatus(next);
@@ -532,6 +430,18 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
     return () => { cancelled = true; clearInterval(t); };
   }, [hunt.huntId]);
 
+  // Latest-callback ref for the stream effect below: the stream
+  // subscribes once per huntId and must NOT reconnect when the
+  // callbacks change identity each render (brainLabel reads `brain`
+  // state; updateStatus closes over the onStatusChange prop). The
+  // handlers read the ref at event time, so they always see the
+  // latest callbacks without re-subscribing. Refs are exempt from
+  // exhaustive-deps, so [hunt.huntId] is the complete dep list.
+  const streamCallbacksRef = useRef({});
+  useEffect(() => {
+    streamCallbacksRef.current = { brainLabel, updateStatus, refreshBrain, refreshFindingsSoon };
+  });
+
   useEffect(() => {
     const handlers = {
       onEvent: (type, payload) => {
@@ -557,9 +467,9 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
           // switch back after Meta recovered. Surface it in the
           // feed and refresh the control so it shows the model
           // actually answering now.
-          const line = `Brain switched: ${brainLabel(payload.from)} → ${brainLabel(payload.to)} (${payload.reason || 'switch'})`;
+          const line = `Brain switched: ${streamCallbacksRef.current.brainLabel(payload.from)} → ${streamCallbacksRef.current.brainLabel(payload.to)} (${payload.reason || 'switch'})`;
           setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: line, at: eventTimeMs(payload) }]);
-          refreshBrain();
+          streamCallbacksRef.current.refreshBrain();
         } else if (type === 'finding' || type === 'retraction') {
           // Lane V: never accumulate raw finding events in the panel.
           // The reconciled snapshot (loadHuntMemory -> panelFindings,
@@ -580,13 +490,13 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
               ]);
             }
           } else {
-            refreshFindingsSoon();
+            streamCallbacksRef.current.refreshFindingsSoon();
           }
         } else if (type === 'status') {
-          if (payload.status) updateStatus(payload.status);
+          if (payload.status) streamCallbacksRef.current.updateStatus(payload.status);
           if (payload.phase) setPhase(payload.phase);
         } else if (type === 'done') {
-          updateStatus('done');
+          streamCallbacksRef.current.updateStatus('done');
           if (payload.summary) {
             setLogs((prev) => [...prev.slice(-99), { kind: 'thinking', text: payload.summary, at: eventTimeMs(payload) }]);
           }
@@ -610,7 +520,6 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
       setStatus('error');
     }
     return () => stream && stream.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hunt.huntId]);
 
   useEffect(() => {
@@ -618,48 +527,6 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
       logEndRef.current.scrollTop = logEndRef.current.scrollHeight;
     }
   }, [logs]);
-
-  // 100% truth rule: only VERIFIED findings are shown as vulnerabilities.
-  // Unverified leads are hypotheses, not vulnerabilities — they are
-  // NEVER given a verified badge. But they ARE shown (27 Oct 2026,
-  // live-report fix): before this change a hunt with 0 verified
-  // findings showed only the bare count "N leads under investigation"
-  // with no title, severity or evidence — the owner could not see any
-  // report building live. Leads now render as lead rows (title +
-  // severity + evidence snippet + "under investigation" badge) while
-  // the verified list above stays verified-only.
-  // P0 (31 Oct 2026): probe/test names must never count as verified
-  // findings, even if the backend stamped verified:true (defense in
-  // depth — the backend guard is primary). A title starting with
-  // "probe_" (or matching test-name patterns) is a probe note, not a
-  // vulnerability.
-  const isProbeName = (t) => {
-    const s = String(t || '').trim().toLowerCase();
-    return /^probe[_-]/.test(s) || /[_-]probe([_-]|$)/.test(s) || /[_-]test([_-]|$)/.test(s) || /^test[_-]/.test(s);
-  };
-  const verifiedFindings = findings.filter((f) => f && f.verified === true && !isProbeName(f.title));
-  // Deduplicate by normalized title — the same vulnerability verified
-  // twice (e.g. sql_injection_login filed @345 and @453) must count as
-  // ONE unique finding, not two events.
-  const uniqueVerifiedFindings = [];
-  const seenTitles = new Set();
-  for (const f of verifiedFindings) {
-    const norm = String(f.title || '').toLowerCase().replace(/[_\-\s]+/g, ' ').trim();
-    if (!norm || seenTitles.has(norm)) continue;
-    seenTitles.add(norm);
-    uniqueVerifiedFindings.push(f);
-  }
-  const unverifiedFindings = findings.filter((f) => f && f.verified !== true);
-  const unverifiedCount = unverifiedFindings.length;
-
-  const counts = useMemo(() => {
-    const c = { critical: 0, high: 0, medium: 0, low: 0 };
-    uniqueVerifiedFindings.forEach((f) => {
-      if (c[f.severity] !== undefined) c[f.severity] += 1;
-      else c.low += 1;
-    });
-    return c;
-  }, [uniqueVerifiedFindings]);
 
   async function runControl(action, fn, successMsg) {
     setBusy(true);
@@ -675,61 +542,11 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
     }
   }
 
-  const totalFindings = uniqueVerifiedFindings.length;
-
   // FINDINGS BY ROUTE (9 Nov 2026, /* scope): a whole-site hunt
   // groups its findings under the route each was found on, so the
   // panel answers "which route had what". Page-scope hunts keep the
-  // flat list. The route comes from the panel row's url (the backend
-  // carries the verified stamp's URL on the row); rows without one
-  // group under the hunt target.
+  // flat list.
   const isSiteScope = hunt.scanScope === 'site';
-  const verifiedByRoute = isSiteScope ? groupFindingsByRoute(uniqueVerifiedFindings, hunt.target) : null;
-  const leadsByRoute = isSiteScope ? groupFindingsByRoute(unverifiedFindings, hunt.target) : null;
-
-  // Row renderers shared by the flat list and the per-route groups —
-  // row content is unchanged in both layouts.
-  const verifiedRow = (f, idx) => (
-    <li key={idx} className="finding-item">
-      {/* FINDING DETAIL (28 Oct 2026): rows are buttons —
-          clicking one opens the detail modal for that
-          title. Row content is unchanged. */}
-      <button
-        type="button"
-        className={`finding finding-row ${SEVERITY_CLASS[f.severity] || 'sev-low'}`}
-        onClick={() => setSelectedFindingTitle(f.title)}
-        title={`View detail — ${f.title}`}
-        aria-label={`View detail for ${f.title}`}
-      >
-        <span className="finding-sev">{f.severity}</span>
-        <span className="finding-title">{f.title}</span>
-        <span className="finding-badge finding-verified" title={f.verification || 'Verified'}>
-          ✓ verified
-        </span>
-        <span className="finding-view-hint" aria-hidden="true">View detail →</span>
-        {f.detail && <span className="finding-detail">{f.detail}</span>}
-      </button>
-    </li>
-  );
-  const leadRow = (f, idx) => (
-    <li key={`lead-${idx}`} className="finding-item">
-      <button
-        type="button"
-        className={`finding finding-row finding-lead ${SEVERITY_CLASS[f.severity] || 'sev-low'}`}
-        onClick={() => setSelectedFindingTitle(f.title)}
-        title={`View detail — ${f.title}`}
-        aria-label={`View detail for ${f.title}`}
-      >
-        <span className="finding-sev">{f.severity}</span>
-        <span className="finding-title">{f.title}</span>
-        <span className="finding-badge finding-unverified" title={f.verification || 'Under investigation'}>
-          under investigation
-        </span>
-        <span className="finding-view-hint" aria-hidden="true">View detail →</span>
-        {f.detail && <span className="finding-detail">{f.detail}</span>}
-      </button>
-    </li>
-  );
 
   // AUTONOMOUS MODE (3 Nov 2026, owner order): the rule-based scanner hunt
   // ("Infinity Autonomous") spends $0 and has no brain to take over — so the
@@ -788,48 +605,21 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
 
   return (
     <div className="hunt-card">
-      <div className="hunt-statusline">
-        <span className={statusClass(status)}><span className="dot" aria-hidden="true" />{statusLabel(status)}</span>
-        <span className="hunt-id-badge" title={`Full hunt ID: ${hunt.huntId}`}>{hunt.huntId ? hunt.huntId.slice(0, 12) : ''}</span>
-        <span className="hunt-status-text">{statusText(status, hunt.target)}</span>
-        {brainMode === 'parent' && (
-          <span className="brain-mode-badge" role="status" title={isPaused ? "The AI loop is paused — you are driving this hunt from the Brain Console" : "Parent-brain mode — the hunt loop is live; you supply each turn's decision from the Brain Console"}>
-            🧠 You are the brain
-          </span>
-        )}
-        {(brainMode === 'scanner' || (!brainMode && hunt.brainMode === 'scanner')) && (
-          <span className="brain-mode-badge" role="status" title="Infinity Autonomous — rule-based scan, no AI, $0">
-            ⚡ Autonomous
-          </span>
-        )}
-        {(brainMode === 'ai' || (hunt.brainMode && hunt.brainMode !== 'scanner')) && (
-          <span className="brain-mode-badge" role="status" title="Infinity AI — AI agent hunts autonomously">
-            🤖 AI
-          </span>
-        )}
-        {brainMode === 'parent' && liveProc && liveProc.activity && (
-          <span className="hunt-live-activity" role="status" title={liveProc.in_process ? 'A process is running right now' : 'No process running right now'}>
-            <span className={liveProc.in_process ? 'hunt-live-dot live' : 'hunt-live-dot'} aria-hidden="true" />
-            {liveProc.activity}
-            {liveProc.in_process ? ' · in process' : ' · idle'}
-          </span>
-        )}
-        {!isTerminal && (
-          <span className="hunt-timer" title={isPaused ? "Total time elapsed (hunt paused)" : "Time since this hunt started"}>
-            ⏱ {elapsedStr}
-          </span>
-        )}
-        {phase && <span className="hunt-target-inline">{phase}</span>}
-        {logs.length > 0 && (
-          <button
-            className="hunt-toggle-feed"
-            onClick={() => setShowFeed((v) => !v)}
-            aria-expanded={showFeed}
-          >
-            {showFeed ? 'Hide terminal' : 'Show terminal'}
-          </button>
-        )}
-      </div>
+      <HuntStatusLine
+        status={status}
+        huntId={hunt.huntId}
+        target={hunt.target}
+        huntBrainMode={hunt.brainMode}
+        brainMode={brainMode}
+        liveProc={liveProc}
+        elapsedStr={elapsedStr}
+        phase={phase}
+        hasLogs={logs.length > 0}
+        showFeed={showFeed}
+        onToggleFeed={() => setShowFeed((v) => !v)}
+        isPaused={isPaused}
+        isTerminal={isTerminal}
+      />
 
       {isBudgetPaused && (
         <div className="hunt-budget-banner">
@@ -849,48 +639,19 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
 
       {showFeed && (
         <>
-        {!isScanner && (
-        <div className="hunt-money-strip" title="Wallet balance, money burnt on this hunt, and burn rate per iteration">
-          <span className="hunt-money">💰 {balance === null ? '…' : `$${Number(balance).toFixed(2)}`} balance</span>
-          <span className="hunt-money">🔥 ${cost && cost.totalUsd ? cost.totalUsd.toFixed(2) : '0.00'} burnt</span>
-          {budgetUsd !== null && (
-            <span className="hunt-money" title="Spend cap for this hunt — the hunt auto-pauses at the budget">🎯 Budget ${budgetUsd.toFixed(2)}</span>
-          )}
-          <span className="hunt-money hunt-burn-rate">⚡ ${perIter.toFixed(2)}/iter</span>
-        </div>
-        )}
-        {!isScanner && (
-        <div className="hunt-budget-row" title="Spend cap for this hunt — at the budget the hunt auto-pauses with a checkpoint; Resume continues from there">
-          <label className="hunt-budget-label" htmlFor={`budget-${hunt.huntId}`}>Budget $</label>
-          <input
-            id={`budget-${hunt.huntId}`}
-            className="hunt-budget-input"
-            type="number"
-            min="0"
-            step="0.01"
-            inputMode="decimal"
-            placeholder={budgetUsd !== null ? `Current $${budgetUsd.toFixed(2)}` : 'No budget set'}
-            value={budgetInput}
-            onChange={(e) => setBudgetInput(e.target.value)}
-            disabled={budgetBusy}
-          />
-          <button
-            className="btn btn-sm"
-            disabled={budgetBusy || budgetInput.trim() === ''}
-            onClick={() => saveBudget(budgetInput.trim())}
-          >
-            Set
-          </button>
-          {budgetUsd !== null && (
-            <button className="btn btn-ghost btn-sm" disabled={budgetBusy} onClick={() => saveBudget(null)}>
-              Clear
-            </button>
-          )}
-          {budgetUsd !== null && (
-            <span className="hunt-budget-spent">Spent ${spentUsd.toFixed(2)} of ${budgetUsd.toFixed(2)}</span>
-          )}
-        </div>
-        )}
+        <HuntMoneyStrip
+          isScanner={isScanner}
+          balance={balance}
+          cost={cost}
+          budgetUsd={budgetUsd}
+          spentUsd={spentUsd}
+          perIter={perIter}
+          budgetInput={budgetInput}
+          onBudgetInput={setBudgetInput}
+          budgetBusy={budgetBusy}
+          onSaveBudget={saveBudget}
+          huntId={hunt.huntId}
+        />
         <div className="hunt-feed" ref={logEndRef} aria-live="polite">
           {logs.length === 0 && <div className="empty-hint">{historyLoaded ? 'Waiting for hunt output…' : 'Loading hunt history…'}</div>}
           {logs.map((entry, idx) => (
@@ -906,50 +667,12 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         </>
       )}
 
-      {(totalFindings > 0 || unverifiedCount > 0) && (
-        <div className="hunt-findings-block">
-          <div className="hunt-findings-title">
-            {totalFindings > 0 ? 'Confirmed vulnerabilities' : 'Vulnerabilities'}
-            {counts.critical > 0 && <span className="sev sev-critical">{counts.critical} critical</span>}
-            {counts.high > 0 && <span className="sev sev-high">{counts.high} high</span>}
-            {counts.medium > 0 && <span className="sev sev-medium">{counts.medium} medium</span>}
-            {counts.low > 0 && <span className="sev sev-low">{counts.low} low</span>}
-          </div>
-          {totalFindings === 0 && (
-            <div className="hunt-no-confirmed">
-              No confirmed vulnerabilities yet
-              {unverifiedCount > 0 && ` — ${unverifiedCount} lead${unverifiedCount === 1 ? '' : 's'} under investigation`}
-              .
-            </div>
-          )}
-          {totalFindings > 0 && !isSiteScope && (
-          <ul className="findings-list">
-            {uniqueVerifiedFindings.map((f, idx) => verifiedRow(f, idx))}
-          </ul>
-          )}
-          {totalFindings > 0 && isSiteScope && verifiedByRoute.map((g) => (
-            <div key={g.route} className="findings-route-group">
-              <div className="findings-route-title">{g.route}</div>
-              <ul className="findings-list">
-                {g.findings.map((f, idx) => verifiedRow(f, `${g.route}-${idx}`))}
-              </ul>
-            </div>
-          ))}
-          {unverifiedCount > 0 && !isSiteScope && (
-          <ul className="findings-list findings-leads">
-            {unverifiedFindings.map((f, idx) => leadRow(f, idx))}
-          </ul>
-          )}
-          {unverifiedCount > 0 && isSiteScope && leadsByRoute.map((g) => (
-            <div key={g.route} className="findings-route-group">
-              <div className="findings-route-title">{g.route}</div>
-              <ul className="findings-list findings-leads">
-                {g.findings.map((f, idx) => leadRow(f, `${g.route}-${idx}`))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      )}
+      <HuntFindings
+        findings={findings}
+        hunt={hunt}
+        isSiteScope={isSiteScope}
+        onSelectFinding={setSelectedFindingTitle}
+      />
 
       {/* FINDING DETAIL (28 Oct 2026): the modal for the selected
           row. Closing it returns to the list with no state change. */}
@@ -961,231 +684,50 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
         />
       )}
 
-      <div className="hunt-controls">
-        {/* MONEY DISPLAY (owner order 3 Nov): scanner hunts show $0 and no
-            spend UI — hide the burnt-money pill like the money strip. */}
-        {!isScanner && cost && cost.totalUsd > 0 && (
-          <span className="hunt-cost" title="Money burnt on this hunt (AWS)">
-            🔥 ${cost.totalUsd.toFixed(2)}
-          </span>
-        )}
-        {isPaused ? (
-          <button
-            className="hunt-pill-btn"
-            disabled={busy}
-            onClick={() => runControl('resume', resumeHunt, 'Hunt resumed.')}
-          >
-            ▶ Resume
-          </button>
-        ) : (
-          <button
-            className="hunt-pill-btn"
-            disabled={busy || isTerminal}
-            onClick={() => runControl('pause', pauseHunt, 'Hunt paused.')}
-          >
-            ❚❚ Pause
-          </button>
-        )}
-        <button
-          className="hunt-pill-btn danger"
-          disabled={busy || isTerminal}
-          onClick={() => runControl('stop', stopHunt, 'Hunt stopped.')}
-        >
-          ■ Stop
-        </button>
-        {isTerminal && onRerun && (
-          <button
-            className="hunt-pill-btn"
-            disabled={busy}
-            onClick={() => {
-              setBusy(true);
-              onRerun(hunt).finally(() => setBusy(false));
-            }}
-            title="Start a fresh hunt against the same target"
-          >
-            ↻ Re-run
-          </button>
-        )}
-        {isPaused && onStartFresh && (
-          <button
-            className="hunt-pill-btn"
-            disabled={busy}
-            onClick={() => {
-              setBusy(true);
-              onStartFresh(hunt).finally(() => setBusy(false));
-            }}
-            title="Start a brand-new hunt against the same target — fresh memory, the paused hunt stays untouched with its checkpoint"
-          >
-            ↻ Start from scratch
-          </button>
-        )}
-        {onTalkWithAI && (
-          <button
-            className="hunt-pill-btn talk"
-            onClick={() => onTalkWithAI(hunt.huntId)}
-            title="Talk with the AI about this hunt — voice conversation, works anytime"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <rect x="9" y="3" width="6" height="11" rx="3" />
-              <path d="M5 11a7 7 0 0 0 14 0M12 18v3" strokeLinecap="round" />
-            </svg>
-            Talk with AI
-          </button>
-        )}
-        {isScanner && (
-          <button
-            className="hunt-pill-btn talk"
-            onClick={() => setAgentChatOpen((v) => !v)}
-            aria-expanded={agentChatOpen}
-            title="Chat with the scan agent about this hunt's findings — answers from the scan data, stays on topic"
-          >
-            💬 {agentChatOpen ? 'Hide Agent Chat' : 'Chat with Agent'}
-          </button>
-        )}
-        {onGetReport && (
-          <button
-            className="hunt-pill-btn"
-            onClick={() => onGetReport(hunt.huntId, isScanner ? 'scanner' : brainMode)}
-            title="Generate a professional bug bounty report from this hunt's findings and memory"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Get Report
-          </button>
-        )}
-        {isActive && (
-          <button
-            className="hunt-pill-btn"
-            onClick={() => setShowPiP((v) => !v)}
-            title="Watch live terminal — see what the AI is doing"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <rect x="2" y="4" width="20" height="14" rx="2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M8 22h8M12 18v4" strokeLinecap="round" />
-            </svg>
-            {showPiP ? 'Hide Terminal' : 'Live Terminal'}
-          </button>
-        )}
-        {isActive && !isScanner && (
-          <button
-            className="hunt-pill-btn brain-takeover"
-            disabled={brainModeBusy}
-            onClick={takeOverAsBrain}
-            title={brainMode === 'parent'
-              ? 'Open the Brain Console — you are already the brain'
-              : 'Become the brain: pause the AI loop and drive the next actions yourself'}
-          >
-            {brainModeBusy ? 'Taking over…' : brainMode === 'parent' ? '🧠 Open Brain Console' : '🧠 Be a Brain'}
-          </button>
-        )}
-        {brain && !isScanner && (
-          <label className="hunt-model" title="The brain thinking for this hunt — switch mid-hunt; the new brain continues with the same state, history and memory">
-            <span className="hunt-model-label">Brain:</span>
-            <select
-              className="hunt-model-select"
-              value={brainMode === 'parent' ? PARENT_BRAIN_VALUE : brain.selected}
-              disabled={brainBusy || isTerminal}
-              onChange={handleBrainSelect}
-            >
-              {/* BRAIN JSON: the parent as a selectable "model" — same
-                  takeover as the gold "Be a Brain" button. While the
-                  parent is the brain this option stays selected. */}
-              <option value={PARENT_BRAIN_VALUE}>🧠 Be a Brain (you)</option>
-              {(brain.models || []).map((m) => (
-                <option key={m.id} value={m.id} disabled={!m.available} title={m.available ? m.blurb : 'Not available — the Meta API key is not configured on the backend'}>
-                  {m.label}{m.available ? '' : ' (unavailable)'}
-                </option>
-              ))}
-            </select>
-            {brain.fallback && (
-              <span className="hunt-model-fallback" title={`Meta (${brainLabel(brain.selected)}) is not responding — the hunt is answering on Dark Matter V1 until Meta recovers`}>
-                fallback: answering on V1
-              </span>
-            )}
-          </label>
-        )}
-        <span className="hunt-id">ID: {hunt.huntId}</span>
-      </div>
+      <HuntControls
+        hunt={hunt}
+        isScanner={isScanner}
+        cost={cost}
+        isPaused={isPaused}
+        isTerminal={isTerminal}
+        isActive={isActive}
+        busy={busy}
+        onBusy={setBusy}
+        runControl={runControl}
+        onRerun={onRerun}
+        onStartFresh={onStartFresh}
+        onTalkWithAI={onTalkWithAI}
+        agentChatOpen={agentChatOpen}
+        onToggleAgentChat={() => setAgentChatOpen((v) => !v)}
+        onGetReport={onGetReport}
+        brainMode={brainMode}
+        showPiP={showPiP}
+        onTogglePiP={() => setShowPiP((v) => !v)}
+        brainModeBusy={brainModeBusy}
+        onTakeOverAsBrain={takeOverAsBrain}
+        brain={brain}
+        brainBusy={brainBusy}
+        onBrainSelect={handleBrainSelect}
+        brainLabel={brainLabel}
+        parentBrainValue={PARENT_BRAIN_VALUE}
+        steerMsg={steerMsg}
+        setSteerMsg={setSteerMsg}
+        steerSent={steerSent}
+        setSteerSent={setSteerSent}
+        steerBusy={steerBusy}
+        setSteerBusy={setSteerBusy}
+      />
 
-      {/* AGENT CHAT (3 Nov 2026, owner order): text chat with the scan agent
-          for Autonomous hunts — scoped to this hunt's findings. */}
-      {isScanner && agentChatOpen && (
-        <div className="hunt-agent-chat">
-          <div className="hunt-agent-chat-title">💬 Agent chat — is scan ke findings pe sawal poocho</div>
-          <div className="hunt-agent-chat-feed">
-            {agentChatMsgs.length === 0 && (
-              <div className="hunt-agent-chat-empty">
-                e.g. "kitni findings mili?", "sabse serious kaunsi hai?", "ise kaise fix karun?"
-              </div>
-            )}
-            {agentChatMsgs.map((m, idx) => (
-              <div key={idx} className={`hunt-agent-chat-line ${m.role}`}>
-                <span className="hunt-agent-chat-who">{m.role === 'user' ? 'You' : 'Agent'}</span>
-                <span>{m.text}</span>
-              </div>
-            ))}
-            {agentChatBusy && <div className="hunt-agent-chat-line agent"><span className="hunt-agent-chat-who">Agent</span><span>soch raha hai…</span></div>}
-          </div>
-          <div className="hunt-agent-chat-row">
-            <input
-              className="hunt-agent-chat-input"
-              value={agentChatInput}
-              onChange={(e) => setAgentChatInput(e.target.value)}
-              placeholder="Is scan ke baare me poocho…"
-              maxLength={500}
-              disabled={agentChatBusy}
-              onKeyDown={(e) => { if (e.key === 'Enter') sendAgentChatMsg(); }}
-            />
-            <button
-              className="hunt-pill-btn"
-              disabled={!agentChatInput.trim() || agentChatBusy}
-              onClick={sendAgentChatMsg}
-            >
-              {agentChatBusy ? '…' : 'Send'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* AI BEHAVIOUR ANALYSIS (8 Nov 2026, owner idea): Meta AI read
-          the hunt's full behaviour and proposes NEW vulnerabilities the
-          predefined battery may have missed. Suggestions are LEADS —
-          labelled "AI-suggested lead — unverified" — never confirmed
-          findings, and never counted in the findings totals above. */}
-      {isScanner && aiAnalysis && (
-        <div className="hunt-agent-chat">
-          <div className="hunt-agent-chat-title">🤖 AI analysis — behaviour se nayi leads</div>
-          {aiAnalysis.state === 'loading' && (
-            <div className="hunt-agent-chat-empty">AI analysis chal rahi hai…</div>
-          )}
-          {aiAnalysis.state === 'ready' && aiAnalysis.suggestions.length === 0 && (
-            <div className="hunt-agent-chat-empty">AI ko behaviour se koi nayi lead nahi mili.</div>
-          )}
-          {aiAnalysis.state === 'ready' && aiAnalysis.suggestions.length > 0 && (
-            <div className="hunt-agent-chat-feed">
-              {aiAnalysis.suggestions.map((s, idx) => (
-                <div key={idx} className="hunt-agent-chat-line agent">
-                  <span className="hunt-agent-chat-who">Lead</span>
-                  <span>
-                    <strong>{s.title}</strong> [{s.severity}]
-                    <br />AI-suggested lead — unverified
-                    {s.reasoning ? (<><br />{s.reasoning}</>) : null}
-                    {s.verification ? (<><br />Verify: {s.verification}</>) : null}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-          {aiAnalysis.state === 'unavailable' && (
-            <div className="hunt-agent-chat-empty">Meta AI abhi available nahi hai{aiAnalysis.error ? ` (${aiAnalysis.error})` : ''}.</div>
-          )}
-          {aiAnalysis.state === 'error' && (
-            <div className="hunt-agent-chat-empty">{aiAnalysis.error || 'AI analysis ka jawab nahi mila.'}</div>
-          )}
-        </div>
-      )}
+      <HuntAgentPanels
+        isScanner={isScanner}
+        agentChatOpen={agentChatOpen}
+        agentChatMsgs={agentChatMsgs}
+        agentChatInput={agentChatInput}
+        onAgentChatInput={setAgentChatInput}
+        agentChatBusy={agentChatBusy}
+        onSendAgentChat={sendAgentChatMsg}
+        aiAnalysis={aiAnalysis}
+      />
 
       {/* BE A BRAIN (28 Oct 2026): the console replaces the floating
           LiveMachine while it is open — the console embeds its own
@@ -1225,47 +767,6 @@ export default function HuntCard({ hunt, onStatusChange, onRerun, onStartFresh, 
           target={hunt.target}
           onClose={() => setShowTerminalModal(false)}
         />
-      )}
-
-      {isActive && (
-        <div className="hunt-steer">
-          <div className="hunt-steer-title">💬 Steer the hunter</div>
-          <div className="hunt-steer-row">
-            <input
-              className="hunt-steer-input"
-              value={steerMsg}
-              onChange={(e) => { setSteerMsg(e.target.value); setSteerSent(false); }}
-              placeholder="e.g. focus on the login page, try harder on XSS…"
-              maxLength={500}
-              disabled={steerBusy}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && steerMsg.trim() && !steerBusy) {
-                  setSteerBusy(true);
-                  steerHunt(hunt.huntId, steerMsg.trim()).then((r) => {
-                    setSteerBusy(false);
-                    if (r.ok) { setSteerSent(true); setSteerMsg(''); }
-                    else toast.error(r.error || 'Could not send instruction');
-                  });
-                }
-              }}
-            />
-            <button
-              className="hunt-pill-btn"
-              disabled={!steerMsg.trim() || steerBusy}
-              onClick={() => {
-                setSteerBusy(true);
-                steerHunt(hunt.huntId, steerMsg.trim()).then((r) => {
-                  setSteerBusy(false);
-                  if (r.ok) { setSteerSent(true); setSteerMsg(''); }
-                  else toast.error(r.error || 'Could not send instruction');
-                });
-              }}
-            >
-              {steerBusy ? 'Sending…' : 'Send'}
-            </button>
-          </div>
-          {steerSent && <div className="hunt-steer-ok">✓ The hunter will follow your instruction next round.</div>}
-        </div>
       )}
 
       {/* Plain-English activity: what the agent is doing, in words anyone
