@@ -50,6 +50,7 @@ import { probeBasketLogic } from './probes/basketLogic.js';
 import { probeWorkflowSkip } from './probes/workflowSkip.js';
 import { probeTwoFaBruteForce } from './probes/twoFaBruteForce.js';
 import { probeCredentialStuffing } from './probes/credentialStuffing.js';
+import { probeBfla } from './probes/bfla.js';
 import { probeDomPostMessage } from './probes/domPostMessage.js';
 import { probeCsti } from './probes/csti.js';
 import { probeCaptcha } from './probes/captcha.js';
@@ -159,6 +160,7 @@ export const DEFAULT_PHASES = [
   'workflow-skip',
   'twofa-bruteforce',
   'credential-stuffing',
+  'bfla',
   'user-enumeration',
   'rfi',
   'xslt',
@@ -1714,6 +1716,37 @@ export async function runScan(
       loginRoutes: csDiag.loginRoutes || 0,
       controlOk: Boolean(csDiag.controlOk),
       attempts: csDiag.attempts || 0,
+    })
+  );
+  // BFLA (9 Nov 2026, row #340 [High], CWE-862 | OWASP API05:2023):
+  // a low-privilege session that can invoke an admin-only API
+  // function proves missing function-level authorization — the
+  // probe runs a three-way differential on each mined admin route
+  // (no-token GET must be refused, admin-token GET is the control,
+  // low-privilege-token GET confirms only when granted with a
+  // substantive body at least half the control body's length),
+  // using a throwaway self-registered low-privilege account (see
+  // bfla.js). Same apiRoutes wiring as credential-stuffing.
+  // Diagnostics ride the phase extras (adminRoutes, registerOk,
+  // controlOk, attempts, bypassKind) so a live proof can tell "no
+  // surface" from "oracle uncalibrated" without re-running the scan.
+  const bflaDiag = {};
+  await step(
+    'bfla',
+    () =>
+      probeBfla(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: bflaDiag,
+      }),
+    () => ({
+      adminRoutes: bflaDiag.adminRoutes || 0,
+      registerOk: Boolean(bflaDiag.registerOk),
+      controlOk: Boolean(bflaDiag.controlOk),
+      attempts: bflaDiag.attempts || 0,
+      bypassKind: bflaDiag.bypassKind || null,
     })
   );
   await step('user-enumeration', () => probeUserEnum(forms, url, opts));
