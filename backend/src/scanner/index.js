@@ -2202,9 +2202,13 @@ export async function runScan(
   // throttle signal (no 429, no Retry-After, no refusal text); a
   // single throttle signal proves the limit exists (see
   // quotaBypass.js). Same apiRoutes wiring as bfla. Diagnostics
-  // ride the phase extras (apiRoutes, controlOk, attempts,
-  // throttled, bypassKind) so a live proof can tell "no surface"
-  // from "oracle uncalibrated" without re-running the scan.
+  // ride the phase extras (apiRoutes, derivedCollections,
+  // candidates, controlOk, attempts, throttled, bypassKind) so a
+  // live proof can tell "no surface" from "oracle uncalibrated"
+  // without re-running the scan — and can see exactly which
+  // routes were tried, in order (9 Nov 2026 follow-up, proof #34:
+  // the cap-2 cut was invisible live because the record carried
+  // neither the derived count nor the route list).
   const quotaDiag = {};
   await step(
     'quota-bypass',
@@ -2218,6 +2222,8 @@ export async function runScan(
       }),
     () => ({
       apiRoutes: quotaDiag.apiRoutes || 0,
+      derivedCollections: quotaDiag.derivedCollections || 0,
+      candidates: quotaDiag.candidates || [],
       controlOk: Boolean(quotaDiag.controlOk),
       attempts: quotaDiag.attempts || 0,
       throttled: Boolean(quotaDiag.throttled),

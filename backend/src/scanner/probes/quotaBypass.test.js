@@ -37,10 +37,13 @@ const BASE_OPTS = {
 
 // ---- stateful fake API ------------------------------------------------------
 // behavior is keyed by pathname: { throttleAt, retryAfterAt,
-// refuseTextAt, error500At, control404 } — each counts GETs to
+// refuseTextAt, error500At, control404, always } — each counts GETs to
 // that path INCLUDING the control GET (request 1), so throttleAt
 // 5 means the control + 4 burst GETs succeed and the 5th burst
-// GET is throttled.
+// GET is throttled. `always` answers every GET to the path with
+// that status (a 401-gated collection, a 500-broken one) — the
+// live Juice shape, where /api/Users + /api/BasketItems 401 and
+// /rest/track-order 500s on every request.
 function makeFakeApi(behaviorByPath = {}) {
   const state = { counts: {}, calls: [] };
   const fetchFn = async (url, init = {}) => {
@@ -60,6 +63,9 @@ function makeFakeApi(behaviorByPath = {}) {
     });
     if (b.control404 && n === 1) {
       return json(404, { status: 'error', message: 'not found' });
+    }
+    if (b.always) {
+      return json(b.always, { status: 'error', message: 'not granted' });
     }
     if (b.throttleAt && n === b.throttleAt) {
       return json(429, { status: 'error', message: 'Too many requests' });
@@ -160,11 +166,22 @@ describe('findApiRoutes', () => {
       'http://other.local/api/Products',
       'http://lab.local/',
     ];
+    // Control-pass cap is MAX_CANDIDATES (12): every valid route is
+    // a candidate and the probe control-probes them in order, so
+    // /api/Users survives the list (its control fails live, 401).
     assert.deepEqual(findApiRoutes(routes, ORIGIN), [
       'http://lab.local/api/Products',
       'http://lab.local/rest/products/search',
+      'http://lab.local/api/Users',
     ]);
     assert.deepEqual(findApiRoutes([], ORIGIN), []);
+  });
+  it('QB-26: findApiRoutes keeps twelve derived collections — the old cap of two cut the list', () => {
+    const feed = Array.from({ length: 13 }, (_, i) => `http://lab.local/api/Items${i}/dmprobe${i}_aa11`);
+    const got = findApiRoutes(feed, ORIGIN);
+    assert.equal(got.length, 12);
+    assert.equal(got[0], 'http://lab.local/api/Items0');
+    assert.equal(got[11], 'http://lab.local/api/Items11');
   });
 });
 
@@ -193,20 +210,29 @@ describe('deriveCollectionUrl', () => {
     assert.equal(deriveCollectionUrl('http://lab.local/api/Baskets/123'), null);
     assert.equal(deriveCollectionUrl('not a url'), null);
   });
-  it('QB-18: findApiRoutes puts derived collections first; the templated item URL yields its cap slot', () => {
+  it('QB-18: findApiRoutes puts derived collections first; the templated item URLs follow behind them', () => {
     assert.deepEqual(
       findApiRoutes(
         ['http://lab.local/api/Feedbacks/dmprobe4_2e69', 'http://lab.local/api/Products/123'],
         ORIGIN
       ),
-      ['http://lab.local/api/Feedbacks', 'http://lab.local/api/Products']
+      [
+        'http://lab.local/api/Feedbacks',
+        'http://lab.local/api/Products',
+        'http://lab.local/api/Feedbacks/dmprobe4_2e69',
+        'http://lab.local/api/Products/123',
+      ]
     );
     assert.deepEqual(
       findApiRoutes(
         ['http://lab.local/api/Products', 'http://lab.local/api/Feedbacks/dmprobe4_2e69'],
         ORIGIN
       ),
-      ['http://lab.local/api/Feedbacks', 'http://lab.local/api/Products']
+      [
+        'http://lab.local/api/Feedbacks',
+        'http://lab.local/api/Products',
+        'http://lab.local/api/Feedbacks/dmprobe4_2e69',
+      ]
     );
     assert.deepEqual(
       findApiRoutes(
@@ -215,6 +241,10 @@ describe('deriveCollectionUrl', () => {
       ),
       ['http://lab.local/api/Feedbacks', 'http://lab.local/api/Feedbacks/dmprobe4_2e69']
     );
+    // Three templated routes derive three collections — the old
+    // cap of 2 cut the third; the control-pass cap keeps all of
+    // them (derived first, then the item URLs) and the probe
+    // control-probes in order.
     assert.deepEqual(
       findApiRoutes(
         [
@@ -224,7 +254,14 @@ describe('deriveCollectionUrl', () => {
         ],
         ORIGIN
       ),
-      ['http://lab.local/api/Feedbacks', 'http://lab.local/api/Products']
+      [
+        'http://lab.local/api/Feedbacks',
+        'http://lab.local/api/Products',
+        'http://lab.local/rest/items',
+        'http://lab.local/api/Feedbacks/dmprobe1_aa11',
+        'http://lab.local/api/Products/123',
+        'http://lab.local/rest/items/a1b2c3d4',
+      ]
     );
   });
 });
@@ -246,7 +283,7 @@ describe('probeQuotaBypass — vulnerable API', () => {
     assert.equal(findings[0].class, 'business_logic');
     assert.equal(findings[0].parameter, 'rate-limit');
     assert.equal(findings[0].url, 'http://lab.local/api/Products');
-    assert.equal(diag.apiRoutes, 2);
+    assert.equal(diag.apiRoutes, 3, 'Products + search + Users are all candidates now');
     assert.equal(diag.controlOk, true);
     assert.equal(diag.attempts, 15);
     assert.equal(diag.bypassKind, 'no-rate-limit');
@@ -395,6 +432,157 @@ describe('probeQuotaBypass — uncalibrated and multi-candidate', () => {
     assert.deepEqual(findings, []);
     assert.equal(diag.throttled, true);
     assert.equal(diag.attempts, 2, 'control + 1 burst grant, then the 429 stops the burst');
+  });
+});
+
+describe('probeQuotaBypass — live Juice feed (proof #34)', () => {
+  // The EXACT feed the scanner mined live from Juice Shop on 9 Nov
+  // 2026 (EC2 repro, 4 bundles, 20 GET targets + 20 write targets),
+  // origin swapped to lab.local. Nine derived collections; the
+  // /api/Feedbacks collection is 8th in derived order. The old
+  // cap of 2 tried only /api/Users + /api/BasketItems (both 401
+  // live) and the probe ended attempts 0 — proof #34 INCONCLUSIVE.
+  const JUICE_FEED = [
+    'http://lab.local/',
+    'http://lab.local/api/Users/dmprobe1_4732?e=dmprobe1_4732',
+    'http://lab.local/rest/basket/dmprobe2_8d6c?e=dmprobe2_8d6c',
+    'http://lab.local/api/BasketItems/dmprobe3_23d3?e=dmprobe3_23d3',
+    'http://lab.local/api/BasketItems',
+    'http://lab.local/rest/user/whoami',
+    'http://lab.local/rest/saveLoginIp',
+    'http://lab.local/rest/2fa/status',
+    'http://lab.local/api/Challenges/?key=dmprobe4_1a89',
+    'http://lab.local/rest/track-order/dmprobe5_9532?e=dmprobe5_9532',
+    'http://lab.local/rest/products/dmprobe6_2936/reviews?e=dmprobe6_2936',
+    'http://lab.local/rest/products/search?q=dmprobe7_621a',
+    'http://lab.local/api/Products/dmprobe8_5d36?d=dmprobe9_2fbe&e=dmprobe8_5d36',
+    'http://lab.local/api/Addresss/dmprobe10_3061?e=dmprobe10_3061',
+    'http://lab.local/api/Deliverys/dmprobe11_f4bd?e=dmprobe11_f4bd',
+    'http://lab.local/api/Cards/dmprobe12_b739?e=dmprobe12_b739',
+    'http://lab.local/snippets/dmprobe13_ffdf?e=dmprobe13_ffdf',
+    'http://lab.local/snippets/fixes/dmprobe14_5c9d?e=dmprobe14_5c9d',
+    'http://lab.local/rest/web3',
+    'http://lab.local/api/Challenges',
+    'http://lab.local/api/Users',
+    'http://lab.local/api/Users/',
+    'http://lab.local/rest/user/login',
+    'http://lab.local/api/BasketItems/',
+    'http://lab.local/rest/basket/dmprobe1_b898/checkout',
+    'http://lab.local/rest/basket/dmprobe2_7a90/coupon/dmprobe3_b5e4',
+    'http://lab.local/rest/memories',
+    'http://lab.local/snippets/fixes',
+    'http://lab.local/snippets/verdict',
+    'http://lab.local/rest/web3/submitKey',
+    'http://lab.local/rest/web3/walletNFTVerify',
+    'http://lab.local/rest/web3/walletExploitAddress',
+    'http://lab.local/rest/user/reset-password',
+    'http://lab.local/api/Feedbacks/dmprobe4_dc2c',
+    'http://lab.local/api/SecurityAnswers/',
+    'http://lab.local/rest/products/reviews',
+    'http://lab.local/api/Quantitys/dmprobe5_218d',
+    'http://lab.local/api/Complaints/',
+    'http://lab.local/rest/chatbot/respond',
+    'http://lab.local/api/Addresss/',
+    'http://lab.local/rest/2fa/verify',
+  ];
+  it('QB-22: live Juice feed — nine derived collections, /api/Feedbacks 8th; the control pass reaches the granting /api/Products past the 401s', async () => {
+    const { state, fetchFn } = makeFakeApi({
+      '/api/Users': { always: 401 },
+      '/api/BasketItems': { always: 401 },
+      '/rest/track-order': { always: 500 },
+    });
+    const diag = {};
+    const findings = await probeQuotaBypass('http://lab.local/', {
+      ...BASE_OPTS,
+      fetchFn,
+      apiRoutes: JUICE_FEED,
+      diagnostics: diag,
+    });
+    assert.equal(findings.length, 1, `expected 1 finding, got: ${findings.map((f) => f.title).join(' | ')}`);
+    assert.equal(findings[0].url, 'http://lab.local/api/Products');
+    assert.equal(findings[0].class, 'business_logic');
+    assert.equal(diag.apiRoutes, 12, '9 derived + 3 originals under the control-pass cap');
+    assert.equal(
+      diag.derivedCollections,
+      7,
+      '7 of the 9 derived collections were never mined bare — /api/Users + /api/BasketItems were also mined as bare GET targets, so they do not count as derived-only'
+    );
+    assert.deepEqual(diag.candidates.slice(0, 9), [
+      'http://lab.local/api/Users',
+      'http://lab.local/api/BasketItems',
+      'http://lab.local/rest/track-order',
+      'http://lab.local/api/Products',
+      'http://lab.local/api/Addresss',
+      'http://lab.local/api/Deliverys',
+      'http://lab.local/api/Cards',
+      'http://lab.local/api/Feedbacks',
+      'http://lab.local/api/Quantitys',
+    ]);
+    assert.equal(diag.controlOk, true);
+    assert.equal(diag.attempts, 15);
+    assert.equal(diag.bypassKind, 'no-rate-limit');
+    assert.equal(state.calls.length, 19, '3 failed controls + 1 control + 15 burst GETs');
+    assert.equal(state.counts['/api/Products'], 16, '1 control + 15 burst GETs on the collection');
+    assert.equal(state.counts['/api/Feedbacks'], undefined, 'the probe stops at the first confirming route');
+  });
+  it('QB-23: live Juice feed with every earlier collection gated — the control pass walks all the way to /api/Feedbacks and confirms there', async () => {
+    const { state, fetchFn } = makeFakeApi({
+      '/api/Users': { always: 401 },
+      '/api/BasketItems': { always: 401 },
+      '/rest/track-order': { always: 500 },
+      '/api/Products': { control404: true },
+      '/api/Addresss': { always: 401 },
+      '/api/Deliverys': { control404: true },
+      '/api/Cards': { always: 401 },
+    });
+    const diag = {};
+    const findings = await probeQuotaBypass('http://lab.local/', {
+      ...BASE_OPTS,
+      fetchFn,
+      apiRoutes: JUICE_FEED,
+      diagnostics: diag,
+    });
+    assert.equal(findings.length, 1, `expected 1 finding, got: ${findings.map((f) => f.title).join(' | ')}`);
+    assert.equal(findings[0].url, 'http://lab.local/api/Feedbacks');
+    assert.equal(diag.derivedCollections, 7, 'see QB-22: Users + BasketItems were also mined bare');
+    assert.equal(diag.attempts, 15);
+    assert.equal(state.calls.length, 23, '7 failed controls + 1 control + 15 burst GETs');
+    assert.equal(state.counts['/api/Feedbacks'], 16, '1 control + 15 burst GETs on the collection');
+  });
+  it('QB-24: budget — twelve failing controls cost twelve GETs and nothing more', async () => {
+    const feed = Array.from({ length: 12 }, (_, i) => `http://lab.local/api/Items${i}/dmprobe${i}_aa11`);
+    const behavior = {};
+    for (let i = 0; i < 12; i++) behavior[`/api/Items${i}`] = { control404: true };
+    const { state, fetchFn } = makeFakeApi(behavior);
+    const diag = {};
+    const findings = await probeQuotaBypass('http://lab.local/', {
+      ...BASE_OPTS,
+      fetchFn,
+      apiRoutes: feed,
+      diagnostics: diag,
+    });
+    assert.deepEqual(findings, []);
+    assert.equal(diag.apiRoutes, 12);
+    assert.equal(diag.derivedCollections, 12);
+    assert.equal(diag.controlOk, undefined);
+    assert.equal(state.calls.length, 12, 'one control GET per candidate, no burst without a grant');
+  });
+  it('QB-25: budget — a granting collection in the 12th slot still confirms within 32 GETs', async () => {
+    const feed = Array.from({ length: 12 }, (_, i) => `http://lab.local/api/Items${i}/dmprobe${i}_aa11`);
+    const behavior = {};
+    for (let i = 0; i < 11; i++) behavior[`/api/Items${i}`] = { control404: true };
+    const { state, fetchFn } = makeFakeApi(behavior);
+    const diag = {};
+    const findings = await probeQuotaBypass('http://lab.local/', {
+      ...BASE_OPTS,
+      fetchFn,
+      apiRoutes: feed,
+      diagnostics: diag,
+    });
+    assert.equal(findings.length, 1, `expected 1 finding, got: ${findings.map((f) => f.title).join(' | ')}`);
+    assert.equal(findings[0].url, 'http://lab.local/api/Items11');
+    assert.equal(diag.attempts, 15);
+    assert.equal(state.calls.length, 27, '11 failed controls + 1 control + 15 burst GETs, inside the 32 budget');
   });
 });
 

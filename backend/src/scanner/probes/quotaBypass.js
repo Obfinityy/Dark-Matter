@@ -46,17 +46,22 @@
 // match, the 1418d921 feedback-route pattern): the JS miner
 // hands the probe write targets with a filler id
 // (/api/Feedbacks/dmprobe4_2e69), and only the collection
-// (/api/Feedbacks) can grant a control GET. Without the
-// derivation the probe stays uncalibrated on SPA labs (proof
-// #33: Juice apiRoutes 2, controlOk false, attempts 0 — the two
-// mined routes were templated write targets, while /api/Products
-// and /api/Feedbacks grant 200 JSON unauthenticated).
+// (/api/Feedbacks) can grant a control GET. Derivation alone
+// was NOT enough (proof #34): the live Juice feed derives NINE
+// collections and /api/Feedbacks is 8th, while the old cap of 2
+// tried only /api/Users + /api/BasketItems (both 401) — so the
+// probe now runs a CONTROL PASS over every candidate (one cheap
+// control GET each, derived collections first) and bursts only
+// the first granting candidate. The granting route is found
+// wherever it sits in the list, never cut by the cap.
 //
 // GATES: labCreds + allowWrite + isLabTargetHost (same lab gate
 // as basket-logic / workflow-skip / bfla / coupon-abuse — volume
 // traffic runs only against authorized lab targets); depth
-// 'quick' skips the probe. BOUND: at most 2 candidate routes x
-// (1 control + 15 burst) GETs = 32 requests, all read-only.
+// 'quick' skips the probe. BOUND: at most 32 GETs total
+// (REQUEST_BUDGET) — 1 control GET per candidate tried plus
+// 15-burst GETs on granting candidates only; a burst starts only
+// when 15 GETs remain in the budget. All read-only.
 // Findings are class 'business_logic' — the default confirmation
 // protocol judges them on signalCorrelated (see differential.js).
 
@@ -64,8 +69,19 @@ import { isLabTargetHost } from '../../labCreds.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 const TIMEOUT_MS = 15000;
-const MAX_API_ROUTES = 2;
 const BURST_COUNT = 15;
+// Control-pass list cap (9 Nov 2026 follow-up, proof #34): the live
+// Juice feed derives NINE collections and /api/Feedbacks is 8th, so
+// a cap of 2 tried only /api/Users + /api/BasketItems (both 401) and
+// the probe never calibrated. The control pass below walks every
+// candidate with ONE cheap control GET each, so the cap is generous
+// — the hard bound is REQUEST_BUDGET, not the list length.
+const MAX_CANDIDATES = 12;
+// Total GET budget for the whole probe: 1 control GET per candidate
+// tried plus 15-burst GETs on granting candidates only. A burst
+// starts only when 15 GETs remain in the budget, so the probe can
+// never exceed 32 requests however long the candidate list is.
+const REQUEST_BUDGET = 32;
 const API_SEGMENT_RE = /(?:^|\/)(api|rest)(?:\/|$)/i;
 const EXCLUDED_SEGMENT_RE =
   /(?:^|\/)(login|logon|signin|sign-in|register|signup|sign-up|basket|baskets|cart|carts|checkout|coupon|coupons|discount|discounts|voucher|vouchers|admin|administrator)(?:\/|$)/i;
@@ -172,7 +188,7 @@ export function findApiRoutes(routes, origin) {
     if (collection) push(collection);
   }
   for (const s of valid) push(s);
-  return out.slice(0, MAX_API_ROUTES);
+  return out.slice(0, MAX_CANDIDATES);
 }
 
 /**
@@ -318,18 +334,34 @@ export async function probeQuotaBypass(url, opts = {}) {
     'derivedCollections',
     candidates.filter((c) => !inputStripped.has(c) && routes.some((r) => deriveCollectionUrl(r) === c)).length
   );
+  // The candidate list itself, so the next re-proof shows exactly
+  // which routes were tried and in which order (proof #34: the
+  // live record carried no route list, so the cap-2 cut was
+  // invisible until the feed was reproduced by hand).
+  setDiag('candidates', candidates);
   if (!candidates.length) return findings;
 
+  // CONTROL PASS (9 Nov 2026 follow-up, proof #34): one cheap
+  // control GET per candidate, derived collections first — the
+  // first granting candidate gets the burst. `spent` counts every
+  // GET against REQUEST_BUDGET (32): a burst starts only when 15
+  // GETs remain, and control-probing stops when a control + a full
+  // burst no longer fit, so the probe can never exceed the budget
+  // however long the candidate list is.
+  let spent = 0;
   for (const route of candidates) {
     // THE CONTROL: one GET must grant the route with a JSON body.
     // Without a working control the burst cannot be judged, so
     // this candidate is skipped — a finding without a working
     // control is a guess.
+    if (spent + 1 + BURST_COUNT > REQUEST_BUDGET) break;
     const rControl = await req(fetchFn, route);
+    spent += 1;
     if (!rControl) continue;
     const control = assessApiResponse(rControl.status, rControl.text, rControl.headers);
     if (control.kind !== 'granted') continue;
     setDiag('controlOk', true);
+    if (spent + BURST_COUNT > REQUEST_BUDGET) break;
 
     // THE BURST: the same GET BURST_COUNT times in rapid
     // succession, no delay. A throttle signal stops the burst
@@ -340,6 +372,7 @@ export async function probeQuotaBypass(url, opts = {}) {
     for (let i = 0; i < BURST_COUNT; i += 1) {
       const r = await req(fetchFn, route);
       attempts += 1;
+      spent += 1;
       setDiag('attempts', attempts);
       if (!r) {
         kinds.push('other');
