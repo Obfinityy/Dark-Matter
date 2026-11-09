@@ -32,7 +32,7 @@ function qrSvg(text, size = 224) {
       }
     }
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="UPI QR code"><rect width="${size}" height="${size}" fill="#fff"/>${rects}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="UPI QR code"><rect width="${size}" height="${size}" fill="white"/>${rects}</svg>`;
 }
 
 function fmtDate(iso) {
@@ -156,7 +156,7 @@ export default function UpiPayPage() {
             <div className="muted">No active access{status && status.accessUntil ? ` — last access ended ${fmtDate(status.accessUntil)}` : ''}. Activate below for 1 day.</div>
           )}
           {typeof status?.balanceUsd === 'number' && status.balanceUsd > 0 && (
-            <div className="muted" style={{ marginTop: 6 }}>Credit balance: ${Number(status.balanceUsd).toFixed(2)}</div>
+            <div className="muted pay-credit">Credit balance: ${Number(status.balanceUsd).toFixed(2)}</div>
           )}
         </div>
       )}
@@ -171,7 +171,7 @@ export default function UpiPayPage() {
           <button className="btn btn-primary" onClick={() => { setView('pay'); setMsg(null); }}>
             Retry payment
           </button>
-          <p className="muted" style={{ marginTop: 12 }}>
+          <p className="muted pay-fail-note">
             If your UPI app actually confirms the payment went through, go back and
             submit the form with the UTR — the UTR is the proof.
           </p>
@@ -187,7 +187,7 @@ export default function UpiPayPage() {
             <div className="upi-id-row">
               <code>{upi ? upi.upiId : '…'}</code>
               <button className="btn btn-ghost small" type="button" onClick={copyUpiId} disabled={!upi}>
-                {copied ? 'Copied ✓' : 'Copy'}
+                {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
             <div className="pay-amount">₹10,000 · 1 day of access</div>
@@ -261,7 +261,7 @@ export default function UpiPayPage() {
             {msg && <p className={msg.kind === 'ok' ? 'msg-ok' : 'msg-error'}>{msg.text}</p>}
             {pendingClaim && (
               <p className="msg-ok">
-                ⏳ Claim waiting for verification — submitted {fmtDate(pendingClaim.createdAt)}.
+                Claim waiting for verification — submitted {fmtDate(pendingClaim.createdAt)}.
                 Your account will be activated within 24 hours after verification.
               </p>
             )}
@@ -275,13 +275,13 @@ export default function UpiPayPage() {
       )}
 
       {ready && user && claims.length > 0 && (
-        <div style={{ marginTop: 24 }}>
+        <div className="pay-section">
           <h3>My payment claims</h3>
           <ul className="txn-list">
             {claims.map((c) => (
               <li key={c.id}>
                 <span className={c.status === 'verified' ? 'txn-plus' : c.status === 'rejected' ? 'txn-minus' : ''}>
-                  {c.status === 'verified' ? '✓ Activated' : c.status === 'rejected' ? '✕ Not verified' : '⏳ Pending'}
+                  {c.status === 'verified' ? 'Activated' : c.status === 'rejected' ? 'Not verified' : 'Pending'}
                 </span>
                 <span className="muted">₹{c.amountInr.toLocaleString('en-IN')} · UTR {c.utr}</span>
                 <span className="muted">
@@ -294,7 +294,7 @@ export default function UpiPayPage() {
       )}
 
       {ready && user && txns.length > 0 && (
-        <div style={{ marginTop: 24 }}>
+        <div className="pay-section">
           <h3>Recent activity</h3>
           <ul className="txn-list">
             {txns.map((t, i) => (
@@ -310,28 +310,6 @@ export default function UpiPayPage() {
         </div>
       )}
 
-      <style>{`
-        .balance-card { border: 1px solid #e0e0e0; border-radius: 12px; padding: 16px; background: #fff; margin: 16px 0; max-width: 640px; }
-        .balance-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
-        .pay-grid { display: grid; grid-template-columns: 300px 1fr; gap: 24px; max-width: 860px; margin-top: 8px; align-items: start; }
-        @media (max-width: 720px) { .pay-grid { grid-template-columns: 1fr; } }
-        .qr-box { border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; background: #fff; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
-        .upi-id-row { display: flex; gap: 8px; align-items: center; }
-        .upi-id-row code { font-size: 15px; background: #f5f5f5; padding: 6px 10px; border-radius: 8px; }
-        .pay-amount { font-weight: 700; font-size: 16px; }
-        .pay-form { border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; background: #fff; display: flex; flex-direction: column; gap: 10px; }
-        .pay-form h3 { margin: 0; }
-        .pay-fail { border: 1px solid #ffcccc; border-radius: 12px; padding: 20px; background: #fff5f5; max-width: 640px; margin-top: 8px; }
-        .pay-fail h3 { margin: 0 0 8px 0; }
-        .msg-ok { color: #0a7d2e; }
-        .msg-error { color: #cc0000; }
-        .txn-list { list-style: none; padding: 0; margin: 8px 0; max-width: 640px; }
-        .txn-list li { display: flex; gap: 16px; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
-        .txn-plus { color: #0a7d2e; font-weight: 600; }
-        .txn-minus { color: #cc0000; font-weight: 600; }
-        .btn.small { padding: 6px 12px; font-size: 12px; }
-        .link-btn { background: none; border: none; color: #0066cc; cursor: pointer; font-size: 14px; text-decoration: underline; padding: 0; }
-      `}</style>
     </div>
   );
 }
