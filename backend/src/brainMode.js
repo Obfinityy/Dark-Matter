@@ -40,15 +40,7 @@
 //     they cannot be reused without forking them; a follow-up lane
 //     should export them and apply them here too.
 
-import {
-  buildActionIndex,
-  recallByHash,
-  recallById,
-  parseRecallId,
-  formatFullRecord,
-  contentHash,
-  titleFor,
-} from './actionIndex.js';
+import { buildActionIndex, recallByHash, formatFullRecord, contentHash, titleFor } from './actionIndex.js';
 import {
   appendHuntEvent,
   readHuntEvents,
@@ -64,18 +56,17 @@ import {
   pauseEngineHunt,
   resumeEngineHunt,
 } from './engine.js';
-import {
-  claimGateCheck,
-  claimClassFromTitle,
-  extractTaskBlock,
-  scopeViolation,
-  pendingPlannedProbes,
-  targetHostsFor,
-} from './humanLoop.js';
-import { normaliseCoverageClass } from './coverageLedger.js';
-import { guardClaimTitle } from './claimTitleGuard.js';
-import { executeOsAction, OS_CONTROL_ACTIONS, osControlDetail } from './osControl.js';
+import { extractTaskBlock, pendingPlannedProbes } from './humanLoop.js';
+import { OS_CONTROL_ACTIONS, osControlDetail } from './osControl.js';
 import { startProcess, appendProcessLine, completeProcess, failProcessFile, recordBrainOutput } from './brainFiles.js';
+import { COMMAND_CAP } from './brainMode/actions/common.js';
+import { publicEntry } from './brainMode/actions/common.js';
+import { executeShellAction } from './brainMode/actions/shell.js';
+import { executeBrowserOpenAction } from './brainMode/actions/browser.js';
+import { executeBrowserAction } from './brainMode/actions/browser.js';
+import { executeOsControlAction } from './brainMode/actions/osControl.js';
+import { executeRecallAction } from './brainMode/actions/recall.js';
+import { executeClaimAction } from './brainMode/actions/claim.js';
 
 export const BRAIN_MODES = ['ai', 'parent'];
 
@@ -248,20 +239,6 @@ export function entryStatus(entry, { huntRunning = false, isLastEvent = false } 
   return 'done';
 }
 
-function publicEntry(entry, status) {
-  return {
-    n: entry.n,
-    hash: entry.hash,
-    tool: entry.tool,
-    title: entry.title || entry.label,
-    label: entry.label,
-    variant: entry.variant && entry.variant !== '—' ? entry.variant : undefined,
-    detail: entry.detail,
-    at: entry.at || '',
-    outcome: entry.outcome || '',
-    status,
-  };
-}
 
 export function listBrainActions(events, reasoningRows = [], { huntRunning = false } = {}) {
   const entries = buildActionIndex(events, reasoningRows);
@@ -435,8 +412,6 @@ export function deriveProcessState(huntId, { meta = {}, events = [], reasoningRo
 
 // --- parent action execution -----------------------------------------------
 
-const OBS_BUDGET = 3500;
-const COMMAND_CAP = 4000;
 
 // Module-level override seam for the lab script (a fake container shim
 // — no docker in this sandbox) and for tests that mount the real
@@ -478,32 +453,8 @@ function detailForAction(kind, action) {
   }
 }
 
-async function defaultExec(huntId, target, command, deps) {
-  if (typeof deps.exec === 'function') return deps.exec(huntId, target, command);
-  const { executeWithEvasion } = await import('./huntAgent.js');
-  return executeWithEvasion(huntId, target, command);
-}
 
-async function defaultGui(huntId, target, parsedScope, deps) {
-  if (deps.gui) return deps.gui;
-  const { guiBrowserOpen, guiBrowserClick, guiBrowserType } = await import('./guiTools.js');
-  const execRaw = deps.execRaw || ((h, c, t, o) => import('./huntRunner.js').then((hr) => hr.execInHuntContainerWithRespawn(h, c, t, o)));
-  const targetHosts = targetHostsFor(target, parsedScope);
-  const { guiBrowserSnapshot, guiBrowserScreenshot } = await import('./guiTools.js');
-  return {
-    open: (h, url) => guiBrowserOpen(h, url, { exec: execRaw, targetHosts, targetUrl: target }),
-    click: (h, text) => guiBrowserClick(h, text, { exec: execRaw, targetHosts, targetUrl: target }),
-    type: (h, target, text, submit) => guiBrowserType(h, target, text, submit, { exec: execRaw, targetHosts, targetUrl: target }),
-    snapshot: (h) => guiBrowserSnapshot(h, { exec: execRaw, targetHosts, targetUrl: target }),
-    screenshot: (h) => guiBrowserScreenshot(h, { exec: execRaw, targetHosts, targetUrl: target }),
-  };
-}
 
-async function defaultAssess(deps) {
-  if ('assess' in deps) return deps.assess; // null = disabled, fn = stub
-  const { assessResult } = await import('./huntAgent.js');
-  return assessResult || null;
-}
 
 /**
  * Execute ONE parent-submitted action, in the AI brain's shape.
@@ -592,16 +543,16 @@ export async function executeBrainAction(huntId, action, deps = {}) {
     // BRAIN FILES: a failed step closes its process (in_process false)
     // and still lands in the memory file as failed work — the brain
     // must know it tried this, so it never retries it blind.
-    try { failProcessFile(huntId, { title: processTask.task || '', hash: contentHash(tool, String(detail || '').slice(0, 300)), error: String(error || '') }); } catch { /* best-effort */ }
+    try { failProcessFile(huntId, { title: h.processTask.task || '', hash: contentHash(h.tool, String(h.detail || '').slice(0, 300)), error: String(error || '') }); } catch { /* best-effort */ }
     try {
-      record(huntId, {
-        type: 'task_failed', task: processTask.task || '', goal: processTask.goal || '',
-        progress: processTask.progress || '', error: String(error || ''),
+      h.record(huntId, {
+        type: 'task_failed', task: h.processTask.task || '', goal: h.processTask.goal || '',
+        progress: h.processTask.progress || '', error: String(error || ''),
         message: String(message || '').slice(0, 300), via: 'be-a-brain',
       });
     } catch { /* best-effort */ }
     try {
-      writeMetaCheckpoint(huntId, { currentTask: { ...processTask, status: 'failed', error: String(error || ''), updatedAt: new Date().toISOString() } });
+      h.writeMetaCheckpoint(huntId, { currentTask: { ...h.processTask, status: 'failed', error: String(error || ''), updatedAt: new Date().toISOString() } });
     } catch { /* best-effort */ }
   };
   if (taskBlock) {
@@ -628,9 +579,6 @@ export async function executeBrainAction(huntId, action, deps = {}) {
   } catch { /* best-effort */ }
 
   const tool = kind;
-  let observation = '';
-  let verified = undefined;
-  let finding = undefined;
 
   // Record the executed action exactly like the AI loop's toolCall:
   // a tool_call event + a reasoning note, so the action index picks
@@ -638,12 +586,12 @@ export async function executeBrainAction(huntId, action, deps = {}) {
   // NOT get a tool_call — same as the AI loop, which never records
   // a refused action as executed.)
   const recordExecuted = () => {
-    try { record(huntId, { type: 'tool_call', tool, detail: String(detail || '').slice(0, 300), via: 'be-a-brain', by: 'parent' }); } catch { /* best-effort */ }
+    try { h.record(huntId, { type: 'tool_call', tool: h.tool, detail: String(h.detail || '').slice(0, 300), via: 'be-a-brain', by: 'parent' }); } catch { /* best-effort */ }
     try {
-      recordNote(huntId, {
-        action: `${tool}: ${String(detail || '').slice(0, 160)}`,
+      h.recordNote(huntId, {
+        action: `${h.tool}: ${String(h.detail || '').slice(0, 160)}`,
         why: String(action.why || 'parent brain action').slice(0, 300),
-        result: String(observation || '').slice(0, 300),
+        result: String(h.observation || '').slice(0, 300),
         learned: '',
       });
     } catch { /* best-effort */ }
@@ -654,362 +602,62 @@ export async function executeBrainAction(huntId, action, deps = {}) {
     // complete, so the process view shows the step done with its
     // task/goal/progress). An explicit in_progress block is left
     // alone — it spans actions and only the brain completes it.
-    if (!explicitTask) {
+    if (!h.explicitTask) {
       try {
         // The summary is the action's TITLE only — the process view
         // never embeds output (full output stays in the action
         // record, fetchable by hash).
-        record(huntId, { type: 'task_complete', task: processTask.task || '', goal: processTask.goal || '', progress: processTask.progress || '', summary: titleFor(tool, String(detail || ''), 'done'), via: 'be-a-brain' });
+        h.record(huntId, { type: 'task_complete', task: h.processTask.task || '', goal: h.processTask.goal || '', progress: h.processTask.progress || '', summary: titleFor(h.tool, String(h.detail || ''), 'done'), via: 'be-a-brain' });
       } catch { /* best-effort */ }
       try {
-        writeMetaCheckpoint(huntId, { currentTask: { ...processTask, status: 'complete', updatedAt: new Date().toISOString() } });
+        h.writeMetaCheckpoint(huntId, { currentTask: { ...h.processTask, status: 'complete', updatedAt: new Date().toISOString() } });
       } catch { /* best-effort */ }
     }
-    const hash = contentHash(tool, String(detail || '').slice(0, 300));
+    const hash = contentHash(h.tool, String(h.detail || '').slice(0, 300));
     // BRAIN FILES: the result goes to the OUTPUT file by hash (backend
     // only), the step's line goes to the PROCESS file, and a finished
     // step closes its process and lands in the MEMORY file (title +
     // hash). An explicit in_progress block spans actions and stays
     // open until the brain marks it complete.
-    try { recordBrainOutput(huntId, { hash, title: `${tool}: ${String(detail || '').slice(0, 200)}`, output: observation }); } catch { /* best-effort */ }
-    try { appendProcessLine(huntId, `done: ${tool} — ${String(detail || '').slice(0, 160)}`); } catch { /* best-effort */ }
+    try { recordBrainOutput(huntId, { hash, title: `${h.tool}: ${String(h.detail || '').slice(0, 200)}`, output: h.observation }); } catch { /* best-effort */ }
+    try { appendProcessLine(huntId, `done: ${h.tool} — ${String(h.detail || '').slice(0, 160)}`); } catch { /* best-effort */ }
     try {
-      if (!explicitTask) completeProcess(huntId, { title: processTask.task || '', hash });
-      else if (taskBlock && taskBlock.status === 'complete') completeProcess(huntId, { title: taskBlock.task || '', hash });
+      if (!h.explicitTask) completeProcess(huntId, { title: h.processTask.task || '', hash });
+      else if (h.taskBlock && h.taskBlock.status === 'complete') completeProcess(huntId, { title: h.taskBlock.task || '', hash });
     } catch { /* best-effort */ }
     let entry = null;
     try {
-      const entries = buildActionIndex(readEvents(huntId) || [], readReasoning(huntId) || []);
+      const entries = buildActionIndex(h.readEvents(huntId) || [], h.readReasoning(huntId) || []);
       const match = entries.filter((e) => e.hash === hash);
       if (match.length) entry = publicEntry(match[match.length - 1], 'done');
     } catch { /* index read is best-effort */ }
     return {
       ok: true,
       hash,
-      output: observation,
-      entry: entry || { n: null, hash, tool, title: titleFor(tool, String(detail || ''), 'done'), label: `${tool} | — | ${String(detail || '').slice(0, 40)} | done`, detail, at: '', outcome: 'done', status: 'done' },
-      ...(verified !== undefined ? { verified } : {}),
-      ...(finding ? { finding } : {}),
+      output: h.observation,
+      entry: entry || { n: null, hash, tool: h.tool, title: titleFor(h.tool, String(h.detail || ''), 'done'), label: `${h.tool} | — | ${String(h.detail || '').slice(0, 40)} | done`, detail: h.detail, at: '', outcome: 'done', status: 'done' },
+      ...(h.verified !== undefined ? { verified: h.verified } : {}),
+      ...(h.finding ? { finding: h.finding } : {}),
     };
   };
 
-  if (kind === 'shell') {
-    const fullCommand = String(action.command || '');
-    if (!fullCommand.trim()) { failProcess('empty_command', 'shell needs a command.'); return { ok: false, error: 'empty_command', message: 'shell needs a command.' }; }
-    // FIX (#367, gap 1): the scope check used to run on the command
-    // AFTER truncation to COMMAND_CAP, so an out-of-scope URL past
-    // 4000 chars evaded the gate — and the executed command was
-    // silently truncated. Now the FULL command is scope-checked
-    // first; over-long commands are refused outright (naming the
-    // cap) instead of silently truncated.
-    const badUrl = (() => {
-      try {
-        const urls = fullCommand.match(/(?:[a-z][a-z0-9+.-]*:)?\/\/[^\s'"<>)|\]]+/gi) || [];
-        for (const u of urls) {
-          const v = scopeViolation(u, target, parsedScope);
-          if (v) return v;
-        }
-        return null;
-      } catch { return null; }
-    })();
-    if (badUrl) {
-      const msg = `BLOCKED — OUT OF SCOPE: ${badUrl} is not part of this programme. Only test ${target} and its listed assets. Nothing was sent.`;
-      try { record(huntId, { type: 'scope_block', tool: 'shell', detail: fullCommand.slice(0, 300), via: 'be-a-brain' }); } catch { /* best-effort */ }
-      failProcess('out_of_scope', msg);
-      return { ok: false, error: 'out_of_scope', output: msg };
-    }
-    if (fullCommand.length > COMMAND_CAP) {
-      const msg = `Command too long (${fullCommand.length} chars; max ${COMMAND_CAP}) — split it into smaller commands. Nothing was run.`;
-      failProcess('command_too_long', msg);
-      return { ok: false, error: 'command_too_long', message: msg };
-    }
-    const command = fullCommand;
-    // The tool_call + note are recorded AFTER execution (recordExecuted
-    // below), so the note carries the real result.
-    let result;
-    try {
-      result = await defaultExec(huntId, target, command, d);
-    } catch (err) {
-      result = { stdout: '', stderr: String((err && err.message) || err), code: 1 };
-    }
-    const combined = `${(result && result.stdout) || ''}\n${(result && result.stderr) || ''}`.trim();
-    observation = combined.length > OBS_BUDGET
-      ? `${combined.slice(0, OBS_BUDGET)}\n[output truncated on screen — ${combined.length} chars total]`
-      : (combined || `(command finished with no output, exit code ${(result && result.code) ?? 0})`);
-    if (result && result.code && result.code !== 0) observation += `\n[exit code ${result.code}]`;
-    recordExecuted();
-    return finish();
-  }
+  const h = {
+    d, record, recordNote, readMeta, readEvents, readReasoning, writeMetaCheckpoint,
+    kind, detail, taskBlock, explicitTask, processTask, failProcess, recordExecuted,
+    finish, tool, target, parsedScope, observation: '', verified: undefined, finding: undefined,
+  };
 
-  if (kind === 'browser_open') {
-    const url = String(action.url || '');
-    if (!url.trim()) { failProcess('empty_command', 'browser_open needs a url.'); return { ok: false, error: 'empty_command', message: 'browser_open needs a url.' }; }
-    const bad = scopeViolation(url, target, parsedScope);
-    if (bad) {
-      const msg = `BLOCKED — OUT OF SCOPE: ${bad} is not part of this programme. Nothing was opened.`;
-      try { record(huntId, { type: 'scope_block', tool: 'browser_open', detail: url.slice(0, 300), via: 'be-a-brain' }); } catch { /* best-effort */ }
-      failProcess('out_of_scope', msg);
-      return { ok: false, error: 'out_of_scope', output: msg };
-    }
-    const gui = await defaultGui(huntId, target, parsedScope, d);
-    let res = null;
-    try { res = await gui.open(huntId, url); } catch (err) { res = { ok: false, observation: String((err && err.message) || err) }; }
-    observation = (res && res.observation) || '(no observation)';
-    recordExecuted();
-    return finish();
-  }
+    if (kind === 'shell') return executeShellAction(huntId, action, h);
 
-  if (kind === 'browser_click' || kind === 'browser_type') {
-    const text = String(action.text || '');
-    if (!text.trim()) { failProcess('empty_command', `${kind} needs text.`); return { ok: false, error: 'empty_command', message: `${kind} needs text.` }; }
-    // GUI-TYPE-TARGET (28 Oct 2026): a type names its field — the
-    // form composer and the JSON reply both send `selector` for it,
-    // and the old code read only `action.text`, so the selector was
-    // silently dropped and the driver typed blind. A type without a
-    // field target is refused before anything runs.
-    let fieldTarget = '';
-    if (kind === 'browser_type') {
-      fieldTarget = String(action.selector || action.target || '').trim();
-      if (!fieldTarget) {
-        const msg = 'browser_type needs a field target — the label or CSS selector of the field to type into (e.g. "Username" or "input[name=password]"). Take a browser_snapshot and name the field; never type blind.';
-        failProcess('missing_target', msg);
-        return { ok: false, error: 'missing_target', message: msg };
-      }
-    }
-    const gui = await defaultGui(huntId, target, parsedScope, d);
-    // FIX (#367, gap 2): clicks/types had no scope gate — they act on
-    // the CURRENT page, so gate on the current page's URL (from a
-    // snapshot) before acting, mirroring browser_open's gate. The CDP
-    // layer's wrong_page guard stays the backstop for tabs it picks.
-    // When the current URL cannot be determined (a stub gui without
-    // snapshot, or a snapshot failure), the gate is skipped and the
-    // backstop is the only guard — the click then still refuses via
-    // wrong_page when no tab is on target.
-    let currentUrl = null;
-    try {
-      if (typeof gui.snapshot === 'function') {
-        const snap = await gui.snapshot(huntId);
-        currentUrl = (snap && snap.snapshot && snap.snapshot.url) || null;
-      }
-    } catch { currentUrl = null; }
-    if (currentUrl) {
-      const bad = scopeViolation(currentUrl, target, parsedScope);
-      if (bad) {
-        const msg = `BLOCKED — OUT OF SCOPE: ${bad} is not part of this programme. Nothing was clicked or typed.`;
-        try { record(huntId, { type: 'scope_block', tool: kind, detail: String(currentUrl).slice(0, 300), via: 'be-a-brain' }); } catch { /* best-effort */ }
-        failProcess('out_of_scope', msg);
-        return { ok: false, error: 'out_of_scope', output: msg };
-      }
-    }
-    let res = null;
-    try {
-      res = kind === 'browser_click'
-        ? await gui.click(huntId, text)
-        : await gui.type(huntId, fieldTarget, text, action.submit === true);
-    } catch (err) { res = { ok: false, observation: String((err && err.message) || err) }; }
-    observation = (res && res.observation) || '(no observation)';
-    // NO FAKE SUCCESS (28 Oct 2026, the DVWA login failure): a GUI
-    // action the driver refused is a FAILED step, not a completed
-    // one. The attempt itself is recorded (tool_call + note, so the
-    // action index keeps it recallable with its failure as output),
-    // but the process is marked failed and the console gets an
-    // error — the old code called finish() unconditionally, so every
-    // failed click/type still showed task_complete.
-    if (res && res.ok === false) {
-      recordExecuted();
-      failProcess('gui_failed', observation);
-      return { ok: false, error: 'gui_failed', message: String(observation).slice(0, 300), output: observation };
-    }
-    recordExecuted();
-    return finish();
-  }
+    if (kind === 'browser_open') return executeBrowserOpenAction(huntId, action, h);
 
-  if (OS_CONTROL_ACTIONS.has(kind)) {
-    // FULL OS CONTROL (28 Oct 2026, owner order): the parent brain
-    // drives the whole Kali machine through the same OS-control layer
-    // the AI loop's actions use (osControl.js). The ctx hands it the
-    // same raw exec, the same GUI binding, the same screenshot /
-    // desktop starters and the same meta access the loop gets. A
-    // refused/failed OS action is a FAILED step (gui_failed), never
-    // a task_complete — the DVWA login rule, applied to the desktop.
-    const execRaw = d.execRaw || ((h, c, t, o) => import('./huntRunner.js').then((hr) => hr.execInHuntContainerWithRespawn(h, c, t, o)));
-    const gui = await defaultGui(huntId, target, parsedScope, d);
-    let res = null;
-    try {
-      res = await executeOsAction(huntId, kind, action, {
-        target,
-        parsedScope,
-        execRaw,
-        exec: (h, t, c) => defaultExec(h, t, c, d),
-        gui,
-        readMeta,
-        writeMeta: writeMetaCheckpoint,
-      });
-    } catch (err) {
-      res = { ok: false, observation: String((err && err.message) || err) };
-    }
-    observation = (res && res.observation) || '(no observation)';
-    if (res && res.ok === false) {
-      recordExecuted();
-      failProcess('gui_failed', observation);
-      return { ok: false, error: 'gui_failed', message: String(observation).slice(0, 300), output: observation };
-    }
-    // LIVE UI: remember what the machine last showed, so GET
-    // /process can render it without re-running anything.
-    try {
-      const patch = {};
-      if (res && res.artifact) patch.lastScreenshot = { name: res.artifact, kind, at: new Date().toISOString() };
-      if (res && res.desktopState) {
-        patch.lastDesktopState = {
-          windows: (res.desktopState.windows || []).map((w) => w.title).filter(Boolean),
-          activeTitle: res.desktopState.activeTitle || '',
-          at: new Date().toISOString(),
-        };
-      }
-      if (Object.keys(patch).length) writeMetaCheckpoint(huntId, patch);
-    } catch { /* live-state persistence is best-effort */ }
-    recordExecuted();
-    const done = finish();
-    if (res && res.artifact) done.artifact = res.artifact;
-    return done;
-  }
+    if (kind === 'browser_click' || kind === 'browser_type') return executeBrowserAction(huntId, action, h);
 
-  if (kind === 'recall') {
-    let rec = null;
-    const idRaw = action.id;
-    if (idRaw !== undefined && idRaw !== null && String(idRaw).trim() !== '') {
-      const n = parseRecallId(idRaw);
-      if (n == null) { failProcess('unknown_action', 'recall needs an id like 7 or "#7", or a hash.'); return { ok: false, error: 'unknown_action', message: 'recall needs an id like 7 or "#7", or a hash.' }; }
-      rec = recallById(readEvents(huntId) || [], readReasoning(huntId) || [], n);
-    } else if (action.hash) {
-      rec = recallByHash(readEvents(huntId) || [], readReasoning(huntId) || [], action.hash);
-    } else {
-      failProcess('unknown_action', 'recall needs {id: N} or {hash: "..."}.');
-      return { ok: false, error: 'unknown_action', message: 'recall needs {id: N} or {hash: "..."}.' };
-    }
-    if (!rec || rec.error) {
-      failProcess('unknown_hash', String(rec && rec.error ? rec.error : 'nothing recalled'));
-      return { ok: false, error: 'unknown_hash', output: String(rec && rec.error ? rec.error : 'nothing recalled') };
-    }
-    observation = formatFullRecord(rec);
-    recordExecuted();
-    // The recall's own tool_call must not shadow the recalled
-    // entry: return the RECALLED record as the entry, with the
-    // recall's hash carried alongside.
-    const recalledEntry = publicEntry(rec.entry, 'done');
-    const own = finish();
-    return { ...own, output: observation, entry: recalledEntry, recalledHash: rec.entry.hash };
-  }
+    if (OS_CONTROL_ACTIONS.has(kind)) return executeOsControlAction(huntId, action, h);
 
-  if (kind === 'claim_finding') {
-    const rawTitle = String(action.title || '');
-    const title = String(rawTitle.trim() ? rawTitle : 'Untitled claim').slice(0, 200);
-    // CLAIM-TITLE SANITY + DEDUP GUARD (31 Oct 2026): the brain once
-    // filed its own raw-plan test slug ("model_raw_plan") as a MEDIUM
-    // finding and verified "sql_injection_login" twice. A bounced title
-    // is recorded as claim_bounce (countable) and never reaches the
-    // completeness gate or the verifier.
-    let titleEvents = [];
-    try { titleEvents = readEvents(huntId) || []; } catch { titleEvents = []; }
-    const titleGuard = guardClaimTitle(title, titleEvents);
-    if (!titleGuard.ok) {
-      try { record(huntId, { type: 'claim_bounce', tool: 'claim_finding', detail: title, reason: titleGuard.error, via: 'be-a-brain' }); } catch { /* best-effort */ }
-      failProcess(titleGuard.error, titleGuard.message);
-      return { ok: false, error: titleGuard.error, output: titleGuard.message };
-    }
-    const evidence = String(action.evidence || '');
-    const command = String(action.command || '').slice(0, COMMAND_CAP);
-    let pocExists = false;
-    const poc = String(action.poc || '').trim().slice(0, 120);
-    if (poc) {
-      try {
-        if (typeof d.pocExists === 'function') pocExists = Boolean(d.pocExists(huntId, poc));
-        else {
-          const { artifactInfo } = await import('./artifacts.js');
-          pocExists = Boolean(artifactInfo(huntId, poc));
-        }
-      } catch { pocExists = false; }
-    }
-    // COMPLETE-THE-PROOF GATE — same as the AI loop: an incomplete
-    // claim is bounced UNRECORDED (claim_bounce event), the verifier
-    // never sees it.
-    const gate = claimGateCheck({
-      title: rawTitle,
-      cls: normaliseCoverageClass(action.class) || claimClassFromTitle(rawTitle),
-      command,
-      poc,
-      pocExists,
-      evidence,
-      counterevidence: action.counterevidence,
-      confidence: action.confidence,
-      rationale: action.confidence_rationale,
-    });
-    if (!gate.ok) {
-      try { record(huntId, { type: 'claim_bounce', tool: 'claim_finding', detail: title, missing: gate.missing.map((x) => x.field), via: 'be-a-brain' }); } catch { /* best-effort */ }
-      failProcess('claim_incomplete', 'CLAIM NOT RECORDED — the proof package is incomplete. Missing: ' + gate.missing.map((x) => x.field).join(', ') + '.');
-      return {
-        ok: false,
-        error: 'claim_incomplete',
-        missing: gate.missing.map((x) => x.field),
-        output: 'CLAIM NOT RECORDED — the proof package is incomplete, so the verifier never saw it. Missing: ' +
-          gate.missing.map((x) => x.hint).join('; ') +
-          '. Complete every piece and claim again.',
-      };
-    }
-    // The filing itself goes through the SAME verifier as an AI
-    // claim: assessResult re-runs the command, applies the evidence
-    // gate, evidenceReproduced, the 4-step verifyPipeline and the
-    // 404 error-page protection — and records the finding event.
-    // The tool_call + note are recorded below, once the verdict is
-    // known, so the note carries it.
-    const assess = await defaultAssess(d);
-    if (!assess) {
-      // FIX (#367, gap 3): the recorded severity/class used to be
-      // hardcoded medium/agent_finding whatever the brain reported.
-      // Now they reflect the claim: the brain's severity when it is
-      // a valid enum value, else medium; the gate's class resolution
-      // (explicit class, else title-matched, else agent_finding).
-      const sev = String(action.severity || '').trim().toLowerCase();
-      const recordedSeverity = ['critical', 'high', 'medium', 'low'].includes(sev) ? sev : 'medium';
-      const recordedClass = normaliseCoverageClass(action.class) || claimClassFromTitle(rawTitle) || 'agent_finding';
-      try {
-        record(huntId, {
-          type: 'finding', class: recordedClass, title, severity: recordedSeverity, url: target,
-          evidence: { request: command, response: evidence.slice(0, 3000) },
-          verified: false, verification: 'be-a-brain parent claim — pending pipeline verification', via: 'be-a-brain',
-        });
-      } catch { /* best-effort */ }
-      observation = 'Recorded as an UNVERIFIED claim (no pipeline verifier is wired into this session). It does not count as a finding until the verifier confirms it.';
-      verified = false;
-    } else {
-      const plan = {
-        test: title,
-        command,
-        why: 'Be-a-Brain parent claim — the owner reproduced this himself and asked for independent verification.',
-        hypothesis: title,
-      };
-      const result = { stdout: evidence, stderr: '', code: 0 };
-      let rec = null;
-      try {
-        rec = await assess(huntId, target, plan, result);
-      } catch (err) {
-        observation = `Verification could not run (${String((err && err.message) || err)}). Your claim was NOT verified — reproduce it cleanly and claim again with the exact command + output.`;
-        verified = false;
-      }
-      if (rec) {
-        verified = Boolean(rec.verified);
-        finding = rec;
-        observation = rec.verified
-          ? `VERIFIED by the independent verifier: "${rec.title}" (${rec.severity}). It counts.`
-          : `NOT verified: ${rec.verification || 'the verifier rejected the claim'}. A rejected claim is a dead end, not a finding — either your evidence does not prove it, or the command does not reproduce it. Do not re-claim the same thing; dig for real proof or move on.`;
-      } else if (observation === '') {
-        observation = 'Verification returned nothing — the claim was NOT verified.';
-        verified = false;
-      }
-    }
-    recordExecuted();
-    return finish();
-  }
+    if (kind === 'recall') return executeRecallAction(huntId, action, h);
+
+    if (kind === 'claim_finding') return executeClaimAction(huntId, action, h);
 
   return { ok: false, error: 'unknown_action', message: `Unknown action "${kind}".` };
 }
