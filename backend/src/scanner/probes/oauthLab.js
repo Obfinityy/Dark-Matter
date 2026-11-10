@@ -47,6 +47,14 @@ import { isLabTargetHost } from '../../labCreds.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
+// Dynamic registration answers only after the lab's three sequential
+// server-side fetches settle (jwks_uri, logo_uri,
+// sector_identifier_uri), each capped at the lab's FETCH_TIMEOUT_MS
+// (2s): worst case 3 x 2s = 6s plus round-trip overhead. The 5s
+// default would abort the register call first, so #493 gets a 10s
+// budget — ~4s of margin over the lab's worst case.
+const REGISTER_TIMEOUT_MS = 10000;
+
 function rand() {
   return Math.random().toString(36).slice(2, 10);
 }
@@ -118,8 +126,8 @@ export async function probeOauthLab(url, opts = {}) {
   try { baseU = new URL(url); } catch { return findings; }
   const origin = `${baseU.protocol}//${baseU.host}`;
   const jget = (path, headers) => reqJson('GET', origin + path, undefined, { timeoutMs, headers });
-  const jpost = (path, body, headers) => reqJson('POST', origin + path, body, {
-    timeoutMs,
+  const jpost = (path, body, { headers, timeoutMs: callTimeoutMs } = {}) => reqJson('POST', origin + path, body, {
+    timeoutMs: callTimeoutMs || timeoutMs,
     headers: { 'Content-Type': 'application/json', ...(headers || {}) },
   });
   const email = (tag) => `dmprobe-${tag}-${canary}@example.com`;
@@ -307,7 +315,7 @@ export async function probeOauthLab(url, opts = {}) {
           ? before.json.users.find((u) => u && u.email === V) : null;
         const linkedBefore = recBefore && Array.isArray(recBefore.linkedIdentities)
           ? recBefore.linkedIdentities.length : null;
-        const link = await jpost('/oauth/link', { code: codeA }, { Authorization: `Bearer ${sv}` });
+        const link = await jpost('/oauth/link', { code: codeA }, { headers: { Authorization: `Bearer ${sv}` } });
         const after = await jget('/api/users');
         const recAfter = after.json && Array.isArray(after.json.users)
           ? after.json.users.find((u) => u && u.email === V) : null;
@@ -446,7 +454,7 @@ export async function probeOauthLab(url, opts = {}) {
       jwks_uri: jwksUrl,
       logo_uri: logoUrl,
       sector_identifier_uri: `http://${ssrfHost}:3000/sector.json?dm-ssrf-${canary}`,
-    });
+    }, { timeoutMs: REGISTER_TIMEOUT_MS });
     const logAfter = await jget('/api/admin/fetch-log');
     const afterEntries = logAfter.json && Array.isArray(logAfter.json.fetches)
       ? logAfter.json.fetches.filter((f) => f && typeof f.url === 'string' && f.url.includes(canary)) : [];

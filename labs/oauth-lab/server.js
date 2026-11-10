@@ -226,29 +226,38 @@ function serverFetch(rawUrl, source) {
       return resolve(entry);
     }
     const lib = u.protocol === 'https:' ? https : http;
+    // Every settle path records the fetch exactly once. Destroying
+    // the stream for exceeding FETCH_MAX_BYTES kills 'end', so
+    // without the 'close' path below the promise never settled and
+    // a registration fetching a large body hung forever (10 Nov
+    // 2026: Juice SPA responses wedged dynamic registration).
+    let settled = false;
+    const settle = (patch) => {
+      if (settled) return;
+      settled = true;
+      Object.assign(entry, patch);
+      fetchLog.push(entry);
+      resolve(entry);
+    };
     const req = lib.get(rawUrl, { timeout: FETCH_TIMEOUT_MS }, (res) => {
       let bytes = 0;
       res.on('data', (c) => {
         bytes += c.length;
         if (bytes > FETCH_MAX_BYTES) res.destroy();
       });
-      res.on('end', () => {
-        entry.status = res.statusCode;
-        entry.bytes = bytes;
-        fetchLog.push(entry);
-        resolve(entry);
-      });
+      res.on('end', () => settle({ status: res.statusCode, bytes }));
+      res.on('close', () => settle({
+        status: res.statusCode,
+        bytes,
+        ...(bytes > FETCH_MAX_BYTES ? { error: 'max-bytes-exceeded' } : {}),
+      }));
     });
     req.on('timeout', () => {
       req.destroy();
-      entry.error = 'timeout';
-      fetchLog.push(entry);
-      resolve(entry);
+      settle({ error: 'timeout' });
     });
     req.on('error', (e) => {
-      entry.error = e.code || 'fetch-error';
-      fetchLog.push(entry);
-      resolve(entry);
+      settle({ error: e.code || 'fetch-error' });
     });
   });
 }
