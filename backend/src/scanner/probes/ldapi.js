@@ -127,6 +127,11 @@ export async function probeLdapInjection(url, params, opts = {}) {
             impact_demo: 'filter breakout returned entries the benign query hid — auth bypass primitive',
             diverged: true,
             signalCorrelated: true,
+            // Structured lengths for the shared tiny-error-page guard
+            // (hunt-intel/differential.js): a tiny operator stub vs a
+            // full benign page is a rejected request, not a breakout.
+            benignLength: benign.text.length,
+            operatorLength: malicious.text.length,
           },
         });
         break;

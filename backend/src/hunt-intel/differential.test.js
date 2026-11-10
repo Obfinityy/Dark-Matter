@@ -4,7 +4,7 @@
 // `_oob` is judged on oobHit, exactly like SSRF.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { assessConfirmation, dedupeFindings } from './differential.js';
+import { assessConfirmation, dedupeFindings, isTinyErrorPageDivergence } from './differential.js';
 import { probeHeaders } from '../scanner/probes/headers.js';
 import { verifyFindings } from '../scanner/verifier.js';
 
@@ -132,5 +132,150 @@ describe('dedupeFindings title segment', () => {
       confirmed.map((f) => f.id),
       ['missing-hsts', 'missing-csp', 'missing-xfo', 'missing-xcto', 'missing-rp']
     );
+  });
+});
+
+// Tiny-error-page differential guard (GitHub calibration hunt
+// h_d7b2902f1a99, 10 Nov 2026): 11x NoSQLi + 1x LDAP + 2x XPath on
+// /login "confirmed" on a length divergence that was a rejected request
+// — the operator response was a 31-char error stub against a full
+// benign page (45,581 chars on /login, 192,606 on /resources/articles).
+// Same class as the Zerodha incident (9 Nov, 37 FPs). The guard is
+// directional: a genuine bypass returns MORE rows than the benign query,
+// so the operator side is the larger one and the guard can never fire
+// on it. It fires only when the operator request was rejected.
+describe('tiny-error-page differential guard', () => {
+  it('rejects the GitHub NoSQLi /resources/articles shape (benign 192606, operator 31)', () => {
+    const r = assessConfirmation({
+      class: 'nosql_injection',
+      evidence: { diverged: true, benignLength: 192606, operatorLength: 31 },
+    });
+    assert.equal(r.verdict, 'rejected');
+    assert.match(r.protocol, /tiny error page/);
+  });
+
+  it('rejects the GitHub /login shape for all three boolean classes (benign 45581, operator 31)', () => {
+    for (const cls of ['nosql_injection', 'ldap_injection', 'xpath_injection']) {
+      const r = assessConfirmation({
+        class: cls,
+        evidence: { diverged: true, signalCorrelated: true, benignLength: 45581, operatorLength: 31 },
+      });
+      assert.equal(r.verdict, 'rejected', cls);
+    }
+  });
+
+  it('still confirms a genuine bypass: operator returns MORE than benign', () => {
+    const r = assessConfirmation({
+      class: 'nosql_injection',
+      evidence: { diverged: true, benignLength: 45581, operatorLength: 60000 },
+    });
+    assert.equal(r.verdict, 'confirmed');
+  });
+
+  it('still confirms a genuine small differential (benign 500, operator 900)', () => {
+    const r = assessConfirmation({
+      class: 'ldap_injection',
+      evidence: { diverged: true, signalCorrelated: true, benignLength: 500, operatorLength: 900 },
+    });
+    assert.equal(r.verdict, 'confirmed');
+  });
+
+  it('boundary: operator 512 at exactly 10x benign is rejected; 513 is not', () => {
+    assert.equal(
+      assessConfirmation({ class: 'nosql_injection', evidence: { diverged: true, benignLength: 5120, operatorLength: 512 } }).verdict,
+      'rejected'
+    );
+    assert.equal(
+      assessConfirmation({ class: 'nosql_injection', evidence: { diverged: true, benignLength: 5130, operatorLength: 513 } }).verdict,
+      'confirmed'
+    );
+  });
+
+  it('boundary: ratio 9x does not fire (benign 1800, operator 200)', () => {
+    assert.equal(
+      assessConfirmation({ class: 'nosql_injection', evidence: { diverged: true, benignLength: 1800, operatorLength: 200 } }).verdict,
+      'confirmed'
+    );
+  });
+
+  it('boundary: benign below the 1024-char full-page floor abstains (benign 1000, operator 31)', () => {
+    assert.equal(
+      assessConfirmation({ class: 'nosql_injection', evidence: { diverged: true, benignLength: 1000, operatorLength: 31 } }).verdict,
+      'confirmed'
+    );
+  });
+
+  it('abstains when either length is missing — old behaviour unchanged', () => {
+    assert.equal(
+      assessConfirmation({ class: 'nosql_injection', evidence: { diverged: true } }).verdict,
+      'confirmed'
+    );
+    assert.equal(
+      assessConfirmation({ class: 'nosql_injection', evidence: { diverged: true, benignLength: 45581 } }).verdict,
+      'confirmed'
+    );
+    assert.equal(
+      assessConfirmation({ class: 'nosql_injection', evidence: { diverged: true, operatorLength: 31 } }).verdict,
+      'confirmed'
+    );
+  });
+
+  it('never touches error-oracle evidence (no lengths, signalCorrelated)', () => {
+    // The LDAP/XPath error legs confirm on error TEXT, not on length —
+    // they carry no benignLength/operatorLength, so the guard abstains.
+    assert.equal(
+      assessConfirmation({ class: 'ldap_injection', evidence: { signalCorrelated: true } }).verdict,
+      'confirmed'
+    );
+  });
+
+  it('never touches OOB confirmations (collaborator hit, not lengths)', () => {
+    assert.equal(
+      assessConfirmation({ class: 'ssrf', evidence: { oobHit: true, benignLength: 45581, operatorLength: 31 } }).verdict,
+      'confirmed'
+    );
+  });
+
+  it('never promotes: already-rejected stays rejected, unconfirmed stays unconfirmed', () => {
+    assert.equal(
+      assessConfirmation({ class: 'nosql_injection', evidence: { diverged: false, benignLength: 45581, operatorLength: 31 } }).verdict,
+      'rejected'
+    );
+    assert.equal(
+      assessConfirmation({ class: 'nosql_injection', evidence: { benignLength: 45581, operatorLength: 31 } }).verdict,
+      'unconfirmed'
+    );
+  });
+
+  it('isTinyErrorPageDivergence pins the pure rule', () => {
+    assert.equal(isTinyErrorPageDivergence({ benignLength: 45581, operatorLength: 31 }), true);
+    assert.equal(isTinyErrorPageDivergence({ benignLength: 45581, operatorLength: 60000 }), false);
+    assert.equal(isTinyErrorPageDivergence({ benignLength: 500, operatorLength: 900 }), false);
+    assert.equal(isTinyErrorPageDivergence({}), false);
+    assert.equal(isTinyErrorPageDivergence({ benignLength: 45581 }), false);
+    assert.equal(isTinyErrorPageDivergence({ benignLength: 'x', operatorLength: 31 }), false);
+  });
+
+  it('verifyFindings drops a GitHub-shaped finding to unconfirmed (end to end)', () => {
+    // Mirrors the archived h_d7b2902f1a99 finding verbatim in shape:
+    // high severity, request + response + impact_demo evidence, diverged.
+    const found = [{
+      class: 'nosql_injection',
+      title: "NoSQL injection (boolean bypass) in parameter 'login'",
+      severity: 'high',
+      url: 'https://github.com/session',
+      evidence: {
+        request: 'GET https://github.com/session?login=dmnoabc123 vs benign',
+        response: 'result set diverged by 45550 chars (benign 45581, operator 31)',
+        impact_demo: '$ne operator bypassed the equality filter',
+        diverged: true,
+        benignLength: 45581,
+        operatorLength: 31,
+      },
+    }];
+    const { confirmed, unconfirmed } = verifyFindings(found);
+    assert.equal(confirmed.length, 0);
+    assert.equal(unconfirmed.length, 1);
+    assert.equal(unconfirmed[0].confirmation, 'rejected');
   });
 });
