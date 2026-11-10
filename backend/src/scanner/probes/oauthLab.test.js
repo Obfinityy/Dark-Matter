@@ -15,6 +15,7 @@ import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { probeOauthLab, decodeJwtPayload } from './oauthLab.js';
+import { verifyFindings } from '../verifier.js';
 
 const LAB_PORT = 3698;
 const LAB_URL = `http://127.0.0.1:${LAB_PORT}/`;
@@ -89,6 +90,27 @@ test('real oauth-lab: all 10 classes fire exactly once, evidence contract holds'
   // refresh, webauthn).
   const redacted = findings.filter((f) => JSON.stringify(f.evidence).includes('<redacted>')).length;
   assert.ok(redacted >= 6, `at least 6 findings must redact tokens (got ${redacted})`);
+});
+
+test('#493 verifier path: the finding AS PUSHED confirms through the real verifyFindings', { timeout: 60000 }, async () => {
+  // Regression test for the 10 Nov website re-proof (h_39495d4e18d1):
+  // the probe pushed the #493 finding but the verifier left it
+  // unconfirmed — assessConfirmation routes class
+  // 'oauth_ssrf_dynamic_registration' to the SSRF protocol, which
+  // judges ONLY on evidence.oobHit, and the probe never set it.
+  // The fix is probe-side (oobHit: true in the #493 evidence); this
+  // test feeds the finding exactly as the probe pushes it through
+  // the real verifier (no mocks of the judge) and asserts it lands
+  // confirmed. It MUST fail on unfixed code.
+  const findings = await probeOauthLab(LAB_URL, { labTargets: '127.0.0.1', depth: 'standard' });
+  const f493 = findings.find((f) => f.class === 'oauth_ssrf_dynamic_registration');
+  assert.ok(f493, '#493 finding must be pushed by the probe against the real lab');
+  assert.equal(f493.evidence.oobHit, true, '#493 evidence must assert the observed out-of-band hit');
+  const { confirmed, unconfirmed } = verifyFindings([f493]);
+  assert.equal(unconfirmed.length, 0, `#493 must not be unconfirmed, got ${JSON.stringify(unconfirmed.map((f) => f.confirmation))}`);
+  assert.equal(confirmed.length, 1, '#493 must confirm exactly once');
+  assert.equal(confirmed[0].confirmation, 'confirmed');
+  assert.equal(confirmed[0].class, 'oauth_ssrf_dynamic_registration');
 });
 
 test('decodeJwtPayload reads the id_token email_verified claim', () => {
