@@ -5,14 +5,14 @@ target on EC2, verified first-hand (direct EC2 read, never a relay), with hunt I
 title-exact baselines and zero retractions. Nothing here is a unit-test result alone
 and nothing is claimed without evidence.
 
-## Live status (10 Nov 2026, ~02:15 IST)
+## Live status (10 Nov 2026, ~09:30 IST)
 
-- Coverage: **318/478 = 66.5% LIVE**, 110 phases in `backend/src/scanner/index.js`
-- HEAD: `0f719c67` (quota-bypass calibration: control pass over all derived collections, row #81), **88th deploy verified** (workflow 42682163321, backend PID 2747042, health ok, LAB_TARGETS 8/8, PHASES 110)
-- Suites at HEAD: src 2973/2962/0/11, plain 3037/3026/0/11
+- Coverage: **341/478 = 71.3% LIVE**, 129 phases in `backend/src/scanner/index.js`
+- HEAD: `1e88646f` (deep-coverage audit, Wave-2 lane 11), **116th deploy verified** (workflow 42751955995, backend PID 3020394, health ok, LAB_TARGETS 9/9, PHASES 129)
+- Suite at HEAD: 3381 tests / 3370 pass / 0 fail / 11 skipped (Wave-2 lane-11 merge suite)
 - AI hunt `h_7d49c6ef7447` paused at iter 296 (owner zero-Meta order, 3 Nov 2026);
   spend frozen $38.6028 / 4669 entries
-- Baselines: DVWA **20** titles, Juice Shop **26** titles (listed below)
+- Baselines: DVWA **20** titles, Juice Shop **30** titles, LLM lab **17** titles (first baseline, proof #37) (listed below)
 
 ## How a proof works
 
@@ -30,6 +30,12 @@ and nothing is claimed without evidence.
 4. Every proof is verified by a direct EC2 read of `meta.json` + `events.jsonl`
    (meta state, `scannerSummary`, title extraction from `type:"finding"` events,
    retraction check). Worker relays are never trusted for a verdict.
+5. The LLM-lab leg uses a separate driver (`lab_llm_proof_driver.mjs`,
+   `~/workspace/dm-v2/probes/lab_llm_proof_driver.mjs`) with the same JWT-mint +
+   hunt pattern. It MUST pass `labCreds` (any username/password — the lab has
+   no login; the creds are only the llmGate token) or the llm-injection probe
+   and all 7 llm-limits probes early-return in 0ms and the leg is
+   INCONCLUSIVE, not a pass (proof #37 run 1 proved this the hard way).
 
 ## Proof table — re-proofs #4 to #25
 
@@ -68,6 +74,7 @@ and nothing is claimed without evidence.
 | 34 | 9 Nov ~18:10 | 81st `75f12de9` | `h_3446ed656867` {20,0} | `h_7a1342904b11` {27,0} | INCONCLUSIVE for row #81, 0 retractions. Both legs baseline-exact, but the quota-bypass drive never calibrated (DVWA `quota-bypass` ok:true, `apiRoutes=0, controlOk=false, attempts=0` - DVWA has no API surface at all; Juice `quota-bypass` ok:true, `apiRoutes=2, controlOk=false, attempts=0, throttled=false, bypassKind=null` - the control GET granted on NEITHER candidate, so no burst ran). The 81st-deploy fix (derive collection URLs from templated write targets) is live on EC2 (HEAD 75f12de9, PID 2499755, probe file carries deriveCollectionUrl), but the live record cannot show whether derivation ran: the new `derivedCollections` diagnostic was never wired into the phase extras in index.js (extras list only apiRoutes/controlOk/attempts/throttled/bypassKind). Decisive counter-evidence to the fix premise: the captcha probe in the SAME Juice hunt found `feedbackRoutes=1` from the identical feed ([...scanTargets, ...jsWriteTargets]), so a feedbacks-segment route WAS mined - the quota probe still did not calibrate. Next: a follow-up lane must reproduce the live feed, name the actual 2 candidates, fix the root cause (cap-2 cut, template shape, or wiring), wire the diagnostic into extras, and re-proof. Coverage stays 318/478 = 66.5%. Baselines unchanged: DVWA 20, Juice 27. DVWA phases 110/95/15/0/0, 156 events; Juice phases 110/110/0/0/0 (560 phase records), 621 events. |
 | 35 | 10 Nov ~00:43 | 87th `74b3d733` | `h_a64dee98a867` {20,0} | `h_09574ffbb449` {25,0} | PASS, 0 retractions. **Zerodha FP-fix re-proof (sqlite regex `[_\s.]`): the genuine SQLi 'q' title is back on Juice; the 2 EL titles are confirmed old false positives and leave the baseline.** Row #197 (EL injection) LIVE to AIB — its only live evidence was those two titles (payload substring `dmElTesttoString` + SQLITE_ERROR echo, no evaluation; Juice is Node.js, no EL evaluator). Juice baseline 27 -> 25. Coverage 318 -> 317/478 = 66.3%. DVWA phases 110/95/15/0/0, 156 events; Juice phases 110/110/0/0/0 (560 phase records), 617 events. |
 | 36 | 10 Nov ~02:13 | 88th `0f719c67` | `h_699c88a9225a` {20,0} | `h_58f21daaf58f` {26,0} | PASS, 0 retractions. **Row #81 AIB to LIVE — quota-bypass calibration fix live-proven** (control pass over all derived collections, MAX_CANDIDATES=12: Juice `quota-bypass` ok:true, `apiRoutes=12, derivedCollections=7, controlOk=true, attempts=15, throttled=false, bypassKind='no-rate-limit'`, NEW title 'API endpoint accepts repeated requests without rate limiting (MEDIUM)' — control GET /api/Products HTTP 200 -> 15 identical GETs unauthenticated, all 15 answered HTTP 200, no 429, no Retry-After, no refusal text; class `business_logic`, verified:true. DVWA `quota-bypass` honest no-op (apiRoutes=0, controlOk=false, attempts=0 — DVWA has no API surface). Coverage 317 -> 318/478 = 66.5%. Juice baseline 25 -> 26. DVWA phases 110/95/15/0/0, 156 events; Juice phases 110/110/0/0/0 (560 phase records), 619 events. |
+| 37 | 10 Nov ~09:30 | 116th `1e88646f` | `h_d10b746ea393` {20,0} | `h_5f415ee3c617` {31,0} reported, 30 genuine | PASS with 1 FP retracted + LLM legs, 0 retractions. **Wave-2 re-proof: 23 rows AIB→LIVE. Coverage 318→341/478 = 71.3%.** DVWA baseline-exact 20/20 (175 events, phases 129/112/17/0/0, 390s). Juice: 26 baseline all present + 4 NEW genuine (678 events, phases 609/609/0/0/0, 646s): #55 weak password policy MEDIUM (POST /api/Users password 'a' → HTTP 201, id 279; strong-password control registered on the same route); #86 business-flow-access HIGH (GET /rest/basket/1 with canary token → 200, victim basket with seeded product 9, byte-identical to victim control; no-token 401); #171/#172 provisioning MEDIUM (fresh account GET /api/Users → 200, 78522 bytes = admin control; no-token 401); #259 session-timeout MEDIUM (login JWT carries no exp claim). Juice baseline becomes 30. **Race-condition [CRITICAL] title RETRACTED as false positive** (POST `/#/photo-wall` — the fragment never reaches the server, so the probe POSTed the SPA root; POST / returns the identical static shell 80117B every time; race.js `outcome()` counts a keyword match in that static body as 'success' with no state-change check) — NOT a baseline title; fix lane needed in race.js T1 (state-change check + skip fragment-only actions). LLM lab (port 3600) run 1 `h_b0c6316b408b` {11,0} INCONCLUSIVE for injection/limits (all 8 probes 0ms — llmGate needs labCreds and the driver passed none, so they never ran; 157 events, phases 129/81/48/0/0, 120s); run 2 `h_4e38aab168cd` {17,0} PASS with labCreds (169 events, phases 129/81/48/0/0, 120s) — all 6 expected legs fired: direct prompt injection leaks the system prompt (HIGH, #23/#20/#25), indirect prompt injection calls a tool from retrieved content (HIGH, #19/#376), RAG disclosure (HIGH, #24), rate-limit (HIGH, #26/#382), training-data regurgitation (MEDIUM, #512), training-poisoning (HIGH, #16/#378) — plus the LLM tools family ×4 (tool-misuse #384/#28, excessive-agency #17/#379, output-handling #18, misinformation #21/#381), request smuggling, and 5 header/cleartext titles. LLM lab baseline pinned at 17 (first baseline). **LLM lab crashed TWICE mid-proof** (04:19:28Z and 04:25:30Z, exit 1, `ERR_INVALID_URL` at server.js:296 — unguarded `new URL` on a scanner nuclei payload carrying an ANSI OSC-8 hyperlink to interact.sh); restarted both times, 200 again; needs a try/catch → 400 fix lane so a probe can never kill the target. sw-cache #460 NOT proven live (phase ran on Juice, 0 findings; tier-2 real-browser confirmation still outstanding). |
 
 ## Behaviour-analysis live proof (60th deploy `203c6d44`)
 
@@ -164,6 +171,30 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 24. BFLA — admin endpoint callable by low-privilege user (HIGH) (since live-proof #27, row #340)
 25. JWT payload carries sensitive data in its claims (MEDIUM) (since live-proof #33, row #481)
 26. API endpoint accepts repeated requests without rate limiting (MEDIUM) (since proof #36, row #81)
+27. Weak password policy — trivial password accepted at registration (MEDIUM) (since proof #37, row #55)
+28. Unrestricted access to sensitive business flow — another user's basket readable (HIGH) (since proof #37, row #86)
+29. Insecure provisioning — freshly registered account can call an admin-only function (MEDIUM) (since proof #37, rows #171/#172)
+30. Session token carries no expiry — it never times out (MEDIUM) (since proof #37, row #259)
+
+### LLM lab — 17 titles (first baseline, proof #37 run 2 `h_4e38aab168cd`)
+
+1. Missing Strict-Transport-Security header
+2. Missing Content-Security-Policy header
+3. Missing X-Frame-Options header
+4. Missing X-Content-Type-Options header
+5. Missing Referrer-Policy header
+6. LLM endpoint accepts repeated requests without rate limiting (HIGH) (rows #26/#382)
+7. LLM regurgitates memorised sensitive data verbatim from its knowledge store (MEDIUM) (row #512)
+8. Poisoned retrieved content steers the model into an unrequested tool call (HIGH) (rows #16/#378)
+9. HTTP request smuggling (CL.TE desync proven)
+10. LLM tool invoked via prompt with no validation (HIGH) (rows #384/#28)
+11. LLM agent deleted a user account with no confirmation step (CRITICAL) (rows #17/#379)
+12. LLM output rendered as raw HTML without escaping (HIGH) (row #18)
+13. LLM repeats a refund policy contradicted by its own knowledge base (MEDIUM) (rows #21/#381)
+14. Direct prompt injection leaks the LLM system prompt (HIGH) (rows #23/#20/#25)
+15. Indirect prompt injection makes the LLM call a tool from retrieved content (HIGH) (rows #19/#376)
+16. LLM discloses sensitive data from its retrieval store (HIGH) (row #24)
+17. Target served over cleartext HTTP
 
 ## Deploy chain (recent)
 
@@ -203,6 +234,17 @@ provider is never re-called. Provider failure stores `{status:'ai-unavailable'}`
 | 86th | `963ddea1` | 42666109813 | Zerodha FP fix (SSRF+SQLi, EL+LDAP oracle hardening) + CI Node 24 |
 | 87th | `74b3d733` | 42678299299 | Sqlite DB-error regex fix `[_\s.]` (Zerodha re-proof #35) |
 | 88th | `0f719c67` | 42682163321 | Quota-bypass calibration fix (row #81, proof #36) |
+| 106th | `9cefeb4` | 42727384470 | Wave-2 lane 1: session-timeout probe, phase 111 (rows #259/#475) |
+| 107th | `c4c396a` | 42729737822 | Wave-2 lane 2: provisioning probe, phase 112 (rows #171/#172) |
+| 108th | `caedcef` | 42732195751 | Wave-2 lane 3: WebRTC probe, phase 113 (row #459) |
+| 109th | `660e639` | 42734698008 | Wave-2 lane 4: LLM tools family probes, phases 114-117 |
+| 110th | `ba3976d` | 42737395442 | Wave-2 lane 5: CSTI frameworks probes, phase 118 (rows #452-#455) |
+| 111th | `3733696` | 42739692733 | Wave-2 lane 6: weak password policy probe, phase 119 (row #55) |
+| 112th | `63a2427` | 42742174420 | Wave-2 lane 7: business flow access probe, phase 120 (row #86) |
+| 113th | `67b4419` | 42745231992 | Wave-2 lane 8: LLM injection probe, phase 121 (rows #23/#20/#25/#19/#376/#24) |
+| 114th | `feeb823` | 42747534689 | Wave-2 lane 9: LLM limits family probes, phases 122-128 |
+| 115th | `bc1f4ea` | 42749770502 | Wave-2 lane 10: sw-cache poisoning probe, phase 129 (row #460) |
+| 116th | `1e88646` | 42751955995 | Wave-2 lane 11: deep-coverage audit (no phase; proof #37) |
 
 ## Screenshots
 
