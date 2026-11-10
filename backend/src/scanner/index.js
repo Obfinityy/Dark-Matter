@@ -65,6 +65,7 @@ import { probeDomCookieManipulation } from './probes/domCookieManipulation.js';
 import { probeDocumentDomain } from './probes/documentDomain.js';
 import { probeWebrtcLeak } from './probes/webrtcLeak.js';
 import { probeCsti } from './probes/csti.js';
+import { probeCstiFrameworks } from './probes/cstiFrameworks.js';
 import { probeCaptcha } from './probes/captcha.js';
 import { probeCssInjection } from './probes/cssInjection.js';
 import { probeMutationXss } from './probes/mutationXss.js';
@@ -245,6 +246,7 @@ export const DEFAULT_PHASES = [
   'dom-xss-location-hash',
   'dom-postmessage',
   'csti',
+  'csti-frameworks',
   'captcha',
   'css-injection',
   'mutation-xss',
@@ -1527,6 +1529,53 @@ export async function runScan(
     );
   } else {
     skipPhase('csti', 'no script targets');
+  }
+  // CSTI FRAMEWORK VARIANTS (9 Nov 2026, rows #452–#455 [High]
+  // CWE-94/CWE-79): the #190 probe mines for ANY runtime template
+  // engine; this phase fires ONLY when a matching client-side
+  // template framework is fingerprinted first — AngularJS (#452),
+  // Vue (#453), Knockout / Handlebars (#454), React (#455) — in
+  // first-party code + the served page HTML (ng-app / data-bind /
+  // v- directives live in HTML, not in bundles). Zero frameworks
+  // is a proven true negative recorded with skipReason 'no matching
+  // framework', never a vacuous pass: Juice Shop is modern Angular
+  // (compiled templates, ng-version / app-root, never
+  // angular.module or ng-app) and DVWA has no framework, so both
+  // labs are expected true negatives here. When a framework IS
+  // fingerprinted, the phase drives the pasted page in a real
+  // browser (same transient-container + fixed-CDP pattern as csti)
+  // with the {{7*7*191}} canary for template frameworks (the #190
+  // drive, reused) or the <i data-dmreact="9352">x</i> HTML canary
+  // for React, and confirms ONLY when the oracle holds — see
+  // cstiFrameworks.js. Lab-gated like csti (labCreds + allowWrite
+  // + lab host + depth !== 'quick'), so the drives never run
+  // outside the lab gate; framework presence alone never fires.
+  const cstiFwDiag = {};
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step(
+      'csti-frameworks',
+      () =>
+        probeCstiFrameworks(url, secretTargets, {
+          ...opts,
+          allowWrite,
+          labTargets,
+          pageBody: sitePageBody || pageBody,
+          diagnostics: cstiFwDiag,
+          ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+        }),
+      () => ({
+        frameworks: cstiFwDiag.frameworks || 0,
+        frameworkKinds: cstiFwDiag.frameworkKinds || '',
+        frameworkDetected: Boolean(cstiFwDiag.frameworkDetected),
+        reactSink: Boolean(cstiFwDiag.reactSink),
+        driveAttempted: Boolean(cstiFwDiag.driveAttempted),
+        driveExecuted: Boolean(cstiFwDiag.driveExecuted),
+        driveKind: cstiFwDiag.driveKind || '',
+        skipReason: cstiFwDiag.skipReason || '',
+      })
+    );
+  } else {
+    skipPhase('csti-frameworks', 'no script targets');
   }
   // CAPTCHA BYPASS (9 Nov 2026, row #40 [Medium] Technique (no
   // single CVE) | OWASP A07:2021): mines first-party code for

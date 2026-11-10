@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 117/71/46 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 118/71/47 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -270,64 +270,61 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // dom-xss-location-hash (a bare page carries no bundles —
       // 9 Nov 2026, 93rd phase), and csti SKIPS with 'no script
       // targets' alongside them (a bare page carries no bundles —
-      // 9 Nov 2026, 94th phase), and captcha SKIPS with 'no script
-      // targets' alongside them (a bare page carries no bundles —
-      // 9 Nov 2026, 95th phase), and css-injection RUNS as an
-      // honest no-op alongside them (no style contexts on a bare
-      // page — 9 Nov 2026, 96th phase), and bfla RUNS as an honest
+      // 9 Nov 2026, 94th phase), and csti-frameworks SKIPS with
+      // 'no script targets' alongside them (a bare page carries no
+      // bundles — 9 Nov 2026, 95th phase), and captcha SKIPS with
+      // 'no script targets' alongside them (a bare page carries no
+      // bundles — 9 Nov 2026, 96th phase), and css-injection RUNS
+      // as an honest no-op alongside them (no style contexts on a
+      // bare page — 9 Nov 2026, 97th phase), and bfla RUNS as an honest
       // no-op alongside them (no admin routes on a bare page —
-      // 9 Nov 2026, 97th phase), and mutation-xss SKIPS with 'no
+      // 9 Nov 2026, 98th phase), and mutation-xss SKIPS with 'no
       // script targets' alongside dom-xss-location-hash (a bare page
-      // carries no bundles — 9 Nov 2026, 98th phase), and coupon-abuse
+      // carries no bundles — 9 Nov 2026, 99th phase), and coupon-abuse
       // RUNS as an honest no-op alongside them (no coupon routes on a
-      // bare page — 9 Nov 2026, 99th phase), and dom-open-redirect,
+      // bare page — 9 Nov 2026, 100th phase), and dom-open-redirect,
       // dom-clobbering and dom-cookie-manipulation SKIP with 'no script
       // targets' alongside it (a bare page carries no bundles —
-      // 9 Nov 2026, 100th-102nd phases), and api-token-auth RUNS as
+      // 9 Nov 2026, 101st-103rd phases), and api-token-auth RUNS as
       // an honest no-op alongside them (no labCreds on a bare page —
-      // 9 Nov 2026, 103rd phase), and autocomplete RUNS as an honest
+      // 9 Nov 2026, 104th phase), and autocomplete RUNS as an honest
       // no-op alongside them (no sensitive inputs on a bare page —
-      // 9 Nov 2026, 104th phase), and blind-xpath SKIPS with the
+      // 9 Nov 2026, 105th phase), and blind-xpath SKIPS with the
       // battery (no param targets on a bare page — 9 Nov 2026,
-      // 105th phase), and exceptional-conditions RUNS as an honest
+      // 106th phase), and exceptional-conditions RUNS as an honest
       // no-op alongside them (no basket routes on a bare page —
-      // 9 Nov 2026, 106th phase), and workflow-data-exposure RUNS
+      // 9 Nov 2026, 107th phase), and workflow-data-exposure RUNS
       // as an honest no-op alongside them (no workflow routes on a
-      // bare page — 9 Nov 2026, 107th phase), and jwt-claims RUNS
+      // bare page — 9 Nov 2026, 108th phase), and jwt-claims RUNS
       // as an honest no-op alongside them (no issued token on a
-      // bare page — 9 Nov 2026, 108th phase), and quota-bypass
+      // bare page — 9 Nov 2026, 109th phase), and quota-bypass
       // RUNS as an honest no-op alongside them (no API routes on
-      // a bare page — 9 Nov 2026, 109th phase), and document-domain
+      // a bare page — 9 Nov 2026, 110th phase), and document-domain
       // SKIPS with 'no script targets' alongside them (a bare page
-      // carries no bundles — 9 Nov 2026, 110th phase), and
-      // session-timeout RUNS as an honest no-op alongside them
-      // (no labCreds on a bare page — 9 Nov 2026, 111th phase), and
-      // provisioning RUNS as an honest no-op alongside them (no
-      // labCreds on a bare page — 10 Nov 2026, 112th phase), and
-      // webrtc-leak RUNS as an honest no-op alongside them (no
-      // labCreds on a bare page — 10 Nov 2026, 113th phase), and
       // llm-tool-misuse, llm-excessive-agency, llm-output-handling
       // and llm-misinformation RUN as honest no-ops alongside them
       // (no LLM surface on a bare page — the target is not a lab
       // target, so the fingerprint makes no requests — 10 Nov 2026,
-      // 114th-117th phases).
+      // 114th-117th phases), and csti-frameworks SKIPS alongside
+      // them (no script targets on a bare page — 10 Nov 2026,
+      // 118th phase).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 117,
+        total: 118,
         ok: 71,
         failed: 0,
-        skipped: 46,
+        skipped: 47,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 71 ran ok, 46 skipped, 0 failed, 0 timed out.'
+        'Phases: 71 ran ok, 47 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 147/147/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 148/148/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -395,7 +392,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // 7 Nov 2026 —
       // all twenty run here because param targets exist and the shell
       // carries a script bundle), and the two discovery phases now RUN
-      // instead of skipping — 140 total, 140 ok, 0 skipped
+      // instead of skipping — 141 total, 141 ok, 0 skipped
       // (basket-logic, the 88th phase, runs as an honest no-op here:
       // the Juice-shape stub carries no basket routes, and
       // workflow-skip, the 89th phase, runs as an honest no-op
@@ -413,46 +410,49 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // gate fails before the mine runs — and csti, the 94th phase,
       // runs as an honest no-op alongside them for the same reason:
       // the stub carries no labCreds, so the lab gate fails before
-      // the mine runs — and captcha, the 95th phase,
+      // the mine runs — and csti-frameworks, the 95th phase,
       // runs as an honest no-op alongside them for the same reason:
       // the stub carries no labCreds, so the lab gate fails before
-      // the mine runs — and css-injection, the 96th phase, runs as
+      // the mine runs — and captcha, the 96th phase,
+      // runs as an honest no-op alongside them for the same reason:
+      // the stub carries no labCreds, so the lab gate fails before
+      // the mine runs — and css-injection, the 97th phase, runs as
       // an honest no-op alongside them for the same reason: the stub
       // carries no labCreds, so the lab gate fails before the mine
-      // runs — and bfla, the 97th phase, runs as an honest no-op
+      // runs — and bfla, the 98th phase, runs as an honest no-op
       // alongside them for the same reason: the stub carries no
       // labCreds, so the lab gate fails before the mine runs — and
-      // mutation-xss, the 98th phase, runs as an honest no-op
+      // mutation-xss, the 99th phase, runs as an honest no-op
       // alongside them for the same reason: the stub carries no
       // labCreds, so the lab gate fails before the mine runs — and
-      // coupon-abuse, the 99th phase, runs as an honest no-op
+      // coupon-abuse, the 100th phase, runs as an honest no-op
       // alongside them for the same reason: the stub carries no
       // labCreds, so the lab gate fails before the mine runs — and
       // dom-open-redirect, dom-clobbering and dom-cookie-manipulation,
-      // the 100th-102nd phases, run as honest no-ops alongside them
+      // the 101st-103rd phases, run as honest no-ops alongside them
       // for the same reason: the stub carries no labCreds, so the lab
       // gate fails before the mine runs — and api-token-auth, the
-      // 103rd phase, runs as an honest no-op alongside them for the
+      // 104th phase, runs as an honest no-op alongside them for the
       // same reason: the stub carries no labCreds, so the lab gate
-      // fails before the mine runs), and autocomplete, the 104th
+      // fails before the mine runs), and autocomplete, the 105th
       // phase, runs as an honest no-op alongside them (no lab gate,
       // no sensitive inputs in the stub's served HTML), and
-      // blind-xpath, the 105th phase, runs as an honest no-op
+      // blind-xpath, the 106th phase, runs as an honest no-op
       // alongside them: it needs no lab session (read-only GET
       // differential) and the stub's identical responses show no
-      // boolean oracle), and exceptional-conditions, the 106th
+      // boolean oracle), and exceptional-conditions, the 107th
       // phase, runs as an honest no-op alongside them for the
       // same reason: the stub carries no labCreds, so the lab
       // gate fails before the mine runs), and workflow-data-exposure,
-      // the 107th phase, runs as an honest no-op alongside them for
+      // the 108th phase, runs as an honest no-op alongside them for
       // the same reason: the stub carries no labCreds, so the lab
-      // gate fails before the mine runs), and jwt-claims, the 108th
+      // gate fails before the mine runs), and jwt-claims, the 109th
       // phase, runs as an honest no-op alongside them for the same
       // reason: the stub carries no labCreds, so the lab gate fails
-      // before the mine runs), and quota-bypass, the 109th phase,
+      // before the mine runs), and quota-bypass, the 110th phase,
       // runs as an honest no-op alongside them for the same reason:
       // the stub carries no labCreds, so the lab gate fails before
-      // the mine runs), and document-domain, the 110th phase, runs
+      // the mine runs), and document-domain, the 111th phase, runs
       // as an honest no-op alongside them (the stub bundle carries
       // no document.domain assignment), and session-timeout, the
       // 111th phase, runs as an honest no-op alongside them for
@@ -469,15 +469,15 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // no-ops alongside them (the stub answers no completion to
       // the fingerprint POST, so no LLM endpoint is fingerprinted).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 147,
-        ok: 147,
+        total: 148,
+        ok: 148,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 147 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 148 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -683,7 +683,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 117);
+      assert.equal(DEFAULT_PHASES.length, 118);
     } finally {
       teardown();
     }
