@@ -85,6 +85,65 @@ test('parseAiSuggestions tolerates prose-wrapped JSON and bare arrays', () => {
   assert.deepEqual(parseAiSuggestions('not json at all').suggestions, []);
 });
 
+// --- parser hardening (10 Nov 2026: 4 consecutive live replies failed
+// to parse — the old first-{ / last-} slice breaks on fenced JSON with
+// trailing braced prose, on multiple JSON objects, and on trailing
+// commas). ---
+
+test('parseAiSuggestions extracts JSON from a markdown-fenced block', () => {
+  const text = [
+    'Here is my analysis:',
+    '```json',
+    JSON.stringify({ suggestions: [{ title: 'Stored XSS in comment field', class: 'xss_stored', severity: 'high', reasoning: 'r', verification: 'v' }] }),
+    '```',
+    'Let me know if you need more detail.',
+  ].join('\n');
+  const { suggestions, parseOk } = parseAiSuggestions(text);
+  assert.equal(parseOk, true);
+  assert.equal(suggestions.length, 1);
+  assert.equal(suggestions[0].title, 'Stored XSS in comment field');
+});
+
+test('parseAiSuggestions ignores trailing prose that contains braces', () => {
+  const inner = JSON.stringify({ suggestions: [{ title: 'SSRF via image fetch', class: 'ssrf', severity: 'high', reasoning: 'r', verification: 'v' }] });
+  const text = `Analysis complete.\n${inner}\nNote: check {severity} mapping and {class} labels before filing.`;
+  const { suggestions, parseOk } = parseAiSuggestions(text);
+  assert.equal(parseOk, true);
+  assert.equal(suggestions.length, 1);
+  assert.equal(suggestions[0].title, 'SSRF via image fetch');
+});
+
+test('parseAiSuggestions takes the first complete JSON object when several appear', () => {
+  const first = JSON.stringify({ suggestions: [{ title: 'IDOR on order lookup', class: 'idor', severity: 'medium', reasoning: 'r', verification: 'v' }] });
+  const second = JSON.stringify({ suggestions: [{ title: 'Second object here', class: 'xss', severity: 'low', reasoning: 'r', verification: 'v' }] });
+  const { suggestions, parseOk } = parseAiSuggestions(`${first}\n\nAlso consider:\n${second}`);
+  assert.equal(parseOk, true);
+  assert.equal(suggestions.length, 1);
+  assert.equal(suggestions[0].title, 'IDOR on order lookup');
+});
+
+test('parseAiSuggestions repairs trailing commas inside the JSON', () => {
+  const text = '{"suggestions": [{"title": "Weak session token entropy", "class": "session", "severity": "medium", "reasoning": "r", "verification": "v",},],}';
+  const { suggestions, parseOk } = parseAiSuggestions(text);
+  assert.equal(parseOk, true);
+  assert.equal(suggestions.length, 1);
+  assert.equal(suggestions[0].title, 'Weak session token entropy');
+});
+
+test('parseAiSuggestions extracts a bare array from a fenced block', () => {
+  const text = '```\n' + JSON.stringify([{ title: 'Clickjacking on settings page', class: 'clickjacking', severity: 'low', reasoning: 'r', verification: 'v' }]) + '\n```';
+  const { suggestions, parseOk } = parseAiSuggestions(text);
+  assert.equal(parseOk, true);
+  assert.equal(suggestions.length, 1);
+});
+
+test('parseAiSuggestions rejects truncated JSON (unbalanced braces)', () => {
+  const text = '{"suggestions": [{"title": "Cut off mid reply", "class": "xss", "severity": "high", "reasoning": "r", "verif';
+  const { suggestions, parseOk } = parseAiSuggestions(text);
+  assert.equal(parseOk, false);
+  assert.deepEqual(suggestions, []);
+});
+
 test('validateSuggestion rejects junk and normalizes severity', () => {
   assert.equal(validateSuggestion(null), null);
   assert.equal(validateSuggestion({ title: 'x' }), null); // too short
@@ -185,4 +244,75 @@ test('unparseable AI reply stores status ok with zero suggestions + note', async
   assert.equal(r.analysis.status, 'ok');
   assert.deepEqual(r.analysis.suggestions, []);
   assert.match(r.analysis.note, /not valid JSON/);
+});
+
+// --- one retry on unparseable replies (10 Nov 2026) -----------------------
+// Cost guard: at most ONE extra provider call per hunt — the retry fires
+// only when the first call succeeded but its reply did not parse, and
+// never more than once.
+
+test('retry: unparseable first reply, valid fenced JSON on retry, is recovered', async () => {
+  const store = memoryStore();
+  store.setBehaviour(bundle());
+  let calls = 0;
+  const metaCall = async () => {
+    calls += 1;
+    if (calls === 1) return { ok: true, text: 'I found a few things but cannot format JSON properly' };
+    return {
+      ok: true,
+      text: '```json\n' + JSON.stringify({ suggestions: [{ title: 'Recovered lead via retry', class: 'xss', severity: 'medium', reasoning: 'r', verification: 'v' }] }) + '\n```',
+    };
+  };
+  const r = await runAiAnalysis('h_ai_1', { metaCall, ...store });
+  assert.equal(calls, 2);
+  assert.equal(r.analysis.status, 'ok');
+  assert.equal(r.analysis.suggestions.length, 1);
+  assert.equal(r.analysis.suggestions[0].title, 'Recovered lead via retry');
+  assert.equal(r.analysis.retried, true);
+  assert.equal(r.analysis.note, undefined);
+});
+
+test('retry exhausted: both replies unparseable, exactly two calls, note + raw reply kept', async () => {
+  const store = memoryStore();
+  store.setBehaviour(bundle());
+  let calls = 0;
+  const metaCall = async () => {
+    calls += 1;
+    return { ok: true, text: 'still prose, still no JSON anywhere' };
+  };
+  const r = await runAiAnalysis('h_ai_1', { metaCall, ...store });
+  assert.equal(calls, 2);
+  assert.equal(r.analysis.status, 'ok');
+  assert.deepEqual(r.analysis.suggestions, []);
+  assert.match(r.analysis.note, /not valid JSON/);
+  assert.equal(r.analysis.retried, true);
+  assert.match(r.analysis.rawReply, /still prose/);
+});
+
+test('no retry when the first reply already parses', async () => {
+  const store = memoryStore();
+  store.setBehaviour(bundle());
+  let calls = 0;
+  const metaCall = async () => {
+    calls += 1;
+    return { ok: true, text: JSON.stringify({ suggestions: [{ title: 'First try worked', class: 'xss', severity: 'low', reasoning: 'r', verification: 'v' }] }) };
+  };
+  const r = await runAiAnalysis('h_ai_1', { metaCall, ...store });
+  assert.equal(calls, 1);
+  assert.equal(r.analysis.retried, undefined);
+  assert.equal(r.analysis.suggestions.length, 1);
+});
+
+test('no retry when the provider itself fails (ai-unavailable)', async () => {
+  const store = memoryStore();
+  store.setBehaviour(bundle());
+  let calls = 0;
+  const metaCall = async () => {
+    calls += 1;
+    return { ok: false, reason: 'http_401' };
+  };
+  const r = await runAiAnalysis('h_ai_1', { metaCall, ...store });
+  assert.equal(calls, 1);
+  assert.equal(r.analysis.status, 'ai-unavailable');
+  assert.equal(r.analysis.retried, undefined);
 });

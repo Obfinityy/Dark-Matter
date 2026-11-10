@@ -11,12 +11,13 @@
 // suggestion is a LEAD (verified:false) — it is never merged into
 // scannerSummary confirmed counts or the findings list.
 //
-// HONEST LIMIT: the Meta Model API key is DEAD (401 since 4 Nov 2026).
-// Until the owner reconnects it, the live path returns
-// status 'ai-unavailable'. The wiring below is proven with stubbed
-// providers only — see aiAnalysis.test.js. Never throws: every
-// failure mode degrades to a stored ai-unavailable doc or an error
-// envelope, never an exception out of the route.
+// LIVE PATH: the Meta Model API key is ALIVE (verified 8 Nov 2026 with
+// real muse-spark-1.3 replies, and 4 live calls on 10 Nov 2026 — all
+// four returned non-JSON replies, which is what the tolerant parser +
+// one retry below exist to survive). The wiring is proven with stubbed
+// providers in aiAnalysis.test.js plus those live calls. Never throws:
+// every failure mode degrades to a stored ai-unavailable doc or an
+// error envelope, never an exception out of the route.
 import { readHuntAiAnalysis, readHuntBehaviour, writeHuntAiAnalysis } from '../store.js';
 
 export const AI_ANALYSIS_MODEL = 'muse-spark-1.3';
@@ -36,6 +37,17 @@ RULES:
 - If nothing new is credibly suggested by the behaviour, return an empty suggestions list. Honesty over volume.
 - Reply with JSON ONLY — no markdown, no prose outside the JSON:
 {"suggestions":[{"title":"...","class":"...","severity":"low|medium|high|critical","reasoning":"...","verification":"..."}]}`;
+
+/** Cost guard: at most ONE extra provider call per hunt. The retry
+ * fires only when the first call succeeded but its reply did not parse.
+ * It asks for JSON only, with a smaller output budget — a short,
+ * well-formed reply is far more likely to survive than a 2000-token
+ * ramble. */
+export const AI_ANALYSIS_RETRY_MAX_TOKENS = 1200;
+export const AI_ANALYSIS_RAW_REPLY_PREVIEW_CHARS = 1000;
+const RETRY_SYSTEM_PROMPT = `${SYSTEM_PROMPT}
+
+Your previous reply was not valid JSON and could not be used. Reply with ONLY the JSON object — no markdown fences, no prose, no explanation. Keep the list short (at most 5 suggestions).`;
 
 /**
  * Build the { system, user } prompt for the AI call from a behaviour
@@ -87,10 +99,88 @@ export function validateSuggestion(raw) {
 }
 
 /**
+ * Scan text from `start` (which must point at '{' or '[') and return
+ * the smallest balanced span ending at the matching close bracket, or
+ * null when the brackets never balance (truncated reply). String-aware:
+ * braces inside "..." (and escaped quotes) never count. Pure.
+ */
+function balancedSpan(text, start) {
+  const open = text[start];
+  const close = open === '{' ? '}' : ']';
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') { inString = true; continue; }
+    if (ch === open) depth += 1;
+    else if (ch === close) {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+/**
+ * Candidate JSON substrings from a model reply, best first. A reply
+ * is often prose + a fenced block + trailing prose, or several JSON
+ * values in a row — the old first-'{' / last-'}' slice swallowed
+ * trailing braced prose and glued multiple objects together, which is
+ * how 4 consecutive live replies failed to parse (10 Nov 2026).
+ * Order: fenced-block bodies, then each balanced {…} / […] span in
+ * document order, then the whole trimmed reply. Pure.
+ */
+function extractJsonCandidates(text) {
+  const candidates = [];
+  const seen = new Set();
+  const push = (c) => {
+    const t = typeof c === 'string' ? c.trim() : '';
+    if (t && !seen.has(t)) { seen.add(t); candidates.push(t); }
+  };
+  const fenceRe = /```(?:json)?\s*\n?([\s\S]*?)```/gi;
+  let m;
+  while ((m = fenceRe.exec(text)) !== null) push(m[1]);
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch !== '{' && ch !== '[') continue;
+    const span = balancedSpan(text, i);
+    if (span) push(span);
+  }
+  push(text);
+  return candidates;
+}
+
+/**
+ * Parse one candidate, tolerating the trailing commas LLMs commonly
+ * emit (`{"a": 1,}` / `[1, 2,]`). Returns the parsed value, or
+ * null when neither the raw nor the repaired text parses.
+ */
+function tryParseJson(candidate) {
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    try {
+      return JSON.parse(candidate.replace(/,\s*([}\]])/g, '$1'));
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
  * Parse the model's reply into suggestions. Tolerant of a JSON object,
- * a bare JSON array, or prose wrapping the JSON. Drops any suggestion
- * whose title matches an already-found title (case-insensitive) and
- * dedupes by title. Pure — exported for unit tests.
+ * a bare JSON array, prose wrapping the JSON, markdown-fenced JSON,
+ * trailing prose that itself contains braces, several JSON values in
+ * one reply, and trailing commas. Drops any suggestion whose title
+ * matches an already-found title (case-insensitive) and dedupes by
+ * title. Pure — exported for unit tests.
  */
 export function parseAiSuggestions(text, foundTitles = []) {
   const out = { suggestions: [], parseOk: false };
@@ -98,20 +188,9 @@ export function parseAiSuggestions(text, foundTitles = []) {
     const raw = typeof text === 'string' ? text : '';
     if (!raw.trim()) return out;
     let parsed = null;
-    const attempts = [raw];
-    const objStart = raw.indexOf('{');
-    const objEnd = raw.lastIndexOf('}');
-    if (objStart >= 0 && objEnd > objStart) attempts.push(raw.slice(objStart, objEnd + 1));
-    const arrStart = raw.indexOf('[');
-    const arrEnd = raw.lastIndexOf(']');
-    if (arrStart >= 0 && arrEnd > arrStart) attempts.push(raw.slice(arrStart, arrEnd + 1));
-    for (const attempt of attempts) {
-      try {
-        parsed = JSON.parse(attempt);
-        break;
-      } catch {
-        // try the next extraction
-      }
+    for (const candidate of extractJsonCandidates(raw)) {
+      parsed = tryParseJson(candidate);
+      if (parsed !== null && parsed !== undefined) break;
     }
     if (parsed === null || parsed === undefined) return out;
     const list = Array.isArray(parsed) ? parsed : parsed.suggestions;
@@ -169,17 +248,20 @@ export async function runAiAnalysis(huntId, opts = {}) {
 
     const { system, user, foundTitles } = buildAiAnalysisPrompt(bundle);
     const callMeta = opts.metaCall || (await import('../brainProvider.js')).callMetaModel;
-    let r;
-    try {
-      r = await callMeta(
-        [{ role: 'user', text: user }],
-        system,
-        { huntId, purpose: 'scanner-ai-analysis' },
-        { model: AI_ANALYSIS_MODEL, maxTokens: 2000, timeoutMs: 90000 },
-      );
-    } catch {
-      r = { ok: false, reason: 'error' };
-    }
+    const callOnce = async (sys, maxTokens) => {
+      try {
+        return await callMeta(
+          [{ role: 'user', text: user }],
+          sys,
+          { huntId, purpose: 'scanner-ai-analysis' },
+          { model: AI_ANALYSIS_MODEL, maxTokens, timeoutMs: 90000 },
+        );
+      } catch {
+        return { ok: false, reason: 'error' };
+      }
+    };
+
+    let r = await callOnce(system, 2000);
 
     const createdAt = new Date().toISOString();
     if (!r || !r.ok) {
@@ -199,13 +281,37 @@ export async function runAiAnalysis(huntId, opts = {}) {
       return { ok: true, stored: false, analysis: doc };
     }
 
-    const { suggestions, parseOk } = parseAiSuggestions(r.text, foundTitles);
+    // The provider answered but the reply did not parse: ONE retry
+    // with a stricter prompt. Never more than one — the retry is a
+    // salvage attempt, not a loop.
+    let parsed = parseAiSuggestions(r.text, foundTitles);
+    let retried = false;
+    let unparsedReply = null;
+    if (!parsed.parseOk) {
+      retried = true;
+      unparsedReply = r.text;
+      const retry = await callOnce(RETRY_SYSTEM_PROMPT, AI_ANALYSIS_RETRY_MAX_TOKENS);
+      if (retry && retry.ok) {
+        parsed = parseAiSuggestions(retry.text, foundTitles);
+        if (!parsed.parseOk) unparsedReply = retry.text;
+      }
+    }
+
+    const { suggestions, parseOk } = parsed;
     const doc = {
       status: 'ok',
       provider: 'meta',
       model: AI_ANALYSIS_MODEL,
       suggestions,
-      ...(parseOk ? {} : { note: 'AI reply was not valid JSON — no suggestions extracted' }),
+      ...(retried ? { retried: true } : {}),
+      // On a persistent parse failure keep a short preview of the
+      // reply that failed, so the next failure is diagnosable from
+      // the stored doc instead of flying blind (the 4 live failures
+      // on 10 Nov 2026 left only the note behind).
+      ...(parseOk ? {} : {
+        note: 'AI reply was not valid JSON — no suggestions extracted',
+        rawReply: String(unparsedReply || r.text || '').slice(0, AI_ANALYSIS_RAW_REPLY_PREVIEW_CHARS),
+      }),
       createdAt,
     };
     try { writeAnalysis(doc); } catch { /* best-effort */ }
