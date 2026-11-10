@@ -9,6 +9,21 @@
 // probe block runs here instead: a fixed worker pool pulls phase tasks
 // off a queue with a bounded concurrency cap.
 //
+// That independence audit covered IN-PROCESS inputs only. It does NOT
+// cover shared SERVER-SIDE lab state: several phases log in as the
+// same labCreds account and write to its ONE basket (seed, mutate,
+// checkout). Running those concurrently lost a finding live on
+// 10 Nov 2026 — the parallel Juice re-proof finished 29/0 against
+// 30/0 sequential (proofs #38/#39): workflow-skip's control checkout
+// consumed the shared canary basket while basket-logic was
+// mid-mutation, so basket-logic's edge PUTs 404'd, its mutations
+// went 2 -> 0, and the negative-quantity finding never fired.
+// Phases that share one piece of lab state therefore declare the
+// same `exclusive` key; the runner serializes those phases against
+// each other while the rest of the pool still runs concurrently.
+// The key is a property of the shared RESOURCE, not of the probe —
+// any future phase that writes the lab basket joins the same key.
+//
 // Determinism contract (this is the whole point of the module):
 // - Results merge back in TASK order, never completion order. The
 //   confirmed-finding set — and the dedup first-wins winner, since
@@ -19,6 +34,11 @@
 //   once every earlier task has settled. The live hunt still sees
 //   progress, and result.phases keeps sequential order with the same
 //   object identity the onPhase listener received.
+// - Exclusive groups: tasks sharing an `exclusive` key never overlap
+//   — each waits for the previous holder of its key to finish before
+//   it starts. Tasks with different keys, and tasks with no key, still
+//   overlap freely up to the pool cap. A task that throws or times out
+//   releases its key, so one bad phase cannot wedge the group.
 // - One task failing (throw or timeout) never kills the scan: the
 //   failure is recorded as that task's outcome and the pool carries on.
 // - A task's teardown (OOB collaborator stop) runs after the task
@@ -70,11 +90,17 @@ function withTimeout(promise, ms) {
 
 // Run phase tasks with bounded concurrency.
 //
-// tasks: [{ name, run: () => Promise<value>, teardown?: () => Promise|void }]
+// tasks: [{ name, run: () => Promise<value>, teardown?: () => Promise|void, exclusive?: string }]
 //   run() must never throw for a probe failure — runScan's step body
 //   catches probe errors into its own outcome — but the runner treats a
 //   rejection as a task failure anyway, so a bug in a probe cannot
 //   wedge the pool either.
+//   exclusive: an opaque key naming a shared resource the task writes
+//   (e.g. one lab account's basket). Tasks sharing a key run strictly
+//   one at a time, in task order as workers claim them; a task with no
+//   key (or a key no other task uses) is unaffected. The lock is held
+//   across run() only — teardown (OOB collaborator stop) runs after
+//   release and never touches shared lab state.
 // opts: { concurrency, timeoutMs, onSettled }
 //   onSettled(outcome, index) is called in TASK order as the frontier
 //   advances; it must be synchronous (it runs inside the worker that
@@ -89,6 +115,25 @@ export async function runPhaseTasks(tasks, { concurrency, timeoutMs, onSettled }
   let next = 0;
   let nextEmit = 0;
 
+  // Per-key promise chains: each link resolves only when its holder
+  // releases the key, so waiters queue in claim order and the chain
+  // can never deadlock — a holder never waits on another key, and a
+  // waiter only waits on already-claimed tasks ahead of it. The map
+  // keeps one (resolved) promise per key after the scan; the chains
+  // are tiny (one link per exclusive task) and never grow unbounded
+  // within a scan.
+  const exclusiveChains = new Map();
+  const acquireExclusive = (key) => {
+    if (key == null || key === '') return null;
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    const prev = exclusiveChains.get(key) || Promise.resolve();
+    exclusiveChains.set(key, prev.then(() => gate));
+    return { prev, release };
+  };
+
   const emitReady = () => {
     if (typeof onSettled !== 'function') return;
     while (nextEmit < tasks.length && slots[nextEmit] !== null) {
@@ -101,7 +146,12 @@ export async function runPhaseTasks(tasks, { concurrency, timeoutMs, onSettled }
     const startedAt = new Date().toISOString();
     const startMs = Date.now();
     let outcome;
+    // The key is claimed synchronously here (before the first await),
+    // so two workers racing for one key cannot both think they hold
+    // it — the second one's `prev` is the first one's gate.
+    const held = task && task.exclusive != null && task.exclusive !== '' ? acquireExclusive(task.exclusive) : null;
     try {
+      if (held) await held.prev;
       const value =
         timeoutMs !== undefined && timeoutMs !== null
           ? await withTimeout(task.run(), timeoutMs)
@@ -128,9 +178,12 @@ export async function runPhaseTasks(tasks, { concurrency, timeoutMs, onSettled }
         durationMs: Date.now() - startMs,
       };
     } finally {
-      // Teardown is best-effort and never masks the outcome: a
-      // collaborator stop that throws is swallowed, exactly like the
-      // try/finally stops the sequential runner used.
+      // Release the exclusive key FIRST, even when run() threw or
+      // timed out — the next holder must not wait on a dead task —
+      // then run teardown. Teardown is best-effort and never masks
+      // the outcome: a collaborator stop that throws is swallowed,
+      // exactly like the try/finally stops the sequential runner used.
+      if (held) held.release();
       if (task && typeof task.teardown === 'function') {
         try {
           await task.teardown();

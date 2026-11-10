@@ -292,6 +292,103 @@ describe('runPhaseTasks equivalence', () => {
   });
 });
 
+describe('runPhaseTasks exclusive groups', () => {
+  it('tasks sharing an exclusive key never overlap; other keys and unkeyed tasks still run concurrently', async () => {
+    const spans = [];
+    const tracked = (name, ms, exclusive) => ({
+      name,
+      ...(exclusive ? { exclusive } : {}),
+      run: async () => {
+        const start = Date.now();
+        await sleep(ms);
+        spans.push({ name, start, end: Date.now() });
+        return name;
+      },
+    });
+    const tasks = [
+      tracked('basket-a', 30, 'lab-basket'),
+      tracked('basket-b', 30, 'lab-basket'),
+      tracked('other', 30, 'other-key'),
+      tracked('plain', 30),
+    ];
+    await runPhaseTasks(tasks, { concurrency: 4 });
+    assert.equal(spans.length, 4, 'every task must run exactly once');
+    const a = spans.find((s) => s.name === 'basket-a');
+    const b = spans.find((s) => s.name === 'basket-b');
+    assert.ok(b.start >= a.end, `same-key tasks overlapped: a [${a.start},${a.end}] b [${b.start},${b.end}]`);
+    // The pool still overlaps work across keys: at least one
+    // different-key task ran while a same-key task was running.
+    const overlaps = (x, y) => x.start < y.end && y.start < x.end;
+    const other = spans.find((s) => s.name === 'other');
+    const plain = spans.find((s) => s.name === 'plain');
+    assert.ok(
+      overlaps(other, a) || overlaps(plain, a),
+      'different-key tasks must still run concurrently with the exclusive group'
+    );
+  });
+
+  it('exclusive tasks still settle in task order', async () => {
+    const tasks = [
+      { name: 'a', exclusive: 'k', run: async () => { await sleep(30); return 'a'; } },
+      { name: 'b', exclusive: 'k', run: async () => 'b' },
+      { name: 'c', run: async () => 'c' },
+    ];
+    const seen = [];
+    const outcomes = await runPhaseTasks(tasks, { concurrency: 3, onSettled: (o) => seen.push(o.name) });
+    assert.deepEqual(seen, ['a', 'b', 'c']);
+    assert.deepEqual(outcomes.map((o) => o.name), ['a', 'b', 'c']);
+    assert.ok(outcomes.every((o) => o.ok));
+  });
+
+  it('a throwing exclusive task releases the key for the next holder', async () => {
+    let bRan = false;
+    const tasks = [
+      { name: 'a', exclusive: 'k', run: async () => { throw new Error('boom'); } },
+      { name: 'b', exclusive: 'k', run: async () => { bRan = true; return 'b'; } },
+    ];
+    const outcomes = await runPhaseTasks(tasks, { concurrency: 2 });
+    assert.equal(bRan, true, 'the next holder must run after a throwing holder releases the key');
+    assert.equal(outcomes[0].ok, false);
+    assert.match(outcomes[0].error, /boom/);
+    assert.equal(outcomes[1].ok, true);
+    assert.equal(outcomes[1].value, 'b');
+  });
+
+  it('a timed-out exclusive task releases the key for the next holder', async () => {
+    let bRan = false;
+    const tasks = [
+      { name: 'hung', exclusive: 'k', run: () => new Promise(() => {}) },
+      { name: 'b', exclusive: 'k', run: async () => { bRan = true; return 'b'; } },
+    ];
+    const started = Date.now();
+    const outcomes = await runPhaseTasks(tasks, { concurrency: 2, timeoutMs: 50 });
+    assert.ok(Date.now() - started < 2000, 'the pool must not wait on the hung task');
+    assert.equal(bRan, true, 'the next holder must run after a timed-out holder releases the key');
+    assert.equal(outcomes[0].ok, false);
+    assert.match(outcomes[0].error, /timeout/);
+    assert.equal(outcomes[1].ok, true);
+    assert.equal(outcomes[1].value, 'b');
+  });
+
+  it('an empty exclusive key behaves like no key (no serialisation)', async () => {
+    let peak = 0;
+    let active = 0;
+    const tasks = [0, 1].map((i) => ({
+      name: `t${i}`,
+      exclusive: '',
+      run: async () => {
+        active += 1;
+        peak = Math.max(peak, active);
+        await sleep(20);
+        active -= 1;
+        return i;
+      },
+    }));
+    await runPhaseTasks(tasks, { concurrency: 2 });
+    assert.equal(peak, 2, 'empty-key tasks must overlap like unkeyed tasks');
+  });
+});
+
 describe('resolvePhaseConcurrency', () => {
   it('defaults to 5, clamps to 1..16, ignores non-numeric input', () => {
     assert.equal(resolvePhaseConcurrency({}), DEFAULT_PHASE_CONCURRENCY);

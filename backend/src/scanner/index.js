@@ -1102,6 +1102,26 @@ export async function runScan(
   // identical to the old sequential run. The setup chain above stays
   // sequential (fingerprint → crawl → page-analyze → dom-render →
   // openapi/js-api-routes): each step feeds the next.
+  //
+  // EXCLUSIVE GROUP (10 Nov 2026 fix): independence above covers
+  // in-process inputs only. Six phases below log in as the SAME
+  // labCreds account and write to its ONE basket — basket-logic
+  // (seed / mutate / restore / checkout-tamper), workflow-skip
+  // (control checkout CONSUMES the basket by design), coupon-abuse
+  // (seed / coupon apply / checkout), business-flow-access (seed
+  // the victim basket), workflow-data-exposure (seed / checkout)
+  // and exceptional-conditions (basket add / update). Running them
+  // concurrently lost a finding live: the parallel Juice re-proof
+  // finished 29/0 vs 30/0 sequential because workflow-skip's
+  // checkout emptied the shared basket while basket-logic was
+  // mid-mutation (mutations 2 -> 0). Those six declare the same
+  // `exclusive` key, so the pool serializes them against each other
+  // while everything else still runs concurrently. The key names
+  // the shared RESOURCE, not the probes — any future phase that
+  // writes the lab basket joins this key. Read-only basket users
+  // (session-fixation T4b, quota-bypass, api-token-auth) stay out:
+  // concurrent reads cannot corrupt a mutation.
+  const LAB_BASKET = 'lab-basket';
   const probeTasks = [];
   const plan = (name, fn, getExtras, taskOpts = {}) => {
     if (!phases.includes(name)) return;
@@ -1109,6 +1129,7 @@ export async function runScan(
       name,
       run: () => executeStepBody(name, fn, getExtras),
       teardown: taskOpts.teardown,
+      exclusive: taskOpts.exclusive,
     });
   };
   // A gated skip is a plan entry too: its record is built at
@@ -2367,7 +2388,8 @@ export async function runScan(
       basketId: Boolean(blDiag.basketId),
       controlOk: Boolean(blDiag.controlOk),
       mutations: blDiag.mutations || 0,
-    })
+    }),
+    { exclusive: LAB_BASKET }
   );
   // WORKFLOW SKIP (8 Nov 2026, row #87 [High], WSTG-BUSL): the
   // out-of-order half of the basket-logic row family — checkout
@@ -2393,7 +2415,8 @@ export async function runScan(
       basketId: Boolean(wsDiag.basketId),
       controlOk: Boolean(wsDiag.controlOk),
       mutations: wsDiag.mutations || 0,
-    })
+    }),
+    { exclusive: LAB_BASKET }
   );
   // TWO-FA BRUTE-FORCE (8 Nov 2026, row #326 [High], CWE-307): a
   // short 2FA code with no attempt limit is enumerable — confirm
@@ -2545,7 +2568,8 @@ export async function runScan(
       controlOk: Boolean(bfaDiag.controlOk),
       attempts: bfaDiag.attempts || 0,
       bypassKind: bfaDiag.bypassKind || null,
-    })
+    }),
+    { exclusive: LAB_BASKET }
   );
   // COUPON ABUSE (9 Nov 2026, rows #78 [Medium] Coupon / Discount /
   // Referral Abuse and #371 [Medium] Logic — Coupon / voucher reuse
@@ -2576,7 +2600,8 @@ export async function runScan(
       controlOk: Boolean(couponDiag.controlOk),
       attempts: couponDiag.attempts || 0,
       bypassKind: couponDiag.bypassKind || null,
-    })
+    }),
+    { exclusive: LAB_BASKET }
   );
   // API TOKEN AUTH (9 Nov 2026, row #342 [High] API — Broken
   // authentication (token in URL / weak tokens), CWE-287 | OWASP
@@ -2912,7 +2937,8 @@ export async function runScan(
       controlOk: Boolean(wdeDiag.controlOk),
       stepsInspected: wdeDiag.stepsInspected || 0,
       exposedKind: wdeDiag.exposedKind || null,
-    })
+    }),
+    { exclusive: LAB_BASKET }
   );
   // EXCEPTIONAL CONDITIONS (9 Nov 2026, row #482 [Medium]
   // Mishandling of Exceptional Conditions, CWE-703 / CWE-636 |
@@ -2946,7 +2972,8 @@ export async function runScan(
       controlOk: Boolean(exceptionalDiag.controlOk),
       attempts: exceptionalDiag.attempts || 0,
       failOpenKind: exceptionalDiag.failOpenKind || null,
-    })
+    }),
+    { exclusive: LAB_BASKET }
   );
   plan('user-enumeration', () => probeUserEnum(forms, url, opts));
   plan('mass-assignment', () => probeMassAssignment(forms, url, { ...opts, labTargets }));
