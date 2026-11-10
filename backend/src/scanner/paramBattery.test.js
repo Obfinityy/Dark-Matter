@@ -42,12 +42,16 @@ function stubPage(html) {
 }
 
 describe('param battery skipped records (35/63 fix)', () => {
-  it('PARAM_BATTERY_PHASES is exactly the 30 loop phases, all in DEFAULT_PHASES', () => {
-    assert.equal(PARAM_BATTERY_PHASES.length, 30);
-    assert.equal(new Set(PARAM_BATTERY_PHASES).size, 30);
+  it('PARAM_BATTERY_PHASES is exactly the 31 loop phases, all in DEFAULT_PHASES', () => {
+    assert.equal(PARAM_BATTERY_PHASES.length, 31);
+    assert.equal(new Set(PARAM_BATTERY_PHASES).size, 31);
     for (const name of PARAM_BATTERY_PHASES) {
       assert.ok(DEFAULT_PHASES.includes(name), `${name} missing from DEFAULT_PHASES`);
     }
+    // 155 since 10 Nov 2026 (scout classes 479-515): 26 new phases
+    // — 'ssti-pebble' joins the battery as a loop phase (one record
+    // per param target); the other 25 join as standalone phases
+    // (see index.js wiring).
     // 87 since 8 Nov 2026 (DOM XSS sinks): 'dom-xss-sinks'
     // joins as a standalone gated phase (one record per scan, skipped
     // with 'no script targets' when the page carries no script).
@@ -281,6 +285,16 @@ describe('param battery skipped records (35/63 fix)', () => {
     // dynamic registration, refresh reuse, WebAuthn without
     // validation) with canary accounts; confirms only on
     // differential / state-change evidence).
+    // (147 since 10 Nov 2026 (scout classes 479-515): 17 new
+    // non-OAuth phases — 'ssti-pebble' joins the battery as a loop
+    // phase; xxe-xinclude, smuggling-cl-cl, smuggling-zero-cl,
+    // smuggling-h2-tunnel, hash-length-extension, ssrf-routing,
+    // ssrf-referer, referer-access-control, upload-race,
+    // upload-htaccess, graphql-relay, graphql-apq, graphql-defer,
+    // deep-link, webview-bridge and mcp-tool-poisoning join as
+    // standalone phases. The scout lane's nine OAuth-family phases
+    // are not in this tree: the merged oauth-lab phase already
+    // covers those rows.)
     // (97 since 9 Nov 2026 (BFLA): 'bfla' joins as a standalone
     // gated phase (one record per scan, always-run as an honest
     // no-op: no admin routes on a bare page; lab-gated, three-way
@@ -305,10 +319,10 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 130);
+    assert.equal(DEFAULT_PHASES.length, 147);
   });
 
-  it('zero param targets: all 30 param phases emit skipped records, rollup reports them', async () => {
+  it('zero param targets: all 31 param phases emit skipped records, rollup reports them', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -319,7 +333,7 @@ describe('param battery skipped records (35/63 fix)', () => {
         },
         { timeoutMs: 5000 }
       );
-      assert.equal(result.phases.length, 30);
+      assert.equal(result.phases.length, 31);
       assert.deepEqual(
         result.phases.map((p) => p.name),
         PARAM_BATTERY_PHASES
@@ -332,12 +346,12 @@ describe('param battery skipped records (35/63 fix)', () => {
         assert.equal(p.findingsCount, 0);
         assert.equal(p.durationMs, 0);
       }
-      // The rollup must NOT read this as a pass: 0 ok, 30 skipped.
+      // The rollup must NOT read this as a pass: 0 ok, 31 skipped.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 30,
+        total: 31,
         ok: 0,
         failed: 0,
-        skipped: 30,
+        skipped: 31,
         timedOut: 0,
       });
     } finally {
@@ -526,18 +540,33 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     })),
   ];
 
-  it('35/30 case renders the split with the shared skip reason — never 65/65 ok', () => {
+  it('35/31 case renders the split with the shared skip reason — never 66/66 ok', () => {
     const phases = skippedBattery();
     // Skipped records still carry ok:true by design (see skipPhase) — the
     // line must read the rollup's skipped count, never ok:true.
     assert.ok(phases.filter((p) => p.skipped).every((p) => p.ok === true));
     assert.equal(
       buildPhaseSummaryLine(phases),
-      'Phases: 35 ran ok, 30 skipped (no param targets), 0 failed, 0 timed out.'
+      'Phases: 35 ran ok, 31 skipped (no param targets), 0 failed, 0 timed out.'
     );
   });
 
-  // 81/48 since 10 Nov 2026 (API token auth + autocomplete + blind XPath + exceptional conditions + workflow data exposure + JWT sensitive claims + limit / quota bypass + document.domain relaxation + session timeout / remember-me + insecure provisioning + webrtc-leak + LLM tool misuse + excessive agency + output handling + misinformation + CSTI framework variants + weak password policy + business flow access + LLM prompt injection + LLM rate limit + training-data extraction + training-data poisoning + model extraction + multimodal prompt injection + membership inference + supply chain + service worker cache poisoning):
+  // 103/52 since 10 Nov 2026 (scout classes 479-515: ssti-pebble,
+  // xxe-xinclude, smuggling CL.CL / 0.CL / H2 tunnel, hash-length
+  // extension, ssrf-routing, ssrf-referer, referer-access-control,
+  // upload-race, upload-htaccess, graphql-relay / apq / defer, the
+  // nine OAuth-family phases, deep-link, webview-bridge,
+  // mcp-tool-poisoning — on top of the 81/48 from API token auth +
+  // autocomplete + blind XPath + exceptional conditions + workflow
+  // data exposure + JWT sensitive claims + limit / quota bypass +
+  // document.domain relaxation + session timeout / remember-me +
+  // insecure provisioning + webrtc-leak + LLM tool misuse +
+  // excessive agency + output handling + misinformation + CSTI
+  // framework variants + weak password policy + business flow
+  // access + LLM prompt injection + LLM rate limit +
+  // training-data extraction + training-data poisoning + model
+  // extraction + multimodal prompt injection + membership
+  // inference + supply chain + service worker cache poisoning):
   // 'api-token-auth' adds a 59th ok record (always-run as an honest
   // no-op: no token-param routes and no lab login on a bare page)
   // and 'autocomplete' adds a 60th ok record (always-run as an
@@ -657,7 +686,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // 44/33 before xml-injection and untrusted-js-inclusion;
   // 46/34 before session-token-in-url; 47/34 before credential-disclosure;
   // 48/34 before sqli-oob.)
-  it('real runScan on a bare page renders the 81/47 line end to end', async () => {
+  it('real runScan on a bare page renders the 103/52 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -669,15 +698,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 130,
-        ok: 82,
+        total: 147,
+        ok: 95,
         failed: 0,
-        skipped: 48,
+        skipped: 52,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 82 ran ok, 48 skipped, 0 failed, 0 timed out.'
+        'Phases: 95 ran ok, 52 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
