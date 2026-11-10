@@ -42,6 +42,25 @@
 // leftover out-of-stock item resets the canary (clear, re-seed,
 // retry once) before bailing. Every early bail records bailStage
 // in diagnostics, so the phase record names the stage that failed.
+//
+// CLOSE-OUT — rows #80 + #83 (10 Nov 2026, feasible-remainder
+// lane; DO NOT re-attempt): both rows were tried deterministically
+// by this probe and did not fire on any lab. #80: the 2^53-1 edge
+// (HUGE_QTY) runs in the same invocation as the -1 / 0 edges —
+// proof #41 (Juice hunt h_6dd46e1c2e8f, 30/0 PASS) confirmed the
+// -1 title in that invocation, so the huge-quantity edge
+// necessarily executed in it and did not confirm: Juice's
+// quantityCheck refuses quantities above stock with 400, so the
+// huge-quantity PUT never lands, and the total never wraps.
+// #83: the tampered-checkout POST runs in the same invocation
+// right after the restore — it executed on Juice in proof #41 and
+// the order total was not the tampered amount. No new oracle
+// exists for either row: an overflow that never wraps and a
+// checkout that ignores the tampered price leave nothing further
+// to observe black-box. Both rows stay tried-and-negative; only a
+// future lab with a wrapping ledger or a trusting checkout could
+// reopen them.
+//
 // Findings are class 'business_logic' — the default confirmation
 // protocol judges them on signalCorrelated (see differential.js).
 
