@@ -7,7 +7,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  AI_ANALYSIS_FIRST_MAX_TOKENS,
+  AI_ANALYSIS_RETRY_MAX_TOKENS,
   buildAiAnalysisPrompt,
+  diagnoseParseFailure,
+  looksTruncated,
   parseAiSuggestions,
   runAiAnalysis,
   validateSuggestion,
@@ -315,4 +319,154 @@ test('no retry when the provider itself fails (ai-unavailable)', async () => {
   assert.equal(calls, 1);
   assert.equal(r.analysis.status, 'ai-unavailable');
   assert.equal(r.analysis.retried, undefined);
+});
+
+// --- round 2 (10 Nov 2026): proof #43 proved the round-1 fix failed
+// live — BOTH calls hit their output-token caps EXACTLY (first 2000,
+// retry 1200, per costs.json), so both replies were truncated mid-JSON
+// and no parser could parse them. Round 2 makes truncation unlikely
+// (compact prompt, retry cap never tighter than the first call) AND
+// survivable (truncated-JSON salvage + string repair), and stores the
+// FULL failed reply so the next failure is diagnosable. ---
+
+// Verbatim proof-#43 shape: suggestion 1 complete, suggestion 2 cut
+// mid-verification-string at the token cap (the stored 1000-char
+// preview ends "...then re-attempt admin-o"). Salvage must recover
+// suggestion 1 and drop the cut-off suggestion 2.
+function proof43TruncatedReply() {
+  const first = {
+    title: "Reflected XSS in parameter 'q' on search endpoint",
+    class: 'xss',
+    severity: 'high',
+    reasoning: "Parameter 'q' on /rest/products/search is proven injectable (SQL error and XPath boolean divergence) and app has dense DOM XSS sinks (innerHTML x22, bypassSecurityTrustHtml x9) with no CSP to blunt exploitation, yet reflected XSS phases returned 0.",
+    verification: 'GET /rest/products/search?q=<svg onload=alert(1)> and / with benign value; verify unescaped reflection in HTML/JSON rendered via innerHTML sink and confirm script execution in headless DOM.',
+  };
+  return '{"suggestions":[' + JSON.stringify(first)
+    + ',{"title":"Mass assignment to admin role at registration","class":"mass_assignment","severity":"high","reasoning":"Freshly registered account can call admin-only function and BFLA allows low-privilege admin endpoint access, implying role/privilege field may be controllable during registration.","verification":"Register with extra fields role:admin, isAdmin:true, admin:true in registration body; then re-attempt admin-o';
+}
+
+function suggestion(title) {
+  return { title, class: 'xss', severity: 'high', reasoning: 'r', verification: 'v' };
+}
+
+test('round2: truncated proof-#43 reply salvages the complete suggestion', () => {
+  const { suggestions, parseOk, salvaged } = parseAiSuggestions(proof43TruncatedReply());
+  assert.equal(parseOk, true);
+  assert.equal(salvaged, true);
+  assert.equal(suggestions.length, 1);
+  assert.equal(suggestions[0].title, "Reflected XSS in parameter 'q' on search endpoint");
+});
+
+test('round2: truncation after two complete suggestions returns both', () => {
+  const text = '{"suggestions":['
+    + JSON.stringify(suggestion('First complete suggestion here')) + ','
+    + JSON.stringify(suggestion('Second complete suggestion here')) + ','
+    + '{"title": "Third cut off mid reasoning", "class": "xss", "severity": "high", "reasoning": "starts but never fin';
+  const { suggestions, parseOk, salvaged } = parseAiSuggestions(text);
+  assert.equal(parseOk, true);
+  assert.equal(salvaged, true);
+  assert.equal(suggestions.length, 2);
+  assert.equal(suggestions[1].title, 'Second complete suggestion here');
+});
+
+test('round2: complete suggestions with the closing brackets missing are recovered', () => {
+  const text = '{"suggestions":['
+    + JSON.stringify(suggestion('First complete suggestion here')) + ','
+    + JSON.stringify(suggestion('Second complete suggestion here')) + '}';
+  const { suggestions, parseOk, salvaged } = parseAiSuggestions(text);
+  assert.equal(parseOk, true);
+  assert.equal(salvaged, true);
+  assert.equal(suggestions.length, 2);
+});
+
+test('round2: raw newline inside a string value is repaired and parses', () => {
+  const text = '{"suggestions": [{"title": "Multi-line reasoning survives", "class": "xss", "severity": "high", "reasoning": "first line\nsecond line", "verification": "v"}]}';
+  const { suggestions, parseOk } = parseAiSuggestions(text);
+  assert.equal(parseOk, true);
+  assert.equal(suggestions.length, 1);
+  assert.equal(suggestions[0].title, 'Multi-line reasoning survives');
+});
+
+test('round2: unescaped quotes inside a string value are repaired and parse', () => {
+  const text = '{"suggestions": [{"title": "Quoted words survive", "class": "xss", "severity": "high", "reasoning": "the page echoes "hello" back to the user", "verification": "v"}]}';
+  const { suggestions, parseOk } = parseAiSuggestions(text);
+  assert.equal(parseOk, true);
+  assert.equal(suggestions.length, 1);
+  assert.equal(suggestions[0].title, 'Quoted words survive');
+});
+
+test('round2: diagnoseParseFailure reports the error and flags truncation', () => {
+  const d = diagnoseParseFailure(proof43TruncatedReply());
+  assert.match(d.error, /end of JSON input|unterminated string/i);
+  assert.equal(d.truncated, true);
+  assert.equal(d.length, proof43TruncatedReply().length);
+  assert.equal(looksTruncated('{"suggestions": [{"title": "Whole reply here", "class": "xss", "severity": "low", "reasoning": "r", "verification": "v"}]}'), false);
+  assert.equal(looksTruncated('still prose, still no JSON anywhere'), false);
+  assert.equal(diagnoseParseFailure('still prose, still no JSON anywhere').truncated, false);
+});
+
+test('round2: truncated first reply is salvaged with NO retry', async () => {
+  const store = memoryStore();
+  store.setBehaviour(bundle());
+  let calls = 0;
+  const metaCall = async () => {
+    calls += 1;
+    return { ok: true, text: proof43TruncatedReply() };
+  };
+  const r = await runAiAnalysis('h_ai_1', { metaCall, ...store });
+  assert.equal(calls, 1);
+  assert.equal(r.analysis.suggestions.length, 1);
+  assert.equal(r.analysis.salvaged, true);
+  assert.equal(r.analysis.retried, undefined);
+});
+
+test('round2: unsalvageable first reply, salvageable retry, is recovered', async () => {
+  const store = memoryStore();
+  store.setBehaviour(bundle());
+  let calls = 0;
+  const metaCall = async () => {
+    calls += 1;
+    if (calls === 1) return { ok: true, text: '{"suggestions": [{"title": "Cut off mid reply", "class": "xss", "severity": "high", "reasoning": "r", "verif' };
+    return { ok: true, text: proof43TruncatedReply() };
+  };
+  const r = await runAiAnalysis('h_ai_1', { metaCall, ...store });
+  assert.equal(calls, 2);
+  assert.equal(r.analysis.retried, true);
+  assert.equal(r.analysis.salvaged, true);
+  assert.equal(r.analysis.suggestions.length, 1);
+  assert.equal(r.analysis.suggestions[0].title, "Reflected XSS in parameter 'q' on search endpoint");
+});
+
+test('round2: both replies unparseable stores the FULL raw reply + parse error', async () => {
+  const store = memoryStore();
+  store.setBehaviour(bundle());
+  const bad = '{"suggestions": [{"title": "Cut off mid reply", "class": "xss", "severity": "high", "reasoning": "r", "verif' + 'x'.repeat(1500);
+  let calls = 0;
+  const metaCall = async () => {
+    calls += 1;
+    return { ok: true, text: bad };
+  };
+  const r = await runAiAnalysis('h_ai_1', { metaCall, ...store });
+  assert.equal(calls, 2);
+  assert.deepEqual(r.analysis.suggestions, []);
+  assert.equal(r.analysis.rawReply, bad); // FULL reply, not a 1000-char preview
+  assert.equal(r.analysis.rawReply.length, bad.length);
+  assert.equal(r.analysis.rawReplyPreview, bad.slice(0, 1000));
+  assert.equal(r.analysis.rawReplyLength, bad.length);
+  assert.equal(r.analysis.truncated, true);
+  assert.match(r.analysis.parseError, /end of JSON input|unterminated string/i);
+});
+
+test('round2: retry uses the same token cap as the first call, never tighter', async () => {
+  const store = memoryStore();
+  store.setBehaviour(bundle());
+  const caps = [];
+  const metaCall = async (_messages, _sys, _meta, opts) => {
+    caps.push(opts && opts.maxTokens);
+    return { ok: true, text: 'still prose, still no JSON anywhere' };
+  };
+  const r = await runAiAnalysis('h_ai_1', { metaCall, ...store });
+  assert.deepEqual(caps, [AI_ANALYSIS_FIRST_MAX_TOKENS, AI_ANALYSIS_RETRY_MAX_TOKENS]);
+  assert.equal(AI_ANALYSIS_RETRY_MAX_TOKENS, AI_ANALYSIS_FIRST_MAX_TOKENS);
+  assert.equal(r.analysis.retried, true);
 });
