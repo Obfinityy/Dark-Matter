@@ -23,15 +23,30 @@ import { dataDir } from './store.js';
 
 const LEGACY_SALT = 'dark-matter-plugin-salt-v1';
 
+// Reads the persisted salt, or null when there is none. A zero-length
+// (or whitespace-only) salt file is not a salt: it is removed so the
+// generate-and-write path below can succeed instead of tripping over
+// EEXIST on every boot and falling back to an ephemeral salt.
+function readPersistedSalt(file) {
+  let content;
+  try {
+    content = fs.readFileSync(file, 'utf8');
+  } catch {
+    return null; // missing, unreadable, or a directory in the way
+  }
+  const salt = content.trim();
+  if (salt) return salt;
+  try { fs.unlinkSync(file); } catch { /* best-effort: the write below surfaces real failures */ }
+  return null;
+}
+
 function loadOrGenerateSalt() {
   const file = path.join(dataDir(), '.plugin-salt');
-  try {
-    const existing = fs.readFileSync(file, 'utf8').trim();
-    if (existing) {
-      try { fs.chmodSync(file, 0o600); } catch { /* best-effort */ }
-      return { salt: existing, persisted: true };
-    }
-  } catch { /* no persisted salt: generate one */ }
+  const existing = readPersistedSalt(file);
+  if (existing) {
+    try { fs.chmodSync(file, 0o600); } catch { /* best-effort */ }
+    return { salt: existing, persisted: true };
+  }
   const generated = crypto.randomBytes(16).toString('hex');
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -39,9 +54,14 @@ function loadOrGenerateSalt() {
     return { salt: generated, persisted: true };
   } catch (err) {
     if (err && err.code === 'EEXIST') {
+      // Lost a race: another process created the salt first. An empty
+      // winner file is cleaned up by readPersistedSalt, so retry the
+      // write once before giving up on persistence.
+      const winner = readPersistedSalt(file);
+      if (winner) return { salt: winner, persisted: true };
       try {
-        const winner = fs.readFileSync(file, 'utf8').trim();
-        if (winner) return { salt: winner, persisted: true };
+        fs.writeFileSync(file, generated, { flag: 'wx', mode: 0o600 });
+        return { salt: generated, persisted: true };
       } catch { /* fall through to ephemeral */ }
     }
   }
@@ -80,7 +100,11 @@ function resolveMasterKey() {
   const key = crypto.pbkdf2Sync(raw, salt, 210000, 32, 'sha256');
   // Legacy decrypt fallback for keys encrypted with the old fixed salt.
   const legacyKey = crypto.pbkdf2Sync(raw, LEGACY_SALT, 210000, 32, 'sha256');
-  return { key, ephemeral: false, legacyKey };
+  // A passphrase stretched with an unpersisted salt is effectively
+  // ephemeral: the salt is discarded, so this key will not survive a
+  // restart. Report that, so isEphemeralMasterKey() agrees with the
+  // boot warning above instead of claiming the key is durable.
+  return { key, ephemeral: !persisted, legacyKey };
 }
 
 const { key: MASTER_KEY, ephemeral: EPHEMERAL_KEY, legacyKey: LEGACY_KEY } = resolveMasterKey();
