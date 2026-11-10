@@ -214,6 +214,56 @@ describe('param battery skipped records (35/63 fix)', () => {
     // control registration first, then trivial passwords; confirms
     // only when a trivial password registers on the same route the
     // control succeeded on).
+    // (122 since 10 Nov 2026 (LLM rate limit / unbounded
+    // consumption): 'llm-rate-limit' joins as a standalone gated
+    // phase (one record per scan, always-run as an honest no-op:
+    // no labCreds on a bare page; lab-gated, control chat first,
+    // then 12 identical chat POSTs + 4 identical tool POSTs in
+    // rapid succession; confirms only when every burst answer is
+    // granted with no throttle signal).
+    // (123 since 10 Nov 2026 (LLM training-data extraction):
+    // 'llm-training-data' joins as a standalone gated phase (one
+    // record per scan, always-run as an honest no-op: no labCreds
+    // on a bare page; lab-gated, learns canary tokens at runtime
+    // from /api/rag, then prompts for the planted key and customer
+    // record; confirms only on verbatim regurgitation of a canary
+    // token).
+    // (124 since 10 Nov 2026 (LLM training-data poisoning):
+    // 'llm-training-poisoning' joins as a standalone gated phase
+    // (one record per scan, always-run as an honest no-op: no
+    // labCreds on a bare page; lab-gated, benign control must call
+    // no tool, then prompts for the internal notes; confirms only
+    // when the reply carries a readFile toolCall with the poisoned
+    // doc's content folded into the completion — partial surface:
+    // the stub has no training step).
+    // (125 since 10 Nov 2026 (LLM model extraction):
+    // 'llm-model-extraction' joins as a standalone gated phase
+    // (one record per scan, always-run as an honest no-op: no
+    // labCreds on a bare page; lab-gated, reads the model card and
+    // attempts extraction twice; true negative by design — the
+    // stub carries no weights — confirms only on a weights
+    // disclosure).
+    // (126 since 10 Nov 2026 (LLM multimodal prompt injection):
+    // 'llm-multimodal' joins as a standalone gated phase (one
+    // record per scan, always-run as an honest no-op: no labCreds
+    // on a bare page; lab-gated, inventories the index page and
+    // model card for media endpoints, then sends image + audio
+    // data-URI prompts; unprovable on this lab — the stub treats
+    // both as text — confirms only on a media-triggered injection).
+    // (127 since 10 Nov 2026 (LLM membership inference):
+    // 'llm-membership-inference' joins as a standalone gated phase
+    // (one record per scan, always-run as an honest no-op: no
+    // labCreds on a bare page; lab-gated, records determinism and
+    // the absence of confidence signals; no finding branch by
+    // design — RAG membership is directly observable, not
+    // inferable).
+    // (128 since 10 Nov 2026 (LLM supply chain):
+    // 'llm-supply-chain' joins as a standalone gated phase (one
+    // record per scan, always-run as an honest no-op: no labCreds
+    // on a bare page; lab-gated, inventories the model card and
+    // index page for plugin/download/registry markers; true
+    // negative by design — no third-party model surface on this
+    // lab).
     // (97 since 9 Nov 2026 (BFLA): 'bfla' joins as a standalone
     // gated phase (one record per scan, always-run as an honest
     // no-op: no admin routes on a bare page; lab-gated, three-way
@@ -238,7 +288,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 121);
+    assert.equal(DEFAULT_PHASES.length, 128);
   });
 
   it('zero param targets: all 30 param phases emit skipped records, rollup reports them', async () => {
@@ -507,8 +557,20 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // record (always-run as an honest no-op: no basket routes on a
   // bare page), and 'llm-injection' adds a 74th ok record
   // (always-run as an honest no-op: no LLM chat endpoint on a bare
-  // page), so the bare-page line reads 74 ran ok,
-  // 47 skipped.
+  // page), and 'llm-rate-limit' adds a 75th ok record (always-run
+  // as an honest no-op: no labCreds on a bare page), and
+  // 'llm-training-data' adds a 76th ok record (always-run as an
+  // honest no-op: no labCreds on a bare page), and
+  // 'llm-training-poisoning' adds a 77th ok record (always-run as
+  // an honest no-op: no labCreds on a bare page), and
+  // 'llm-model-extraction' adds a 78th ok record (always-run as an
+  // honest no-op: no labCreds on a bare page), and 'llm-multimodal'
+  // adds a 79th ok record (always-run as an honest no-op: no
+  // labCreds on a bare page), and 'llm-membership-inference' adds
+  // an 80th ok record (always-run as an honest no-op: no labCreds
+  // on a bare page), and 'llm-supply-chain' adds an 81st ok record
+  // (always-run as an honest no-op: no labCreds on a bare page),
+  // so the bare-page line reads 81 ran ok, 47 skipped.
   // 58/40 since 9 Nov 2026 (coupon abuse): 'coupon-abuse' adds a
   // 58th ok record (always-run as an honest no-op: no coupon routes
   // on a bare page), so the bare-page line reads 58 ran ok, 40 skipped.
@@ -575,7 +637,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // 44/33 before xml-injection and untrusted-js-inclusion;
   // 46/34 before session-token-in-url; 47/34 before credential-disclosure;
   // 48/34 before sqli-oob.)
-  it('real runScan on a bare page renders the 74/47 line end to end', async () => {
+  it('real runScan on a bare page renders the 81/47 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -587,15 +649,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 121,
-        ok: 74,
+        total: 128,
+        ok: 81,
         failed: 0,
         skipped: 47,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 74 ran ok, 47 skipped, 0 failed, 0 timed out.'
+        'Phases: 81 ran ok, 47 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

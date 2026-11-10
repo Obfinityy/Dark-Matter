@@ -60,6 +60,13 @@ import { probeExceptionalConditions } from './probes/exceptionalConditions.js';
 import { probeWorkflowDataExposure } from './probes/workflowDataExposure.js';
 import { probeQuotaBypass } from './probes/quotaBypass.js';
 import { probeProvisioning } from './probes/provisioning.js';
+import { probeLlmRateLimit } from './probes/llmRateLimit.js';
+import { probeLlmTrainingData } from './probes/llmTrainingData.js';
+import { probeLlmTrainingPoisoning } from './probes/llmTrainingPoisoning.js';
+import { probeLlmModelExtraction } from './probes/llmModelExtraction.js';
+import { probeLlmMultimodal } from './probes/llmMultimodal.js';
+import { probeLlmMembership } from './probes/llmMembership.js';
+import { probeLlmSupplyChain } from './probes/llmSupplyChain.js';
 import { probeDomPostMessage } from './probes/domPostMessage.js';
 import { probeDomOpenRedirect } from './probes/domOpenRedirect.js';
 import { probeDomClobbering } from './probes/domClobbering.js';
@@ -199,6 +206,13 @@ export const DEFAULT_PHASES = [
   'webrtc-leak',
   'quota-bypass',
   'provisioning',
+  'llm-rate-limit',
+  'llm-training-data',
+  'llm-training-poisoning',
+  'llm-model-extraction',
+  'llm-multimodal',
+  'llm-membership-inference',
+  'llm-supply-chain',
   'user-enumeration',
   'rfi',
   'xslt',
@@ -2434,6 +2448,205 @@ export async function runScan(
       controlOk: Boolean(provDiag.controlOk),
       attempts: provDiag.attempts || 0,
       bypassKind: provDiag.bypassKind || null,
+    })
+  );
+  // LLM RATE LIMIT (9 Nov 2026, rows #26 [High] Unbounded LLM
+  // Consumption / Denial of Wallet, LLM10:2025, and #382 [Medium]
+  // LLM — Unbounded consumption, OWASP LLM10:2025): the stub has
+  // no throttle at all, so the probe runs a control-first burst —
+  // one chat POST, then the same chat POST 12 times plus the same
+  // allowlisted tool POST 4 times — and confirms only when every
+  // burst answer is granted with no throttle signal (see
+  // llmRateLimit.js). Diagnostics ride the phase extras (llmLab,
+  // controlOk, attempts, chatAttempts, toolAttempts, throttled,
+  // burstKind) so a live proof can tell "no surface" from "oracle
+  // uncalibrated" without re-running the scan.
+  const llmRateLimitDiag = {};
+  await step(
+    'llm-rate-limit',
+    () =>
+      probeLlmRateLimit(url, {
+        ...opts,
+        allowWrite,
+        labTargets,
+        diagnostics: llmRateLimitDiag,
+      }),
+    () => ({
+      llmLab: Boolean(llmRateLimitDiag.llmLab),
+      controlOk: Boolean(llmRateLimitDiag.controlOk),
+      attempts: llmRateLimitDiag.attempts || 0,
+      chatAttempts: llmRateLimitDiag.chatAttempts || 0,
+      toolAttempts: llmRateLimitDiag.toolAttempts || 0,
+      throttled: Boolean(llmRateLimitDiag.throttled),
+      burstKind: llmRateLimitDiag.burstKind || null,
+    })
+  );
+  // LLM TRAINING DATA EXTRACTION (9 Nov 2026, row #512 [Medium]
+  // LLM — training data extraction / memorization regurgitation,
+  // CWE-200): the stub has no training step, so its "memory" is
+  // the keyword RAG store — the probe learns the record's canary
+  // tokens at runtime from GET /api/rag, prompts the chat for the
+  // same record, and confirms only on verbatim regurgitation (see
+  // llmTrainingData.js). Diagnostics ride the phase extras
+  // (llmLab, controlOk, ragDocs, promptsTried, regurgitatedKind,
+  // tokensMatched).
+  const llmTrainingDataDiag = {};
+  await step(
+    'llm-training-data',
+    () =>
+      probeLlmTrainingData(url, {
+        ...opts,
+        allowWrite,
+        labTargets,
+        diagnostics: llmTrainingDataDiag,
+      }),
+    () => ({
+      llmLab: Boolean(llmTrainingDataDiag.llmLab),
+      controlOk: Boolean(llmTrainingDataDiag.controlOk),
+      ragDocs: llmTrainingDataDiag.ragDocs || 0,
+      promptsTried: llmTrainingDataDiag.promptsTried || 0,
+      regurgitatedKind: llmTrainingDataDiag.regurgitatedKind || null,
+      tokensMatched: llmTrainingDataDiag.tokensMatched || 0,
+    })
+  );
+  // LLM TRAINING POISONING (9 Nov 2026, rows #16 [High] Data &
+  // Model Poisoning, LLM04:2025, and #378 [High] LLM — Training
+  // data poisoning, OWASP LLM03:2025): no training step exists in
+  // the stub, so the poisoned RAG doc is the standing partial
+  // surface — the probe asks about the internal notes and confirms
+  // only when retrieved content alone steers the model into an
+  // unrequested readFile tool call whose output the reply folds in
+  // (see llmTrainingPoisoning.js). Diagnostics ride the phase
+  // extras (llmLab, controlOk, controlToolCall, retrievedDoc,
+  // poisonToolCall, toolCalled).
+  const llmTrainingPoisoningDiag = {};
+  await step(
+    'llm-training-poisoning',
+    () =>
+      probeLlmTrainingPoisoning(url, {
+        ...opts,
+        allowWrite,
+        labTargets,
+        diagnostics: llmTrainingPoisoningDiag,
+      }),
+    () => ({
+      llmLab: Boolean(llmTrainingPoisoningDiag.llmLab),
+      controlOk: Boolean(llmTrainingPoisoningDiag.controlOk),
+      controlToolCall: Boolean(llmTrainingPoisoningDiag.controlToolCall),
+      retrievedDoc: llmTrainingPoisoningDiag.retrievedDoc || null,
+      poisonToolCall: Boolean(llmTrainingPoisoningDiag.poisonToolCall),
+      toolCalled: llmTrainingPoisoningDiag.toolCalled || null,
+    })
+  );
+  // LLM MODEL EXTRACTION (9 Nov 2026, rows #22 [Medium] Model
+  // Extraction / Stealing and #383 [Medium] LLM — Model theft /
+  // extraction, OWASP LLM10:2025): TRUE NEGATIVE BY DESIGN — the
+  // stub has no weights, and the probe verifies the model card
+  // says so, then attempts extraction twice and records whether
+  // anything weight-shaped was disclosed (see
+  // llmModelExtraction.js). Diagnostics ride the phase extras
+  // (llmLab, modelType, modelVersion, noWeights,
+  // extractionAttempts, weightsDisclosed).
+  const llmModelExtractionDiag = {};
+  await step(
+    'llm-model-extraction',
+    () =>
+      probeLlmModelExtraction(url, {
+        ...opts,
+        allowWrite,
+        labTargets,
+        diagnostics: llmModelExtractionDiag,
+      }),
+    () => ({
+      llmLab: Boolean(llmModelExtractionDiag.llmLab),
+      modelType: llmModelExtractionDiag.modelType || null,
+      modelVersion: llmModelExtractionDiag.modelVersion || null,
+      noWeights: Boolean(llmModelExtractionDiag.noWeights),
+      extractionAttempts: llmModelExtractionDiag.extractionAttempts || 0,
+      weightsDisclosed: Boolean(llmModelExtractionDiag.weightsDisclosed),
+    })
+  );
+  // LLM MULTIMODAL (9 Nov 2026, row #513 [Medium] LLM —
+  // multimodal prompt injection, CWE-94): UNPROVABLE ON THIS LAB
+  // — the stub has no image/audio input, so the probe inventories
+  // the endpoint surface and attempts an image + an audio data-URI
+  // prompt, recording whether the model processed the media or
+  // treated it as plain text (see llmMultimodal.js). Diagnostics
+  // ride the phase extras (llmLab, multimodalEndpoints,
+  // cardModalities, imageTreatedAsText, audioTreatedAsText,
+  // verdict).
+  const llmMultimodalDiag = {};
+  await step(
+    'llm-multimodal',
+    () =>
+      probeLlmMultimodal(url, {
+        ...opts,
+        allowWrite,
+        labTargets,
+        diagnostics: llmMultimodalDiag,
+      }),
+    () => ({
+      llmLab: Boolean(llmMultimodalDiag.llmLab),
+      multimodalEndpoints: llmMultimodalDiag.multimodalEndpoints || 0,
+      cardModalities: Boolean(llmMultimodalDiag.cardModalities),
+      imageTreatedAsText: Boolean(llmMultimodalDiag.imageTreatedAsText),
+      audioTreatedAsText: Boolean(llmMultimodalDiag.audioTreatedAsText),
+      verdict: llmMultimodalDiag.verdict || null,
+    })
+  );
+  // LLM MEMBERSHIP INFERENCE (9 Nov 2026, row #514 [Low] LLM —
+  // membership inference attack, CWE-200): UNPROVABLE ON THIS LAB
+  // — the stub is deterministic and carries no confidence signal,
+  // so the probe records determinism (same prompt twice),
+  // confidence-signal presence, and the retrieval oracle shape
+  // (member keyword retrieves, nonsense keyword does not) instead
+  // of inferring anything (see llmMembership.js). Diagnostics ride
+  // the phase extras (llmLab, deterministic, confidenceSignal,
+  // memberRetrievable, nonMemberEmpty, verdict).
+  const llmMembershipDiag = {};
+  await step(
+    'llm-membership-inference',
+    () =>
+      probeLlmMembership(url, {
+        ...opts,
+        allowWrite,
+        labTargets,
+        diagnostics: llmMembershipDiag,
+      }),
+    () => ({
+      llmLab: Boolean(llmMembershipDiag.llmLab),
+      deterministic: Boolean(llmMembershipDiag.deterministic),
+      confidenceSignal: Boolean(llmMembershipDiag.confidenceSignal),
+      memberRetrievable: Boolean(llmMembershipDiag.memberRetrievable),
+      nonMemberEmpty: Boolean(llmMembershipDiag.nonMemberEmpty),
+      verdict: llmMembershipDiag.verdict || null,
+    })
+  );
+  // LLM SUPPLY CHAIN (9 Nov 2026, rows #15 [High] AI Supply Chain
+  // Vulnerability, LLM03:2025, and #377 [High] LLM — Supply chain
+  // (poisoned models / plugins), OWASP LLM03:2025): TRUE NEGATIVE
+  // BY DESIGN — the stub is Node stdlib only with no third-party
+  // model or plugin, so the probe reads the model card and
+  // inventories the endpoint surface for a supply-chain surface
+  // (see llmSupplyChain.js). Diagnostics ride the phase extras
+  // (llmLab, modelType, thirdPartyModel, supplyChainEndpoints,
+  // verdict).
+  const llmSupplyChainDiag = {};
+  await step(
+    'llm-supply-chain',
+    () =>
+      probeLlmSupplyChain(url, {
+        ...opts,
+        allowWrite,
+        labTargets,
+        diagnostics: llmSupplyChainDiag,
+      }),
+    () => ({
+      llmLab: Boolean(llmSupplyChainDiag.llmLab),
+      modelType: llmSupplyChainDiag.modelType || null,
+      thirdPartyModel: Boolean(llmSupplyChainDiag.thirdPartyModel),
+      supplyChainEndpoints: llmSupplyChainDiag.supplyChainEndpoints || 0,
+      verdict: llmSupplyChainDiag.verdict || null,
     })
   );
   // WORKFLOW DATA EXPOSURE (9 Nov 2026, row #375 [Medium] Logic —

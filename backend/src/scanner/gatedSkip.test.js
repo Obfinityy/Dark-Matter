@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 121/74/47 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 128/81/47 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -320,24 +320,39 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // as an honest no-op alongside them (no basket routes on a
       // bare page — 10 Nov 2026, 120th phase), and llm-injection
       // RUNS as an honest no-op alongside them (no LLM chat endpoint
-      // on a bare page — 10 Nov 2026, 121st phase).
+      // on a bare page — 10 Nov 2026, 121st phase), and llm-rate-limit
+      // RUNS as an honest no-op alongside them (no labCreds on a
+      // bare page — 10 Nov 2026, 122nd phase), and llm-training-data
+      // RUNS as an honest no-op alongside them (no labCreds on a
+      // bare page — 10 Nov 2026, 123rd phase), and
+      // llm-training-poisoning RUNS as an honest no-op alongside
+      // them (no labCreds on a bare page — 10 Nov 2026, 124th
+      // phase), and llm-model-extraction RUNS as an honest no-op
+      // alongside them (no labCreds on a bare page — 10 Nov 2026,
+      // 125th phase), and llm-multimodal RUNS as an honest no-op
+      // alongside them (no labCreds on a bare page — 10 Nov 2026,
+      // 126th phase), and llm-membership-inference RUNS as an
+      // honest no-op alongside them (no labCreds on a bare page —
+      // 10 Nov 2026, 127th phase), and llm-supply-chain RUNS as an
+      // honest no-op alongside them (no labCreds on a bare page —
+      // 10 Nov 2026, 128th phase).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 121,
-        ok: 74,
+        total: 128,
+        ok: 81,
         failed: 0,
         skipped: 47,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 74 ran ok, 47 skipped, 0 failed, 0 timed out.'
+        'Phases: 81 ran ok, 47 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 151/151/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 158/158/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -405,7 +420,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // 7 Nov 2026 —
       // all twenty run here because param targets exist and the shell
       // carries a script bundle), and the two discovery phases now RUN
-      // instead of skipping — 141 total, 141 ok, 0 skipped
+      // instead of skipping — 158 total, 158 ok, 0 skipped
       // (basket-logic, the 88th phase, runs as an honest no-op here:
       // the Juice-shape stub carries no basket routes, and
       // workflow-skip, the 89th phase, runs as an honest no-op
@@ -490,17 +505,38 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // runs, and llm-injection, the 121st phase, runs as an honest
       // no-op alongside them for the same reason: the stub carries
       // no labCreds, so the lab gate fails before the fingerprint
-      // runs.
+      // runs, and llm-rate-limit, the 122nd phase, runs as an
+      // honest no-op alongside them for the same reason: the stub
+      // carries no labCreds, so the lab gate fails before the mine
+      // runs, and llm-training-data, the 123rd phase, runs as an
+      // honest no-op alongside them for the same reason: the stub
+      // carries no labCreds, so the lab gate fails before the mine
+      // runs, and llm-training-poisoning, the 124th phase, runs as
+      // an honest no-op alongside them for the same reason: the
+      // stub carries no labCreds, so the lab gate fails before the
+      // mine runs, and llm-model-extraction, the 125th phase, runs
+      // as an honest no-op alongside them for the same reason: the
+      // stub carries no labCreds, so the lab gate fails before the
+      // mine runs, and llm-multimodal, the 126th phase, runs as an
+      // honest no-op alongside them for the same reason: the stub
+      // carries no labCreds, so the lab gate fails before the mine
+      // runs, and llm-membership-inference, the 127th phase, runs
+      // as an honest no-op alongside them for the same reason: the
+      // stub carries no labCreds, so the lab gate fails before the
+      // mine runs, and llm-supply-chain, the 128th phase, runs as
+      // an honest no-op alongside them for the same reason: the
+      // stub carries no labCreds, so the lab gate fails before the
+      // mine runs.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 151,
-        ok: 151,
+        total: 158,
+        ok: 158,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 151 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 158 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -706,7 +742,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 121);
+      assert.equal(DEFAULT_PHASES.length, 128);
     } finally {
       teardown();
     }
