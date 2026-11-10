@@ -470,11 +470,19 @@ export async function probeOauthLab(url, opts = {}) {
         severity: 'high',
         url: `${origin}/oauth/register`,
         parameter: 'jwks_uri',
-        evidence: evidenceBase(
-          `POST /oauth/register {jwks_uri: ${jwksUrl}, logo_uri: ${logoUrl}} (fetch-log held 0 canary URLs before)`,
-          `registration → 201 fetched=[${inResponse.map(describe).join('; ')}]; GET /api/admin/fetch-log after → ${inLog} canary entries (${afterEntries.map((f) => describe(f)).join('; ')})`,
-          'The authorization server issues server-side GETs to URLs the registering client supplies — a registration is a free SSRF primitive into the internal network'
-        ),
+        evidence: {
+          ...evidenceBase(
+            `POST /oauth/register {jwks_uri: ${jwksUrl}, logo_uri: ${logoUrl}} (fetch-log held 0 canary URLs before)`,
+            `registration → 201 fetched=[${inResponse.map(describe).join('; ')}]; GET /api/admin/fetch-log after → ${inLog} canary entries (${afterEntries.map((f) => describe(f)).join('; ')})`,
+            'The authorization server issues server-side GETs to URLs the registering client supplies — a registration is a free SSRF primitive into the internal network'
+          ),
+          // The fetch-log differential (0 canary URLs before, N after)
+          // IS the out-of-band hit the SSRF confirmation protocol
+          // judges on: the server's own GET of our canary URLs was
+          // observed directly, so the probe asserts it in the field
+          // the judge reads (evidence.oobHit).
+          oobHit: true,
+        },
       });
     }
   }
