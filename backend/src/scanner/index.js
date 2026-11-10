@@ -11,6 +11,7 @@ import { crawl, extractParams, extractForms, normalizeScanScope, siteMaxUrls } f
 import { extractProbePoints, buildCoverageExtras, probePointParameter } from './probePoints.js';
 import { analyzePage, planForPage, mergePageAnalyses } from './pageAnalyze.js';
 import { groupFindingsByRoute } from './routeGroup.js';
+import { runPhaseTasks, resolvePhaseConcurrency } from './parallel.js';
 import { probeHeaders } from './probes/headers.js';
 import { probeSqliError } from './probes/sqliError.js';
 import { probeBlindSqli } from './probes/sqliBlind.js';
@@ -456,8 +457,13 @@ export async function runScan(
     }
   };
 
-  const step = async (name, fn, getExtras) => {
-    if (!phases.includes(name)) return;
+  // executeStepBody is the per-phase execution core shared by the
+  // sequential step() (setup chain) and the parallel probe plan: run
+  // the probe, catch its failure into the record, build the record.
+  // It touches NO shared scan state — the caller merges the returned
+  // findings/error/record — so the same body serves both paths and a
+  // parallel run cannot drift from the sequential one.
+  const executeStepBody = async (name, fn, getExtras) => {
     const startedAt = new Date().toISOString();
     const startMs = Date.now();
     let ok = true;
@@ -465,13 +471,11 @@ export async function runScan(
     let result;
     try {
       result = await fn();
-      if (Array.isArray(result)) all.push(...result);
     } catch (e) {
       // A throwing step is recorded ok:false WITH its error message — it
       // must NOT vanish into errors[] alone (nothing persisted errors[]).
       ok = false;
       error = e && e.message ? String(e.message) : String(e);
-      errors.push(`${name}: ${error}`);
       result = null;
     }
     let extras = {};
@@ -494,6 +498,14 @@ export async function runScan(
       findingsCount: Array.isArray(result) ? result.length : 0,
       ...extras,
     };
+    return { result, record, ok, error };
+  };
+
+  const step = async (name, fn, getExtras) => {
+    if (!phases.includes(name)) return;
+    const { result, record, error } = await executeStepBody(name, fn, getExtras);
+    if (Array.isArray(result)) all.push(...result);
+    if (error) errors.push(`${name}: ${error}`);
     emitPhase(record);
     return result;
   };
@@ -1042,7 +1054,53 @@ export async function runScan(
     skipPhase('js-api-routes', 'param targets already exist');
   }
 
-  await step('headers', () => (fp ? probeHeaders({ url, headers: fp.headers }) : []));
+  // PARALLEL PROBE PLAN (10 Nov 2026): the probe phases below are
+  // independent given the setup inputs — no probe reads another
+  // probe's findings and none mutates the shared inputs — so they
+  // run concurrently in a bounded pool (runPhaseTasks) instead of
+  // one-by-one. plan()/planSkip() only ENQUEUE a task; nothing runs
+  // here. The pool executes after the last plan entry (nuclei) and
+  // merges outcomes in TASK order, so the confirmed-finding set,
+  // the dedup first-wins winner, and the phase-record order are
+  // identical to the old sequential run. The setup chain above stays
+  // sequential (fingerprint → crawl → page-analyze → dom-render →
+  // openapi/js-api-routes): each step feeds the next.
+  const probeTasks = [];
+  const plan = (name, fn, getExtras, taskOpts = {}) => {
+    if (!phases.includes(name)) return;
+    probeTasks.push({
+      name,
+      run: () => executeStepBody(name, fn, getExtras),
+      teardown: taskOpts.teardown,
+    });
+  };
+  // A gated skip is a plan entry too: its record is built at
+  // execution time so skipped phases keep their task-order slot in
+  // result.phases (paramBattery.test.js asserts the full 30-name
+  // battery order even when every phase is skipped).
+  const planSkip = (name, reason) => {
+    if (!phases.includes(name)) return;
+    probeTasks.push({
+      name,
+      run: async () => {
+        const now = new Date().toISOString();
+        const record = {
+          name,
+          startedAt: now,
+          finishedAt: now,
+          durationMs: 0,
+          ok: true,
+          skipped: true,
+          skipReason: reason,
+          error: null,
+          findingsCount: 0,
+        };
+        return { result: [], record, ok: true, error: null };
+      },
+    });
+  };
+
+  plan('headers', () => (fp ? probeHeaders({ url, headers: fp.headers }) : []));
   // UNTRUSTED JS INCLUSION (7 Nov 2026, row #98): the page loads
   // executable JavaScript from a cross-origin host that is neither
   // same-origin nor a trusted CDN, with no SRI hash pinning the code.
@@ -1050,7 +1108,7 @@ export async function runScan(
   // zero extra requests, never fetches the script itself (see
   // untrustedJsInclusion.js). Never re-fires the generic missing-SRI
   // finding (headers phase owns that).
-  await step('untrusted-js-inclusion', () => (fp ? probeUntrustedJsInclusion({ url, html: fp.body }) : []));
+  plan('untrusted-js-inclusion', () => (fp ? probeUntrustedJsInclusion({ url, html: fp.body }) : []));
   // API VERSIONING (7 Nov 2026, row #343): an API version still live
   // after it was superseded or explicitly deprecated (Deprecation /
   // Sunset header, or two+ versions of one base responding) — old
@@ -1059,7 +1117,7 @@ export async function runScan(
   // (jsRoutes/openapi-mined /api and /rest paths); a single live
   // version never fires, /api vs /rest are different surfaces, and
   // a 410 is correctly retired (see apiVersioning.js).
-  await step('api-versioning', () => probeApiVersioning(url, scanTargets, opts));
+  plan('api-versioning', () => probeApiVersioning(url, scanTargets, opts));
   // SESSION TOKEN IN URL (7 Nov 2026, rows #265/#321): a session
   // identifier placed in a URL (CWE-598) leaks via Referer, logs,
   // history, and shared links (CWE-359). Inspects the scan's URLs
@@ -1074,7 +1132,7 @@ export async function runScan(
   // action URL itself carries a token-like session value (Java EE
   // `;jsessionid=` rewriting) would otherwise fire on that
   // synthesized target.
-  await step('session-token-in-url', () =>
+  plan('session-token-in-url', () =>
     probeSessionTokenInUrl(
       url,
       scanTargets.map((u) => ({ url: u, source: scanTargetProvenance.get(u) || 'unknown' })),
@@ -1096,7 +1154,7 @@ export async function runScan(
   // actions) — a POST form's GET conversion or any other synthesized
   // target can only carry scanner filler values, never a real
   // credential (DVWA proof h_d3c0deb50847 fired on exactly that).
-  await step('credential-disclosure', () =>
+  plan('credential-disclosure', () =>
     probeCredentialDisclosure(
       url,
       scanTargets.map((u) => ({ url: u, source: scanTargetProvenance.get(u) || 'unknown' })),
@@ -1114,7 +1172,7 @@ export async function runScan(
   // in v1. DVWA's login page carries exactly that weaker set (verified
   // live 7 Nov ~21:05 IST), so the DVWA proof leg is expected to be 1
   // real [Medium] finding, not a true negative (see sensitiveCache.js).
-  await step('sensitive-cache', () =>
+  plan('sensitive-cache', () =>
     probeSensitiveCache(url, fp ? fp.headers : {}, fp ? fp.body : '', opts)
   );
   // 35/63 FIX: track whether the param battery ran at all. If no scan
@@ -1129,9 +1187,9 @@ export async function runScan(
   // (see probePoints.buildCoverageExtras). A probe that never
   // reports leaves pointsAttempted null ("not reported"), never an
   // invented number.
-  const batteryStep = async (name, fn, points) => {
+  const batteryStep = (name, fn, points) => {
     const diag = {};
-    await step(
+    plan(
       name,
       () => fn({ ...opts, diagnostics: diag }),
       () => buildCoverageExtras(diag, points)
@@ -1148,17 +1206,17 @@ export async function runScan(
     // Stack gate input (9 Nov 2026, Zerodha FP fix): the error-SQLi
     // probe needs the fingerprinted tech so an engine-specific error
     // contradicting the stack (postgres on WordPress) never confirms.
-    await batteryStep('sqli-error', (o) => probeSqliError(u, points, { ...o, tech: fp?.tech }), points);
-    await batteryStep('sqli-blind', (o) =>
+    batteryStep('sqli-error', (o) => probeSqliError(u, points, { ...o, tech: fp?.tech }), points);
+    batteryStep('sqli-blind', (o) =>
       probeBlindSqli(u, points, { ...o, dbHint: fp?.dbHint }), points);
-    await batteryStep('hpp', (o) => probeHpp(u, points, { ...o, labTargets }), points);
-    await batteryStep('csv-log-injection', (o) => probeCsvLog(u, points, o), points);
-    await batteryStep('xss', (o) => probeXssReflected(u, points, o), points);
-    await batteryStep('nosqli', (o) => probeNoSqli(u, points, o), points);
-    await batteryStep('nosql-deep', (o) => probeNoSqlDeep(u, points, o), points);
-    await batteryStep('ldapi', (o) => probeLdapInjection(u, points, { ...o, stack: fp?.tech }), points);
-    await batteryStep('ldap-blind', (o) => probeLdapBlind(u, points, { ...o, stack: fp?.tech }), points);
-    await batteryStep('xpathi', (o) => probeXpathInjection(u, points, o), points);
+    batteryStep('hpp', (o) => probeHpp(u, points, { ...o, labTargets }), points);
+    batteryStep('csv-log-injection', (o) => probeCsvLog(u, points, o), points);
+    batteryStep('xss', (o) => probeXssReflected(u, points, o), points);
+    batteryStep('nosqli', (o) => probeNoSqli(u, points, o), points);
+    batteryStep('nosql-deep', (o) => probeNoSqlDeep(u, points, o), points);
+    batteryStep('ldapi', (o) => probeLdapInjection(u, points, { ...o, stack: fp?.tech }), points);
+    batteryStep('ldap-blind', (o) => probeLdapBlind(u, points, { ...o, stack: fp?.tech }), points);
+    batteryStep('xpathi', (o) => probeXpathInjection(u, points, o), points);
     // BLIND XPATH INJECTION (9 Nov 2026, row #479 [High], CWE-643):
     // the sink evaluates injected XPath but suppresses engine
     // errors and caps the result set, so xpathi's widening/error
@@ -1170,7 +1228,7 @@ export async function runScan(
     // blindXpath.js. Diagnostics ride the phase extras so a live
     // proof can tell "no oracle" from "oracle without witness".
     const blindXpathDiag = {};
-    await step(
+    plan(
       'blind-xpath',
       () =>
         probeBlindXpath(u, points, {
@@ -1195,31 +1253,31 @@ export async function runScan(
     // signature absent from the benign response (see
     // xmlInjection.js). No DOCTYPE/entity payloads (xxe owns
     // those), no entity-expansion bombs (DoS-class, excluded).
-    await batteryStep('xml-injection', (o) => probeXmlInjection(u, points, o), points);
-    await batteryStep('ssi', (o) => probeSsiInjection(u, points, o), points);
-    await batteryStep('cmdi', (o) => probeCmdiTime(u, points, o), points);
-    await batteryStep('traversal', (o) => probeTraversal(u, points, o), points);
-    await batteryStep('rfi', (o) => probeRfi(u, points, { ...o, labTargets }), points);
-    await batteryStep('xslt', (o) => probeXslt(u, points, { ...o, labTargets }), points);
-    await batteryStep('eval-injection', (o) => probeEvalInject(u, points, o), points);
-    await batteryStep('jsonp', (o) => probeJsonp(u, points, o), points);
-    await batteryStep('rpo', (o) => probeRpo(u, points, o), points);
-    await batteryStep('tabnabbing', (o) => probeTabnabbing(u, o), points);
-    await batteryStep('dangling-markup', (o) => probeDanglingMarkup(u, points, o), points);
-    await batteryStep('padding-oracle', (o) => probePaddingOracle(u, o), points);
-    await batteryStep('arg-injection', (o) => probeArgInjection(u, points, o), points);
-    await batteryStep('ssti', (o) => probeSsti(u, points, o), points);
-    await batteryStep('el-injection', (o) => probeElInject(u, points, { ...o, stack: fp?.tech }), points);
-    await batteryStep('ognl-injection', (o) => probeOgnlInject(u, points, o), points);
-    await batteryStep('redirect', (o) => probeOpenRedirect(u, points, o), points);
-    await batteryStep('crlf', (o) => probeCrlf(u, points, o), points);
-    await batteryStep('ssrf', (o) => probeSsrf(u, points, o), points);
+    batteryStep('xml-injection', (o) => probeXmlInjection(u, points, o), points);
+    batteryStep('ssi', (o) => probeSsiInjection(u, points, o), points);
+    batteryStep('cmdi', (o) => probeCmdiTime(u, points, o), points);
+    batteryStep('traversal', (o) => probeTraversal(u, points, o), points);
+    batteryStep('rfi', (o) => probeRfi(u, points, { ...o, labTargets }), points);
+    batteryStep('xslt', (o) => probeXslt(u, points, { ...o, labTargets }), points);
+    batteryStep('eval-injection', (o) => probeEvalInject(u, points, o), points);
+    batteryStep('jsonp', (o) => probeJsonp(u, points, o), points);
+    batteryStep('rpo', (o) => probeRpo(u, points, o), points);
+    batteryStep('tabnabbing', (o) => probeTabnabbing(u, o), points);
+    batteryStep('dangling-markup', (o) => probeDanglingMarkup(u, points, o), points);
+    batteryStep('padding-oracle', (o) => probePaddingOracle(u, o), points);
+    batteryStep('arg-injection', (o) => probeArgInjection(u, points, o), points);
+    batteryStep('ssti', (o) => probeSsti(u, points, o), points);
+    batteryStep('el-injection', (o) => probeElInject(u, points, { ...o, stack: fp?.tech }), points);
+    batteryStep('ognl-injection', (o) => probeOgnlInject(u, points, o), points);
+    batteryStep('redirect', (o) => probeOpenRedirect(u, points, o), points);
+    batteryStep('crlf', (o) => probeCrlf(u, points, o), points);
+    batteryStep('ssrf', (o) => probeSsrf(u, points, o), points);
   }
   // 35/63 FIX: no param-bearing target existed, so the whole injection
   // battery was skipped in silence. Emit one skipped record per phase so
   // the audit trail (and the rollup) shows the gap instead of a clean pass.
   if (!paramBatteryRan) {
-    for (const name of PARAM_BATTERY_PHASES) skipPhase(name, 'no param targets');
+    for (const name of PARAM_BATTERY_PHASES) planSkip(name, 'no param targets');
   }
   // VERB TAMPERING (7 Nov 2026, rows #167 + #35): replay each GET probe
   // target with PUT/DELETE/PATCH/HEAD (empty bodies). The targets are
@@ -1284,8 +1342,12 @@ export async function runScan(
   // the collaborator) — the extras name exactly which points were
   // attempted and which the cap skipped.
   let sqliOobCoverage = {};
-  try {
-    await step('sqli-oob', async () => {
+  // The OOB collaborator stops via the task teardown (after the pool
+  // runs this phase), not in a finally here — a finally would stop it
+  // at plan time, before the phase ever executes.
+  plan(
+    'sqli-oob',
+    async () => {
       const findings = [];
       const allPairs = [];
       for (const u of verbTargets) {
@@ -1311,16 +1373,14 @@ export async function runScan(
         );
       }
       return findings;
-    }, () => sqliOobCoverage);
-  } finally {
-    if (sqliOob) {
-      try { await sqliOob.stop(); } catch { /* stop is best-effort */ }
-    }
-  }
+    },
+    () => sqliOobCoverage,
+    { teardown: sqliOob ? () => sqliOob.stop() : undefined }
+  );
   if (verbTargets.length > 0) {
-    await step('verb-tampering', () => probeVerbTampering(verbTargets, { ...opts, allowWrite }));
+    plan('verb-tampering', () => probeVerbTampering(verbTargets, { ...opts, allowWrite }));
   } else {
-    skipPhase('verb-tampering', 'no probe targets');
+    planSkip('verb-tampering', 'no probe targets');
   }
   // METHOD OVERRIDE + CONTENT-TYPE CONFUSION (7 Nov 2026, rows #387
   // + #388): same GET probe targets as verb-tampering (reused —
@@ -1331,11 +1391,11 @@ export async function runScan(
   // instead of vanishing (gated-skip pattern). allowWrite is the lab
   // gate: without it the probe sends nothing at all.
   if (verbTargets.length > 0 || postForms.length > 0) {
-    await step('method-override', () =>
+    plan('method-override', () =>
       probeMethodOverride(verbTargets, postForms, { ...opts, allowWrite })
     );
   } else {
-    skipPhase('method-override', 'no probe targets');
+    planSkip('method-override', 'no probe targets');
   }
   // SECRETS IN CLIENT-SIDE JS (7 Nov 2026, row #179): scan the
   // page's same-origin script bundles + inline <script> blocks for
@@ -1380,14 +1440,14 @@ export async function runScan(
       ? crawled.pages.map((p) => `<!-- site-crawl page: ${p.url} -->\n${p.body || ''}`).join('\n')
       : null;
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
-    await step('secrets-in-js', () =>
+    plan('secrets-in-js', () =>
       probeSecretsInJs(url, secretTargets, {
         ...opts,
         ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
       })
     );
   } else {
-    skipPhase('secrets-in-js', 'no script targets');
+    planSkip('secrets-in-js', 'no script targets');
   }
   // BROWSER STORAGE (7 Nov 2026, row #97): sensitive data written
   // to localStorage / sessionStorage in the page's own JS bundles or
@@ -1404,14 +1464,14 @@ export async function runScan(
   // DVWA serves no storage writes, so its leg is expected to be a
   // true negative (see browserStorage.js).
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
-    await step('browser-storage', () =>
+    plan('browser-storage', () =>
       probeBrowserStorage(url, secretTargets, {
         ...opts,
         ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
       })
     );
   } else {
-    skipPhase('browser-storage', 'no script targets');
+    planSkip('browser-storage', 'no script targets');
   }
   // AUTOCOMPLETE (9 Nov 2026, row #483 [Low] Autocomplete enabled on
   // sensitive fields, CWE-200 / CWE-525 | OWASP WSTG v4.2): a password,
@@ -1431,7 +1491,7 @@ export async function runScan(
   // carries no inputs, so its leg is expected to be a true negative.
   const acDiag = {};
   if (pageBody && typeof pageBody === 'string') {
-    await step(
+    plan(
       'autocomplete',
       () =>
         probeAutocomplete(url, sitePageBody || pageBody, {
@@ -1445,7 +1505,7 @@ export async function runScan(
       })
     );
   } else {
-    skipPhase('autocomplete', 'no page body');
+    planSkip('autocomplete', 'no page body');
   }
   // DOM XSS SINKS (8 Nov 2026, row #115): the app's own first-party
   // JS renders data through a DOM sink — Angular's
@@ -1468,14 +1528,14 @@ export async function runScan(
   // (CSTI) is NOT claimed: these are DOM XSS sinks, not template
   // injection — no template expression is evaluated from user input.
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
-    await step('dom-xss-sinks', () =>
+    plan('dom-xss-sinks', () =>
       probeDomXssSinks(url, secretTargets, {
         ...opts,
         ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
       })
     );
   } else {
-    skipPhase('dom-xss-sinks', 'no script targets');
+    planSkip('dom-xss-sinks', 'no script targets');
   }
   // DOM XSS VIA LOCATION.HASH (9 Nov 2026, row #275 [High] CWE-79):
   // dom-xss-sinks fingerprints sinks statically; this phase goes one
@@ -1491,7 +1551,7 @@ export async function runScan(
   // is a proven true negative with no drive at all.
   const lhDiag = {};
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
-    await step(
+    plan(
       'dom-xss-location-hash',
       () =>
         probeDomXssLocationHash(url, secretTargets, {
@@ -1509,7 +1569,7 @@ export async function runScan(
       })
     );
   } else {
-    skipPhase('dom-xss-location-hash', 'no script targets');
+    planSkip('dom-xss-location-hash', 'no script targets');
   }
   // DOM XSS VIA POSTMESSAGE (9 Nov 2026, row #274 [High] CWE-79):
   // dom-xss-sinks fingerprints sinks statically and
@@ -1531,7 +1591,7 @@ export async function runScan(
   // drive at all.
   const pmDiag = {};
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
-    await step(
+    plan(
       'dom-postmessage',
       () =>
         probeDomPostMessage(url, secretTargets, {
@@ -1549,7 +1609,7 @@ export async function runScan(
       })
     );
   } else {
-    skipPhase('dom-postmessage', 'no script targets');
+    planSkip('dom-postmessage', 'no script targets');
   }
   // CLIENT-SIDE TEMPLATE INJECTION (9 Nov 2026, row #190 [High]
   // CWE-79): dom-xss-sinks fingerprints sinks statically and
@@ -1572,7 +1632,7 @@ export async function runScan(
   // negative with no drive at all.
   const cstiDiag = {};
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
-    await step(
+    plan(
       'csti',
       () =>
         probeCsti(url, secretTargets, {
@@ -1590,7 +1650,7 @@ export async function runScan(
       })
     );
   } else {
-    skipPhase('csti', 'no script targets');
+    planSkip('csti', 'no script targets');
   }
   // CSTI FRAMEWORK VARIANTS (9 Nov 2026, rows #452–#455 [High]
   // CWE-94/CWE-79): the #190 probe mines for ANY runtime template
@@ -1614,7 +1674,7 @@ export async function runScan(
   // outside the lab gate; framework presence alone never fires.
   const cstiFwDiag = {};
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
-    await step(
+    plan(
       'csti-frameworks',
       () =>
         probeCstiFrameworks(url, secretTargets, {
@@ -1637,7 +1697,7 @@ export async function runScan(
       })
     );
   } else {
-    skipPhase('csti-frameworks', 'no script targets');
+    planSkip('csti-frameworks', 'no script targets');
   }
   // CAPTCHA BYPASS (9 Nov 2026, row #40 [Medium] Technique (no
   // single CVE) | OWASP A07:2021): mines first-party code for
@@ -1655,7 +1715,7 @@ export async function runScan(
   // finding — it would double-count credential stuffing (#42).
   const capDiag = {};
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
-    await step(
+    plan(
       'captcha',
       () =>
         probeCaptcha(url, secretTargets, {
@@ -1678,7 +1738,7 @@ export async function runScan(
       })
     );
   } else {
-    skipPhase('captcha', 'no script targets');
+    planSkip('captcha', 'no script targets');
   }
   // CSS INJECTION (9 Nov 2026, row #194 [Medium] CWE-79): the
   // served page itself is the primary surface — an inline `style`
@@ -1703,7 +1763,7 @@ export async function runScan(
   // The probe needs no apiRoutes — it navigates the pasted page
   // URL only and fetches the page's own script bundles.
   const cssDiag = {};
-  await step(
+  plan(
     'css-injection',
     () =>
       probeCssInjection(url, secretTargets, {
@@ -1745,7 +1805,7 @@ export async function runScan(
   // the page's own script bundles.
   const mxssDiag = {};
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
-    await step(
+    plan(
       'mutation-xss',
       () =>
         probeMutationXss(url, secretTargets, {
@@ -1764,7 +1824,7 @@ export async function runScan(
       })
     );
   } else {
-    skipPhase('mutation-xss', 'no script targets');
+    planSkip('mutation-xss', 'no script targets');
   }
   // DOM-BASED OPEN REDIRECTION (9 Nov 2026, row #91 [Medium]
   // CWE-601): dom-xss-sinks fingerprints sinks statically and the
@@ -1787,7 +1847,7 @@ export async function runScan(
   // drive at all.
   const orDiag = {};
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
-    await step(
+    plan(
       'dom-open-redirect',
       () =>
         probeDomOpenRedirect(url, secretTargets, {
@@ -1805,7 +1865,7 @@ export async function runScan(
       })
     );
   } else {
-    skipPhase('dom-open-redirect', 'no script targets');
+    planSkip('dom-open-redirect', 'no script targets');
   }
   // DOM CLOBBERING (9 Nov 2026, row #89 [Medium] Technique (no
   // single CVE) | PortSwigger DOM): this phase mines first-party
@@ -1827,7 +1887,7 @@ export async function runScan(
   // true negative with no drive at all.
   const clobDiag = {};
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
-    await step(
+    plan(
       'dom-clobbering',
       () =>
         probeDomClobbering(url, secretTargets, {
@@ -1846,7 +1906,7 @@ export async function runScan(
       })
     );
   } else {
-    skipPhase('dom-clobbering', 'no script targets');
+    planSkip('dom-clobbering', 'no script targets');
   }
   // DOM-BASED COOKIE MANIPULATION (9 Nov 2026, row #90 [Medium]
   // Technique (no single CVE) | PortSwigger DOM): this phase mines
@@ -1869,7 +1929,7 @@ export async function runScan(
   // negative with no drive at all.
   const ckDiag = {};
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
-    await step(
+    plan(
       'dom-cookie-manipulation',
       () =>
         probeDomCookieManipulation(url, secretTargets, {
@@ -1889,7 +1949,7 @@ export async function runScan(
       })
     );
   } else {
-    skipPhase('dom-cookie-manipulation', 'no script targets');
+    planSkip('dom-cookie-manipulation', 'no script targets');
   }
   // DOCUMENT.DOMAIN RELAXATION (9 Nov 2026, row #484 [Low] SOP —
   // document.domain relaxation, CWE-668): dom-xss-sinks fingerprints
@@ -1906,7 +1966,7 @@ export async function runScan(
   // from "assignments that do not relax" without re-running.
   const ddDiag = {};
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
-    await step(
+    plan(
       'document-domain',
       () =>
         probeDocumentDomain(url, secretTargets, {
@@ -1922,7 +1982,7 @@ export async function runScan(
       })
     );
   } else {
-    skipPhase('document-domain', 'no script targets');
+    planSkip('document-domain', 'no script targets');
   }
   // WEBRTC LOCAL IP LEAKAGE (9 Nov 2026, row #459 [Low] Browser —
   // WebRTC local IP leakage, CWE-200): drive the pasted page in a
@@ -1941,7 +2001,7 @@ export async function runScan(
   // can tell "no candidates gathered" (uncalibrated) from
   // "gathered and clean" without re-running the scan.
   const wrDiag = {};
-  await step(
+  plan(
     'webrtc-leak',
     () =>
       probeWebrtcLeak(url, {
@@ -1974,7 +2034,7 @@ export async function runScan(
   // never served the poison" without re-running.
   const swDiag = {};
   if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
-    await step(
+    plan(
       'sw-cache-poisoning',
       () =>
         probeSwCachePoisoning(url, secretTargets, {
@@ -1994,7 +2054,7 @@ export async function runScan(
       })
     );
   } else {
-    skipPhase('sw-cache-poisoning', 'no script targets');
+    planSkip('sw-cache-poisoning', 'no script targets');
   }
   // ERROR DISCLOSURE (7 Nov 2026, rows #175 + #176): trigger
   // errors with read-only GETs on the same GET probe targets as
@@ -2006,9 +2066,9 @@ export async function runScan(
   // scan target carries a probe point the phase records a skip
   // instead of vanishing (gated-skip pattern).
   if (verbTargets.length > 0) {
-    await step('error-disclosure', () => probeErrorDisclosure(verbTargets, opts));
+    plan('error-disclosure', () => probeErrorDisclosure(verbTargets, opts));
   } else {
-    skipPhase('error-disclosure', 'no probe targets');
+    planSkip('error-disclosure', 'no probe targets');
   }
   // INPUT VALIDATION (7 Nov 2026, rows #436–#440): crafted values
   // on the same GET probe targets as verb-tampering (integer
@@ -2022,7 +2082,7 @@ export async function runScan(
   // scan target carries a probe point and no form exists the phase
   // records a skip instead of vanishing (gated-skip pattern).
   if (verbTargets.length > 0 || forms.length > 0) {
-    await step('validation', () =>
+    plan('validation', () =>
       probeValidation(verbTargets, forms, {
         ...opts,
         allowWrite,
@@ -2031,7 +2091,7 @@ export async function runScan(
       })
     );
   } else {
-    skipPhase('validation', 'no probe targets');
+    planSkip('validation', 'no probe targets');
   }
   // FINGERPRINT / BANNER DISCLOSURE (7 Nov 2026, row #183): the
   // pasted page's own response headers plus a 404 trigger per
@@ -2043,7 +2103,7 @@ export async function runScan(
   // same string. Read-only GETs, no allowWrite gate. One phase
   // record per scan; the pasted page is always a surface, so this
   // phase never skips (unlike the gated probes above).
-  await step('fingerprint-banner', () => probeFingerprintBanner(url, verbTargets, opts));
+  plan('fingerprint-banner', () => probeFingerprintBanner(url, verbTargets, opts));
   // SOURCE CODE DISCLOSURE (7 Nov 2026, row #184): backup copies of
   // discovered server-side files, .git/config and JS source maps
   // are fetched for actual source content (see
@@ -2056,7 +2116,7 @@ export async function runScan(
   // fingerprint-banner above). It never re-fires on files the
   // 'files' phase already covers (.git/HEAD, .env, .DS_Store,
   // phpinfo.php) or on JS bundle contents (secrets-in-js).
-  await step('source-code-disclosure', () => probeSourceCodeDisclosure(url, verbTargets, opts));
+  plan('source-code-disclosure', () => probeSourceCodeDisclosure(url, verbTargets, opts));
   // METADATA LEAKAGE (7 Nov 2026, row #178): images served with
   // embedded EXIF/document metadata (GPS coordinates, camera serial,
   // author, software strings carrying internal user paths) are
@@ -2071,7 +2131,7 @@ export async function runScan(
   // contents (secrets-in-js), error responses (error-disclosure)
   // or headers (fingerprint-banner). PDF/DOCX metadata is out of
   // scope (no parser dependency).
-  await step('metadata-leakage', () => probeMetadataLeakage(url, verbTargets, opts));
+  plan('metadata-leakage', () => probeMetadataLeakage(url, verbTargets, opts));
   // SENSITIVE DATA IN LOGS (7 Nov 2026, row #180): log files and
   // log-viewer paths served over HTTP are fetched for the app's own
   // secrets — credential assignments, Authorization tokens, AWS keys,
@@ -2087,7 +2147,7 @@ export async function runScan(
   // responses (error-disclosure), JS bundle contents (secrets-in-js)
   // or attacker data reflected into logs (csv-log-injection — the
   // opposite direction). HTML log-viewer pages are out of scope.
-  await step('sensitive-data-in-logs', () => probeSensitiveDataInLogs(url, verbTargets, opts));
+  plan('sensitive-data-in-logs', () => probeSensitiveDataInLogs(url, verbTargets, opts));
   // SENSITIVE INFORMATION DISCLOSURE (GENERAL) (7 Nov 2026, row
   // #181): the scanner's already-selected response bodies are
   // examined for the application's own internal infrastructure —
@@ -2108,7 +2168,7 @@ export async function runScan(
   // never probes diagnostic endpoints (/actuator, /metrics,
   // /openapi.json, /swagger.json — nuclei and openapi-targets own
   // those). IPv6 internal addresses are out of scope.
-  await step('sensitive-info-disclosure', () => probeSensitiveInfoDisclosure(url, verbTargets, opts));
+  plan('sensitive-info-disclosure', () => probeSensitiveInfoDisclosure(url, verbTargets, opts));
   // TIMING SIDE-CHANNEL DISCLOSURE (7 Nov 2026, row #185, CWE-208):
   // a login endpoint that returns the SAME generic error for a valid
   // and an invalid username but takes measurably longer for the
@@ -2124,11 +2184,11 @@ export async function runScan(
   // this phase never skips (like sensitive-info-disclosure above).
   // Register/reset forms, password-length oracles and cryptographic
   // timing attacks are out of scope.
-  await step('timing-side-channel', () => probeTimingSideChannel(forms, url, opts));
-  await step('csrf', () => probeCsrf(forms, url));
+  plan('timing-side-channel', () => probeTimingSideChannel(forms, url, opts));
+  plan('csrf', () => probeCsrf(forms, url));
   // Stack gate input (9 Nov 2026, Zerodha FP fix): same as sqli-error
   // — the POST form battery needs the fingerprinted tech.
-  await step('post-forms', () => probePostForms(postForms, { ...opts, tech: fp?.tech }));
+  plan('post-forms', () => probePostForms(postForms, { ...opts, tech: fp?.tech }));
   // SMTP CANARY INBOX (8 Nov 2026, row #43 T2): the smtp-injection
   // probe's Bcc-relay variant confirms ONLY by received mail at OUR
   // canary inbox — a local SMTP sink started here for the duration of
@@ -2159,8 +2219,9 @@ export async function runScan(
       smtpInbox = null;
     }
   }
-  try {
-    await step('smtp-injection', () =>
+  plan(
+    'smtp-injection',
+    () =>
       probeSmtpInject(forms, url, {
         ...opts,
         labTargets,
@@ -2173,13 +2234,10 @@ export async function runScan(
               },
             }
           : {}),
-      })
-    );
-  } finally {
-    if (smtpInbox) {
-      try { await smtpInbox.stop(); } catch { /* stop is best-effort */ }
-    }
-  }
+      }),
+    undefined,
+    { teardown: smtpInbox ? () => smtpInbox.stop() : undefined }
+  );
   // T4b (bearer/API login) needs the already-discovered route set —
   // wired in here from scanTargets (crawl + openapi + jsRoutes-mined),
   // no new discovery phase. T4b never fires on the SPA-root HTML alone.
@@ -2187,7 +2245,7 @@ export async function runScan(
   // isLab reads opts.labTargets, and runScan's spec field never
   // reached opts before. D3: the POST-only mined routes ride along
   // as API-login candidates (never as GET probe targets).
-  await step('session-fixation', () => probeSessionFixation(forms, url, { ...opts, apiRoutes: [...scanTargets, ...jsWriteTargets], labTargets }));
+  plan('session-fixation', () => probeSessionFixation(forms, url, { ...opts, apiRoutes: [...scanTargets, ...jsWriteTargets], labTargets }));
   // BASKET LOGIC (8 Nov 2026, rows #82/#370, variants #374/#80/#83):
   // negative-quantity / price / overflow manipulation of a shop
   // basket, confirmed by a pure-arithmetic total differential with
@@ -2198,7 +2256,7 @@ export async function runScan(
   // controlOk, mutations) so a live proof can tell "no surface"
   // from "oracle uncalibrated" without re-running the scan.
   const blDiag = {};
-  await step(
+  plan(
     'basket-logic',
     () =>
       probeBasketLogic(url, {
@@ -2224,7 +2282,7 @@ export async function runScan(
   // controlOk, mutations) so a live proof can tell "no surface"
   // from "oracle uncalibrated" without re-running the scan.
   const wsDiag = {};
-  await step(
+  plan(
     'workflow-skip',
     () =>
       probeWorkflowSkip(url, {
@@ -2250,7 +2308,7 @@ export async function runScan(
   // controlOk, attempts) so a live proof can tell "no surface" from
   // "oracle uncalibrated" without re-running the scan.
   const tfbDiag = {};
-  await step(
+  plan(
     'twofa-bruteforce',
     () =>
       probeTwoFaBruteForce(url, {
@@ -2277,7 +2335,7 @@ export async function runScan(
   // "no surface" from "oracle uncalibrated" without re-running
   // the scan.
   const csDiag = {};
-  await step(
+  plan(
     'credential-stuffing',
     () =>
       probeCredentialStuffing(url, {
@@ -2306,7 +2364,7 @@ export async function runScan(
   // controlOk, attempts, bypassKind) so a live proof can tell "no
   // surface" from "oracle uncalibrated" without re-running the scan.
   const bflaDiag = {};
-  await step(
+  plan(
     'bfla',
     () =>
       probeBfla(url, {
@@ -2336,7 +2394,7 @@ export async function runScan(
   // bypassKind) so a live proof can tell "no surface" from "oracle
   // uncalibrated" without re-running the scan.
   const wppDiag = {};
-  await step(
+  plan(
     'weak-password-policy',
     () =>
       probeWeakPasswordPolicy(url, {
@@ -2374,7 +2432,7 @@ export async function runScan(
   // controlOk, attempts, bypassKind) so a live proof can tell "no
   // surface" from "oracle uncalibrated" without re-running the scan.
   const bfaDiag = {};
-  await step(
+  plan(
     'business-flow-access',
     () =>
       probeBusinessFlowAccess(url, {
@@ -2406,7 +2464,7 @@ export async function runScan(
   // bypassKind) so a live proof can tell "no surface" from
   // "oracle uncalibrated" without re-running the scan.
   const couponDiag = {};
-  await step(
+  plan(
     'coupon-abuse',
     () =>
       probeCouponAbuse(url, {
@@ -2440,7 +2498,7 @@ export async function runScan(
   // proof can tell "no surface" from "oracle uncalibrated"
   // without re-running the scan.
   const apiTokenDiag = {};
-  await step(
+  plan(
     'api-token-auth',
     () =>
       probeApiTokenAuth(url, {
@@ -2476,7 +2534,7 @@ export async function runScan(
   // the cap-2 cut was invisible live because the record carried
   // neither the derived count nor the route list).
   const quotaDiag = {};
-  await step(
+  plan(
     'quota-bypass',
     () =>
       probeQuotaBypass(url, {
@@ -2510,7 +2568,7 @@ export async function runScan(
   // can tell "no surface" from "oracle uncalibrated" without
   // re-running the scan.
   const provDiag = {};
-  await step(
+  plan(
     'provisioning',
     () =>
       probeProvisioning(url, {
@@ -2542,7 +2600,7 @@ export async function runScan(
   // burstKind) so a live proof can tell "no surface" from "oracle
   // uncalibrated" without re-running the scan.
   const llmRateLimitDiag = {};
-  await step(
+  plan(
     'llm-rate-limit',
     () =>
       probeLlmRateLimit(url, {
@@ -2571,7 +2629,7 @@ export async function runScan(
   // (llmLab, controlOk, ragDocs, promptsTried, regurgitatedKind,
   // tokensMatched).
   const llmTrainingDataDiag = {};
-  await step(
+  plan(
     'llm-training-data',
     () =>
       probeLlmTrainingData(url, {
@@ -2600,7 +2658,7 @@ export async function runScan(
   // extras (llmLab, controlOk, controlToolCall, retrievedDoc,
   // poisonToolCall, toolCalled).
   const llmTrainingPoisoningDiag = {};
-  await step(
+  plan(
     'llm-training-poisoning',
     () =>
       probeLlmTrainingPoisoning(url, {
@@ -2628,7 +2686,7 @@ export async function runScan(
   // (llmLab, modelType, modelVersion, noWeights,
   // extractionAttempts, weightsDisclosed).
   const llmModelExtractionDiag = {};
-  await step(
+  plan(
     'llm-model-extraction',
     () =>
       probeLlmModelExtraction(url, {
@@ -2656,7 +2714,7 @@ export async function runScan(
   // cardModalities, imageTreatedAsText, audioTreatedAsText,
   // verdict).
   const llmMultimodalDiag = {};
-  await step(
+  plan(
     'llm-multimodal',
     () =>
       probeLlmMultimodal(url, {
@@ -2684,7 +2742,7 @@ export async function runScan(
   // the phase extras (llmLab, deterministic, confidenceSignal,
   // memberRetrievable, nonMemberEmpty, verdict).
   const llmMembershipDiag = {};
-  await step(
+  plan(
     'llm-membership-inference',
     () =>
       probeLlmMembership(url, {
@@ -2712,7 +2770,7 @@ export async function runScan(
   // (llmLab, modelType, thirdPartyModel, supplyChainEndpoints,
   // verdict).
   const llmSupplyChainDiag = {};
-  await step(
+  plan(
     'llm-supply-chain',
     () =>
       probeLlmSupplyChain(url, {
@@ -2743,7 +2801,7 @@ export async function runScan(
   // surface" from "oracle uncalibrated" without re-running the
   // scan.
   const wdeDiag = {};
-  await step(
+  plan(
     'workflow-data-exposure',
     () =>
       probeWorkflowDataExposure(url, {
@@ -2777,7 +2835,7 @@ export async function runScan(
   // live proof can tell "no surface" from "oracle uncalibrated"
   // without re-running the scan.
   const exceptionalDiag = {};
-  await step(
+  plan(
     'exceptional-conditions',
     () =>
       probeExceptionalConditions(url, {
@@ -2794,8 +2852,8 @@ export async function runScan(
       failOpenKind: exceptionalDiag.failOpenKind || null,
     })
   );
-  await step('user-enumeration', () => probeUserEnum(forms, url, opts));
-  await step('mass-assignment', () => probeMassAssignment(forms, url, { ...opts, labTargets }));
+  plan('user-enumeration', () => probeUserEnum(forms, url, opts));
+  plan('mass-assignment', () => probeMassAssignment(forms, url, { ...opts, labTargets }));
   // WS MESSAGES (rows #39/#270 + #480 [Medium] WebSocket message/frame
   // replay, CWE-1385): T2 replays a captured state-changing frame
   // verbatim on a fresh connection. Diagnostics ride the phase extras
@@ -2804,7 +2862,7 @@ export async function runScan(
   // false) from "replay never ran" (quick depth / non-lab:
   // replayAttempts 0, frames null).
   const wsMsgDiag = {};
-  await step(
+  plan(
     'ws-messages',
     () => probeWsMessages(url, { ...opts, labTargets, diagnostics: wsMsgDiag }),
     () => ({
@@ -2816,8 +2874,8 @@ export async function runScan(
       replayConfirmed: Boolean(wsMsgDiag.replayConfirmed),
     })
   );
-  await step('subdomain-takeover', () => probeSubdomainTakeover(url, opts));
-  await step('race', () =>
+  plan('subdomain-takeover', () => probeSubdomainTakeover(url, opts));
+  plan('race', () =>
     probeRace(
       forms,
       url,
@@ -2827,14 +2885,14 @@ export async function runScan(
       { ...opts, labTargets }
     )
   );
-  await step('files', () => probeSensitiveFiles(url, opts));
+  plan('files', () => probeSensitiveFiles(url, opts));
   // MISSING AUTH (7 Nov 2026, row #47 [Critical], CWE-306 / ASVS
   // V4.1): a critical function (admin, management, setup, ...) that
   // answers an unauthenticated GET with authenticated-only content.
   // Always-run (the fixed candidate list is never empty); strict
   // 4-conjunct gate in missingAuth.js — direct 200 only, not the SPA
   // catch-all, auth markers with no login form, HTML/JSON only.
-  await step('missing-auth', () => probeMissingAuth(url, scanTargets, opts));
+  plan('missing-auth', () => probeMissingAuth(url, scanTargets, opts));
   // XXE OOB collaborator (6 Nov 2026): the xxe probe's blind-XXE variant
   // needs a callback base AND a waiter — same pattern as the saml block
   // below, one collaborator per OOB phase so each listener lives only for
@@ -2860,31 +2918,29 @@ export async function runScan(
       xxeOob = null;
     }
   }
-  try {
-    await step('xxe', () =>
+  plan(
+    'xxe',
+    () =>
       probeXxe(url, {
         ...opts,
         labTargets,
         ...(xxeOob
           ? { oobCallback: xxeOob.baseUrl(), oobWaitFor: (token, ms) => xxeOob.waitFor(token, ms) }
           : {}),
-      })
-    );
-  } finally {
-    if (xxeOob) {
-      try { await xxeOob.stop(); } catch { /* stop is best-effort */ }
-    }
-  }
-  await step('idor', () => probeIdorSurface(url));
-  await step('cors', () => probeCors(url, opts));
-  await step('cookies', () => probeCookieFlags(url, opts));
-  await step('stored-xss', () => probeStoredXss(forms, url, opts));
-  await step('weak-creds', () => probeWeakCreds(forms, opts));
-  await step('host-header', () => probeHostHeader(url, opts));
-  await step('file-upload', () => probeFileUpload(url, { ...opts, allowWrite }));
-  await step('cache-poisoning', () => probeCachePoisoning(url, opts));
-  await step('request-smuggling', () => probeRequestSmuggling(url, opts));
-  await step('jwt', () => probeJwt(url, opts));
+      }),
+    undefined,
+    { teardown: xxeOob ? () => xxeOob.stop() : undefined }
+  );
+  plan('idor', () => probeIdorSurface(url));
+  plan('cors', () => probeCors(url, opts));
+  plan('cookies', () => probeCookieFlags(url, opts));
+  plan('stored-xss', () => probeStoredXss(forms, url, opts));
+  plan('weak-creds', () => probeWeakCreds(forms, opts));
+  plan('host-header', () => probeHostHeader(url, opts));
+  plan('file-upload', () => probeFileUpload(url, { ...opts, allowWrite }));
+  plan('cache-poisoning', () => probeCachePoisoning(url, opts));
+  plan('request-smuggling', () => probeRequestSmuggling(url, opts));
+  plan('jwt', () => probeJwt(url, opts));
   // JWT SENSITIVE CLAIMS (9 Nov 2026, row #481 [Medium] JWT —
   // sensitive data in claims (unencrypted payload), CWE-359 /
   // CWE-200): the token the server itself issues, decoded
@@ -2899,7 +2955,7 @@ export async function runScan(
   // a live proof can tell "no token" from "clean token" without
   // re-running the scan.
   const jwtClaimsDiag = {};
-  await step(
+  plan(
     'jwt-claims',
     () =>
       probeJwtClaims(url, {
@@ -2934,7 +2990,7 @@ export async function runScan(
   // proof can tell "no token" from "clean token" and "no
   // remember-me surface" from "surface clean" without re-running.
   const stDiag = {};
-  await step(
+  plan(
     'session-timeout',
     () =>
       probeSessionTimeout(url, {
@@ -2970,7 +3026,7 @@ export async function runScan(
   // runCommandDirect) so a live proof can tell "no LLM surface"
   // from "LLM present, tools safe" without re-running the scan.
   const llmToolDiag = {};
-  await step(
+  plan(
     'llm-tool-misuse',
     () =>
       probeLlmToolMisuse(url, {
@@ -3001,7 +3057,7 @@ export async function runScan(
   // confirmationRequired). STATE NOTE: each confirming run
   // consumes one seeded lab user; the lab re-seeds on restart.
   const llmAgencyDiag = {};
-  await step(
+  plan(
     'llm-excessive-agency',
     () =>
       probeLlmExcessiveAgency(url, {
@@ -3027,7 +3083,7 @@ export async function runScan(
   // Diagnostics ride the phase extras (llmEndpoints,
   // pageReflects, markerEscaped).
   const llmOutputDiag = {};
-  await step(
+  plan(
     'llm-output-handling',
     () =>
       probeLlmOutputHandling(url, {
@@ -3053,7 +3109,7 @@ export async function runScan(
   // (lab host + depth !== 'quick'). Diagnostics ride the phase
   // extras (llmEndpoints, chatDays, ragDays, contradiction).
   const llmMisinfoDiag = {};
-  await step(
+  plan(
     'llm-misinformation',
     () =>
       probeLlmMisinformation(url, {
@@ -3090,7 +3146,7 @@ export async function runScan(
   // live proof can tell "no LLM surface" from "oracle
   // uncalibrated" without re-running the scan.
   const llmInjectionDiag = {};
-  await step(
+  plan(
     'llm-injection',
     () =>
       probeLlmInjection(url, {
@@ -3109,7 +3165,7 @@ export async function runScan(
       ragLeak: Boolean(llmInjectionDiag.ragLeak),
     })
   );
-  await step('graphql', () => probeGraphql(url, { ...opts, labTargets }));
+  plan('graphql', () => probeGraphql(url, { ...opts, labTargets }));
   // CSWSH — DOM-BASED WEBSOCKET-URL POISONING (9 Nov 2026, row #92
   // [Medium] Technique (no single CVE) | PortSwigger DOM): tier 1
   // mines first-party code for WebSocket endpoints (new WebSocket()
@@ -3124,7 +3180,7 @@ export async function runScan(
   // upgrades is a proven true negative, recorded as wsSinks /
   // wsEndpoints 0 in the phase record.
   const cswshDiag = {};
-  await step(
+  plan(
     'cswsh',
     () =>
       probeCswsh(url, secretTargets, {
@@ -3141,7 +3197,7 @@ export async function runScan(
       sessionOk: Boolean(cswshDiag.sessionOk),
     })
   );
-  await step('oauth', () => probeOauth(url, { ...opts, labTargets }));
+  plan('oauth', () => probeOauth(url, { ...opts, labTargets }));
   // SAML-XXE OOB collaborator (6 Nov 2026): the SAML probe's blind-XXE
   // variant needs a callback base AND a waiter. Both come from a
   // collaborator started here for the duration of the saml phase — only
@@ -3166,26 +3222,24 @@ export async function runScan(
       oob = null;
     }
   }
-  try {
-    await step('saml', () =>
+  plan(
+    'saml',
+    () =>
       probeSaml(url, {
         ...opts,
         labTargets,
         ...(oob
           ? { oobCallback: oob.baseUrl(), oobWaitFor: (token, ms) => oob.waitFor(token, ms) }
           : {}),
-      })
-    );
-  } finally {
-    if (oob) {
-      try { await oob.stop(); } catch { /* stop is best-effort */ }
-    }
-  }
-  await step('tls', () => probeTls(url, opts));
-  await step('password-reset', () => probePasswordReset(forms, url, { ...opts, labTargets }));
-  await step('crypto', () => probeCrypto(url, opts));
-  await step('prototype-pollution', () => probePrototypePollution(url, { ...opts, labTargets }));
-  await step('deserialization', () => probeDeserialization(url, { ...opts, labTargets }));
+      }),
+    undefined,
+    { teardown: oob ? () => oob.stop() : undefined }
+  );
+  plan('tls', () => probeTls(url, opts));
+  plan('password-reset', () => probePasswordReset(forms, url, { ...opts, labTargets }));
+  plan('crypto', () => probeCrypto(url, opts));
+  plan('prototype-pollution', () => probePrototypePollution(url, { ...opts, labTargets }));
+  plan('deserialization', () => probeDeserialization(url, { ...opts, labTargets }));
   // Nuclei step: captures the FULL runNuclei result. The old code kept
   // only `.findings` — a timeout/failure vanished with no trace. The phase
   // record now carries the tool's ok/timedOut plus a capped stderr tail
@@ -3196,7 +3250,7 @@ export async function runScan(
   // pass it, so the production path is unchanged.
   let nucleiResult = null;
   const nucleiRunner = typeof opts.nucleiRunner === 'function' ? opts.nucleiRunner : runNuclei;
-  await step(
+  plan(
     'nuclei',
     async () => {
       nucleiResult = await nucleiRunner(url, opts);
@@ -3204,6 +3258,39 @@ export async function runScan(
     },
     () => (nucleiResult ? nucleiPhaseFields(nucleiResult) : {})
   );
+
+  // Run the planned probe phases concurrently (bounded pool, default
+  // cap 5 — DM_SCANNER_PHASE_CONCURRENCY or opts.phaseConcurrency
+  // overrides it). Outcomes merge in TASK order via onSettled, so
+  // `all`, `errors` and the phase records land exactly as the old
+  // sequential loop produced them. A task that throws or times out
+  // (opts.phaseTimeoutMs, unset by default) synthesises a failed
+  // phase record instead of aborting the scan.
+  await runPhaseTasks(probeTasks, {
+    concurrency: resolvePhaseConcurrency(opts),
+    timeoutMs: opts.phaseTimeoutMs,
+    onSettled: (outcome) => {
+      const value = outcome.value;
+      if (value && value.record) {
+        if (Array.isArray(value.result)) all.push(...value.result);
+        if (value.error) errors.push(`${outcome.name}: ${value.error}`);
+        emitPhase(value.record);
+        return;
+      }
+      // The task threw or timed out (value undefined): record the
+      // failure as a phase record so the run still reports it.
+      errors.push(`${outcome.name}: ${outcome.error}`);
+      emitPhase({
+        name: outcome.name,
+        startedAt: outcome.startedAt,
+        finishedAt: outcome.finishedAt,
+        durationMs: outcome.durationMs,
+        ok: false,
+        error: outcome.error,
+        findingsCount: 0,
+      });
+    },
+  });
 
   const { confirmed, unconfirmed } = verifyFindings(all);
   // PER-ROUTE ROLLUP (9 Nov 2026, /* scope): the report must answer
