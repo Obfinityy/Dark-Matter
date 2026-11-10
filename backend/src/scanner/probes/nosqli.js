@@ -104,6 +104,11 @@ export async function probeNoSqli(url, params, opts = {}) {
             response: `result set diverged by ${delta} chars (benign ${resultSignal(benign.text)}, operator ${resultSignal(malicious.text)})`,
             impact_demo: '$ne operator bypassed the equality filter — authentication/lookup bypass primitive',
             diverged: true,
+            // Structured lengths for the shared tiny-error-page guard
+            // (hunt-intel/differential.js): a 31-char operator stub vs a
+            // 45k-char benign page is a rejected request, not a bypass.
+            benignLength: resultSignal(benign.text),
+            operatorLength: resultSignal(malicious.text),
           },
         });
         break;

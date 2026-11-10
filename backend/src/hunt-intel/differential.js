@@ -85,10 +85,67 @@ function protocolFor(finding) {
   return CONFIRMATION_PROTOCOLS.default;
 }
 
+// ---- Tiny-error-page differential guard (GitHub calibration, 10 Nov 2026) ----
+// Root cause (calibration hunt h_d7b2902f1a99, github.com, unauthenticated):
+// 11x NoSQLi + 1x LDAP + 2x XPath on /login "confirmed" on a length
+// divergence that was a rejected request, not a bypass — the operator
+// response was a tiny error page (31 chars) against a full benign page
+// (45,581 chars on /login, 192,606 on /resources/articles). The boolean
+// probes judge "result set diverged" on |operator − benign| length, and
+// a 31-char rejection stub trivially clears the 25%-of-benign bar. Same
+// class as the Zerodha incident (9 Nov, 37 FPs, all protection artefacts).
+//
+// The guard is DIRECTIONAL and applies only to length-differential
+// evidence that carries both sides' sizes (benignLength /
+// operatorLength on the finding's evidence — the three boolean probes
+// nosqli / ldapi / xpathi attach them; error-text oracles do NOT, so a
+// genuine short error page confirming an error oracle is untouched):
+//   operator tiny (<= 512 chars — a rejection stub, not a result set)
+//   AND benign a real full page (>= 1024 chars)
+//   AND benign >= 10x the operator (orders of magnitude larger).
+// A genuine bypass returns MORE rows than the benign query, so the
+// operator side is the larger one — the guard can never fire on a real
+// bypass. It fires only when the operator request was rejected and the
+// "divergence" is the missing page. Tightening only: it can only turn a
+// would-be 'confirmed' into 'rejected', never the reverse, and it never
+// touches OOB/SSRF confirmations (judged on a collaborator hit, not on
+// response lengths). When either length is absent the guard abstains —
+// old behaviour, unchanged.
+export const TINY_ERROR_PAGE_MAX_CHARS = 512;
+export const TINY_ERROR_PAGE_MIN_BENIGN_CHARS = 1024;
+export const TINY_ERROR_PAGE_MIN_RATIO = 10;
+
+/** Pure: is this length pair a tiny-error-page divergence? */
+export function isTinyErrorPageDivergence(evidence = {}) {
+  const benign = Number(evidence.benignLength);
+  const operator = Number(evidence.operatorLength);
+  if (!Number.isFinite(benign) || !Number.isFinite(operator)) return false;
+  if (operator <= 0 || benign <= 0) return false;
+  return (
+    operator <= TINY_ERROR_PAGE_MAX_CHARS &&
+    benign >= TINY_ERROR_PAGE_MIN_BENIGN_CHARS &&
+    benign >= operator * TINY_ERROR_PAGE_MIN_RATIO
+  );
+}
+
 /** Judge a finding given its control-probe evidence. */
 export function assessConfirmation(finding, evidence = {}) {
+  const merged = { ...finding.evidence, ...evidence };
   const proto = protocolFor(finding);
-  const verdict = proto.judge({ ...finding.evidence, ...evidence });
+  const verdict = proto.judge(merged);
+  // A would-be confirmation resting on a tiny-error-page divergence is
+  // a rejected-request artefact, not a bypass — veto it. Runs after the
+  // protocol judge so it can only demote 'confirmed' to 'rejected'.
+  if (
+    verdict === 'confirmed' &&
+    proto !== CONFIRMATION_PROTOCOLS.ssrf &&
+    isTinyErrorPageDivergence(merged)
+  ) {
+    return {
+      verdict: 'rejected',
+      protocol: `Differential rejected: operator response is a tiny error page (${merged.operatorLength} chars) against a full benign page (${merged.benignLength} chars) — the length divergence is a rejected request, not a bypass.`,
+    };
+  }
   return { verdict, protocol: proto.control };
 }
 

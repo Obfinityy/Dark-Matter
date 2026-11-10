@@ -90,6 +90,11 @@ export async function probeXpathInjection(url, params, opts = {}) {
             impact_demo: `' or '1'='1 matched nodes the benign query hid — data extraction primitive`,
             diverged: true,
             signalCorrelated: true,
+            // Structured lengths for the shared tiny-error-page guard
+            // (hunt-intel/differential.js): a tiny operator stub vs a
+            // full benign page is a rejected request, not a widening.
+            benignLength: benign.text.length,
+            operatorLength: malicious.text.length,
           },
         });
         break;
