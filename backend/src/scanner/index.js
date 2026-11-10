@@ -59,6 +59,7 @@ import { probeBasketLogic } from './probes/basketLogic.js';
 import { probeWorkflowSkip } from './probes/workflowSkip.js';
 import { probeTwoFaBruteForce } from './probes/twoFaBruteForce.js';
 import { probeCredentialStuffing } from './probes/credentialStuffing.js';
+import { probeAntiAutomation } from './probes/antiAutomation.js';
 import { probeBfla } from './probes/bfla.js';
 import { probeWeakPasswordPolicy } from './probes/weakPasswordPolicy.js';
 import { probeBusinessFlowAccess } from './probes/businessFlowAccess.js';
@@ -219,6 +220,7 @@ export const DEFAULT_PHASES = [
   'workflow-skip',
   'twofa-bruteforce',
   'credential-stuffing',
+  'anti-automation',
   'bfla',
   'weak-password-policy',
   'business-flow-access',
@@ -2494,6 +2496,40 @@ async function runScanInner(
       loginRoutes: csDiag.loginRoutes || 0,
       controlOk: Boolean(csDiag.controlOk),
       attempts: csDiag.attempts || 0,
+    })
+  );
+  // ANTI-AUTOMATION (10 Nov 2026, row #79 [Medium], CWE-799 |
+  // OWASP A07:2021): a login that answers machine-speed password
+  // attempts with ordinary invalid-credential replies and never
+  // puts a bot challenge in the way — confirm only when 10
+  // distinct fixed wrong passwords are each answered ordinarily
+  // with no CAPTCHA widget, no challenge page, no JS-challenge
+  // marker and no throttle signal anywhere (see
+  // antiAutomation.js). The oracle reuses credential-stuffing's
+  // login evidence surface and calibration; the bot-challenge
+  // detector is the #79-specific part (challenge widgets and
+  // interstitial wording that never contain the word 'captcha').
+  // Same apiRoutes wiring as credential-stuffing. Diagnostics ride
+  // the phase extras (loginRoutes, controlOk, attempts,
+  // botChallengeSeen, botChallengeKind) so a live proof can tell
+  // "no surface" from "defense exists" without re-running the scan.
+  const aaDiag = {};
+  plan(
+    'anti-automation',
+    () =>
+      probeAntiAutomation(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: aaDiag,
+      }),
+    () => ({
+      loginRoutes: aaDiag.loginRoutes || 0,
+      controlOk: Boolean(aaDiag.controlOk),
+      attempts: aaDiag.attempts || 0,
+      botChallengeSeen: Boolean(aaDiag.botChallengeSeen),
+      botChallengeKind: aaDiag.botChallengeKind || null,
     })
   );
   // BFLA (9 Nov 2026, row #340 [High], CWE-862 | OWASP API05:2023):

@@ -285,6 +285,12 @@ describe('param battery skipped records (35/63 fix)', () => {
     // dynamic registration, refresh reuse, WebAuthn without
     // validation) with canary accounts; confirms only on
     // differential / state-change evidence).
+    // (148 since 10 Nov 2026 (anti-automation, row #79): 'anti-automation'
+    // joins as a standalone gated phase (one record per scan,
+    // always-run as an honest no-op: no login route on a bare page;
+    // lab-gated, 10 back-to-back wrong-password attempts; confirms
+    // only when all 10 are answered ordinarily with no bot challenge
+    // and no throttle).
     // (147 since 10 Nov 2026 (scout classes 479-515): 17 new
     // non-OAuth phases — 'ssti-pebble' joins the battery as a loop
     // phase; xxe-xinclude, smuggling-cl-cl, smuggling-zero-cl,
@@ -319,7 +325,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 147);
+    assert.equal(DEFAULT_PHASES.length, 148);
   });
 
   it('zero param targets: all 31 param phases emit skipped records, rollup reports them', async () => {
@@ -566,7 +572,8 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // access + LLM prompt injection + LLM rate limit +
   // training-data extraction + training-data poisoning + model
   // extraction + multimodal prompt injection + membership
-  // inference + supply chain + service worker cache poisoning):
+  // inference + supply chain + service worker cache poisoning +
+  // anti-automation):
   // 'api-token-auth' adds a 59th ok record (always-run as an honest
   // no-op: no token-param routes and no lab login on a bare page)
   // and 'autocomplete' adds a 60th ok record (always-run as an
@@ -698,15 +705,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 147,
-        ok: 95,
+        total: 148,
+        ok: 96,
         failed: 0,
         skipped: 52,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 95 ran ok, 52 skipped, 0 failed, 0 timed out.'
+        'Phases: 96 ran ok, 52 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
