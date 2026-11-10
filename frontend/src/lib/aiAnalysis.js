@@ -25,15 +25,27 @@ export function shouldAutoAnalyze({ isScanner, status, huntId, attemptedHuntIds 
 }
 
 /**
- * Normalize the POST /ai-analysis envelope ({ok, stored, analysis})
- * — or a raw analysis doc — into render state:
+ * Normalize the POST /ai-analysis result into render state:
  *   { state: 'ready'|'unavailable'|'error', suggestions, error, note }
  * Suggestions are LEADS, never confirmed findings — the card labels
  * them as such; this helper never promotes one.
+ *
+ * Accepted shapes (all normalize the same way):
+ *   - the api-client wrapper { ok, status, data } — what the live
+ *     HuntCard call site actually passes (the envelope sits under
+ *     `data`; `status` here is the HTTP status number, NOT the doc
+ *     status, so it must never be read as the analysis status);
+ *   - the backend envelope { ok, stored, analysis };
+ *   - a raw analysis doc { status, suggestions, ... }.
+ * Anything else degrades to the error state, never throws.
  */
 export function normalizeAiAnalysis(data) {
   try {
-    const doc = (data && data.analysis) || data || null;
+    // Unwrap the api-client wrapper first: the live call site passes
+    // { ok, status, data } and the doc/envelope is one level down.
+    // A raw envelope or raw doc has no `data` key and passes through.
+    const envelope = (data && typeof data === 'object' && 'data' in data) ? data.data : data;
+    const doc = (envelope && envelope.analysis) || envelope || null;
     if (!doc || typeof doc !== 'object') {
       return { state: 'error', suggestions: [], error: 'AI analysis ka jawab nahi mila.', note: null };
     }
