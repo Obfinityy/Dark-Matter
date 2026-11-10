@@ -53,6 +53,7 @@ import { probeTwoFaBruteForce } from './probes/twoFaBruteForce.js';
 import { probeCredentialStuffing } from './probes/credentialStuffing.js';
 import { probeBfla } from './probes/bfla.js';
 import { probeWeakPasswordPolicy } from './probes/weakPasswordPolicy.js';
+import { probeBusinessFlowAccess } from './probes/businessFlowAccess.js';
 import { probeCouponAbuse } from './probes/couponAbuse.js';
 import { probeApiTokenAuth } from './probes/apiTokenAuth.js';
 import { probeExceptionalConditions } from './probes/exceptionalConditions.js';
@@ -185,6 +186,7 @@ export const DEFAULT_PHASES = [
   'credential-stuffing',
   'bfla',
   'weak-password-policy',
+  'business-flow-access',
   'coupon-abuse',
   'api-token-auth',
   'exceptional-conditions',
@@ -2254,6 +2256,45 @@ export async function runScan(
       attempts: wppDiag.attempts || 0,
       acceptedKind: wppDiag.acceptedKind || null,
       bypassKind: wppDiag.bypassKind || null,
+    })
+  );
+  // BUSINESS-FLOW ACCESS (9 Nov 2026, row #86 [High] Unrestricted
+  // Access to Sensitive Business Flows, CWE-840 | OWASP API6:2023):
+  // a basket is a sensitive business flow that belongs to exactly
+  // one user — the server must enforce ownership on the
+  // client-supplied basket id. The probe runs a three-way
+  // differential on the mined basket GET route (no-token GET must be
+  // refused, victim-token GET is the control with the seeded marker
+  // item visible, canary-token GET of the SAME victim basket
+  // confirms only when granted with the victim's basket id and the
+  // marker present, while the canary's own basket reads empty),
+  // using the labCreds account as the victim and a throwaway
+  // self-registered account as the canary (see
+  // businessFlowAccess.js). This is NOT the BFLA probe (#340):
+  // BFLA replays admin endpoints as low-priv; this row is ownership
+  // on a business flow — the same low-priv user reaching ANOTHER
+  // USER'S basket. Same apiRoutes wiring as bfla. Diagnostics ride
+  // the phase extras (basketRoutes, registerOk, victimSeeded,
+  // controlOk, attempts, bypassKind) so a live proof can tell "no
+  // surface" from "oracle uncalibrated" without re-running the scan.
+  const bfaDiag = {};
+  await step(
+    'business-flow-access',
+    () =>
+      probeBusinessFlowAccess(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: bfaDiag,
+      }),
+    () => ({
+      basketRoutes: bfaDiag.basketRoutes || 0,
+      registerOk: Boolean(bfaDiag.registerOk),
+      victimSeeded: Boolean(bfaDiag.victimSeeded),
+      controlOk: Boolean(bfaDiag.controlOk),
+      attempts: bfaDiag.attempts || 0,
+      bypassKind: bfaDiag.bypassKind || null,
     })
   );
   // COUPON ABUSE (9 Nov 2026, rows #78 [Medium] Coupon / Discount /
