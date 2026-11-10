@@ -153,7 +153,7 @@ export function registerControlRoutes(router) {
             // which continues from meta.iteration + 1 and rebuilds findings
             // from the event log. (Calling runAutonomousHunt with only
             // {isResume:true} would silently reset the iteration counter to 1.)
-            const { resumeInterruptedHunt } = await import('../huntAgent.js');
+            const { resumeInterruptedHunt } = await import('../../huntAgent.js');
             resumeInterruptedHunt(huntId).catch((err) => {
               appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
             });
@@ -215,7 +215,7 @@ export function registerControlRoutes(router) {
     if (!message) return res.status(400).json({ ok: false, error: 'message required' });
     const huntId = req.params.id;
     try {
-      const { appendHuntEvent, readHuntMeta, writeHuntMeta } = await import('../store.js');
+      const { appendHuntEvent, readHuntMeta, writeHuntMeta } = await import('../../store.js');
       appendHuntEvent(huntId, { type: 'steer', from: req.user.username || req.user.id, message, at: new Date().toISOString() });
       const m = readHuntMeta(huntId) || {};
       const queue = Array.isArray(m.steerQueue) ? m.steerQueue : [];

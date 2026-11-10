@@ -71,7 +71,7 @@ export function registerCreateRoutes(router) {
     // explicitly-authorized local lab targets (e.g. Juice Shop benchmark) and
     // skip the SSRF block. This is opt-in per deployment, not a bypass.
     try {
-      const { validateTargetAsync } = await import('../scopeParser.js');
+      const { validateTargetAsync } = await import('../../scopeParser.js');
       const labTargets = (process.env.LAB_TARGETS || '').split(',').map((s) => s.trim()).filter(Boolean);
       const canonicalHost = (value) => {
         try { return new URL(value.includes('://') ? value : `https://${value}`).hostname.toLowerCase().replace(/^\\[|\\]$/g, ''); }
@@ -165,7 +165,7 @@ export function registerCreateRoutes(router) {
               const m0 = readHuntMeta(existingId) || existing;
               writeHuntMeta(existingId, { ...m0, huntId: existingId, paused: false, stopped: false, state: 'running' });
               appendHuntEvent(existingId, { type: 'status', state: 'resumed', reason: 'dedup_redirect', at: new Date().toISOString() });
-              const { resumeInterruptedHunt } = await import('../huntAgent.js');
+              const { resumeInterruptedHunt } = await import('../../huntAgent.js');
               resumeInterruptedHunt(existingId).catch((err) => {
                 appendHuntEvent(existingId, { type: 'status', state: 'failed', error: err.message || String(err) });
               });
@@ -210,7 +210,7 @@ export function registerCreateRoutes(router) {
     // paused thebhavesh.online and benchmark hunts blocked the owner's
     // first real-target hunt, Ezviz, from ever starting).
     try {
-      const { listHuntMetas, enqueueHunt, huntQueueFull } = await import('../store.js');
+      const { listHuntMetas, enqueueHunt, huntQueueFull } = await import('../../store.js');
       const metas = listHuntMetas();
       if (huntQueueFull(metas)) {
         const active = metas.find((h) => h.state === 'running');
@@ -262,7 +262,7 @@ export function registerCreateRoutes(router) {
       }
       // Parse scope: agent auto-understands what's in/out of scope, program rules,
       // custom User-Agent, etc. This is how it hunts like a human who read the brief.
-      const { parseScope } = await import('../scopeParser.js');
+      const { parseScope } = await import('../../scopeParser.js');
       const parsedScope = parseScope(target, scope);
       log.info(`[hunts] Scope parsed for ${huntId}: UA=${parsedScope.rules.customUserAgent || 'default'}, noHeavyScan=${parsedScope.rules.noHeavyScan}`);
       // P1 SCOPE ENFORCEMENT (31 Oct 2026, AUD-H1): immutable per-hunt scope
@@ -274,7 +274,7 @@ export function registerCreateRoutes(router) {
       // A hunt that cannot build its scope is not created at all.
       let scopeGuard;
       try {
-        const { buildScope } = await import('../scopeGuard.js');
+        const { buildScope } = await import('../../scopeGuard.js');
         scopeGuard = buildScope({ target, scope, labTargets: process.env.LAB_TARGETS || '' });
       } catch (err) {
         // Best-effort: don't orphan an engine-side hunt we just created.
@@ -318,7 +318,7 @@ export function registerCreateRoutes(router) {
       // break hunt creation; the driver also defaults to enabled.
       if (isHumanMode) {
         try {
-          const { startHumanLoop } = await import('../humanLoopDriver.js');
+          const { startHumanLoop } = await import('../../humanLoopDriver.js');
           startHumanLoop(huntId);
         } catch (err) {
           log.warn(`[hunts] could not enable human loop for ${huntId}: ${err.message}`);
@@ -331,7 +331,7 @@ export function registerCreateRoutes(router) {
         // RULE-BASED AUTOMATION (3 Nov 2026): no AI loop — run the predefined
         // scanner battery (fingerprint → probes → verifier) and record
         // findings as hunt events. $0 AI spend, results in seconds/minutes.
-        const { runScannerHunt } = await import('../scannerHunt.js');
+        const { runScannerHunt } = await import('../../scannerHunt.js');
         // LAB-CANARY CREDS (#474): forwarded ONLY for an admin hunting a
         // lab target — resolveLabCreds drops everything else silently
         // (non-admin, non-lab target, or malformed creds -> no creds).

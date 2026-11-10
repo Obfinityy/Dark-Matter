@@ -64,7 +64,7 @@ export function registerListRoutes(router) {
   // ---- Hunt queue: check position, cancel own queued hunt ----
 
   router.get('/queue', requireAuth, async (req, res) => {
-    const { readQueue, getQueuePosition } = await import('../store.js');
+    const { readQueue, getQueuePosition } = await import('../../store.js');
     const queue = readQueue().filter((e) => e.status === 'queued')
       .sort((a, b) => (b.priority - a.priority) || (a.createdAt < b.createdAt ? -1 : 1));
     const mine = getQueuePosition(req.user.id);
@@ -100,7 +100,7 @@ export function registerListRoutes(router) {
   });
 
   router.delete('/queue/:queueId', requireAuth, async (req, res) => {
-    const { removeFromQueue } = await import('../store.js');
+    const { removeFromQueue } = await import('../../store.js');
     const ok = removeFromQueue(req.params.queueId, req.user.id, req.user.role === 'admin');
     if (!ok) return res.status(404).json({ ok: false, error: 'not_found_or_not_yours' });
     res.json({ ok: true, message: 'Removed from queue.' });
@@ -113,7 +113,7 @@ export function registerListRoutes(router) {
   router.get('/:id/terminal/ticket', requireAuth, async (req, res) => {
     const huntId = req.params.id;
     try {
-      const { readHuntMeta } = await import('../store.js');
+      const { readHuntMeta } = await import('../../store.js');
       const meta = readHuntMeta(huntId);
       if (!meta) return res.status(404).json({ ok: false, error: 'hunt_not_found' });
       
