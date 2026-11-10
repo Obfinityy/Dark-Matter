@@ -52,6 +52,7 @@ import { probeWorkflowSkip } from './probes/workflowSkip.js';
 import { probeTwoFaBruteForce } from './probes/twoFaBruteForce.js';
 import { probeCredentialStuffing } from './probes/credentialStuffing.js';
 import { probeBfla } from './probes/bfla.js';
+import { probeWeakPasswordPolicy } from './probes/weakPasswordPolicy.js';
 import { probeCouponAbuse } from './probes/couponAbuse.js';
 import { probeApiTokenAuth } from './probes/apiTokenAuth.js';
 import { probeExceptionalConditions } from './probes/exceptionalConditions.js';
@@ -183,6 +184,7 @@ export const DEFAULT_PHASES = [
   'twofa-bruteforce',
   'credential-stuffing',
   'bfla',
+  'weak-password-policy',
   'coupon-abuse',
   'api-token-auth',
   'exceptional-conditions',
@@ -2222,6 +2224,36 @@ export async function runScan(
       controlOk: Boolean(bflaDiag.controlOk),
       attempts: bflaDiag.attempts || 0,
       bypassKind: bflaDiag.bypassKind || null,
+    })
+  );
+  // WEAK PASSWORD POLICY (9 Nov 2026, row #55 [Medium] Weak
+  // Password Policy, CWE-521 | ASVS V6): a registration endpoint
+  // that accepts a trivial password proves the password policy is
+  // weak — the probe calibrates with a strong-password control
+  // registration first, then tries 'a', '123456' and 'password',
+  // confirming only when a trivial password registers on the same
+  // route the control succeeded on (see weakPasswordPolicy.js).
+  // Same apiRoutes wiring as bfla. Diagnostics ride the phase
+  // extras (registerRoutes, controlOk, attempts, acceptedKind,
+  // bypassKind) so a live proof can tell "no surface" from "oracle
+  // uncalibrated" without re-running the scan.
+  const wppDiag = {};
+  await step(
+    'weak-password-policy',
+    () =>
+      probeWeakPasswordPolicy(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: wppDiag,
+      }),
+    () => ({
+      registerRoutes: wppDiag.registerRoutes || 0,
+      controlOk: Boolean(wppDiag.controlOk),
+      attempts: wppDiag.attempts || 0,
+      acceptedKind: wppDiag.acceptedKind || null,
+      bypassKind: wppDiag.bypassKind || null,
     })
   );
   // COUPON ABUSE (9 Nov 2026, rows #78 [Medium] Coupon / Discount /
