@@ -5,7 +5,11 @@
 //
 //   T1. Double-submit mutation — CRITICAL/HIGH: same mutation POST fired 8x
 //       in parallel; CONFIRMED if burst applies the effect >=2x while the
-//       sequential baseline applies it exactly 1x.
+//       sequential baseline applies it exactly 1x, AND the responses carry
+//       mutation evidence (each counted response differs from the untouched
+//       endpoint body — a burst of byte-identical static shells is not a
+//       race; proof #37 FP, 10 Nov 2026). Fragment-only actions
+//       (`/#/route`) are skipped, never probed.
 //   T2. Uniqueness-constraint race — HIGH: two concurrent account creations
 //       with distinct canary emails; CONFIRMED if BOTH succeed while the
 //       sequential baseline rejects the second.
@@ -27,6 +31,10 @@ import { isLabTargetHost } from '../../labCreds.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 const BURST_N = 8;
+// Response bodies are capped at this length everywhere in this probe
+// (postForm truncates here); the T1 state-change check only compares
+// complete bodies — truncated bodies cannot prove identity.
+const TEXT_CAP = 100000;
 
 function rand() {
   return Math.random().toString(36).slice(2, 10);
@@ -57,7 +65,7 @@ async function postForm(url, fields, opts = {}, timeoutMs = 8000) {
       redirect: 'manual',
     });
     const text = await res.text().catch(() => '');
-    return { status: res.status, text: text.slice(0, 100000) };
+    return { status: res.status, text: text.slice(0, TEXT_CAP) };
   } finally {
     clearTimeout(t);
   }
@@ -71,6 +79,62 @@ function outcome(r) {
   if (r.status === 429 || /rate.?limit|too many/i.test(t)) return 'limited';
   if (/already|exists|duplicate|taken|used|expired|invalid/i.test(t)) return 'rejected';
   return r.status < 400 ? 'other-ok' : 'other-err';
+}
+
+// Proof #37 (10 Nov 2026): a form action that differs from the scanned
+// page only by its fragment (e.g. `/#/photo-wall`) is a client-side
+// route, not a server endpoint — fetch strips the fragment, so the probe
+// would only ever POST the page itself and read back the static shell.
+// Such actions are skipped, never probed. Note: a form whose action is a
+// bare same-page anchor (`#section`) is skipped the same way; that is a
+// deliberate trade-off — the state-change check below is the backstop
+// for anything that does get probed, and a bare-anchor form has no
+// server endpoint of its own to race.
+function isFragmentOnlyAction(action, pageUrl) {
+  try {
+    const a = new URL(action, pageUrl);
+    const p = new URL(pageUrl);
+    if (a.href === p.href) return false;
+    return a.origin === p.origin && a.pathname === p.pathname && a.search === p.search;
+  } catch {
+    return false;
+  }
+}
+
+// Pre-state read: what the endpoint returns untouched (plain GET). Used by
+// the T1 state-change check. Returns { status, text } or null when the
+// endpoint has no readable GET surface (POST-only, 4xx/5xx, network
+// error) — the check is then skipped, never failed closed.
+async function readState(url, opts = {}, timeoutMs = 8000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { 'User-Agent': UA, ...(opts.headers || {}) },
+      redirect: 'manual',
+    });
+    if (res.status >= 400) return null;
+    const text = await res.text().catch(() => '');
+    return { status: res.status, text: text.slice(0, TEXT_CAP) };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// True when a response carries observable evidence beyond what the
+// untouched endpoint returns. A response byte-identical to the pre-state
+// body (complete bodies only — truncated bodies cannot prove identity)
+// is a static shell, not a mutation: proof #37's retracted
+// race-condition title came from POST / returning the identical 80117B
+// SPA shell every time, with `outcome()` counting a keyword match in
+// that static body as 'success'.
+function differsFromPreState(response, preState) {
+  if (!preState) return true;
+  if (response.text.length >= TEXT_CAP || preState.text.length >= TEXT_CAP) return true;
+  return response.text !== preState.text;
 }
 
 function ev(request, response, impact) {
@@ -87,15 +151,27 @@ async function burst(url, fields, opts, n = BURST_N) {
 }
 
 // ---- T1: double-submit mutation -------------------------------------------
+// A finding needs TWO independent signals, not one keyword match:
+// (1) the burst applies the effect >=2x while the sequential baseline
+// applies it exactly 1x, AND (2) the responses carry mutation evidence
+// — each counted response must differ from the untouched endpoint body.
+// A burst of byte-identical static shells is not a race, it is a
+// single-page app returning its shell (proof #37 FP).
 async function t1DoubleSubmit(forms, url, opts) {
   const findings = [];
   for (const form of forms.slice(0, 3)) {
     const action = form.action || url;
     if (!isLab(action, opts)) continue;
+    if (isFragmentOnlyAction(action, url)) continue;
     const base = {};
     for (const inp of form.inputs || []) {
       if (inp.name) base[inp.name] = inp.value || `dmrace_${rand()}`;
     }
+    // Pre-state: what the endpoint returns untouched, read before any
+    // mutation. A POST whose response is byte-identical to this did
+    // nothing observable — skip the form, do not count a keyword match
+    // in a static body as a mutation.
+    const preState = await readState(action, opts);
     // Sequential baseline: exactly one firing.
     let rBase;
     try {
@@ -104,10 +180,12 @@ async function t1DoubleSubmit(forms, url, opts) {
       continue;
     }
     if (outcome(rBase) !== 'success') continue; // no observable mutation
+    if (!differsFromPreState(rBase, preState)) continue; // static shell, no mutation evidence
     // Concurrent burst of the identical request.
     const results = await burst(action, base, opts);
     const successes = results.filter((r) => outcome(r) === 'success').length;
-    if (successes >= 2) {
+    const changed = results.filter((r) => differsFromPreState(r, preState)).length;
+    if (successes >= 2 && changed >= 2) {
       findings.push({
         class: 'race_condition',
         id: `race-double-${rand()}`,
@@ -117,7 +195,7 @@ async function t1DoubleSubmit(forms, url, opts) {
         parameter: Object.keys(base).join(','),
         evidence: ev(
           `POST ${action} identical body x${BURST_N} concurrent (5s cap, canary-tagged)`,
-          `Sequential baseline: 1 success. Concurrent burst: ${successes}/${BURST_N} successes — the server applied the mutation ${successes}x for one logical action.`,
+          `Sequential baseline: 1 success (response differs from untouched endpoint). Concurrent burst: ${successes}/${BURST_N} successes, ${changed} carrying mutation evidence — the server applied the mutation ${successes}x for one logical action.`,
           'Double-spend / double-redeem primitive: check-then-act is not atomic under concurrency.'
         ),
       });
@@ -132,6 +210,7 @@ async function t2UniqueRace(forms, url, opts) {
   for (const form of forms.slice(0, 2)) {
     const action = form.action || url;
     if (!isLab(action, opts)) continue;
+    if (isFragmentOnlyAction(action, url)) continue;
     const names = (form.inputs || []).map((i) => i.name).filter(Boolean);
     const emailField = names.find((n) => /mail/i.test(n));
     if (!emailField) continue;
@@ -239,6 +318,7 @@ async function t5TornWrite(forms, url, opts) {
   for (const form of forms.slice(0, 2)) {
     const action = form.action || url;
     if (!isLab(action, opts)) continue;
+    if (isFragmentOnlyAction(action, url)) continue;
     const names = (form.inputs || []).map((i) => i.name).filter(Boolean);
     if (names.length < 2) continue;
     const valA = `dmrace_A_${rand()}`;
