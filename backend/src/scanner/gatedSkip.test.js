@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 129/81/48 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 155/103/52 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -337,24 +337,34 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // honest no-op alongside them (no labCreds on a bare page —
       // 10 Nov 2026, 128th phase), and sw-cache-poisoning SKIPS
       // alongside them (no script targets on a bare page —
-      // 10 Nov 2026, 129th phase).
+      // 10 Nov 2026, 129th phase), and the 26 scout-class phases
+      // (10 Nov 2026, 130th-155th phases) split 22 run / 4 skip on
+      // a bare page: ssti-pebble SKIPS with the battery (no param
+      // targets); xxe-xinclude, the smuggling trio,
+      // hash-length-extension, ssrf-routing, ssrf-referer,
+      // referer-access-control, upload-race, upload-htaccess, the
+      // GraphQL trio and the nine OAuth-family phases RUN as honest
+      // no-ops (non-lab target / no surface / no endpoint — 0
+      // findings on the bare stub); deep-link and webview-bridge
+      // SKIP with 'no script targets'; mcp-tool-poisoning SKIPS
+      // with 'no MCP endpoint discovered'.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 129,
-        ok: 81,
+        total: 155,
+        ok: 103,
         failed: 0,
-        skipped: 48,
+        skipped: 52,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 81 ran ok, 48 skipped, 0 failed, 0 timed out.'
+        'Phases: 103 ran ok, 52 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 159/159/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 186/185/1', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -530,17 +540,24 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // stub carries no labCreds, so the lab gate fails before the
       // mine runs, and sw-cache-poisoning, the 129th phase, runs as
       // an honest no-op alongside them (the stub bundle carries no
-      // service-worker registration).
+      // service-worker registration), and the 26 scout-class phases
+      // (10 Nov 2026, 130th-155th phases) add 27 records —
+      // ssti-pebble records once per scan target (two targets here),
+      // the other 25 once each — with mcp-tool-poisoning the only
+      // skip ('no MCP endpoint discovered'); deep-link and
+      // webview-bridge RUN here (the stub bundle carries script
+      // targets) and the rest run as honest no-ops (non-lab target
+      // / no surface).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 159,
-        ok: 159,
+        total: 186,
+        ok: 185,
         failed: 0,
-        skipped: 0,
+        skipped: 1,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 159 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 185 ran ok, 1 skipped (no MCP endpoint discovered), 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -738,7 +755,7 @@ const searchService = {
         },
         { timeoutMs: 5000 }
       );
-      assert.equal(result.phases.length, 30);
+      assert.equal(result.phases.length, 31);
       for (const name of ['dom-render', 'openapi-targets', 'js-api-routes']) {
         assert.equal(
           result.phases.some((p) => p.name === name),
@@ -746,7 +763,7 @@ const searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 129);
+      assert.equal(DEFAULT_PHASES.length, 155);
     } finally {
       teardown();
     }

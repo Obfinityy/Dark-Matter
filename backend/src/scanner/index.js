@@ -19,12 +19,17 @@ import { probeXssReflected } from './probes/xss.js';
 import { probeCmdiTime } from './probes/cmdi.js';
 import { probeTraversal } from './probes/traversal.js';
 import { probeSsti } from './probes/ssti.js';
+import { probeSstiPebble } from './probes/sstiPebble.js';
 import { probeOpenRedirect } from './probes/redirect.js';
 import { probeCsrf } from './probes/csrf.js';
 import { probePostForms } from './probes/postForms.js';
 import { probeSensitiveFiles } from './probes/files.js';
 import { probeXxe } from './probes/xxe.js';
+import { probeXxeXinclude } from './probes/xxeXinclude.js';
 import { probeSsrf } from './probes/ssrf.js';
+import { probeSsrfRouting } from './probes/ssrfRouting.js';
+import { probeSsrfReferer } from './probes/ssrfReferer.js';
+import { probeRefererAccessControl } from './probes/refererAccessControl.js';
 import { probeIdorSurface } from './probes/idor.js';
 import { probeCors } from './probes/cors.js';
 import { probeCookieFlags } from './probes/cookies.js';
@@ -37,6 +42,7 @@ import { probeLdapBlind } from './probes/ldapBlind.js';
 import { probeNoSqlDeep } from './probes/nosqlDeep.js';
 import { probeRace } from './probes/race.js';
 import { probeCrypto } from './probes/crypto.js';
+import { probeHashLengthExtension } from './probes/hashLengthExtension.js';
 import { probePrototypePollution } from './probes/prototypePollution.js';
 import { probeDeserialization } from './probes/deserialization.js';
 import { probeHpp } from './probes/hpp.js';
@@ -72,6 +78,8 @@ import { probeDomOpenRedirect } from './probes/domOpenRedirect.js';
 import { probeDomClobbering } from './probes/domClobbering.js';
 import { probeDomCookieManipulation } from './probes/domCookieManipulation.js';
 import { probeDocumentDomain } from './probes/documentDomain.js';
+import { probeDeepLink } from './probes/deepLink.js';
+import { probeWebViewBridge } from './probes/webviewBridge.js';
 import { probeWebrtcLeak } from './probes/webrtcLeak.js';
 import { probeSwCachePoisoning } from './probes/swCachePoisoning.js';
 import { probeCsti } from './probes/csti.js';
@@ -93,19 +101,37 @@ import { probeXpathInjection } from './probes/xpathi.js';
 import { probeBlindXpath } from './probes/blindXpath.js';
 import { probeSsiInjection } from './probes/ssi.js';
 import { probeFileUpload } from './probes/fileUpload.js';
+import { probeUploadRace } from './probes/uploadRace.js';
+import { probeUploadHtaccess } from './probes/uploadHtaccess.js';
 import { probeCachePoisoning } from './probes/cachePoison.js';
 import { probeRequestSmuggling } from './probes/smuggling.js';
+import { probeSmugglingClCl } from './probes/smugglingClCl.js';
+import { probeSmugglingZeroCl } from './probes/smugglingZeroCl.js';
+import { probeSmugglingH2Tunnel } from './probes/smugglingH2Tunnel.js';
 import { probeJwt } from './probes/jwt.js';
 import { probeJwtClaims } from './probes/jwtClaims.js';
 import { probeSessionTimeout } from './probes/sessionTimeout.js';
 import { probeLlmToolMisuse } from './probes/llmToolMisuse.js';
+import { probeMcpToolPoisoning } from './probes/mcpToolPoisoning.js';
 import { probeLlmExcessiveAgency } from './probes/llmExcessiveAgency.js';
 import { probeLlmOutputHandling } from './probes/llmOutputHandling.js';
 import { probeLlmMisinformation } from './probes/llmMisinformation.js';
 import { probeLlmInjection } from './probes/llmInjection.js';
 import { probeGraphql } from './probes/graphql.js';
+import { probeGraphqlRelay } from './probes/graphqlRelay.js';
+import { probeGraphqlApq } from './probes/graphqlApq.js';
+import { probeGraphqlDefer } from './probes/graphqlDefer.js';
 import { probeCswsh } from './probes/cswsh.js';
 import { probeOauth } from './probes/oauth.js';
+import { probeOauthMagicLink } from './probes/oauthMagicLink.js';
+import { probeOauthPreAccount } from './probes/oauthPreAccount.js';
+import { probeOauthSsoUnverified } from './probes/oauthSsoUnverified.js';
+import { probeOauthForcedLinking } from './probes/oauthForcedLinking.js';
+import { probeOauthCodeInjection } from './probes/oauthCodeInjection.js';
+import { probeOauthMixup } from './probes/oauthMixup.js';
+import { probeOauthDynamicReg } from './probes/oauthDynamicReg.js';
+import { probeOauthRefreshReuse } from './probes/oauthRefreshReuse.js';
+import { probeWebauthn } from './probes/webauthn.js';
 import { probeSaml } from './probes/saml.js';
 import { createOobCollaborator } from './oobCollaborator.js';
 import { createSmtpCanaryInbox } from './smtpCanaryInbox.js';
@@ -158,6 +184,7 @@ export const DEFAULT_PHASES = [
   'cmdi',
   'traversal',
   'ssti',
+  'ssti-pebble',
   'el-injection',
   'ognl-injection',
   'redirect',
@@ -166,7 +193,11 @@ export const DEFAULT_PHASES = [
   'files',
   'missing-auth',
   'xxe',
+  'xxe-xinclude',
   'ssrf',
+  'ssrf-routing',
+  'ssrf-referer',
+  'referer-access-control',
   'idor',
   'cors',
   'cookies',
@@ -179,6 +210,7 @@ export const DEFAULT_PHASES = [
   'ldap-blind',
   'race',
   'crypto',
+  'hash-length-extension',
   'prototype-pollution',
   'deserialization',
   'hpp',
@@ -204,6 +236,8 @@ export const DEFAULT_PHASES = [
   'dom-clobbering',
   'dom-cookie-manipulation',
   'document-domain',
+  'deep-link',
+  'webview-bridge',
   'webrtc-leak',
   'sw-cache-poisoning',
   'quota-bypass',
@@ -229,19 +263,37 @@ export const DEFAULT_PHASES = [
   'blind-xpath',
   'ssi',
   'file-upload',
+  'upload-race',
+  'upload-htaccess',
   'cache-poisoning',
   'request-smuggling',
+  'smuggling-cl-cl',
+  'smuggling-zero-cl',
+  'smuggling-h2-tunnel',
   'jwt',
   'jwt-claims',
   'session-timeout',
   'llm-tool-misuse',
+  'mcp-tool-poisoning',
   'llm-excessive-agency',
   'llm-output-handling',
   'llm-misinformation',
   'llm-injection',
   'graphql',
+  'graphql-relay',
+  'graphql-apq',
+  'graphql-defer',
   'cswsh',
   'oauth',
+  'oauth-magic-link',
+  'oauth-pre-account',
+  'oauth-sso-unverified',
+  'oauth-forced-linking',
+  'oauth-code-injection',
+  'oauth-mixup',
+  'oauth-dynamic-registration',
+  'oauth-refresh-reuse',
+  'webauthn',
   'saml',
   'tls',
   'password-reset',
@@ -308,6 +360,7 @@ export const PARAM_BATTERY_PHASES = [
   'padding-oracle',
   'arg-injection',
   'ssti',
+  'ssti-pebble',
   'el-injection',
   'ognl-injection',
   'redirect',
@@ -1209,6 +1262,7 @@ export async function runScan(
     await batteryStep('padding-oracle', (o) => probePaddingOracle(u, o), points);
     await batteryStep('arg-injection', (o) => probeArgInjection(u, points, o), points);
     await batteryStep('ssti', (o) => probeSsti(u, points, o), points);
+    await batteryStep('ssti-pebble', (o) => probeSstiPebble(u, points, o), points);
     await batteryStep('el-injection', (o) => probeElInject(u, points, { ...o, stack: fp?.tech }), points);
     await batteryStep('ognl-injection', (o) => probeOgnlInject(u, points, o), points);
     await batteryStep('redirect', (o) => probeOpenRedirect(u, points, o), points);
@@ -1923,6 +1977,64 @@ export async function runScan(
     );
   } else {
     skipPhase('document-domain', 'no script targets');
+  }
+  // DEEP-LINK / URL-SCHEME HIJACKING (10 Nov 2026, row #510 [High]
+  // Deep-link / URL-scheme hijacking + parameter injection,
+  // CWE-939): first-party JS that reads a URL parameter and
+  // forwards it into a custom-scheme deep link (location.href,
+  // window.open, iframe src) lets any site invoke the app with
+  // attacker-chosen parameters (see deepLink.js). Static mining
+  // only — no lab gate, no writes — reuses secretTargets (same
+  // gate as document-domain, so a script-less page records a
+  // skip instead of fetching). Diagnostics ride the phase extras
+  // (bundlesScanned, schemesFound, sinksFound, flowsConfirmed).
+  const dlDiag = {};
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step(
+      'deep-link',
+      () =>
+        probeDeepLink(url, secretTargets, {
+          ...opts,
+          diagnostics: dlDiag,
+          ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+        }),
+      () => ({
+        bundlesScanned: dlDiag.bundlesScanned || 0,
+        schemesFound: dlDiag.schemesFound || [],
+        sinksFound: dlDiag.sinksFound || 0,
+        flowsConfirmed: dlDiag.flowsConfirmed || 0,
+      })
+    );
+  } else {
+    skipPhase('deep-link', 'no script targets');
+  }
+  // WEBVIEW JAVASCRIPT BRIDGE ABUSE (10 Nov 2026, row #511 [High]
+  // WebView JavaScript bridge abuse, CWE-749): a bridge object
+  // exposed to web content that reachable tainted input can call
+  // lets a page drive native functionality (see
+  // webviewBridge.js). Static mining only — same secretTargets
+  // gate as deep-link. Diagnostics ride the phase extras
+  // (bundlesScanned, bridgesRegistered, callSites,
+  // reachableCalls).
+  const wvDiag = {};
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step(
+      'webview-bridge',
+      () =>
+        probeWebViewBridge(url, secretTargets, {
+          ...opts,
+          diagnostics: wvDiag,
+          ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+        }),
+      () => ({
+        bundlesScanned: wvDiag.bundlesScanned || 0,
+        bridgesRegistered: wvDiag.bridgesRegistered || 0,
+        callSites: wvDiag.callSites || 0,
+        reachableCalls: wvDiag.reachableCalls || 0,
+      })
+    );
+  } else {
+    skipPhase('webview-bridge', 'no script targets');
   }
   // WEBRTC LOCAL IP LEAKAGE (9 Nov 2026, row #459 [Low] Browser —
   // WebRTC local IP leakage, CWE-200): drive the pasted page in a
@@ -2847,7 +2959,7 @@ export async function runScan(
   // the docker bridge gateway (172.17.0.1) — the IP lab containers use to
   // reach the host; override with opts.oobCallbackHost / DM_OOB_CALLBACK_HOST.
   let xxeOob = null;
-  if (phases.includes('xxe') && allowWrite) {
+  if ((phases.includes('xxe') || phases.includes('xxe-xinclude')) && allowWrite) {
     try {
       xxeOob = createOobCollaborator({
         listenHost: opts.oobListenHost || process.env.DM_OOB_LISTEN_HOST || '0.0.0.0',
@@ -2870,6 +2982,33 @@ export async function runScan(
           : {}),
       })
     );
+    // XXE VIA XINCLUDE (10 Nov 2026, row #500 [High] XXE —
+    // XInclude, CWE-611): the parser resolves <xi:include> hrefs
+    // without any DOCTYPE, so the blind leg reuses the same xxeOob
+    // collaborator (lab-gated inside the probe); the canary-content
+    // leg runs only when the caller supplies a canary URL + marker
+    // (opts.xincludeCanaryUrl / opts.xincludeCanaryMarker — see
+    // xxeXinclude.js). Diagnostics ride the phase extras
+    // (controlStatus, canaryLeg, oobLeg, skipped).
+    const xxeXincludeDiag = {};
+    await step(
+      'xxe-xinclude',
+      () =>
+        probeXxeXinclude(url, {
+          ...opts,
+          labTargets,
+          diagnostics: xxeXincludeDiag,
+          ...(xxeOob
+            ? { oobCallback: xxeOob.baseUrl(), oobWaitFor: (token, ms) => xxeOob.waitFor(token, ms) }
+            : {}),
+        }),
+      () => ({
+        controlStatus: xxeXincludeDiag.controlStatus ?? null,
+        canaryLeg: xxeXincludeDiag.canaryLeg || null,
+        oobLeg: xxeXincludeDiag.oobLeg || null,
+        skipNote: xxeXincludeDiag.skipped || null,
+      })
+    );
   } finally {
     if (xxeOob) {
       try { await xxeOob.stop(); } catch { /* stop is best-effort */ }
@@ -2881,9 +3020,218 @@ export async function runScan(
   await step('stored-xss', () => probeStoredXss(forms, url, opts));
   await step('weak-creds', () => probeWeakCreds(forms, opts));
   await step('host-header', () => probeHostHeader(url, opts));
+  // SSRF VIA ROUTING-BASED HOST HEADER (10 Nov 2026, row #494
+  // [High] SSRF via routing-based Host header, CWE-918): a routing
+  // middleware that dispatches by Host can expose an internal admin
+  // panel to an outside caller who guesses the internal host name.
+  // The probe sends the candidate Host values over a raw socket
+  // (undici drops Host — see ssrfRouting.js) and confirms only on
+  // the admin marker served for the candidate Host, reproduced, and
+  // absent from the baseline and the nonsense-Host control.
+  // Read-only GETs — the Host header itself is the surface, not a
+  // probe point, so this is a single-shot step, not a battery step.
+  // Diagnostics ride the phase extras (candidates,
+  // baselineHasMarker, attempts, hostValue).
+  const ssrfRoutingDiag = {};
+  await step(
+    'ssrf-routing',
+    () => probeSsrfRouting(url, [], { ...opts, diagnostics: ssrfRoutingDiag }),
+    () => ({
+      candidates: ssrfRoutingDiag.candidates || 0,
+      baselineHasMarker: Boolean(ssrfRoutingDiag.baselineHasMarker),
+      attempts: ssrfRoutingDiag.attempts || 0,
+      hostValue: ssrfRoutingDiag.hostValue || null,
+    })
+  );
+  // SSRF VIA REFERER HEADER (10 Nov 2026, row #495 [High] SSRF via
+  // Referer header fetch + Shellshock via Referer, CWE-918 /
+  // CWE-78): the server fetches the URL carried in Referer (leg 1,
+  // OOB collaborator canary + control) or executes it as bash in a
+  // CGI handler (leg 2, marker + benign control + repeat). Same
+  // one-collaborator-per-OOB-phase pattern as saml/xxe — only when
+  // the target is lab-gated (allowWrite). Start is best-effort: a
+  // bind failure is recorded in errors and the scan continues with
+  // the fetch leg skipped (the Shellshock leg needs no
+  // collaborator). The collaborator is always stopped afterwards
+  // (finally), so no listener outlives the scan. Callback-host
+  // default is the docker bridge gateway (172.17.0.1).
+  let refererOob = null;
+  if (phases.includes('ssrf-referer') && allowWrite) {
+    try {
+      refererOob = createOobCollaborator({
+        listenHost: opts.oobListenHost || process.env.DM_OOB_LISTEN_HOST || '0.0.0.0',
+        listenPort: opts.oobListenPort || (process.env.DM_OOB_PORT ? Number(process.env.DM_OOB_PORT) : 0),
+        callbackHost: opts.oobCallbackHost || process.env.DM_OOB_CALLBACK_HOST || '172.17.0.1',
+      });
+      await refererOob.start();
+    } catch (e) {
+      errors.push(`oob-collaborator: ${e && e.message ? e.message : String(e)}`);
+      refererOob = null;
+    }
+  }
+  const ssrfRefererDiag = {};
+  try {
+    await step(
+      'ssrf-referer',
+      () =>
+        probeSsrfReferer(url, {
+          ...opts,
+          diagnostics: ssrfRefererDiag,
+          ...(refererOob
+            ? { oobCallback: refererOob.baseUrl(), oobWaitFor: (token, ms) => refererOob.waitFor(token, ms) }
+            : {}),
+        }),
+      () => ({
+        refererFetchVerdict: ssrfRefererDiag.refererFetchVerdict || null,
+        shellshockVerdict: ssrfRefererDiag.shellshockVerdict || null,
+        attempts: ssrfRefererDiag.attempts || 0,
+      })
+    );
+  } finally {
+    if (refererOob) {
+      try { await refererOob.stop(); } catch { /* stop is best-effort */ }
+    }
+  }
+  // REFERER-BASED ACCESS CONTROL (10 Nov 2026, row #496 [High]
+  // Access control — Referer-based access control, CWE-862): an
+  // admin route that opens for a forged Referer is a broken access
+  // check, not a header quirk. The probe needs labCreds (a
+  // known-good session) + apiRoutes and confirms only on the
+  // differential — forged Referer reaches admin content, benign
+  // and nonsense Referers do not (see refererAccessControl.js).
+  // Lab-gated (allowWrite + lab host + depth !== 'quick' inside
+  // the probe). Diagnostics ride the phase extras (adminRoutes,
+  // controlOk, registerOk, bypassKind, attempts).
+  const refererAcDiag = {};
+  await step(
+    'referer-access-control',
+    () =>
+      probeRefererAccessControl(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: refererAcDiag,
+      }),
+    () => ({
+      adminRoutes: refererAcDiag.adminRoutes || 0,
+      controlOk: Boolean(refererAcDiag.controlOk),
+      registerOk: Boolean(refererAcDiag.registerOk),
+      bypassKind: refererAcDiag.bypassKind || null,
+      attempts: refererAcDiag.attempts || 0,
+    })
+  );
   await step('file-upload', () => probeFileUpload(url, { ...opts, allowWrite }));
+  // FILE UPLOAD RACE CONDITION (10 Nov 2026, row #498 [High] File
+  // upload — race condition (validation bypass), CWE-434 / CWE-367):
+  // a handler that moves the file into the public directory BEFORE
+  // the type/virus check deletes it leaves a live window — the
+  // probe uploads a harmless marker file while GET-polling the
+  // predicted public URL and confirms only on a hit inside the
+  // window plus a later GET showing the file gone (see
+  // uploadRace.js). Lab-gated (allowWrite + lab host inside the
+  // probe). Diagnostics ride the phase extras (forms,
+  // uploadAccepted, verdict, windowHitMs, goneAfter).
+  const uploadRaceDiag = {};
+  await step(
+    'upload-race',
+    () => probeUploadRace(url, { ...opts, allowWrite, labTargets, diagnostics: uploadRaceDiag }),
+    () => ({
+      forms: uploadRaceDiag.forms || 0,
+      uploadAccepted: Boolean(uploadRaceDiag.uploadAccepted),
+      verdict: uploadRaceDiag.verdict || null,
+      windowHitMs: uploadRaceDiag.windowHitMs ?? null,
+      goneAfter: Boolean(uploadRaceDiag.goneAfter),
+    })
+  );
+  // FILE UPLOAD — SERVER CONFIG OVERRIDE VIA .HTACCESS (10 Nov
+  // 2026, row #499 [High] File upload — server config override
+  // (.htaccess), CWE-434): an upload handler that accepts a
+  // .htaccess into a public directory lets an attacker rewrite the
+  // directory's server configuration — here, mapping a new
+  // extension to the PHP handler. The probe uploads a .htaccess
+  // carrying `AddType application/x-httpd-php .l33t`, then a
+  // MARKER file with that extension, and confirms only on
+  // execution of the marker — with the control marker (uploaded
+  // BEFORE the .htaccess) served inert (see uploadHtaccess.js).
+  // Lab-gated (allowWrite + lab host inside the probe).
+  // Diagnostics ride the phase extras (forms, htaccessAccepted,
+  // probeExecuted, probeRepeatExecuted, controlExecuted, verdict).
+  const uploadHtaccessDiag = {};
+  await step(
+    'upload-htaccess',
+    () => probeUploadHtaccess(url, { ...opts, allowWrite, labTargets, diagnostics: uploadHtaccessDiag }),
+    () => ({
+      forms: uploadHtaccessDiag.forms || 0,
+      htaccessAccepted: Boolean(uploadHtaccessDiag.htaccessAccepted),
+      probeExecuted: Boolean(uploadHtaccessDiag.probeExecuted),
+      probeRepeatExecuted: Boolean(uploadHtaccessDiag.probeRepeatExecuted),
+      controlExecuted: Boolean(uploadHtaccessDiag.controlExecuted),
+      verdict: uploadHtaccessDiag.verdict || null,
+    })
+  );
   await step('cache-poisoning', () => probeCachePoisoning(url, opts));
   await step('request-smuggling', () => probeRequestSmuggling(url, opts));
+  // REQUEST SMUGGLING — CL.CL (10 Nov 2026, row #503 [High]
+  // request smuggling — CL.CL, CWE-444): duplicate Content-Length
+  // headers let front and back disagree on where the body ends, so
+  // attacker bytes are processed as a new request. Raw-socket
+  // oracle (baseline must pipeline cleanly or the phase skips —
+  // see smugglingClCl.js); https targets skip (raw socket, no
+  // TLS). Diagnostics ride the phase extras (baselineResponses,
+  // skipped).
+  const smugglingClClDiag = {};
+  await step(
+    'smuggling-cl-cl',
+    () => probeSmugglingClCl(url, { ...opts, diagnostics: smugglingClClDiag }),
+    () => ({
+      baselineResponses: smugglingClClDiag.baselineResponses ?? null,
+      skipNote: smugglingClClDiag.skipped || null,
+    })
+  );
+  // REQUEST SMUGGLING — 0.CL / CL.0 (10 Nov 2026, row #504 [High]
+  // request smuggling — 0.CL / CL.0, CWE-444): a zero
+  // Content-Length against a non-zero one is the same front/back
+  // disagreement with a different shape (see
+  // smugglingZeroCl.js). Same raw-socket oracle and https skip as
+  // CL.CL.
+  const smugglingZeroClDiag = {};
+  await step(
+    'smuggling-zero-cl',
+    () => probeSmugglingZeroCl(url, { ...opts, diagnostics: smugglingZeroClDiag }),
+    () => ({
+      baselineResponses: smugglingZeroClDiag.baselineResponses ?? null,
+      skipNote: smugglingZeroClDiag.skipped || null,
+    })
+  );
+  // HTTP/2 REQUEST TUNNELLING (10 Nov 2026, row #505 [High] HTTP/2
+  // tunnelling, CWE-444): a front-end that terminates HTTP/2 and
+  // forwards to HTTP/1.1 must sanitise header values when it
+  // re-serialises them — a CRLF inside an H2 header value becomes
+  // a new HTTP/1.1 request on the back-end connection. Node's
+  // http2 client refuses \r / \n outright, so the probe speaks
+  // raw HTTP/2 frames over a node:net socket (see
+  // smugglingH2Tunnel.js). Confirmed ONLY when the smuggled
+  // request is observed reaching the back-end — via a second
+  // response on another stream, or via opts.smuggledObserver (a
+  // lab back-end tap supplied by the caller); without an observer
+  // the phase reports "no observer" and stays quiet. h2c
+  // cleartext only — https targets skip. Diagnostics ride the
+  // phase extras (h2Available, baselineStatus, attackStatus,
+  // smuggledObserved, noObserver, skipped).
+  const smugglingH2Diag = {};
+  await step(
+    'smuggling-h2-tunnel',
+    () => probeSmugglingH2Tunnel(url, { ...opts, diagnostics: smugglingH2Diag }),
+    () => ({
+      h2Available: Boolean(smugglingH2Diag.h2Available),
+      baselineStatus: smugglingH2Diag.baselineStatus ?? null,
+      attackStatus: smugglingH2Diag.attackStatus ?? null,
+      smuggledObserved: Boolean(smugglingH2Diag.smuggledObserved),
+      noObserver: Boolean(smugglingH2Diag.noObserver),
+      skipNote: smugglingH2Diag.skipped || null,
+    })
+  );
   await step('jwt', () => probeJwt(url, opts));
   // JWT SENSITIVE CLAIMS (9 Nov 2026, row #481 [Medium] JWT —
   // sensitive data in claims (unencrypted payload), CWE-359 /
@@ -2989,6 +3337,30 @@ export async function runScan(
       runCommandDirect: Boolean(llmToolDiag.runCommandDirect),
     })
   );
+  // MCP TOOL POISONING (10 Nov 2026, row #485 [Critical] MCP tool
+  // poisoning incl. rug pull / tool shadowing, CWE-94 / CWE-829):
+  // an MCP server whose tool list carries hidden instructions,
+  // swaps a tool definition after approval, or lists a lookalike
+  // shadow tool (see mcpToolPoisoning.js). Read-only JSON-RPC
+  // (initialize + tools/list) — no tool is ever invoked. Runs only
+  // when the scan already knows an MCP endpoint (opts.mcpEndpoint,
+  // supplied by the caller); otherwise the phase records a skip,
+  // never a probe against an arbitrary web target. Diagnostics ride
+  // the phase extras (initialized, toolsListed, listsCompared).
+  const mcpDiag = {};
+  if (opts.mcpEndpoint) {
+    await step(
+      'mcp-tool-poisoning',
+      () => probeMcpToolPoisoning(opts.mcpEndpoint, { ...opts, diagnostics: mcpDiag }),
+      () => ({
+        initialized: Boolean(mcpDiag.initialized),
+        toolsListed: mcpDiag.toolsListed || 0,
+        listsCompared: mcpDiag.listsCompared || 0,
+      })
+    );
+  } else {
+    skipPhase('mcp-tool-poisoning', 'no MCP endpoint discovered');
+  }
   // LLM EXCESSIVE AGENCY (9 Nov 2026, rows #17 [Critical] + #379
   // [High]): a state-changing agent action with no confirmation
   // step (see llmExcessiveAgency.js). The probe reads the user
@@ -3110,6 +3482,68 @@ export async function runScan(
     })
   );
   await step('graphql', () => probeGraphql(url, { ...opts, labTargets }));
+  // GRAPHQL RELAY NODE IDOR (10 Nov 2026, row #507 [High] GraphQL
+  // Relay Node interface IDOR, CWE-639): node(id:) resolves any
+  // global id, so a neighbouring user's object is readable through
+  // it. The probe discovers the endpoint itself, resolves its own
+  // id (baseline), a neighbouring id (attack + repeat) and a
+  // nonsense id (control) — confirmed only on the full oracle
+  // (see graphqlRelay.js). Read-only __typename/node reads, no
+  // mutation ever sent. Diagnostics ride the phase extras
+  // (endpoint, ownResolved, otherResolved, nonsenseResolved,
+  // oracle).
+  const graphqlRelayDiag = {};
+  await step(
+    'graphql-relay',
+    () => probeGraphqlRelay(url, [], { ...opts, labTargets, diagnostics: graphqlRelayDiag }),
+    () => ({
+      endpoint: graphqlRelayDiag.endpoint || null,
+      ownResolved: Boolean(graphqlRelayDiag.ownResolved),
+      otherResolved: Boolean(graphqlRelayDiag.otherResolved),
+      nonsenseResolved: Boolean(graphqlRelayDiag.nonsenseResolved),
+      oracle: graphqlRelayDiag.oracle || null,
+    })
+  );
+  // GRAPHQL PERSISTED QUERIES / APQ ABUSE (10 Nov 2026, row #508
+  // [Medium] GraphQL persisted queries / APQ abuse, CWE-639):
+  // Automatic Persisted Queries let a client replay an arbitrary
+  // query by hash alone — the probe registers a query, replays it
+  // by hash (attack + repeat) and checks an unknown hash is
+  // rejected (control) (see graphqlApq.js). Read-only __typename
+  // reads. Diagnostics ride the phase extras (endpoint,
+  // registered, unknownHashRejected, oracle).
+  const graphqlApqDiag = {};
+  await step(
+    'graphql-apq',
+    () => probeGraphqlApq(url, [], { ...opts, labTargets, diagnostics: graphqlApqDiag }),
+    () => ({
+      endpoint: graphqlApqDiag.endpoint || null,
+      registered: Boolean(graphqlApqDiag.registered),
+      unknownHashRejected: Boolean(graphqlApqDiag.unknownHashRejected),
+      oracle: graphqlApqDiag.oracle || null,
+    })
+  );
+  // GRAPHQL @DEFER / @STREAM DELIVERY ABUSE (10 Nov 2026, row #509
+  // [Medium] GraphQL @defer / @stream delivery abuse, CWE-400):
+  // deferred delivery can leak fields the caller should not see
+  // and amplify one request into many chunks / much server time.
+  // The probe compares plain vs deferred queries (chunk count,
+  // timing, directive-key leakage — see graphqlDefer.js).
+  // Read-only queries only, no DoS-class behaviour. Diagnostics
+  // ride the phase extras (endpoint, deferSupported,
+  // chunkAmplified, timingAmplified, directiveLeaked).
+  const graphqlDeferDiag = {};
+  await step(
+    'graphql-defer',
+    () => probeGraphqlDefer(url, [], { ...opts, labTargets, diagnostics: graphqlDeferDiag }),
+    () => ({
+      endpoint: graphqlDeferDiag.endpoint || null,
+      deferSupported: Boolean(graphqlDeferDiag.deferSupported),
+      chunkAmplified: Boolean(graphqlDeferDiag.chunkAmplified),
+      timingAmplified: Boolean(graphqlDeferDiag.timingAmplified),
+      directiveLeaked: Boolean(graphqlDeferDiag.directiveLeaked),
+    })
+  );
   // CSWSH — DOM-BASED WEBSOCKET-URL POISONING (9 Nov 2026, row #92
   // [Medium] Technique (no single CVE) | PortSwigger DOM): tier 1
   // mines first-party code for WebSocket endpoints (new WebSocket()
@@ -3142,6 +3576,32 @@ export async function runScan(
     })
   );
   await step('oauth', () => probeOauth(url, { ...opts, labTargets }));
+  // OAUTH-FAMILY SCOUT ROWS (10 Nov 2026, #487-#493, #497, #502):
+  // state-changing identity flows against the oauth-lab only —
+  // each probe gates itself on isLabTargetHost (opts.labTargets)
+  // and skips quick depth. See probes/oauth*.js for the per-row
+  // differential oracles.
+  const oauthFamDiag = {};
+  const oauthFamStep = async (phase, fn, extraKeys) => {
+    const diag = {};
+    oauthFamDiag[phase] = diag;
+    await step(
+      phase,
+      () => fn({ ...opts, labTargets, diagnostics: diag }),
+      () => ({ gated: Boolean(diag.gated), attempts: diag.attempts || 0, verdict: diag.verdict || null, ...extraKeys(diag) })
+    );
+  };
+  await oauthFamStep('oauth-magic-link', (o) => probeOauthMagicLink(url, [], o), (d) => ({ replayVerdict: d.replayVerdict || null, stateVerdict: d.stateVerdict || null }));
+  await oauthFamStep('oauth-pre-account', (o) => probeOauthPreAccount(url, [], o), () => ({}));
+  await oauthFamStep('oauth-sso-unverified', (o) => probeOauthSsoUnverified(url, [], o), (d) => ({ emailVerified: d.emailVerified ?? null }));
+  await oauthFamStep('oauth-forced-linking', (o) => probeOauthForcedLinking(url, [], o), () => ({}));
+  await oauthFamStep('oauth-code-injection', (o) => probeOauthCodeInjection(url, [], o), (d) => ({ attackMeEmail: d.attackMeEmail || null, controlMeEmail: d.controlMeEmail || null }));
+  await oauthFamStep('oauth-mixup', (o) => probeOauthMixup(url, [], o), (d) => ({ expectedIssuer: d.expectedIssuer || null }));
+  // Dynamic registration needs the canary callback host (bridge
+  // gateway on EC2, same convention as the SAML OOB collaborator).
+  await oauthFamStep('oauth-dynamic-registration', (o) => probeOauthDynamicReg(url, [], { ...o, oobCallbackHost: opts.oobCallbackHost || process.env.DM_OOB_CALLBACK_HOST || '172.17.0.1' }), (d) => ({ listenerHits: d.listenerHits || 0, logEntries: d.logEntries || 0 }));
+  await oauthFamStep('oauth-refresh-reuse', (o) => probeOauthRefreshReuse(url, [], o), (d) => ({ refreshReuseCount: d.refreshReuseCount ?? null }));
+  await oauthFamStep('webauthn', (o) => probeWebauthn(url, [], o), () => ({}));
   // SAML-XXE OOB collaborator (6 Nov 2026): the SAML probe's blind-XXE
   // variant needs a callback base AND a waiter. Both come from a
   // collaborator started here for the duration of the saml phase — only
@@ -3184,6 +3644,29 @@ export async function runScan(
   await step('tls', () => probeTls(url, opts));
   await step('password-reset', () => probePasswordReset(forms, url, { ...opts, labTargets }));
   await step('crypto', () => probeCrypto(url, opts));
+  // HASH LENGTH EXTENSION (10 Nov 2026, row #506 [High] hash
+  // length extension, CWE-327 / CWE-347): a secret-prefix MAC
+  // (hash(secret || message)) lets an attacker forge a valid MAC
+  // for message + glue-padding + append without knowing the
+  // secret. The probe needs a harvested MAC triple from the caller
+  // (opts.hashLengthExtension: { message, mac, algorithm, append }
+  // plus opts.verifyMac / opts.verifyUrl) — without it the phase
+  // records a skip in diagnostics, never a guess (see
+  // hashLengthExtension.js). No MAC harvester exists in the scan
+  // yet, so the phase skips until one lands. Diagnostics ride the
+  // phase extras (algorithm, secretLengthsTried, forgedAccepted,
+  // skipped).
+  const hleDiag = {};
+  await step(
+    'hash-length-extension',
+    () => probeHashLengthExtension(url, { ...opts, diagnostics: hleDiag }),
+    () => ({
+      algorithm: hleDiag.algorithm || null,
+      secretLengthsTried: hleDiag.secretLengthsTried || 0,
+      forgedAccepted: Boolean(hleDiag.forgedAccepted),
+      skipNote: hleDiag.skipped || null,
+    })
+  );
   await step('prototype-pollution', () => probePrototypePollution(url, { ...opts, labTargets }));
   await step('deserialization', () => probeDeserialization(url, { ...opts, labTargets }));
   // Nuclei step: captures the FULL runNuclei result. The old code kept
