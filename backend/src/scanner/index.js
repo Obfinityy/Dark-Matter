@@ -12,6 +12,7 @@ import { extractProbePoints, buildCoverageExtras, probePointParameter } from './
 import { analyzePage, planForPage, mergePageAnalyses } from './pageAnalyze.js';
 import { groupFindingsByRoute } from './routeGroup.js';
 import { runPhaseTasks, resolvePhaseConcurrency } from './parallel.js';
+import { withThrottledFetch } from './httpBackoff.js';
 import { probeHeaders } from './probes/headers.js';
 import { probeSqliError } from './probes/sqliError.js';
 import { probeBlindSqli } from './probes/sqliBlind.js';
@@ -441,8 +442,25 @@ export function hasOffPageParamTarget(targets, baseUrl) {
  * gate was false (7 Nov 2026, gated-skip fix — a skipped phase is
  * neither ok nor failed; buildPhaseRollup counts it separately).
  * `errors` is kept for backward compatibility.
+ *
+ * 429 / RETRY-AFTER BACK-OFF (10 Nov 2026): runScanInner is the real
+ * battery; the exported runScan runs it under the throttled fetch from
+ * httpBackoff.js, so a host that answers 429 pauses further requests
+ * to that host for the Retry-After duration (capped at 60s, 5s default)
+ * instead of being hammered. The 429 response itself reaches the probe
+ * untouched. `opts.httpBackoff` is a test seam for the wrapper options
+ * ({ now, sleep, defaultBackoffMs, maxBackoffMs }); production
+ * callers never pass it.
  */
-export async function runScan(
+export async function runScan(scanArgs, opts = {}) {
+  return withThrottledFetch(
+    () => runScanInner(scanArgs, opts),
+    globalThis.fetch,
+    opts && typeof opts.httpBackoff === 'object' ? opts.httpBackoff : {}
+  );
+}
+
+async function runScanInner(
   {
     target,
     scope = '',
