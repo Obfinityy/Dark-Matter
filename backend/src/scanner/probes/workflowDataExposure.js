@@ -74,6 +74,7 @@ import {
   parseBasket,
   parseProductList,
   extractBasketId,
+  seedFirstAddableProduct,
 } from './basketLogic.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
@@ -555,10 +556,13 @@ export async function probeWorkflowDataExposure(url, opts = {}) {
   }
 
   // Step 5 — the checkout response. The basket must be non-empty
-  // for the checkout step to run; seed the cheapest product when
-  // it is empty (one POST, exactly as in workflow-skip). Without
-  // a seedable basket the checkout step is skipped — the earlier
-  // steps were still inspected.
+  // for the checkout step to run; seed the first addable product
+  // when it is empty (one POST, exactly as in workflow-skip). The
+  // cheapest product is tried first, but it is not always addable
+  // (Juice: out of stock) — the seeder walks the price list until
+  // one adds (see seedFirstAddableProduct). Without a seedable
+  // basket the checkout step is skipped — the earlier steps were
+  // still inspected.
   if (checkoutUrl) {
     if (!basket) return findings;
     if (!basket.parsed.items.length) {
@@ -568,19 +572,8 @@ export async function probeWorkflowDataExposure(url, opts = {}) {
       const pr = await req(fetchFn, stripQuery(productUrl), { token });
       const products = pr && pr.json ? parseProductList(pr.json) : [];
       if (!products.length) return findings;
-      const add = await req(fetchFn, itemCollection, {
-        method: 'POST',
-        token,
-        body: { BasketId: basketId, ProductId: products[0].id, quantity: 1 },
-      });
-      if (!add || add.status < 200 || add.status >= 300) {
-        const add2 = await req(fetchFn, itemCollection, {
-          method: 'POST',
-          token,
-          body: { basketId, productId: products[0].id, quantity: 1 },
-        });
-        if (!add2 || add2.status < 200 || add2.status >= 300) return findings;
-      }
+      const seededRes = await seedFirstAddableProduct(fetchFn, { itemCollection, basketId, products, token });
+      if (!seededRes.ok) return findings;
       basket = await readBasket();
       if (!basket || !basket.parsed.items.length) return findings;
     }

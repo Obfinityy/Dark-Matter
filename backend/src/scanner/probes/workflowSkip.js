@@ -64,6 +64,7 @@ import {
   parseProductList,
   extractBasketId,
   findOrderTotal,
+  seedFirstAddableProduct,
 } from './basketLogic.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
@@ -335,33 +336,25 @@ export async function probeWorkflowSkip(url, opts = {}) {
   let basket = await readBasket();
   if (!basket) return findings;
 
-  // Seed an empty basket with the cheapest product (one unit), so
-  // the control checkout has an item to check out. Without a
-  // collection route there is nothing to seed with — honest [].
+  // Seed an empty basket with the first addable product (one
+  // unit), so the control checkout has an item to check out. The
+  // cheapest product is tried first, but it is not always addable
+  // (Juice: out of stock) — the seeder walks the price list until
+  // one adds (see seedFirstAddableProduct). Without a collection
+  // route there is nothing to seed with — honest [].
   if (!basket.items.length) {
-    if (!itemCollection) return findings;
+    if (!itemCollection) { setDiag('bailStage', 'seed'); return findings; }
     const productUrl = productListRoute(routes, origin);
-    if (!productUrl) return findings;
+    if (!productUrl) { setDiag('bailStage', 'seed'); return findings; }
     const pr = await req(fetchFn, stripQuery(productUrl), { token });
     const products = pr && pr.json ? parseProductList(pr.json) : [];
-    if (!products.length) return findings;
-    const cheapest = products[0];
-    const add = await req(fetchFn, itemCollection, {
-      method: 'POST',
-      token,
-      body: { BasketId: basketId, ProductId: cheapest.id, quantity: 1 },
-    });
-    if (!add || add.status < 200 || add.status >= 300) {
-      // One camelCase retry — field-name spelling varies by shop.
-      const add2 = await req(fetchFn, itemCollection, {
-        method: 'POST',
-        token,
-        body: { basketId, productId: cheapest.id, quantity: 1 },
-      });
-      if (!add2 || add2.status < 200 || add2.status >= 300) return findings;
-    }
+    if (!products.length) { setDiag('bailStage', 'seed'); return findings; }
+    const seededRes = await seedFirstAddableProduct(fetchFn, { itemCollection, basketId, products, token });
+    setDiag('seedAttempts', seededRes.attempts);
+    if (seededRes.ok) setDiag('seedProductId', seededRes.productId);
+    if (!seededRes.ok) { setDiag('bailStage', 'seed'); return findings; }
     basket = await readBasket();
-    if (!basket || !basket.items.length) return findings;
+    if (!basket || !basket.items.length) { setDiag('bailStage', 'seed'); return findings; }
   }
 
   // THE CONTROL: checkout the non-empty basket. It must return an

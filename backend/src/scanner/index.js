@@ -2370,8 +2370,12 @@ export async function runScan(
   // session-fixation (T4b) — the mined basket endpoints reach the
   // probe only through the discovered route set, never invented.
   // Diagnostics ride the phase extras (basketRoutes, basketId,
-  // controlOk, mutations) so a live proof can tell "no surface"
-  // from "oracle uncalibrated" without re-running the scan.
+  // controlOk, mutations, bailStage, seedProductId, seedAttempts)
+  // so a live proof can tell "no surface" from "oracle
+  // uncalibrated" without re-running the scan — and can see
+  // exactly which stage bailed (10 Nov 2026, proof #40: the seed
+  // and the control both bailed silently on an out-of-stock
+  // cheapest product, and the record could not say which).
   const blDiag = {};
   plan(
     'basket-logic',
@@ -2388,6 +2392,9 @@ export async function runScan(
       basketId: Boolean(blDiag.basketId),
       controlOk: Boolean(blDiag.controlOk),
       mutations: blDiag.mutations || 0,
+      bailStage: blDiag.bailStage || null,
+      seedProductId: blDiag.seedProductId || null,
+      seedAttempts: blDiag.seedAttempts || 0,
     }),
     { exclusive: LAB_BASKET }
   );
@@ -2415,6 +2422,7 @@ export async function runScan(
       basketId: Boolean(wsDiag.basketId),
       controlOk: Boolean(wsDiag.controlOk),
       mutations: wsDiag.mutations || 0,
+      bailStage: wsDiag.bailStage || null,
     }),
     { exclusive: LAB_BASKET }
   );
@@ -2568,6 +2576,8 @@ export async function runScan(
       controlOk: Boolean(bfaDiag.controlOk),
       attempts: bfaDiag.attempts || 0,
       bypassKind: bfaDiag.bypassKind || null,
+      bailStage: bfaDiag.bailStage || null,
+      seedProductId: bfaDiag.seedProductId || null,
     }),
     { exclusive: LAB_BASKET }
   );

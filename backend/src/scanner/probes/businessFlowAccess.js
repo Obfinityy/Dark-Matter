@@ -62,6 +62,7 @@ import {
   parseBasket,
   parseProductList,
   extractBasketId,
+  seedFirstAddableProduct,
 } from './basketLogic.js';
 import { extractBearerTokenFromJson } from '../labSession.js';
 
@@ -404,31 +405,23 @@ export async function probeBusinessFlowAccess(url, opts = {}) {
   if (victimBasket.parsed.items.length) {
     markerProductId = victimBasket.parsed.items[0].productId;
   } else {
-    if (!itemCollection) return findings;
+    if (!itemCollection) { setDiag('bailStage', 'seed'); return findings; }
     const productUrl = productListRoute(routes, origin);
-    if (!productUrl) return findings;
+    if (!productUrl) { setDiag('bailStage', 'seed'); return findings; }
     const pr = await req(fetchFn, stripQuery(productUrl), { token: victimToken });
     const products = pr && pr.json ? parseProductList(pr.json) : [];
-    if (!products.length) return findings;
-    const cheapest = products[0];
-    const add = await req(fetchFn, itemCollection, {
-      method: 'POST',
-      token: victimToken,
-      body: { BasketId: victimBid, ProductId: cheapest.id, quantity: 1 },
-    });
-    if (!add || add.status < 200 || add.status >= 300) {
-      // One camelCase retry — field-name spelling varies by shop.
-      const add2 = await req(fetchFn, itemCollection, {
-        method: 'POST',
-        token: victimToken,
-        body: { basketId: victimBid, productId: cheapest.id, quantity: 1 },
-      });
-      if (!add2 || add2.status < 200 || add2.status >= 300) return findings;
-    }
+    if (!products.length) { setDiag('bailStage', 'seed'); return findings; }
+    // The cheapest product is tried first, but it is not always
+    // addable (Juice: out of stock) — the seeder walks the price
+    // list until one adds (see seedFirstAddableProduct).
+    const seededRes = await seedFirstAddableProduct(fetchFn, { itemCollection, basketId: victimBid, products, token: victimToken });
+    setDiag('seedAttempts', seededRes.attempts);
+    if (seededRes.ok) setDiag('seedProductId', seededRes.productId);
+    if (!seededRes.ok) { setDiag('bailStage', 'seed'); return findings; }
     victimSeeded = true;
     victimBasket = await readBasket(victimBasketUrl, victimToken);
-    if (!victimBasket || !victimBasket.parsed.items.length) return findings;
-    markerProductId = cheapest.id;
+    if (!victimBasket || !victimBasket.parsed.items.length) { setDiag('bailStage', 'seed'); return findings; }
+    markerProductId = seededRes.productId;
   }
   setDiag('victimSeeded', victimSeeded);
   if (markerProductId == null) return findings;

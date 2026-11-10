@@ -65,6 +65,7 @@ import {
   parseBasket,
   parseProductList,
   extractBasketId,
+  seedFirstAddableProduct,
 } from './basketLogic.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
@@ -476,9 +477,12 @@ export async function probeCouponAbuse(url, opts = {}) {
   let basket = await readBasket();
   if (!basket) return findings;
 
-  // Seed an empty basket with the cheapest product (one unit), so
-  // the control apply has a total to discount. Without a
-  // collection route there is nothing to seed with — honest [].
+  // Seed an empty basket with the first addable product (one
+  // unit), so the control apply has a total to discount. The
+  // cheapest product is tried first, but it is not always addable
+  // (Juice: out of stock) — the seeder walks the price list until
+  // one adds (see seedFirstAddableProduct). Without a collection
+  // route there is nothing to seed with — honest [].
   let seeded = false;
   if (!basket.items.length) {
     if (!itemCollection) return findings;
@@ -487,22 +491,8 @@ export async function probeCouponAbuse(url, opts = {}) {
     const pr = await req(fetchFn, stripQuery(productUrl), { token });
     const products = pr && pr.json ? parseProductList(pr.json) : [];
     if (!products.length) return findings;
-    const cheapest = products[0];
-    if (!spend()) return findings;
-    const add = await req(fetchFn, itemCollection, {
-      method: 'POST',
-      token,
-      body: { BasketId: basketId, ProductId: cheapest.id, quantity: 1 },
-    });
-    if (!add || add.status < 200 || add.status >= 300) {
-      if (!spend()) return findings;
-      const add2 = await req(fetchFn, itemCollection, {
-        method: 'POST',
-        token,
-        body: { basketId, productId: cheapest.id, quantity: 1 },
-      });
-      if (!add2 || add2.status < 200 || add2.status >= 300) return findings;
-    }
+    const seededRes = await seedFirstAddableProduct(fetchFn, { itemCollection, basketId, products, token, canSpend: spend });
+    if (!seededRes.ok) return findings;
     basket = await readBasket();
     if (!basket || !basket.items.length) return findings;
     seeded = true;
@@ -599,8 +589,8 @@ export async function probeCouponAbuse(url, opts = {}) {
     return false;
   };
 
-  // Re-seed one cheapest product and return the fresh basket, or
-  // null when seeding is impossible.
+  // Re-seed one first-addable product and return the fresh basket,
+  // or null when seeding is impossible.
   const reseed = async () => {
     if (!itemCollection) return null;
     const productUrl = productListRoute(routes, origin);
@@ -608,13 +598,8 @@ export async function probeCouponAbuse(url, opts = {}) {
     const pr = await req(fetchFn, stripQuery(productUrl), { token });
     const products = pr && pr.json ? parseProductList(pr.json) : [];
     if (!products.length) return null;
-    if (!spend()) return null;
-    const add = await req(fetchFn, itemCollection, {
-      method: 'POST',
-      token,
-      body: { BasketId: basketId, ProductId: products[0].id, quantity: 1 },
-    });
-    if (!add || add.status < 200 || add.status >= 300) return null;
+    const seededRes = await seedFirstAddableProduct(fetchFn, { itemCollection, basketId, products, token, canSpend: spend });
+    if (!seededRes.ok) return null;
     return readBasket();
   };
 

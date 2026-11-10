@@ -70,6 +70,8 @@ import {
   parseBasket,
   parseProductList,
   extractBasketId,
+  isOutOfStockResponse,
+  MAX_SEED_PRODUCTS,
 } from './basketLogic.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
@@ -385,6 +387,10 @@ export async function probeExceptionalConditions(url, opts = {}) {
         bodyShape = shape;
         return r;
       }
+      // An out-of-stock 400 is the VALUE (the product), never the
+      // shape — no alternate spelling can fix stock, so return at
+      // once and let the caller try the next product.
+      if (isOutOfStockResponse(r)) return r;
       // A 4xx on the primary shape may be the shape, not the
       // value — try the alternate shape once before concluding.
       if (shape === 'primary' && r.status >= 400 && r.status < 500 && !bodyShape) continue;
@@ -397,25 +403,41 @@ export async function probeExceptionalConditions(url, opts = {}) {
   // basket must move — that calibrates the endpoint and the body
   // shape. A control with no state change means the oracle cannot
   // judge the variant legs, so the probe returns [] — a finding
-  // without a working control is a guess.
+  // without a working control is a guess. The cheapest product is
+  // tried first, but it can be out of stock (a refused add moves
+  // nothing), so the control walks the price list until one add
+  // moves the basket.
   const productUrl = productListRoute(routes, origin);
   if (!productUrl) return findings;
   const pr = await req(fetchFn, stripQuery(productUrl), { token });
   const products = pr && pr.json ? parseProductList(pr.json) : [];
   if (!products.length) return findings;
-  const cheapest = products[0];
-  const controlRes = await addItem(cheapest.id, 1);
-  if (!controlRes) return findings;
-  const afterControl = await readBasket();
-  if (!afterControl) return findings;
-  const control = assessExceptionalControl(snapshot(beforeControl), snapshot(afterControl));
-  if (control.verdict !== 'confirmed') return findings;
+  const beforeSnapshot = snapshot(beforeControl);
+  let controlProductId = null;
+  let controlRes = null;
+  let afterControl = null;
+  for (const candidate of products.slice(0, MAX_SEED_PRODUCTS)) {
+    if (candidate == null || candidate.id == null) continue;
+    controlRes = await addItem(candidate.id, 1);
+    if (!controlRes) return findings;
+    afterControl = await readBasket();
+    if (!afterControl) return findings;
+    const judged = assessExceptionalControl(beforeSnapshot, snapshot(afterControl));
+    if (judged.verdict === 'confirmed') {
+      controlProductId = candidate.id;
+      break;
+    }
+    // No state change: this product is un-addable here (out of
+    // stock or rejected) — the basket is unchanged, so the next
+    // cheapest product is tried against the same baseline.
+  }
+  if (controlProductId == null) return findings;
   setDiag('controlOk', true);
   const controlSnapshot = snapshot(afterControl);
   // The item the control created — the sibling leg updates this
   // item, and the restore zeroes it at the end.
   const controlItem =
-    afterControl.items.find((i) => String(i.productId) === String(cheapest.id)) || afterControl.items[0] || null;
+    afterControl.items.find((i) => String(i.productId) === String(controlProductId)) || afterControl.items[0] || null;
 
   // THE FAIL-OPEN LEG: the same add with each exceptional
   // quantity in turn. Confirm on the first variant the server
@@ -427,7 +449,7 @@ export async function probeExceptionalConditions(url, opts = {}) {
   for (const variant of EXCEPTIONAL_QUANTITIES.slice(0, MAX_VARIANTS)) {
     const before = await readBasket();
     if (!before) break;
-    const res = await addItem(cheapest.id, variant.value);
+    const res = await addItem(controlProductId, variant.value);
     if (!res) break;
     attempts += 1;
     setDiag('attempts', attempts);
@@ -438,7 +460,7 @@ export async function probeExceptionalConditions(url, opts = {}) {
     const changed = stateChanged(snapshot(before), snapshot(after));
     const judged = assessExceptionalVariant('confirmed', res.status, changed);
     if (judged.verdict === 'confirmed') {
-      const recorded = (after.items.find((i) => String(i.productId) === String(cheapest.id)) || {}).quantity;
+      const recorded = (after.items.find((i) => String(i.productId) === String(controlProductId)) || {}).quantity;
       setDiag('failOpenKind', 'accepted');
       findings.push({
         class: 'business_logic',
@@ -448,7 +470,7 @@ export async function probeExceptionalConditions(url, opts = {}) {
         url: basketUrl,
         parameter: 'quantity',
         evidence: ev(
-          `Control: add product ${cheapest.id} with quantity 1 (token auth) -> HTTP ${controlRes.status}, basket ${controlSnapshot.items} item(s) total ${controlSnapshot.total}; variant: add the same product with quantity ${variant.label} (token auth) -> HTTP ${res.status}, basket ${snapshot(after).items} item(s) total ${snapshot(after).total}`,
+          `Control: add product ${controlProductId} with quantity 1 (token auth) -> HTTP ${controlRes.status}, basket ${controlSnapshot.items} item(s) total ${controlSnapshot.total}; variant: add the same product with quantity ${variant.label} (token auth) -> HTTP ${res.status}, basket ${snapshot(after).items} item(s) total ${snapshot(after).total}`,
           `The server accepted the exceptional quantity and the basket state changed (recorded quantity ${recorded === null || recorded === undefined ? 'unparseable' : recorded}): ${judged.reason}. A quantity outside the positive-integer contract must be rejected, never applied.`,
           'An attacker feeds exceptional quantities into the basket workflow and corrupts basket state — a fractional, null or overflowed quantity the server applies instead of rejecting.',
         ),

@@ -34,6 +34,14 @@
 // budget, same as session-fixation's T4b), one checkout attempt.
 // The canary basket is restored best-effort (original quantity, or
 // quantity 0 when the probe seeded the item) before checkout.
+// SEED (10 Nov 2026, proof #40): the seed walks the price list
+// until a product adds (see seedFirstAddableProduct) instead of
+// trusting the cheapest product — Juice refuses an out-of-stock
+// product with 400, and the cheapest product is the first to drain
+// (its stock falls by one per checkout). A control that fails on a
+// leftover out-of-stock item resets the canary (clear, re-seed,
+// retry once) before bailing. Every early bail records bailStage
+// in diagnostics, so the phase record names the stage that failed.
 // Findings are class 'business_logic' — the default confirmation
 // protocol judges them on signalCorrelated (see differential.js).
 
@@ -396,6 +404,69 @@ async function tryApiLogin(fetchFn, loginUrl, creds, budget) {
   return { ok: false, spent };
 }
 
+// ---- shared canary seeding --------------------------------------------------
+
+const OUT_OF_STOCK_RE = /out of stock/i;
+
+/**
+ * True when a basket-item add/update answer is the shop refusing
+ * for stock reasons (Juice: HTTP 400 "We are out of stock!"). Pure.
+ */
+export function isOutOfStockResponse(res) {
+  if (!res || res.status !== 400) return false;
+  const text = typeof res.text === 'string' ? res.text : res.json ? JSON.stringify(res.json) : '';
+  return OUT_OF_STOCK_RE.test(text);
+}
+
+/** How many cheapest products the seeder tries before giving up. */
+export const MAX_SEED_PRODUCTS = 5;
+
+/**
+ * Add one unit of the first addable product (price order) to the
+ * canary basket. A shop can refuse a product outright — Juice
+ * answers 400 "out of stock" once the product's stock is exhausted
+ * (its Quantity row drains by one per checkout, and the cheapest
+ * product is the one every probe seeds, so it is the first to hit
+ * zero — live 10 Nov 2026: product 9 at quantity -1) — so the
+ * cheapest product is not always addable, and a seed that tries
+ * only it bails on a healthy shop. Tries each product in order (at
+ * most maxProducts); a 400 that names out-of-stock moves straight
+ * to the next product (field spelling cannot change stock), any
+ * other failure gets one camelCase retry for the same product
+ * first. `canSpend`, when given, gates every POST (a probe that
+ * runs out of write budget stops seeding instead of forcing it).
+ * Returns { ok:true, productId, attempts } or
+ * { ok:false, reason, attempts }.
+ */
+export async function seedFirstAddableProduct(fetchFn, { itemCollection, basketId, products, token, maxProducts = MAX_SEED_PRODUCTS, canSpend = null } = {}) {
+  let attempts = 0;
+  for (const product of (products || []).slice(0, maxProducts)) {
+    if (product == null || product.id == null) continue;
+    if (canSpend && !canSpend()) return { ok: false, reason: 'write-budget-exhausted', attempts };
+    attempts += 1;
+    const add = await req(fetchFn, itemCollection, {
+      method: 'POST',
+      token,
+      body: { BasketId: basketId, ProductId: product.id, quantity: 1 },
+    });
+    if (add && add.status >= 200 && add.status < 300) {
+      return { ok: true, productId: product.id, attempts };
+    }
+    if (add && isOutOfStockResponse(add)) continue;
+    if (canSpend && !canSpend()) return { ok: false, reason: 'write-budget-exhausted', attempts };
+    // One camelCase retry — field-name spelling varies by shop.
+    const add2 = await req(fetchFn, itemCollection, {
+      method: 'POST',
+      token,
+      body: { basketId, productId: product.id, quantity: 1 },
+    });
+    if (add2 && add2.status >= 200 && add2.status < 300) {
+      return { ok: true, productId: product.id, attempts };
+    }
+  }
+  return { ok: false, reason: 'no addable product', attempts };
+}
+
 // ---- the probe ---------------------------------------------------------------
 
 export async function probeBasketLogic(url, opts = {}) {
@@ -440,7 +511,7 @@ export async function probeBasketLogic(url, opts = {}) {
       break;
     }
   }
-  if (!token) return findings;
+  if (!token) { setDiag('bailStage', 'login'); return findings; }
   // Basket-id fallback: whoami user id (Juice convention — the
   // basket id is the user id). Only the login body or whoami may
   // supply it; a mined filler id is never used.
@@ -452,7 +523,7 @@ export async function probeBasketLogic(url, opts = {}) {
       if (uid) basketId = uid;
     }
   }
-  if (!basketId) return findings;
+  if (!basketId) { setDiag('bailStage', 'login'); return findings; }
   setDiag('basketId', true);
 
   const basketUrl = fillBasketId(basketRoute, basketId);
@@ -464,36 +535,29 @@ export async function probeBasketLogic(url, opts = {}) {
     return parsed.ok ? parsed : null;
   };
   let basket = await readBasket();
-  if (!basket) return findings;
+  if (!basket) { setDiag('bailStage', 'basket-read'); return findings; }
 
-  // Seed an empty basket with the cheapest product (one unit), so
-  // the control and the edges have an item to mutate. Without a
-  // collection route there is nothing to seed with — honest [].
+  // Seed an empty basket with the first addable product (one unit),
+  // so the control and the edges have an item to mutate. The
+  // cheapest product is tried first, but it is not always addable —
+  // a shop can refuse it outright (Juice: out of stock), so the
+  // seeder walks the price list until one adds (see
+  // seedFirstAddableProduct). Without a collection route there is
+  // nothing to seed with — honest [].
   let seeded = false;
   if (!basket.items.length) {
-    if (!itemCollection) return findings;
+    if (!itemCollection) { setDiag('bailStage', 'seed'); return findings; }
     const productUrl = productListRoute(routes, origin);
-    if (!productUrl) return findings;
+    if (!productUrl) { setDiag('bailStage', 'seed'); return findings; }
     const pr = await req(fetchFn, stripQuery(productUrl), { token });
     const products = pr && pr.json ? parseProductList(pr.json) : [];
-    if (!products.length) return findings;
-    const cheapest = products[0];
-    const add = await req(fetchFn, itemCollection, {
-      method: 'POST',
-      token,
-      body: { BasketId: basketId, ProductId: cheapest.id, quantity: 1 },
-    });
-    if (!add || add.status < 200 || add.status >= 300) {
-      // One camelCase retry — field-name spelling varies by shop.
-      const add2 = await req(fetchFn, itemCollection, {
-        method: 'POST',
-        token,
-        body: { basketId, productId: cheapest.id, quantity: 1 },
-      });
-      if (!add2 || add2.status < 200 || add2.status >= 300) return findings;
-    }
+    if (!products.length) { setDiag('bailStage', 'seed'); return findings; }
+    const seededRes = await seedFirstAddableProduct(fetchFn, { itemCollection, basketId, products, token });
+    setDiag('seedAttempts', seededRes.attempts);
+    if (seededRes.ok) setDiag('seedProductId', seededRes.productId);
+    if (!seededRes.ok) { setDiag('bailStage', 'seed'); return findings; }
     basket = await readBasket();
-    if (!basket || !basket.items.length) return findings;
+    if (!basket || !basket.items.length) { setDiag('bailStage', 'seed'); return findings; }
     seeded = true;
   }
 
@@ -501,41 +565,93 @@ export async function probeBasketLogic(url, opts = {}) {
   // exactly one unit price. If it does not, the oracle is
   // uncalibrated (totals do not track quantity here) and the probe
   // returns [] — a finding without a working control is a guess.
-  const first = basket.items[0];
-  if (!first || first.unitPrice == null || first.quantity == null || !first.basketItemId) return findings;
-  const originalQty = first.quantity;
-  const unitPrice = first.unitPrice;
-  let baseline = basket;
-  let controlOk = false;
-  if (itemTemplate) {
-    const setUrl = replaceLastSegment(itemTemplate, first.basketItemId);
-    if (setUrl) {
-      const r = await req(fetchFn, setUrl, { method: 'PUT', token, body: { quantity: originalQty + 1 } });
-      if (r && r.status >= 200 && r.status < 300) {
+  // One retry after a reset: the basket may hold a leftover item
+  // the shop refuses to grow (an out-of-stock product left by an
+  // earlier phase — its stock drained after it was added), so a
+  // failed control clears the canary to a known state, re-seeds
+  // the first addable product, and runs the control once more. A
+  // control that fails twice is an honest bail, never a guess.
+  const runControl = async (base) => {
+    const item = base.items[0];
+    if (!item || item.unitPrice == null || item.quantity == null || !item.basketItemId) {
+      return { ok: false, baseline: base };
+    }
+    const price = item.unitPrice;
+    const qty = item.quantity;
+    if (itemTemplate) {
+      const setUrl = replaceLastSegment(itemTemplate, item.basketItemId);
+      if (setUrl) {
+        const r = await req(fetchFn, setUrl, { method: 'PUT', token, body: { quantity: qty + 1 } });
+        if (r && r.status >= 200 && r.status < 300) {
+          const after = await readBasket();
+          if (after && Math.abs(after.total - base.total - price) <= EPS) {
+            return { ok: true, baseline: after, unitPrice: price, originalQty: qty };
+          }
+        }
+      }
+    }
+    if (itemCollection) {
+      // Add-semantics control: one more unit of the same product.
+      const add = await req(fetchFn, itemCollection, {
+        method: 'POST',
+        token,
+        body: { BasketId: basketId, ProductId: item.productId, quantity: 1 },
+      });
+      if (add && add.status >= 200 && add.status < 300) {
         const after = await readBasket();
-        if (after && Math.abs(after.total - baseline.total - unitPrice) <= EPS) {
-          controlOk = true;
-          baseline = after;
+        if (after && Math.abs(after.total - base.total - price) <= EPS) {
+          return { ok: true, baseline: after, unitPrice: price, originalQty: qty };
+        }
+      }
+    }
+    return { ok: false, baseline: base };
+  };
+  // Remove every item from the canary basket (quantity 0). Juice
+  // skips its stock check for a zero quantity, so this also clears
+  // items of products that are out of stock now.
+  const clearBasket = async () => {
+    if (!itemTemplate) return false;
+    const cur = await readBasket();
+    if (!cur) return false;
+    for (const item of cur.items) {
+      if (!item.basketItemId) continue;
+      const setUrl = replaceLastSegment(itemTemplate, item.basketItemId);
+      if (setUrl) await req(fetchFn, setUrl, { method: 'PUT', token, body: { quantity: 0 } });
+    }
+    const after = await readBasket();
+    return !!after && after.items.length === 0;
+  };
+
+  let baseline = basket;
+  let unitPrice = null;
+  let originalQty = null;
+  let control = await runControl(baseline);
+  if (!control.ok) {
+    setDiag('controlReset', true);
+    const cleared = await clearBasket();
+    if (cleared && itemCollection) {
+      const productUrl = productListRoute(routes, origin);
+      const pr = productUrl ? await req(fetchFn, stripQuery(productUrl), { token }) : null;
+      const products = pr && pr.json ? parseProductList(pr.json) : [];
+      const reseeded = products.length
+        ? await seedFirstAddableProduct(fetchFn, { itemCollection, basketId, products, token })
+        : { ok: false };
+      if (reseeded.ok) {
+        setDiag('seedAttempts', reseeded.attempts);
+        setDiag('seedProductId', reseeded.productId);
+        const fresh = await readBasket();
+        if (fresh && fresh.items.length) {
+          baseline = fresh;
+          seeded = true;
+          control = await runControl(baseline);
         }
       }
     }
   }
-  if (!controlOk && itemCollection) {
-    // Add-semantics control: one more unit of the same product.
-    const add = await req(fetchFn, itemCollection, {
-      method: 'POST',
-      token,
-      body: { BasketId: basketId, ProductId: first.productId, quantity: 1 },
-    });
-    if (add && add.status >= 200 && add.status < 300) {
-      const after = await readBasket();
-      if (after && Math.abs(after.total - baseline.total - unitPrice) <= EPS) {
-        controlOk = true;
-        baseline = after;
-      }
-    }
-  }
-  if (!controlOk) return findings;
+  if (!control.ok) { setDiag('bailStage', 'control'); return findings; }
+  baseline = control.baseline;
+  unitPrice = control.unitPrice;
+  originalQty = control.originalQty;
   setDiag('controlOk', true);
 
   // Edge mutations (at most MAX_EDGE_MUTATIONS). Each is judged by
