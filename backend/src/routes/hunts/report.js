@@ -273,7 +273,7 @@ export function registerReportRoutes(router) {
     if (!meta) return;
     const lang = String(req.query.lang || 'hinglish-roman').slice(0, 40);
     try {
-      const { generateAgentReport } = await import('../scanner/agentReport.js');
+      const { generateAgentReport } = await import('../../scanner/agentReport.js');
       const r = await generateAgentReport(req.params.id, { lang });
       if (!r.ok) {
         return res.status(502).json({ ok: false, error: 'report_unavailable', reason: r.reason });
@@ -300,7 +300,7 @@ export function registerReportRoutes(router) {
     }
     const lang = String((req.body && req.body.lang) || 'hinglish-roman').slice(0, 40);
     try {
-      const { agentChatReply } = await import('../scanner/agentChat.js');
+      const { agentChatReply } = await import('../../scanner/agentChat.js');
       const r = await agentChatReply(req.params.id, message, { lang });
       if (!r.ok) {
         return res.status(502).json({ ok: false, error: 'agent_unavailable', reason: r.reason });
@@ -341,7 +341,7 @@ export function registerReportRoutes(router) {
     const meta = requireHuntOwner(req, res);
     if (!meta) return;
     try {
-      const { runAiAnalysis } = await import('../scanner/aiAnalysis.js');
+      const { runAiAnalysis } = await import('../../scanner/aiAnalysis.js');
       const r = await runAiAnalysis(req.params.id);
       if (!r.ok) {
         if (r.error === 'no behaviour bundle yet') {
