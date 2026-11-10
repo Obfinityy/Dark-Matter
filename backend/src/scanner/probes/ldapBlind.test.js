@@ -1,6 +1,7 @@
-// Tests for the LDAP boolean-blind probe (#32).
+// Tests for the LDAP boolean-blind probe (coverage row #203 [High] LDAP Injection).
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import http from 'node:http';
 import { probeLdapBlind, triple, visibleText } from './ldapBlind.js';
 
@@ -196,5 +197,23 @@ describe('ldapBlind token-noise + control-veto regression (7 Nov 2026)', () => {
     assert.equal(out.includes('bad'), false);
     assert.ok(out.includes('Hello'));
     assert.ok(out.includes('World'));
+  });
+});
+
+describe('ldapBlind coverage-row label (10 Nov 2026)', () => {
+  // The probe header, its test header and the doc all credited coverage
+  // row #32 for years; row #32 is API: No / Weak Rate Limiting, while
+  // LDAP Injection is row #203 (scanner-coverage-vs-478-20261104.md).
+  // This pins the corrected label so a future edit cannot silently
+  // re-credit the wrong row.
+  it('probe header, test header and doc all cite coverage row #203, never #32', () => {
+    const here = new URL(import.meta.url);
+    const probeHeader = fs.readFileSync(new URL('./ldapBlind.js', here), 'utf8').split('\n')[0];
+    const testHeader = fs.readFileSync(here, 'utf8').split('\n')[0];
+    const docHeader = fs.readFileSync(new URL('../../../../docs/scanner/ldap-blind.md', here), 'utf8').split('\n')[0];
+    for (const [name, line] of [['probe', probeHeader], ['test', testHeader], ['doc', docHeader]]) {
+      assert.match(line, /coverage row #203/, `${name} header must cite coverage row #203`);
+      assert.doesNotMatch(line, /#32/, `${name} header must not cite row #32 (API rate limiting)`);
+    }
   });
 });
