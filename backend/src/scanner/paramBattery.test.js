@@ -188,6 +188,12 @@ describe('param battery skipped records (35/63 fix)', () => {
     // route with a self-registered low-privilege account; confirms
     // only on a cross-user GET returning the victim's basket with
     // the seeded item).
+    // (121 since 10 Nov 2026 (LLM prompt injection): 'llm-injection'
+    // joins as a standalone gated phase (one record per scan,
+    // always-run as an honest no-op: no LLM chat endpoint on a bare
+    // page; lab-gated, benign control first, then jailbreak /
+    // indirect / RAG-leak tests; confirms only on an observed leak
+    // in the completion).
     // (110 since 9 Nov 2026 (document.domain): 'document-domain'
     // joins as a standalone gated phase (one record per scan,
     // skipped with 'no script targets' when the page carries no
@@ -232,7 +238,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 120);
+    assert.equal(DEFAULT_PHASES.length, 121);
   });
 
   it('zero param targets: all 30 param phases emit skipped records, rollup reports them', async () => {
@@ -464,7 +470,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
-  // 73/47 since 10 Nov 2026 (API token auth + autocomplete + blind XPath + exceptional conditions + workflow data exposure + JWT sensitive claims + limit / quota bypass + document.domain relaxation + session timeout / remember-me + insecure provisioning + webrtc-leak + LLM tool misuse + excessive agency + output handling + misinformation + CSTI framework variants + weak password policy + business flow access):
+  // 74/47 since 10 Nov 2026 (API token auth + autocomplete + blind XPath + exceptional conditions + workflow data exposure + JWT sensitive claims + limit / quota bypass + document.domain relaxation + session timeout / remember-me + insecure provisioning + webrtc-leak + LLM tool misuse + excessive agency + output handling + misinformation + CSTI framework variants + weak password policy + business flow access + LLM prompt injection):
   // 'api-token-auth' adds a 59th ok record (always-run as an honest
   // no-op: no token-param routes and no lab login on a bare page)
   // and 'autocomplete' adds a 60th ok record (always-run as an
@@ -499,7 +505,9 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // record (always-run as an honest no-op: no registration route
   // on a bare page), and 'business-flow-access' adds a 73rd ok
   // record (always-run as an honest no-op: no basket routes on a
-  // bare page), so the bare-page line reads 73 ran ok,
+  // bare page), and 'llm-injection' adds a 74th ok record
+  // (always-run as an honest no-op: no LLM chat endpoint on a bare
+  // page), so the bare-page line reads 74 ran ok,
   // 47 skipped.
   // 58/40 since 9 Nov 2026 (coupon abuse): 'coupon-abuse' adds a
   // 58th ok record (always-run as an honest no-op: no coupon routes
@@ -567,7 +575,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // 44/33 before xml-injection and untrusted-js-inclusion;
   // 46/34 before session-token-in-url; 47/34 before credential-disclosure;
   // 48/34 before sqli-oob.)
-  it('real runScan on a bare page renders the 73/47 line end to end', async () => {
+  it('real runScan on a bare page renders the 74/47 line end to end', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -579,15 +587,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 120,
-        ok: 73,
+        total: 121,
+        ok: 74,
         failed: 0,
         skipped: 47,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 73 ran ok, 47 skipped, 0 failed, 0 timed out.'
+        'Phases: 74 ran ok, 47 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

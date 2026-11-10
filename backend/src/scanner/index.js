@@ -94,6 +94,7 @@ import { probeLlmToolMisuse } from './probes/llmToolMisuse.js';
 import { probeLlmExcessiveAgency } from './probes/llmExcessiveAgency.js';
 import { probeLlmOutputHandling } from './probes/llmOutputHandling.js';
 import { probeLlmMisinformation } from './probes/llmMisinformation.js';
+import { probeLlmInjection } from './probes/llmInjection.js';
 import { probeGraphql } from './probes/graphql.js';
 import { probeCswsh } from './probes/cswsh.js';
 import { probeOauth } from './probes/oauth.js';
@@ -221,6 +222,7 @@ export const DEFAULT_PHASES = [
   'llm-excessive-agency',
   'llm-output-handling',
   'llm-misinformation',
+  'llm-injection',
   'graphql',
   'cswsh',
   'oauth',
@@ -2772,6 +2774,46 @@ export async function runScan(
       chatDays: llmMisinfoDiag.chatDays ?? null,
       ragDays: llmMisinfoDiag.ragDays || [],
       contradiction: Boolean(llmMisinfoDiag.contradiction),
+    })
+  );
+  // LLM PROMPT INJECTION (9 Nov 2026, rows #23 [High] Prompt
+  // Injection (Direct), #20 [Medium] LLM Jailbreak / Guardrail
+  // Bypass, #25 [Medium] System Prompt Leakage, #19 + #376 [High]
+  // Indirect Prompt Injection, #24 [High] Sensitive Information
+  // Disclosure via LLM, CWE LLM01/LLM02/LLM07:2025): the probe
+  // fingerprints an LLM chat/completion endpoint (mined routes
+  // first, then well-known paths), calibrates with a benign
+  // control prompt, then fires three tests — a jailbreak (confirm
+  // only on a credential value in the completion), a question
+  // about retrieved internal notes (confirm only when the model
+  // returns file contents or invokes a tool from retrieved
+  // content), and a retrieval question (confirm only on a
+  // credential value or another customer's PII). DVWA and Juice
+  // Shop have no chat endpoint, so the probe returns [] with
+  // llmRoutes 0 there — a proven true negative (see
+  // llmInjection.js). Same lab gates + apiRoutes wiring as bfla /
+  // jwt-claims. Diagnostics ride the phase extras (llmRoutes,
+  // controlOk, attempts, directLeak, indirectLeak, ragLeak) so a
+  // live proof can tell "no LLM surface" from "oracle
+  // uncalibrated" without re-running the scan.
+  const llmInjectionDiag = {};
+  await step(
+    'llm-injection',
+    () =>
+      probeLlmInjection(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: llmInjectionDiag,
+      }),
+    () => ({
+      llmRoutes: llmInjectionDiag.llmRoutes || 0,
+      controlOk: Boolean(llmInjectionDiag.controlOk),
+      attempts: llmInjectionDiag.attempts || 0,
+      directLeak: Boolean(llmInjectionDiag.directLeak),
+      indirectLeak: Boolean(llmInjectionDiag.indirectLeak),
+      ragLeak: Boolean(llmInjectionDiag.ragLeak),
     })
   );
   await step('graphql', () => probeGraphql(url, { ...opts, labTargets }));

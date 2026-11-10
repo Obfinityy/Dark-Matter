@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 120/73/47 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 121/74/47 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -318,24 +318,26 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // no-op alongside them (no registration route on a bare page
       // — 10 Nov 2026, 119th phase), and business-flow-access RUNS
       // as an honest no-op alongside them (no basket routes on a
-      // bare page — 10 Nov 2026, 120th phase).
+      // bare page — 10 Nov 2026, 120th phase), and llm-injection
+      // RUNS as an honest no-op alongside them (no LLM chat endpoint
+      // on a bare page — 10 Nov 2026, 121st phase).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 120,
-        ok: 73,
+        total: 121,
+        ok: 74,
         failed: 0,
         skipped: 47,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 73 ran ok, 47 skipped, 0 failed, 0 timed out.'
+        'Phases: 74 ran ok, 47 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 150/150/0', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 151/151/0', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -485,17 +487,20 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // runs, and business-flow-access, the 120th phase, runs as an
       // honest no-op alongside them for the same reason: the stub
       // carries no labCreds, so the lab gate fails before the mine
+      // runs, and llm-injection, the 121st phase, runs as an honest
+      // no-op alongside them for the same reason: the stub carries
+      // no labCreds, so the lab gate fails before the fingerprint
       // runs.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 150,
-        ok: 150,
+        total: 151,
+        ok: 151,
         failed: 0,
         skipped: 0,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 150 ran ok, 0 skipped, 0 failed, 0 timed out.'
+        'Phases: 151 ran ok, 0 skipped, 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -701,7 +706,7 @@ var searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 120);
+      assert.equal(DEFAULT_PHASES.length, 121);
     } finally {
       teardown();
     }
