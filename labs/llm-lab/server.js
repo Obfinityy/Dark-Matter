@@ -293,7 +293,18 @@ const INDEX_HTML = `<!doctype html>
 </body></html>`;
 
 const server = http.createServer(async (req, res) => {
-  const u = new URL(req.url, 'http://127.0.0.1');
+  // A malformed request-target must never kill the lab: an unparseable URL
+  // is a 400, not a crash. This used to throw outside the handler
+  // try/catch and take the whole process down (proof #37, 10 Nov 2026 — a
+  // scanner probe whose target held literal backslash-u text parsed as an
+  // authority with an unmatched ']' in the host).
+  let u;
+  try {
+    u = new URL(req.url, 'http://127.0.0.1');
+  } catch {
+    sendJson(res, 400, { error: 'invalid request URL' });
+    return;
+  }
   const pathname = u.pathname;
 
   try {
