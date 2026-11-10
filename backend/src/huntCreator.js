@@ -41,8 +41,10 @@ import {
   writeHuntMeta,
   appendHuntEvent,
   readHuntMeta,
+  readUsers,
   listHuntMetas,
 } from './store.js';
+import { resolveLabCreds } from './labCreds.js';
 import { createLogger } from './logger.js';
 
 const log = createLogger('huntCreator');
@@ -73,6 +75,24 @@ export function normalizeQueueScanDepth(value) {
 /** Scan scope of a queued entry: 'site', anything else 'page'. */
 export function normalizeQueueScanScope(value) {
   return value === 'site' ? 'site' : 'page';
+}
+
+/**
+ * Role of the user who owns a queue entry, looked up by id in the
+ * users store (users.json is keyed by username; values carry .id and
+ * .role). Null when the user is gone or the store is unreadable —
+ * fail-closed, so the drain proceeds without lab creds.
+ */
+function roleForUserId(userId) {
+  try {
+    const users = readUsers() || {};
+    for (const u of Object.values(users)) {
+      if (u && u.id === userId) return u.role || null;
+    }
+  } catch {
+    // Unreadable user store: no role, no creds.
+  }
+  return null;
 }
 
 /**
@@ -220,7 +240,31 @@ export async function createHuntFromQueue(entry, deps = {}) {
   if (brainMode === 'scanner') {
     const runScannerHunt =
       deps.runScannerHunt || (await import('./scannerHunt.js')).runScannerHunt;
-    runScannerHunt(huntId, target, { scope, userId, scanDepth, scanScope }).catch((err) => {
+    // LAB-CANARY CREDS (10 Nov 2026, Hunt A fix): the queue entry
+    // never carried labCreds, so a drained lab hunt silently skipped
+    // the auth family — the same gap as the website direct path.
+    // Resolve the server-side default at drain time from the entry
+    // owner's role (readUsers, matched by id). Fail-closed: an
+    // unreadable role or a non-admin owner means no creds and the
+    // drain proceeds exactly as before.
+    let drainedLabCreds = null;
+    try {
+      drainedLabCreds = resolveLabCreds({
+        role: roleForUserId(userId),
+        target,
+        labCreds: entry.labCreds,
+        labTargets: process.env.LAB_TARGETS || '',
+      });
+    } catch (err) {
+      log.warn(`[queue] lab creds resolution failed for ${huntId}: ${err.message}`);
+    }
+    runScannerHunt(huntId, target, {
+      scope,
+      userId,
+      scanDepth,
+      scanScope,
+      ...(drainedLabCreds ? { labCreds: drainedLabCreds } : {}),
+    }).catch((err) => {
       appendHuntEvent(huntId, {
         type: 'status',
         state: 'failed',

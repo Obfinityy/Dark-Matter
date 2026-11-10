@@ -599,9 +599,17 @@ describe('sessionFixation D1/D2 repair (#474)', () => {
       resolveLabCreds({ role: 'admin', target: 'http://172.17.0.1:3100/', labCreds: { username: 'admin' }, labTargets: lab }),
       null, 'creds without a password are dropped'
     );
-    assert.equal(
+    // SERVER-SIDE DEFAULT (10 Nov 2026, Hunt A fix): no creds supplied
+    // resolves the known lab's canary instead of null — the website
+    // path never sends creds, so without this the auth family never
+    // runs on website-created lab hunts.
+    assert.deepEqual(
       resolveLabCreds({ role: 'admin', target: 'http://172.17.0.1:3100/', labCreds: null, labTargets: lab }),
-      null, 'no creds supplied -> null'
+      { username: LAB_USER, password: LAB_PASS }, 'no creds supplied -> server canary for a known lab'
+    );
+    assert.equal(
+      resolveLabCreds({ role: 'admin', target: 'http://172.17.0.1:3300/', labCreds: null, labTargets: '172.17.0.1:3000,172.17.0.1:3100,172.17.0.1:3300' }),
+      null, 'no creds supplied -> null for an unknown lab'
     );
   });
 });

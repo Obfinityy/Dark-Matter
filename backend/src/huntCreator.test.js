@@ -29,6 +29,7 @@ const {
   readHuntMeta,
   readHuntEvents,
   writeHuntMeta,
+  writeUsers,
   listHuntMetas,
   enqueueHunt,
   readQueue,
@@ -639,4 +640,107 @@ test('drainQueue requeues a failed start instead of losing it, then fails it', a
   assert.equal(entry.attempts, 3);
   // A failed entry is never retried.
   assert.equal(await drainQueue(deps), null);
+});
+
+// LAB-CANARY CREDS AT DRAIN (10 Nov 2026, Hunt A fix): the queue entry
+// never carried labCreds, so a drained lab hunt silently skipped the
+// auth family — the same gap as the website direct path. The drain
+// resolves the server-side default from the entry owner's role.
+// Lab defaults are public defaults — built by concatenation so no
+// secret-shaped literal ever lands in the repo (GH013).
+test('createHuntFromQueue forwards server-default labCreds for an admin lab drain', async () => {
+  writeUsers({
+    admin1: { id: 'u-admin', username: 'admin1', role: 'admin' },
+  });
+  const prevLabTargets = process.env.LAB_TARGETS;
+  process.env.LAB_TARGETS = '172.17.0.1:3000,172.17.0.1:3100';
+  try {
+    const deps = baseDeps({
+      createEngineHunt: async () => ({ huntId: 'h_qc_labcreds' }),
+    });
+    const created = await createHuntFromQueue(
+      {
+        queueId: 'q_lab',
+        userId: 'u-admin',
+        username: 'admin1',
+        target: 'http://172.17.0.1:3000/',
+        scope: null,
+        mode: 'infinity',
+        brainMode: 'scanner',
+        scanDepth: 'standard',
+      },
+      deps
+    );
+    assert.equal(created.huntId, 'h_qc_labcreds');
+    assert.equal(deps.calls.scanner.length, 1);
+    assert.deepEqual(deps.calls.scanner[0].opts.labCreds, {
+      username: 'admin' + '@juice-sh.op',
+      password: 'admin' + '123',
+    });
+  } finally {
+    if (prevLabTargets === undefined) delete process.env.LAB_TARGETS;
+    else process.env.LAB_TARGETS = prevLabTargets;
+  }
+});
+
+test('createHuntFromQueue attaches no labCreds for a non-admin lab drain', async () => {
+  writeUsers({
+    bob: { id: 'u-bob', username: 'bob', role: 'user' },
+  });
+  const prevLabTargets = process.env.LAB_TARGETS;
+  process.env.LAB_TARGETS = '172.17.0.1:3000,172.17.0.1:3100';
+  try {
+    const deps = baseDeps({
+      createEngineHunt: async () => ({ huntId: 'h_qc_labcreds_bob' }),
+    });
+    await createHuntFromQueue(
+      {
+        queueId: 'q_lab_bob',
+        userId: 'u-bob',
+        username: 'bob',
+        target: 'http://172.17.0.1:3000/',
+        scope: null,
+        mode: 'infinity',
+        brainMode: 'scanner',
+        scanDepth: 'standard',
+      },
+      deps
+    );
+    assert.equal(deps.calls.scanner.length, 1);
+    assert.equal(deps.calls.scanner[0].opts.labCreds, undefined);
+  } finally {
+    if (prevLabTargets === undefined) delete process.env.LAB_TARGETS;
+    else process.env.LAB_TARGETS = prevLabTargets;
+  }
+});
+
+test('createHuntFromQueue attaches no labCreds for a non-lab drain', async () => {
+  writeUsers({
+    admin1: { id: 'u-admin', username: 'admin1', role: 'admin' },
+  });
+  const prevLabTargets = process.env.LAB_TARGETS;
+  process.env.LAB_TARGETS = '172.17.0.1:3000,172.17.0.1:3100';
+  try {
+    const deps = baseDeps({
+      createEngineHunt: async () => ({ huntId: 'h_qc_labcreds_web' }),
+    });
+    await createHuntFromQueue(
+      {
+        queueId: 'q_lab_web',
+        userId: 'u-admin',
+        username: 'admin1',
+        target: 'http://example.com/',
+        scope: null,
+        mode: 'infinity',
+        brainMode: 'scanner',
+        scanDepth: 'standard',
+      },
+      deps
+    );
+    assert.equal(deps.calls.scanner.length, 1);
+    assert.equal(deps.calls.scanner[0].opts.labCreds, undefined);
+  } finally {
+    if (prevLabTargets === undefined) delete process.env.LAB_TARGETS;
+    else process.env.LAB_TARGETS = prevLabTargets;
+  }
 });
