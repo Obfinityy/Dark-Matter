@@ -26,6 +26,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { atomicWriteJson } from './atomicWrite.js';
 
 import { huntDir, ensureHuntDir } from './store.js';
 
@@ -74,10 +75,7 @@ export function loadHuntPlan(huntId) {
 export function saveHuntPlan(huntId, plan) {
   try {
     ensureHuntDir(huntId);
-    const file = huntPlanFile(huntId);
-    const tmp = `${file}.tmp-${process.pid}`;
-    fs.writeFileSync(tmp, JSON.stringify(plan));
-    fs.renameSync(tmp, file);
+    atomicWriteJson(huntPlanFile(huntId), plan, { space: 0 });
     return true;
   } catch {
     return false;

@@ -24,6 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { config } from './config.js';
+import { atomicWriteJson } from './atomicWrite.js';
 
 export const PERSONA_NAME = 'Obfinity';
 export const PERSONA_USERNAME_PREFIX = 'obfinity';
@@ -89,11 +90,7 @@ function readVault() {
 function writeVault(vault) {
   const file = vaultFile();
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(vault, null, 2));
-  try { fs.chmodSync(tmp, 0o600); } catch { /* best-effort */ }
-  fs.renameSync(tmp, file);
-  try { fs.chmodSync(file, 0o600); } catch { /* best-effort */ }
+  atomicWriteJson(file, vault, { mode: 0o600 });
 }
 
 /**

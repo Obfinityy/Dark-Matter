@@ -17,6 +17,9 @@
 import { Router } from 'express';
 import crypto from 'node:crypto';
 import { readUsers, writeUsers } from '../store.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('auth');
 
 const router = Router();
 
@@ -27,7 +30,7 @@ const JWT_SECRET = (() => {
     return Buffer.from(process.env.JWT_SECRET, 'utf8');
   }
   const ephemeral = crypto.randomBytes(32);
-  console.warn(
+  log.warn(
     '[auth] WARNING: JWT_SECRET is not set — using a RANDOM ephemeral secret. ' +
       'All issued tokens become invalid on restart. Set JWT_SECRET in production!'
   );
@@ -169,7 +172,7 @@ export function ensureAdmin() {
   const adminHash = (process.env.ADMIN_PASSWORD_HASH || '').trim();
   const adminSalt = (process.env.ADMIN_PASSWORD_SALT || '').trim();
   if (!adminUser || !adminHash || !adminSalt) {
-    console.warn('[auth] ADMIN_USERNAME / ADMIN_PASSWORD_HASH / ADMIN_PASSWORD_SALT not set — no admin account.');
+    log.warn('[auth] ADMIN_USERNAME / ADMIN_PASSWORD_HASH / ADMIN_PASSWORD_SALT not set — no admin account.');
     return null;
   }
   const users = readUsers();
@@ -180,7 +183,7 @@ export function ensureAdmin() {
       existing.passHash = adminHash;
       existing.salt = adminSalt;
       writeUsers(users);
-      console.log(`[auth] Admin credentials rotated from env: ${adminUser}`);
+      log.info(`[auth] Admin credentials rotated from env: ${adminUser}`);
     }
     return existing;
   }
@@ -196,7 +199,7 @@ export function ensureAdmin() {
   };
   users[adminUser] = admin;
   writeUsers(users);
-  console.log(`[auth] Admin account created: ${adminUser}`);
+  log.info(`[auth] Admin account created: ${adminUser}`);
   return admin;
 }
 
@@ -350,7 +353,7 @@ router.post('/signup', limitSignupAttempts, (req, res) => {
     createdAt: new Date().toISOString(),
   };
   writeUsers(users);
-  console.log(`[auth] SIGNUP pending approval: ${cleanUsername}`);
+  log.info(`[auth] SIGNUP pending approval: ${cleanUsername}`);
   res.status(201).json({ ok: true, message: 'Account created. Waiting for admin approval.' });
 });
 

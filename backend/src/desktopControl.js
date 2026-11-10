@@ -196,13 +196,11 @@ export function desktopClickCommand(win) {
   return `DISPLAY=${DESKTOP_DISPLAY} xdotool windowactivate --sync ${win.id} click --window ${win.id} 1 2>/dev/null && echo clicked || echo click_failed`;
 }
 
-// ---------------------------------------------------------------------------
 // Keys. The whitelist is the whole contract: a keystroke the brain
 // names must be one of these, or the action is refused BEFORE any
 // exec — an unvalidated keysym string would be an injection into the
 // xdotool command line. Modifiers are lowercase (xdotool's spelling);
 // named keys keep their X keysym case.
-// ---------------------------------------------------------------------------
 
 const KEY_MODIFIERS = new Set(['ctrl', 'alt', 'shift', 'super', 'meta']);
 const KEY_NAMES = new Set([
@@ -243,7 +241,6 @@ export function desktopTypeCommand(text) {
   return `DISPLAY=${DESKTOP_DISPLAY} xdotool type --clearmodifiers -- ${shellQuote(t)} 2>/dev/null && echo typed || echo type_failed`;
 }
 
-// ---------------------------------------------------------------------------
 // GUI-visible terminal (HUMAN-BRAIN, 26 Oct 2026 — owner order: terminal
 // work happens in a terminal window ON the GUI desktop, so the owner
 // watches it live in the frontend Live Machine view, not only as a
@@ -257,7 +254,6 @@ export function desktopTypeCommand(text) {
 // file back. The owner sees the typing live; the brain gets the
 // output in its observation; the ledger records the run under the
 // shell signature, so a later headless repeat recalls it.
-// ---------------------------------------------------------------------------
 
 /** Launch a detached xfce4-terminal on the desktop display. */
 export const DESKTOP_TERMINAL_LAUNCH_CMD =

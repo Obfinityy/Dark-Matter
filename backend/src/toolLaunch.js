@@ -48,11 +48,9 @@ import { DESKTOP_DISPLAY, desktopKeyCommand, desktopTypeCommand } from './deskto
 import { listControlsCommand, clickControlCommand, parseAtspiOutput, shellQuote } from './desktopAtspi.js';
 import { captureScreenMap, buildAtspiMap } from './screenMap.js';
 
-// ---------------------------------------------------------------------------
 // Registry. `launch` / `bin` are OUR strings, never brain input — the
 // brain names an id, the registry supplies the command, so there is
 // nothing to inject. Window titles are matched with xdotool search.
-// ---------------------------------------------------------------------------
 
 export const TOOL_REGISTRY = {
   burp: { id: 'burp', name: 'Burp Suite', kind: 'gui', launch: 'burpsuite', windowMatch: 'Burp Suite', proxyPort: 8080, readyWaitMs: 150000 },
@@ -92,11 +90,9 @@ export const BURP_WIZARD_MAX_CLICKS = 6;
 // burpBrowserLaunchCommand). Kept so the name stays in one place.
 export const BURP_OPEN_BROWSER_CONTROL = 'Open Browser';
 
-// ---------------------------------------------------------------------------
 // Download allow-list. Apt packages are installed from Kali's repos;
 // direct downloads are ONE pinned file each, size-capped. Anything
 // not listed here is refused before any command runs.
-// ---------------------------------------------------------------------------
 
 export const MAX_DIRECT_DOWNLOAD_BYTES = 1048576; // 1 MB
 export const DOWNLOAD_TIMEOUT_MS = 300000; // apt can be slow on first update
@@ -116,9 +112,7 @@ export const DOWNLOAD_REGISTRY = {
 
 export const DOWNLOAD_IDS = Object.keys(DOWNLOAD_REGISTRY);
 
-// ---------------------------------------------------------------------------
 // Pure builders / parsers (unit-tested, no exec).
-// ---------------------------------------------------------------------------
 
 /** Normalise a brain-supplied tool id; null when it names nothing. */
 export function normaliseToolId(raw) {
@@ -260,13 +254,11 @@ export function mapShowsTarget(map, target) {
   return String(map || '').toLowerCase().includes(host.toLowerCase());
 }
 
-// ---------------------------------------------------------------------------
 // Orchestration (deps seam: { execRaw, sleep, readMeta, writeMeta }).
 // execRaw(huntId, command, timeoutMs, opts) is the container exec the
 // desktop branches already use; sleep is deps.sleep. Never throws —
 // every failure is a { ok:false, error } the loop turns into an
 // observation, never a crash.
-// ---------------------------------------------------------------------------
 
 const EXEC_OPTS = { bypassTmux: true };
 

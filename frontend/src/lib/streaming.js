@@ -1,4 +1,3 @@
-// ============================================================================
 // Simulated streaming for chat replies.
 //
 // The backend contract for chat is POST /api/v1/chat → { reply } (one shot).
@@ -6,7 +5,6 @@
 // a live conversation. When the backend later offers true SSE/WebSocket chat
 // streaming, replace streamReveal() with a real stream reader — the ChatPage
 // only depends on the (text, onToken) => Promise signature.
-// ============================================================================
 
 /** Yield progressively longer prefixes of `text`, word-grouped, with pacing.
  *  opts.signal: optional { aborted: boolean } — when set mid-stream the reveal

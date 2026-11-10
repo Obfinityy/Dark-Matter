@@ -37,6 +37,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { atomicWriteJson } from './atomicWrite.js';
 import { huntDir, ensureHuntDir } from './store.js';
 
 export const PAGE_STATE_VERSION = 1;
@@ -119,10 +120,7 @@ export function loadPageState(huntId) {
 export function savePageState(huntId, state) {
   try {
     ensureHuntDir(huntId);
-    const file = pageStateFile(huntId);
-    const tmp = `${file}.tmp-${process.pid}`;
-    fs.writeFileSync(tmp, JSON.stringify(state));
-    fs.renameSync(tmp, file);
+    atomicWriteJson(pageStateFile(huntId), state, { space: 0 });
     return true;
   } catch {
     return false;
@@ -271,7 +269,6 @@ export function pageStateLines(state, { target = '' } = {}) {
   return lines;
 }
 
-// ---------------------------------------------------------------------------
 // LOOP COUNTERS — the parent-checkable measurement of the sense-act
 // loop. Pure over the hunt's record (+ the accumulated page state
 // for elements-seen). Definitions, so the numbers can never be
@@ -291,7 +288,6 @@ export function pageStateLines(state, { target = '' } = {}) {
 //     went to the target.
 //   noReplyTurns    — 'Brain gave no reply this turn.' thinking
 //     events: the brain's generation died, not its choice.
-// ---------------------------------------------------------------------------
 
 const SNAPSHOT_TOOLS = new Set(['browser_snapshot', 'browser_open', 'browser_click', 'browser_type']);
 const PROBE_TOOLS = new Set(['shell', 'browser_type', 'intercept_replay', 'claim_finding']);
@@ -441,12 +437,10 @@ export function loopCounterLines(counters) {
   return lines;
 }
 
-// ---------------------------------------------------------------------------
 // UNAUTHENTICATED RECON CHECKLIST — the open work that needs no
 // login. Detected from shell tool_calls (a curl that ran), never
 // from intent. Target-derived URLs; the loop lists the untried
 // ones as the open path when the auth wall is exhausted.
-// ---------------------------------------------------------------------------
 
 export const RECON_SURFACES = [
   { id: 'robots', label: 'robots.txt', url: (t) => `${originOf(t)}/robots.txt`, re: /robots\.txt/ },

@@ -47,6 +47,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { atomicWriteJson } from '../atomicWrite.js';
 
 /** The probes' lab base — sed-rebased onto the hunt target (Rule #41). */
 export const LIVE_PROBE_BASE = 'http://172.17.0.1:3100';
@@ -258,9 +259,7 @@ export function recordRehearsal(memdir, record) {
       skips: Object.values(skipMap),
       unresolved: Object.values(unrMap),
     };
-    const tmp = file + '.tmp-' + process.pid;
-    fs.writeFileSync(tmp, JSON.stringify(merged, null, 1), 'utf8');
-    fs.renameSync(tmp, file);
+    atomicWriteJson(file, merged, { space: 1 });
     return { ok: true, file, validations: merged.validations.length };
   } catch (e) {
     return { ok: false, error: String((e && e.message) || e) };

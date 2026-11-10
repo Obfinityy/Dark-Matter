@@ -17,7 +17,11 @@ import { Router } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { dataDir } from '../store.js';
+import { atomicWriteJson } from '../atomicWrite.js';
 import { requireAuth } from './auth.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('chats');
 
 const router = Router();
 
@@ -38,9 +42,7 @@ function readTitles(userId) {
 function writeTitles(userId, list) {
   const dir = path.join(dataDir(), 'chats');
   fs.mkdirSync(dir, { recursive: true });
-  const tmp = path.join(dir, `${String(userId)}.json.tmp`);
-  fs.writeFileSync(tmp, JSON.stringify(list, null, 1));
-  fs.renameSync(tmp, chatsFile(userId));
+  atomicWriteJson(chatsFile(userId), list, { space: 1 });
 }
 
 function clean(c) {
@@ -86,7 +88,7 @@ router.post('/sync', requireAuth, (req, res) => {
         .filter((d) => d && typeof d.id === 'string' && d.id)
         .map((d) => ({ id: d.id.slice(0, 64), deletedAt: String(d.deletedAt || new Date().toISOString()) }))
     : [];
-  console.log(`[chats/sync] user=${req.user.id} incoming=${incoming.length} tombstones=${tombstones.length} ids=${tombstones.map(t=>t.id).join(',')}`);
+  log.info(`[chats/sync] user=${req.user.id} incoming=${incoming.length} tombstones=${tombstones.length} ids=${tombstones.map(t=>t.id).join(',')}`);
   const merged = new Map();
   for (const c of readTitles(req.user.id)) merged.set(c.id, c);
   for (const c of incoming) {
@@ -149,9 +151,7 @@ function readMessages(userId, chatId) {
 function writeMessages(userId, chatId, messages, updatedAt) {
   const dir = path.join(dataDir(), 'chat-messages', String(userId));
   fs.mkdirSync(dir, { recursive: true });
-  const tmp = path.join(dir, `${safeChatId(chatId)}.json.tmp`);
-  fs.writeFileSync(tmp, JSON.stringify({ messages, updatedAt }, null, 1));
-  fs.renameSync(tmp, messagesFile(userId, chatId));
+  atomicWriteJson(messagesFile(userId, chatId), { messages, updatedAt }, { space: 1 });
 }
 
 /** Strip a message down to sync-safe fields. Hunt payloads keep only the reference. */

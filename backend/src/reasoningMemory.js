@@ -364,7 +364,6 @@ export function formatLedgerForPrompt(huntId, { knownApp = null } = {}) {
   return s;
 }
 
-// ---------------------------------------------------------------------------
 // FULL-HISTORY LEDGER + RECALL (20 Oct 2026, solver #443 — owner order:
 // "make him like a human — he knows everything he did before").
 //

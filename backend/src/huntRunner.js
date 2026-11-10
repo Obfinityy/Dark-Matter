@@ -20,6 +20,9 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createLogger } from './logger.js';
+
+const log = createLogger('huntRunner');
 
 const execFileAsync = promisify(execFile);
 
@@ -288,7 +291,7 @@ export async function spawnHuntContainer(huntId, target, opts = {}) {
   const isLabTarget = isLabLoopbackTarget(target);
   const skipLabEgress = process.env.EGRESS_SKIP_LAB === '1' && isLabTarget;
   if (skipLabEgress) {
-    console.log(`[huntRunner] EGRESS_SKIP_LAB: skipping network egress for lab target ${target} (scopeGuard still active)`);
+    log.info(`[huntRunner] EGRESS_SKIP_LAB: skipping network egress for lab target ${target} (scopeGuard still active)`);
   }
   if (!opts.noEgress && !skipLabEgress) {
     const { scope } = await readEgressScope(huntId, impl);
@@ -360,7 +363,7 @@ export async function spawnHuntContainer(huntId, target, opts = {}) {
           const writeMeta = impl.writeMeta || ((await import('./store.js')).writeHuntMetaCheckpoint);
           writeMeta(huntId, { ttydPort: port });
         } catch (persistErr) {
-          console.error(`[spawn] hunt ${huntId}: container up on ttyd port ${port} but meta persist failed:`, persistErr.message || persistErr);
+          log.error(`[spawn] hunt ${huntId}: container up on ttyd port ${port} but meta persist failed:`, persistErr.message || persistErr);
         }
         return { container: name, spawnedAt: new Date().toISOString(), ttydPort: String(port) };
       } catch (err) {
@@ -655,7 +658,6 @@ export async function copyFileFromHuntContainer(huntId, containerPath, hostPath)
   }
 }
 
-// ---------------------------------------------------------------------------
 // Live Machine desktop (GUI the agent drives; the owner watches).
 //
 // The desktop stack (Xvfb + XFCE + Chromium + view-only x11vnc +
@@ -666,7 +668,6 @@ export async function copyFileFromHuntContainer(huntId, containerPath, hostPath)
 // plumbing inside the container is the documented v2 upgrade path to
 // true streaming; its ports are container-loopback only and are NOT
 // published by spawnHuntContainer.
-// ---------------------------------------------------------------------------
 
 const DESKTOP_READY_FILE = '/tmp/dm-desktop.ready';
 const DESKTOP_SHOT_PATH = '/tmp/dm-desktop.jpg';
@@ -784,7 +785,7 @@ export async function startHuntDesktop(huntId, deps = {}) {
     // Chromium died while the desktop is up — log the signature the
     // 11:35Z death never left, then fall through to the script, which
     // relaunches it.
-    console.warn(`[desktop] hunt ${huntId}: chromium down (ready file present, CDP 9222 silent) — reviving via hunt-desktop.sh`);
+    log.warn(`[desktop] hunt ${huntId}: chromium down (ready file present, CDP 9222 silent) — reviving via hunt-desktop.sh`);
   }
 
   const started = await exec(
@@ -863,7 +864,7 @@ export async function checkChromiumWatchdog(deps = {}) {
   try {
     metas = await listMetas();
   } catch (err) {
-    console.error(`[desktop:watchdog] list failed:`, err.message || err);
+    log.error(`[desktop:watchdog] list failed:`, err.message || err);
     return summary;
   }
   for (const meta of metas || []) {
@@ -899,7 +900,7 @@ export async function checkChromiumWatchdog(deps = {}) {
       if (res.ok) summary.revived += 1;
       else summary.failed += 1;
     } catch (err) {
-      console.error(`[desktop:watchdog] ${huntId} check failed:`, err.message || err);
+      log.error(`[desktop:watchdog] ${huntId} check failed:`, err.message || err);
       summary.skipped += 1;
     }
   }
@@ -990,7 +991,6 @@ export async function execInHuntContainer(huntId, cmd, timeoutMs = 120000, opts 
   }
 }
 
-// ---------------------------------------------------------------------------
 // Container self-heal (Lane E, 21 Oct 2026).
 //
 // Pipeline mode has always respawned a missing hunt container before
@@ -1004,7 +1004,6 @@ export async function execInHuntContainer(huntId, cmd, timeoutMs = 120000, opts 
 // callers), then retry the exec exactly once. They NEVER throw — a
 // failed spawn returns the original container-missing result with the
 // spawn error attached, so the brain sees one clear observation.
-// ---------------------------------------------------------------------------
 
 const containerSpawnsInFlight = new Map(); // huntId -> Promise<ensure result>
 

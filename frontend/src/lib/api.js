@@ -1,9 +1,7 @@
-// ============================================================================
 // Dark Matter frontend — API client for the v1 backend contract.
 // Auth: Bearer token from localStorage (`dm_token`) is attached to every
 // request when present. Every call degrades gracefully when the backend
 // is unreachable; callers receive { ok:false, error } and show honest toasts.
-// ============================================================================
 import { resolveApiBase } from '../config';
 
 const TOKEN_KEY = 'dm_token';

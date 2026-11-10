@@ -118,9 +118,7 @@ function stubSession(huntId, replies, { events = [], execImpl = null, searchImpl
   };
 }
 
-// ---------------------------------------------------------------------------
 // Pure: pending plans + search similarity.
-// ---------------------------------------------------------------------------
 
 test('RH-0a: pendingPlannedProbes names the open plan (structured, for the gate)', () => {
   const events = [
@@ -153,9 +151,7 @@ test('RH-0b: search tokens ignore case, order, filler and punctuation', () => {
   assert.equal(searchTokenSimilarity(searchQueryTokens('xss'), searchQueryTokens('xss payload')), 0.5, 'raw Jaccard is 0.5 — the >=2-token guard lives in searchRepeatHit, not here');
 });
 
-// ---------------------------------------------------------------------------
 // RH-1: the pending-plan gate.
-// ---------------------------------------------------------------------------
 
 test('RH-1: a re-pull of a skill with an open plan is blocked, not re-read', async () => {
   const events = [{ type: 'tool_call', tool: 'load_skill', detail: 'sqli' }];
@@ -186,9 +182,7 @@ test('RH-1b: a FIRST pull of a skill executes normally — the gate only stops r
   assert.ok(!s.recorded.some((e) => e.type === 'plan_block'));
 });
 
-// ---------------------------------------------------------------------------
 // RH-2: the brain answers a queued owner question in-turn.
-// ---------------------------------------------------------------------------
 
 test('RH-2: the queued question rides the screen and the brain\'s chat_answer is delivered', async () => {
   const huntId = 'h_rh2';
@@ -232,9 +226,7 @@ test('RH-2b: the default delivery records the event, appends the thread message,
   assert.equal(pendingChatQuestions(huntId).length, 0, 'the question leaves the pending list');
 });
 
-// ---------------------------------------------------------------------------
 // RH-3: in-app clicking (AT-SPI).
-// ---------------------------------------------------------------------------
 
 test('RH-3: desktop_click_control clicks the named control and names it in the observation', async () => {
   const s = stubSession('h_rh3', ['I will open the Repeater tab.\n{"action":"desktop_click_control","control":"Repeater","window":"Burp Suite"}']);
@@ -260,9 +252,7 @@ test('RH-3b: when AT-SPI is missing from the image the click degrades honestly t
   assert.doesNotMatch(obs, /Clicked "/, 'no click is ever claimed when the stack is missing');
 });
 
-// ---------------------------------------------------------------------------
 // RH-4: the desktop nudge.
-// ---------------------------------------------------------------------------
 
 test('RH-4: an exhausted browser surface + an untried desktop puts DESKTOP ROUTE OPEN on screen', async () => {
   const events = [
@@ -278,9 +268,7 @@ test('RH-4: an exhausted browser surface + an untried desktop puts DESKTOP ROUTE
   assert.match(s.screens[0], /Burp or ZAP/);
 });
 
-// ---------------------------------------------------------------------------
 // RH-5: the near-duplicate search gate.
-// ---------------------------------------------------------------------------
 
 test('RH-5a: searchRepeatHit blocks only at the family threshold — one re-ask is tolerated, the third is not', () => {
   const once = new Map([

@@ -18,6 +18,7 @@
 import fs from 'fs';
 import path from 'path';
 import { dataDir, targetFolderName } from './store.js';
+import { atomicWriteNdjson } from './atomicWrite.js';
 
 const MAX_ENTRIES = 500;
 
@@ -35,10 +36,7 @@ function readAll() {
 }
 
 function writeAll(entries) {
-  const file = globalMemoryFile();
-  const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, entries.map((e) => JSON.stringify(e)).join('\n') + '\n');
-  fs.renameSync(tmp, file);
+  atomicWriteNdjson(globalMemoryFile(), entries);
 }
 
 function dedupKey(e) {

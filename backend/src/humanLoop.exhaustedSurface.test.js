@@ -60,9 +60,7 @@ const WINDOWS_OUT = [
   '',
 ].join('\n');
 
-// ---------------------------------------------------------------------------
 // Pure: payload classification + surface counting + the gate.
-// ---------------------------------------------------------------------------
 
 test('classifyPayloadClass: plain, encoded and SQLi payloads; credentials are not probes', () => {
   assert.equal(classifyPayloadClass(XSS), 'xss');
@@ -187,11 +185,7 @@ test('surfacePageOfUrl strips query/hash and trailing slashes; bad URLs name no 
   assert.deepEqual(surfacePageOfUrl(''), { host: '', path: '' });
 });
 
-// ---------------------------------------------------------------------------
-// DVWA live shape (28 Oct 2026, 01:00-02:16 IST): the login-page
-// credential budget must not close the SQLi page the brain is
-// already logged into — same host, different page.
-// ---------------------------------------------------------------------------
+// DVWA live shape (28 Oct 2026, 01:00-02:16 IST): the login-page credential budget must not close the SQLi page the brain is already logged into — same host, different page.
 
 const DVWA_LOGIN = 'http://172.17.0.1:3100/login.php';
 const DVWA_SQLI = 'http://172.17.0.1:3100/vulnerabilities/sqli/';
@@ -250,9 +244,7 @@ test('DVWA live shape: a true repeat loop on the SQLi page itself still closes t
   assert.equal(exhaustedSurfaceHit('browser_type', { text: 'admin' }, DVWA_LOGIN, counts), null);
 });
 
-// ---------------------------------------------------------------------------
 // Pure: credential state + pending plans.
-// ---------------------------------------------------------------------------
 
 test('credentialStateFor reads the vault and counts uses from the record', () => {
   const rec = saveCredential({ site: TARGET, username: 'obfinity-test' });
@@ -299,9 +291,7 @@ test('pendingPlannedProbeLines ignores skills with no probe topic', () => {
   assert.deepEqual(pendingPlannedProbeLines({ events, reasoningRows: rows }), []);
 });
 
-// ---------------------------------------------------------------------------
 // Integration: stubbed humanIteration.
-// ---------------------------------------------------------------------------
 
 function stubSession(replies, { events = [], controlled = false, execImpl = null } = {}) {
   const recorded = [];

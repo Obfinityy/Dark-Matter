@@ -11,6 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { dataDir } from './store.js';
+import { atomicWriteJson } from './atomicWrite.js';
 
 // USD per 1M tokens — update when a provider changes pricing.
 // Meta Spark 1.3 (Standard): $1.25 in / $4.25 out; contributor tier
@@ -71,9 +72,7 @@ function writeCosts(data) {
   try {
     if (fs.existsSync(costFile())) fs.renameSync(costFile(), backupFile());
   } catch { /* rotation is best-effort; the atomic write below still lands */ }
-  const tmp = `${costFile()}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
-  fs.renameSync(tmp, costFile());
+  atomicWriteJson(costFile(), data);
 }
 
 export function modelCostUsd(model, inputTokens, outputTokens) {
@@ -107,6 +106,23 @@ export function recordCost(evt) {
   if (data.entries.length > 50000) data.entries = data.entries.slice(-50000);
   writeCosts(data);
   return amountUsd;
+}
+
+/**
+ * Record a cost event without ever breaking the caller: a failure in the
+ * ledger (missing dir, corrupt file, disk error) is warned about once and
+ * swallowed. This is the one place the nested `try { console.warn(...) }
+ * catch {}` pattern lives — the llm/brain call sites used to repeat it.
+ * @param {() => unknown} record - the recordCost call (with its argument
+ *   computation, which is part of the guarded region) to attempt.
+ */
+export function recordCostSafe(record) {
+  try {
+    record();
+  } catch (e) {
+    try { console.warn('[cost] recordCost failed:', (e && e.message) || e); } catch {}
+    /* cost tracking must never break chat */
+  }
 }
 
 function sumFor(entries) {

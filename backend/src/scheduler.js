@@ -9,6 +9,10 @@
 // This module implements that: schedule a task with an estimated duration,
 // the agent works on other things, and gets notified when time's up.
 
+import { createLogger } from './logger.js';
+
+const log = createLogger('scheduler');
+
 const timers = new Map(); // huntId -> [{id, label, fireAt, callback}]
 
 /**
@@ -30,7 +34,7 @@ export function scheduleTask(huntId, label, minutes, onFire) {
     try {
       await onFire();
     } catch (err) {
-      console.error(`[scheduler] Timer ${id} (${label}) callback failed:`, err.message);
+      log.error(`[scheduler] Timer ${id} (${label}) callback failed:`, err.message);
     }
   }, minutes * 60 * 1000);
 
@@ -40,7 +44,7 @@ export function scheduleTask(huntId, label, minutes, onFire) {
   if (!timers.has(huntId)) timers.set(huntId, []);
   timers.get(huntId).push({ id, label, fireAt, timer });
 
-  console.log(`[scheduler] Hunt ${huntId}: scheduled "${label}" for ${minutes}min (fires ${new Date(fireAt).toISOString()})`);
+  log.info(`[scheduler] Hunt ${huntId}: scheduled "${label}" for ${minutes}min (fires ${new Date(fireAt).toISOString()})`);
   return id;
 }
 
@@ -82,5 +86,5 @@ export function clearHuntTimers(huntId) {
   const list = timers.get(huntId) || [];
   for (const t of list) clearTimeout(t.timer);
   timers.delete(huntId);
-  console.log(`[scheduler] Hunt ${huntId}: cleared ${list.length} timers`);
+  log.info(`[scheduler] Hunt ${huntId}: cleared ${list.length} timers`);
 }

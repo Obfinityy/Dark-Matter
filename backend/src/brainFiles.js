@@ -53,6 +53,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { huntDir, ensureHuntDir } from './store.js';
 import { contentHash } from './actionIndex.js';
+import { atomicWriteJson } from './atomicWrite.js';
 
 const MEMORY_FILE = 'memory.json';
 const PROCESS_FILE = 'process.json';
@@ -76,10 +77,7 @@ function readFile(huntId, name, fallback) {
 function writeFileAtomic(huntId, name, obj) {
   try {
     ensureHuntDir(huntId);
-    const file = filePath(huntId, name);
-    const tmp = `${file}.tmp-${process.pid}`;
-    fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));
-    fs.renameSync(tmp, file);
+    atomicWriteJson(filePath(huntId, name), obj);
     return true;
   } catch {
     return false;

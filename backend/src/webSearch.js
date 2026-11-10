@@ -215,7 +215,6 @@ export function filterSiteResults(query, results) {
   });
 }
 
-// ---------------------------------------------------------------------------
 // Result-quality refinement (Lane AA, 24 Oct 2026).
 //
 // Two cheap, deterministic defences applied to every provider's list
@@ -228,7 +227,6 @@ export function filterSiteResults(query, results) {
 //      dropped. The floor NEVER empties a list: if every result fails
 //      it, the list is returned untouched (an odd result beats a
 //      silent empty from a provider that did answer).
-// ---------------------------------------------------------------------------
 
 const STOPWORD_TOKENS = new Set([
   'the', 'and', 'for', 'with', 'how', 'what', 'why', 'are', 'was', 'were',

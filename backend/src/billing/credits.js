@@ -10,6 +10,7 @@
 import path from 'node:path';
 import { dataDir } from '../store.js';
 import fs from 'node:fs';
+import { atomicWriteJson } from '../atomicWrite.js';
 
 function creditsFile() {
   return path.join(dataDir(), 'credits.json');
@@ -53,9 +54,7 @@ function writeAll(data) {
   try {
     if (fs.existsSync(creditsFile())) fs.renameSync(creditsFile(), creditsBackupFile());
   } catch { /* rotation is best-effort; the atomic write below still lands */ }
-  const tmp = `${creditsFile()}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
-  fs.renameSync(tmp, creditsFile());
+  atomicWriteJson(creditsFile(), data);
 }
 
 function entryFor(all, userId) {

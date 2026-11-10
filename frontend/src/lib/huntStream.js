@@ -1,33 +1,31 @@
-// ============================================================================
-// Hunt live-stream client.
-//
-// Documented interface
-// --------------------
-//   const stream = new HuntStreamClient(huntId, handlers);
-//   stream.connect();      // opens WS /api/v1/hunts/:id/stream
-//   stream.disconnect();   // closes the socket
-//
-// handlers:
-//   onEvent(type, payload) — 'thinking' | 'tool_call' | 'finding' | 'status' | 'done'
-//       thinking  → { text }                 — agent's current reasoning line
-//       tool_call → { tool, args?, output? } — a tool invocation; output may arrive
-//                                              as follow-up tool_call events with the
-//                                              same tool name and an `output` field
-//       finding   → { title, severity, detail? } — a vulnerability finding
-//       status    → { status, step?, phase? }    — 'running' | 'paused' | 'done' | 'stopped'
-//       done      → { summary? }             — hunt finished
-//   onError(err)  — transport failure (socket error / non-JSON frame)
-//   onClose()     — socket closed cleanly
-//
-// When the backend WS is not reachable, connect() reports the failure via
-// onError so the UI can show an honest "live stream unavailable" state and a
-// Retry button — it never invents hunt data.
-//
-// DEMO MODE (UI development only): createSimulatedStream(huntId, handlers)
-// emits a scripted sequence of events with the same handler interface. It is
-// disabled unless VITE_DEMO_MODE=true, and every demo event is tagged
-// payload.demo = true so the UI can label it clearly.
-// ============================================================================
+/**
+ * Hunt live-stream client.
+ *
+ * Usage:
+ *   Create one client per hunt, connect it to open the socket, and
+ *   disconnect it to close the socket.
+ *
+ * handlers:
+ *   onEvent(type, payload) — 'thinking' | 'tool_call' | 'finding' | 'status' | 'done'
+ *       thinking  → { text }                 — agent's current reasoning line
+ *       tool_call → { tool, args?, output? } — a tool invocation; output may arrive
+ *                                              as follow-up tool_call events with the
+ *                                              same tool name and an `output` field
+ *       finding   → { title, severity, detail? } — a vulnerability finding
+ *       status    → { status, step?, phase? }    — 'running' | 'paused' | 'done' | 'stopped'
+ *       done      → { summary? }             — hunt finished
+ *   onError(err)  — transport failure (socket error / non-JSON frame)
+ *   onClose()     — socket closed cleanly
+ *
+ * When the backend WS is not reachable, connect() reports the failure via
+ * onError so the UI can show an honest "live stream unavailable" state and a
+ * Retry button — it never invents hunt data.
+ *
+ * DEMO MODE (UI development only): createSimulatedStream(huntId, handlers)
+ * emits a scripted sequence of events with the same handler interface. It is
+ * disabled unless VITE_DEMO_MODE=true, and every demo event is tagged
+ * payload.demo = true so the UI can label it clearly.
+ */
 import { huntStreamWsUrl } from './api';
 
 const DEMO_MODE = (() => {

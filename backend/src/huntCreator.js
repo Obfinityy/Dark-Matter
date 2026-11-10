@@ -43,6 +43,9 @@ import {
   readHuntMeta,
   listHuntMetas,
 } from './store.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('huntCreator');
 
 /**
  * Lane of a queued entry. Explicit 'scanner' / 'ai' are honoured.
@@ -137,12 +140,12 @@ export async function createHuntFromQueue(entry, deps = {}) {
           });
           resumed = true;
         } catch (err) {
-          console.warn(`[queue] dedupe resume failed for ${existingId}: ${err.message}`);
+          log.warn(`[queue] dedupe resume failed for ${existingId}: ${err.message}`);
         }
       }
       return { huntId: existingId, brainMode, scanDepth, scanScope, reused: true, resumed };
     }
-    console.log(
+    log.info(
       `[queue] dedupe match ${existingId} is ${state}; creating a fresh hunt instead`
     );
   }
@@ -206,7 +209,7 @@ export async function createHuntFromQueue(entry, deps = {}) {
         deps.startHumanLoop || (await import('./humanLoopDriver.js')).startHumanLoop;
       startHumanLoop(huntId);
     } catch (err) {
-      console.warn(`[queue] could not enable human loop for ${huntId}: ${err.message}`);
+      log.warn(`[queue] could not enable human loop for ${huntId}: ${err.message}`);
     }
   }
 
@@ -263,7 +266,7 @@ export async function drainQueue(deps = {}) {
     if (!next) return null;
     try {
       const created = await createHuntFromQueue(next, deps);
-      console.log(
+      log.info(
         `[queue] drained ${next.queueId} -> hunt ${created.huntId} (${created.brainMode}/${created.scanDepth}${created.reused ? ', reused' : ''})`
       );
       // Record the consumption (6 Nov 2026, queue-hygiene fix): the
@@ -278,7 +281,7 @@ export async function drainQueue(deps = {}) {
       }
       return created;
     } catch (err) {
-      console.error(`[queue] auto-start failed for ${next.queueId}:`, err.message);
+      log.error(`[queue] auto-start failed for ${next.queueId}:`, err.message);
       try {
         store.requeueHunt(next.queueId, err);
       } catch {
@@ -287,7 +290,7 @@ export async function drainQueue(deps = {}) {
       return null;
     }
   } catch (err) {
-    console.error('[queue] drain check failed:', err.message);
+    log.error('[queue] drain check failed:', err.message);
     return null;
   }
 }

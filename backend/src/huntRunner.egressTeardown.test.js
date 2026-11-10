@@ -1,4 +1,4 @@
-// Egress-teardown leak regression tests (6 Nov 2026, h_fc3861b36b82).
+// Why: a finished hunt must leave no kernel egress state behind — hunt h_fc3861b36b82 leaked its chain, both ipsets and network for days (6 Nov 2026).
 //
 // REGRESSION: hunt h_fc3861b36b82 (thebhavesh.online) finished 4 Nov,
 // but its iptables chain + both ipsets + docker network were STILL live
@@ -8,7 +8,7 @@
 //  (b) teardownHuntContainer itself returned false the moment
 //      `docker rm -f` failed — BEFORE the egress block — so any hunt
 //      whose container was already gone leaked its kernel state forever.
-// This file pins the fixed behaviour: a failed/irrelevant `rm -f` must
+// The pinned fix (so the leak above cannot return): a failed/irrelevant `rm -f` must
 // never gate the egress removal, an ambiguous rm failure must prove the
 // container is gone (docker inspect) before touching egress, and the
 // periodic reconciler must heal terminal hunts' stale kernel state

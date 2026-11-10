@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { config } from './config.js';
+import { atomicWriteJson } from './atomicWrite.js';
 import { UPI_AMOUNT_INR, UPI_ACCESS_DAYS } from './upiPay.js';
 import { grantAccess } from './access.js';
 import { readUsers, writeUsers } from './store.js';
@@ -62,15 +63,12 @@ function readStore() {
 }
 
 function writeStore(obj) {
-  const p = storePath();
   // Rotate first: the previous good main becomes the backup BEFORE the
   // new main lands, so a crash mid-write can never leave both corrupt.
   try {
     if (fs.existsSync(p)) fs.renameSync(p, storeBackupPath());
   } catch { /* rotation is best-effort; the atomic write below still lands */ }
-  const tmp = `${p}.tmp-${process.pid}`;
-  fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));
-  fs.renameSync(tmp, p);
+  atomicWriteJson(storePath(), obj);
 }
 
 function cleanStr(v, max) {

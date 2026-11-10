@@ -1,10 +1,8 @@
-// ============================================================================
 // Be a Brain — pure helpers for the Brain Console (28 Oct 2026).
 // No React, no DOM, no fetch: BrainConsole.jsx and the node logic test
 // (scripts/check-be-a-brain.mjs) both import from here, so the action
 // payload shapes and the list/process derivations are tested for real
 // instead of only grep-checked in JSX.
-// ============================================================================
 
 /** The action types the parent can submit as the brain — shell, browser,
  * recall, claim, and the full OS-control surface (28 Oct 2026): the
@@ -302,7 +300,6 @@ export function processSummary(proc) {
   };
 }
 
-// ============================================================================
 // Brain JSON — the parent brain's structured reply (28 Oct 2026).
 // The JSON composer in BrainConsole.jsx validates with these pure
 // helpers (same file the node guard imports for real), so a malformed
@@ -313,7 +310,6 @@ export function processSummary(proc) {
 // validator backend/src/brainReply.js rule for rule —
 // scripts/check-brain-json.mjs asserts they stay in sync, including
 // against the backend file itself.
-// ============================================================================
 
 /** The action.type enum of a JSON brain reply (per the schema). */
 export const BRAIN_REPLY_ACTION_TYPES = [

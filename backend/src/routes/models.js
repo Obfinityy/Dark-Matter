@@ -17,6 +17,9 @@
 import { Router } from 'express';
 import { execFile } from 'node:child_process';
 import { readModelJobs, writeModelJobs } from '../store.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('models');
 
 export const MODELS = [
   // --- faster-whisper (speech-to-text) ---------------------------------
@@ -168,7 +171,7 @@ router.post('/download', (req, res) => {
   };
   jobs[jobId] = job;
   writeModelJobs(jobs);
-  console.log(`[models] download queued: ${modelId} (job ${jobId})`);
+  log.info(`[models] download queued: ${modelId} (job ${jobId})`);
   attemptDownload(jobId, model).catch(() => {});
   res.status(202).json({ ok: true, job: publicJob(job) });
 });
@@ -194,7 +197,7 @@ async function attemptDownload(jobId, model) {
   job.status = 'downloading';
   job.note = 'Attempting download…';
   writeModelJobs(jobs);
-  console.log(`[models] downloading ${model.id} (job ${jobId})`);
+  log.info(`[models] downloading ${model.id} (job ${jobId})`);
 
   try {
     if (model.engine === 'faster-whisper') {
@@ -213,7 +216,7 @@ async function attemptDownload(jobId, model) {
       ? 'Download/verification completed successfully.'
       : job.note;
     job.finishedAt = new Date().toISOString();
-    console.log(`[models] download completed: ${model.id} (job ${jobId})`);
+    log.info(`[models] download completed: ${model.id} (job ${jobId})`);
   } catch (err) {
     job.status = 'failed';
     job.note =
@@ -221,16 +224,19 @@ async function attemptDownload(jobId, model) {
       String(err.message || err).slice(0, 160) +
       '). See backend/README.md for manual download steps.';
     job.finishedAt = new Date().toISOString();
-    console.log(`[models] download FAILED: ${model.id} (job ${jobId}): ${err.message || err}`);
+    log.info(`[models] download FAILED: ${model.id} (job ${jobId}): ${err.message || err}`);
   }
   const latest = readModelJobs();
   latest[jobId] = job;
   writeModelJobs(latest);
 }
 
+// How long a Hugging Face metadata fetch may run before it is aborted.
+const HF_FETCH_TIMEOUT_MS = 20000;
+
 async function hfResolve(repo) {
   const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), 20000);
+  const t = setTimeout(() => controller.abort(), HF_FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(`https://huggingface.co/api/models/${repo}`, { signal: controller.signal });
     if (!res.ok) throw new Error(`Hugging Face repo not found (${res.status})`);

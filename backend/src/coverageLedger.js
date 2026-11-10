@@ -33,6 +33,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { atomicWriteJson } from './atomicWrite.js';
 import { huntDir, ensureHuntDir } from './store.js';
 
 export const COVERAGE_OUTCOMES = ['probed_clean', 'confirmed', 'ruled_out', 'not_applicable', 'open_gap'];
@@ -206,10 +207,7 @@ export function loadCoverage(huntId) {
 export function saveCoverage(huntId, data) {
   try {
     ensureHuntDir(huntId);
-    const file = coverageFilePath(huntId);
-    const tmp = `${file}.${process.pid}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
-    fs.renameSync(tmp, file);
+    atomicWriteJson(coverageFilePath(huntId), data);
     return true;
   } catch {
     return false;

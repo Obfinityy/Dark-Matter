@@ -50,7 +50,7 @@
 
 import { chatWithAI, sanitizeForModel } from './llm.js';
 import { readHuntMeta, writeHuntMetaCheckpoint, appendHuntEvent } from './store.js';
-import { recordCost, getHuntCost } from './costTracker.js';
+import { recordCost, recordCostSafe, getHuntCost } from './costTracker.js';
 
 /** The default hunt brain — local dm-hunter 8B. Never changes. */
 export const DEFAULT_BRAIN_MODEL = 'darkmatter-v1';
@@ -390,7 +390,8 @@ export async function callMetaModel(messages, system, ctx, { model, maxTokens, r
   if (String(msg.refusal || '')) return { ok: false, reason: 'refusal' };
   const text = String(msg.content || '').trim();
   if (!text) return { ok: false, reason: 'empty' };
-  try {
+  /* cost tracking must never break the call */
+  recordCostSafe(() => {
     const usage = data.usage || {};
     recordCost({
       userId: ctx && ctx.userId,
@@ -401,10 +402,7 @@ export async function callMetaModel(messages, system, ctx, { model, maxTokens, r
       outputTokens: usage.completion_tokens || usage.outputTokens || 0,
       note: 'meta-model-api',
     });
-  } catch (e) {
-    /* cost tracking must never break the call */
-    try { console.warn('[cost] recordCost failed:', (e && e.message) || e); } catch {}
-  }
+  });
   return { ok: true, text };
 }
 
