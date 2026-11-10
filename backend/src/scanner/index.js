@@ -106,6 +106,7 @@ import { probeLlmInjection } from './probes/llmInjection.js';
 import { probeGraphql } from './probes/graphql.js';
 import { probeCswsh } from './probes/cswsh.js';
 import { probeOauth } from './probes/oauth.js';
+import { probeOauthLab } from './probes/oauthLab.js';
 import { probeSaml } from './probes/saml.js';
 import { createOobCollaborator } from './oobCollaborator.js';
 import { createSmtpCanaryInbox } from './smtpCanaryInbox.js';
@@ -242,6 +243,7 @@ export const DEFAULT_PHASES = [
   'graphql',
   'cswsh',
   'oauth',
+  'oauth-lab',
   'saml',
   'tls',
   'password-reset',
@@ -3142,6 +3144,14 @@ export async function runScan(
     })
   );
   await step('oauth', () => probeOauth(url, { ...opts, labTargets }));
+  // OAuth lab flows (10 Nov 2026, 130th phase): the completed-flow
+  // OAuth/OIDC rows (#487-#493, #497, #502) — magic-link replay,
+  // pre-account hijack, unverified-email IdP, forced linking, code
+  // injection, IdP mix-up, SSRF via dynamic registration, refresh
+  // reuse, WebAuthn without validation. Lab-gated + fingerprint-
+  // gated inside the probe (returns [] on any non-oauth-lab target),
+  // so on a bare page this records an honest no-op.
+  await step('oauth-lab', () => probeOauthLab(url, { ...opts, labTargets }));
   // SAML-XXE OOB collaborator (6 Nov 2026): the SAML probe's blind-XXE
   // variant needs a callback base AND a waiter. Both come from a
   // collaborator started here for the duration of the saml phase — only
