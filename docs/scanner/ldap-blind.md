@@ -1,4 +1,4 @@
-# LDAP boolean-blind probe (`ldap-blind`, coverage row #32)
+# LDAP boolean-blind probe (`ldap-blind`, coverage row #203 [High] LDAP Injection)
 
 `backend/src/scanner/probes/ldapBlind.js` — POST-based login-oracle probe.
 

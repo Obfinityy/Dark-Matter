@@ -1,4 +1,4 @@
-// Dark Matter rule-based scanner — LDAP boolean-blind deep probe (#32).
+// Dark Matter rule-based scanner — LDAP boolean-blind deep probe (coverage row #203 [High] LDAP Injection).
 //
 // Closes the gap left by ldapi.js (error-based wildcards only):
 //   T1. Boolean oracle inventory — differential baseline matrix. A finding is
