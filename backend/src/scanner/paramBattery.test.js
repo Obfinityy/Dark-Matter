@@ -271,6 +271,16 @@ describe('param battery skipped records (35/63 fix)', () => {
     // registrations + cache-write sinks, tier-2 CDP poison drive
     // only when a poisonable sink exists — confirms only when a
     // later clean fetch serves the poisoned cache entry).
+    // (130 since 10 Nov 2026 (OAuth lab flows): 'oauth-lab' joins
+    // as a standalone gated phase (one record per scan, always-run
+    // as an honest no-op: no labCreds on a bare page; lab-gated
+    // AND fingerprint-gated — the target must answer service=
+    // oauth-lab on /health — drives the completed OAuth/OIDC flows
+    // (magic-link replay, pre-account hijack, unverified-email
+    // IdP, forced linking, code injection, IdP mix-up, SSRF via
+    // dynamic registration, refresh reuse, WebAuthn without
+    // validation) with canary accounts; confirms only on
+    // differential / state-change evidence).
     // (97 since 9 Nov 2026 (BFLA): 'bfla' joins as a standalone
     // gated phase (one record per scan, always-run as an honest
     // no-op: no admin routes on a bare page; lab-gated, three-way
@@ -295,7 +305,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 129);
+    assert.equal(DEFAULT_PHASES.length, 130);
   });
 
   it('zero param targets: all 30 param phases emit skipped records, rollup reports them', async () => {
@@ -578,8 +588,9 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // on a bare page), and 'llm-supply-chain' adds an 81st ok record
   // (always-run as an honest no-op: no labCreds on a bare page),
   // and 'sw-cache-poisoning' adds a 48th skipped record (SKIPS on
-  // a bare page: no script targets), so the bare-page line reads
-  // 81 ran ok, 48 skipped.
+  // a bare page: no script targets), and 'oauth-lab' adds an 82nd
+  // ok record (always-run as an honest no-op: no labCreds on a
+  // bare page), so the bare-page line reads 82 ran ok, 48 skipped.
   // 58/40 since 9 Nov 2026 (coupon abuse): 'coupon-abuse' adds a
   // 58th ok record (always-run as an honest no-op: no coupon routes
   // on a bare page), so the bare-page line reads 58 ran ok, 40 skipped.
@@ -658,15 +669,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 129,
-        ok: 81,
+        total: 130,
+        ok: 82,
         failed: 0,
         skipped: 48,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 81 ran ok, 48 skipped, 0 failed, 0 timed out.'
+        'Phases: 82 ran ok, 48 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
