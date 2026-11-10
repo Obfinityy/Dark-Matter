@@ -73,6 +73,7 @@ import { probeDomClobbering } from './probes/domClobbering.js';
 import { probeDomCookieManipulation } from './probes/domCookieManipulation.js';
 import { probeDocumentDomain } from './probes/documentDomain.js';
 import { probeWebrtcLeak } from './probes/webrtcLeak.js';
+import { probeSwCachePoisoning } from './probes/swCachePoisoning.js';
 import { probeCsti } from './probes/csti.js';
 import { probeCstiFrameworks } from './probes/cstiFrameworks.js';
 import { probeCaptcha } from './probes/captcha.js';
@@ -204,6 +205,7 @@ export const DEFAULT_PHASES = [
   'dom-cookie-manipulation',
   'document-domain',
   'webrtc-leak',
+  'sw-cache-poisoning',
   'quota-bypass',
   'provisioning',
   'llm-rate-limit',
@@ -1916,6 +1918,44 @@ export async function runScan(
       driveExecuted: Boolean(wrDiag.driveExecuted),
     })
   );
+  // SERVICE WORKER CACHE POISONING (9 Nov 2026, row #460 [Medium]
+  // Browser — service worker cache poisoning, CWE-444): Juice Shop
+  // is a PWA with a registered worker, so this phase mines
+  // first-party code for worker registrations and cache-write
+  // sinks, then — only when a poisonable sink exists and the lab
+  // gate passes — drives the poison oracle in a real browser
+  // (control render + poison render, see swCachePoisoning.js).
+  // Tier 1 is read-only mining (no lab gate, same as
+  // document-domain); tier 2 is lab-gated like the DOM trio.
+  // Diagnostics ride the phase extras (swRegistered, swScripts,
+  // cacheWriteSinks, fetchHandlerPuts, keyNormalizedSinks,
+  // driveAttempted, driveExecuted) so a live proof can tell "no
+  // worker" from "worker with no poisonable write" from "drive
+  // never served the poison" without re-running.
+  const swDiag = {};
+  if (secretTargets.bundles.length > 0 || secretTargets.inline.length > 0) {
+    await step(
+      'sw-cache-poisoning',
+      () =>
+        probeSwCachePoisoning(url, secretTargets, {
+          ...opts,
+          apiRoutes: [...scanTargets, ...jsWriteTargets],
+          diagnostics: swDiag,
+          ...(typeof opts.jsRoutesFetcher === 'function' ? { fetchPage: opts.jsRoutesFetcher } : {}),
+        }),
+      () => ({
+        swRegistered: Boolean(swDiag.swRegistered),
+        swScripts: swDiag.swScripts || 0,
+        cacheWriteSinks: swDiag.cacheWriteSinks || 0,
+        fetchHandlerPuts: swDiag.fetchHandlerPuts || 0,
+        keyNormalizedSinks: swDiag.keyNormalizedSinks || 0,
+        driveAttempted: Boolean(swDiag.driveAttempted),
+        driveExecuted: Boolean(swDiag.driveExecuted),
+      })
+    );
+  } else {
+    skipPhase('sw-cache-poisoning', 'no script targets');
+  }
   // ERROR DISCLOSURE (7 Nov 2026, rows #175 + #176): trigger
   // errors with read-only GETs on the same GET probe targets as
   // verb-tampering (non-existent paths + malformed query values)

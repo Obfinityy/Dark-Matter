@@ -264,6 +264,13 @@ describe('param battery skipped records (35/63 fix)', () => {
     // index page for plugin/download/registry markers; true
     // negative by design — no third-party model surface on this
     // lab).
+    // (129 since 10 Nov 2026 (service worker cache poisoning):
+    // 'sw-cache-poisoning' joins as a standalone gated phase (one
+    // record per scan, skipped with 'no script targets' when the
+    // page carries no script; tier-1 static mining of worker
+    // registrations + cache-write sinks, tier-2 CDP poison drive
+    // only when a poisonable sink exists — confirms only when a
+    // later clean fetch serves the poisoned cache entry).
     // (97 since 9 Nov 2026 (BFLA): 'bfla' joins as a standalone
     // gated phase (one record per scan, always-run as an honest
     // no-op: no admin routes on a bare page; lab-gated, three-way
@@ -288,7 +295,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 128);
+    assert.equal(DEFAULT_PHASES.length, 129);
   });
 
   it('zero param targets: all 30 param phases emit skipped records, rollup reports them', async () => {
@@ -520,7 +527,7 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     );
   });
 
-  // 74/47 since 10 Nov 2026 (API token auth + autocomplete + blind XPath + exceptional conditions + workflow data exposure + JWT sensitive claims + limit / quota bypass + document.domain relaxation + session timeout / remember-me + insecure provisioning + webrtc-leak + LLM tool misuse + excessive agency + output handling + misinformation + CSTI framework variants + weak password policy + business flow access + LLM prompt injection):
+  // 81/48 since 10 Nov 2026 (API token auth + autocomplete + blind XPath + exceptional conditions + workflow data exposure + JWT sensitive claims + limit / quota bypass + document.domain relaxation + session timeout / remember-me + insecure provisioning + webrtc-leak + LLM tool misuse + excessive agency + output handling + misinformation + CSTI framework variants + weak password policy + business flow access + LLM prompt injection + LLM rate limit + training-data extraction + training-data poisoning + model extraction + multimodal prompt injection + membership inference + supply chain + service worker cache poisoning):
   // 'api-token-auth' adds a 59th ok record (always-run as an honest
   // no-op: no token-param routes and no lab login on a bare page)
   // and 'autocomplete' adds a 60th ok record (always-run as an
@@ -570,7 +577,9 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
   // an 80th ok record (always-run as an honest no-op: no labCreds
   // on a bare page), and 'llm-supply-chain' adds an 81st ok record
   // (always-run as an honest no-op: no labCreds on a bare page),
-  // so the bare-page line reads 81 ran ok, 47 skipped.
+  // and 'sw-cache-poisoning' adds a 48th skipped record (SKIPS on
+  // a bare page: no script targets), so the bare-page line reads
+  // 81 ran ok, 48 skipped.
   // 58/40 since 9 Nov 2026 (coupon abuse): 'coupon-abuse' adds a
   // 58th ok record (always-run as an honest no-op: no coupon routes
   // on a bare page), so the bare-page line reads 58 ran ok, 40 skipped.
@@ -649,15 +658,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 128,
+        total: 129,
         ok: 81,
         failed: 0,
-        skipped: 47,
+        skipped: 48,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 81 ran ok, 47 skipped, 0 failed, 0 timed out.'
+        'Phases: 81 ran ok, 48 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
