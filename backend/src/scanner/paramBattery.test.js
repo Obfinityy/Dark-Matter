@@ -291,6 +291,14 @@ describe('param battery skipped records (35/63 fix)', () => {
     // lab-gated, 10 back-to-back wrong-password attempts; confirms
     // only when all 10 are answered ordinarily with no bot challenge
     // and no throttle).
+    // (152 since 11 Nov 2026 (V10 generated-document external-image
+    // phases): 'document-external-image', 'spreadsheet-external-image'
+    // and 'presentation-external-image' join as standalone phases
+    // (one record per scan, always-run as honest no-ops: no document
+    // links on a bare page; read-only GETs of linked documents;
+    // confirm only on TargetMode="External" + r:link with no media
+    // embedding; the presentation phase records the embedded-image
+    // control instead of a finding).
     // (147 since 10 Nov 2026 (scout classes 479-515): 17 new
     // non-OAuth phases — 'ssti-pebble' joins the battery as a loop
     // phase; xxe-xinclude, smuggling-cl-cl, smuggling-zero-cl,
@@ -325,7 +333,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 149);
+    assert.equal(DEFAULT_PHASES.length, 152);
   });
 
   it('zero param targets: all 31 param phases emit skipped records, rollup reports them', async () => {
@@ -705,15 +713,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 149,
-        ok: 97,
+        total: 152,
+        ok: 100,
         failed: 0,
         skipped: 52,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 97 ran ok, 52 skipped, 0 failed, 0 timed out.'
+        'Phases: 100 ran ok, 52 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

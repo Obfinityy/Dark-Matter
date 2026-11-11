@@ -53,6 +53,18 @@ export const CONFIRMATION_PROTOCOLS = {
     control: 'Render stored content carrying a collaborator URL in a fetchable attribute; the viewer browser must fetch it (collaborator hit) while the URL is preserved verbatim in the rendered HTML. An agent-issued POST through the egress gate is permitted by design and is NOT a finding.',
     judge: (r) => (r.clientFetchHit === true && r.verbatimPreserved === true ? 'confirmed' : r.verbatimPreserved === false ? 'rejected' : 'unconfirmed'),
   },
+  document_external_image: {
+    control: 'Unzip the generated .docx; an image Relationship with TargetMode="External" plus <a:blip r:link> in the body and no word/media/ embedding for that image proves the viewer fetches the URL on open. An embedded image (r:embed + word/media/) is the negative control and is NOT a finding.',
+    judge: (r) => (r.externalLinkPreserved === true && r.embeddedMedia === false ? 'confirmed' : r.externalLinkPreserved === false ? 'rejected' : 'unconfirmed'),
+  },
+  spreadsheet_external_image: {
+    control: 'Unzip the generated .xlsx; an image Relationship with TargetMode="External" in a drawing rels file plus <a:blip r:link> in the drawing XML and no xl/media/ embedding for that image proves the viewer fetches the URL on open. An embedded picture (r:embed + xl/media/) is the negative control and is NOT a finding.',
+    judge: (r) => (r.externalLinkPreserved === true && r.embeddedMedia === false ? 'confirmed' : r.externalLinkPreserved === false ? 'rejected' : 'unconfirmed'),
+  },
+  presentation_external_image: {
+    control: 'Unzip the generated .pptx; an image Relationship with TargetMode="External" plus <a:blip r:link> in a slide proves the viewer fetches the URL on open. A pipeline that bakes slides as rendered images embeds them (r:embed + ppt/media/) — that is the negative control and is NOT a finding.',
+    judge: (r) => (r.externalLinkPreserved === true && r.embeddedMedia === false ? 'confirmed' : r.externalLinkPreserved === false ? 'rejected' : 'unconfirmed'),
+  },
   default: {
     control: 'Repeat the probe with a benign control input; the vulnerable signal must appear ONLY on the malicious input.',
     judge: (r) => (r.signalCorrelated === true ? 'confirmed' : r.signalCorrelated === false ? 'rejected' : 'unconfirmed'),
