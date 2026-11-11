@@ -49,6 +49,10 @@ export const CONFIRMATION_PROTOCOLS = {
     control: 'Replay the privileged request with no session (expect 401) and with a low-priv session performing the same action (expect 403); the bypass session must get 200.',
     judge: (r) => (r.bypassWorks === true ? 'confirmed' : r.bypassWorks === false ? 'rejected' : 'unconfirmed'),
   },
+  egress_laundering: {
+    control: 'Render stored content carrying a collaborator URL in a fetchable attribute; the viewer browser must fetch it (collaborator hit) while the URL is preserved verbatim in the rendered HTML. An agent-issued POST through the egress gate is permitted by design and is NOT a finding.',
+    judge: (r) => (r.clientFetchHit === true && r.verbatimPreserved === true ? 'confirmed' : r.verbatimPreserved === false ? 'rejected' : 'unconfirmed'),
+  },
   default: {
     control: 'Repeat the probe with a benign control input; the vulnerable signal must appear ONLY on the malicious input.',
     judge: (r) => (r.signalCorrelated === true ? 'confirmed' : r.signalCorrelated === false ? 'rejected' : 'unconfirmed'),

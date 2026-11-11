@@ -50,6 +50,42 @@ describe('assessConfirmation OOB protocol', () => {
   });
 });
 
+// assessConfirmation egress_laundering protocol (H3(b), V8-F1, 11 Nov
+// 2026): a finding confirms only when BOTH the external URL is
+// preserved verbatim in rendered HTML AND a viewer-browser fetch hit
+// the collaborator. Verbatim without a fetch is unconfirmed (the URL
+// may be inert); a stripped/rewritten URL is rejected.
+describe('assessConfirmation egress_laundering protocol', () => {
+  it('confirms when verbatimPreserved and clientFetchHit are both true', () => {
+    const r = assessConfirmation({
+      class: 'egress_laundering',
+      evidence: { verbatimPreserved: true, clientFetchHit: true },
+    });
+    assert.equal(r.verdict, 'confirmed');
+  });
+
+  it('rejects when verbatimPreserved is false (stripped / proxied / escaped)', () => {
+    const r = assessConfirmation({
+      class: 'egress_laundering',
+      evidence: { verbatimPreserved: false, clientFetchHit: false },
+    });
+    assert.equal(r.verdict, 'rejected');
+  });
+
+  it('is unconfirmed when verbatim but no fetch hit (no viewer fetch observed)', () => {
+    const r = assessConfirmation({
+      class: 'egress_laundering',
+      evidence: { verbatimPreserved: true },
+    });
+    assert.equal(r.verdict, 'unconfirmed');
+  });
+
+  it('is unconfirmed with no flags (fail-closed)', () => {
+    const r = assessConfirmation({ class: 'egress_laundering', evidence: {} });
+    assert.equal(r.verdict, 'unconfirmed');
+  });
+});
+
 // dedupeFindings title segment (7 Nov 2026): the key is
 // [class, sink||parameter||url, trigger||payload, title]. Without the
 // title segment, distinct findings sharing class + URL and carrying no

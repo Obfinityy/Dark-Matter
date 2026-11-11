@@ -36,6 +36,7 @@ import { probeIdorSurface } from './probes/idor.js';
 import { probeCors } from './probes/cors.js';
 import { probeCookieFlags } from './probes/cookies.js';
 import { probeStoredXss } from './probes/storedXss.js';
+import { probeEgressLaundering } from './probes/egressLaundering.js';
 import { probeWeakCreds } from './probes/weakCreds.js';
 import { probeHostHeader } from './probes/hostHeader.js';
 import { probeNoSqli } from './probes/nosqli.js';
@@ -197,6 +198,7 @@ export const DEFAULT_PHASES = [
   'cors',
   'cookies',
   'stored-xss',
+  'egress-laundering',
   'weak-creds',
   'host-header',
   'nosqli',
@@ -3169,6 +3171,55 @@ async function runScanInner(
   plan('cors', () => probeCors(url, opts));
   plan('cookies', () => probeCookieFlags(url, opts));
   plan('stored-xss', () => probeStoredXss(forms, url, opts));
+  // EGRESS LAUNDERING (H3(b), V8-F1, Meta Cat 7 up to $5k): a stored
+  // content sink that preserves an external URL in a fetchable
+  // attribute causes every viewer browser to fetch that URL directly
+  // — outside the agent egress gate. Same one-collaborator-per-OOB-
+  // phase pattern as sqli-oob / ssrf-referer: only when the target is
+  // lab-gated (allowWrite). The collaborator is stopped by the plan
+  // teardown, so no listener outlives the scan. The probe itself
+  // re-checks opts.labTargets and requires the collaborator to be
+  // wired — without it, it returns [] without a single request.
+  let egressLaunderingOob = null;
+  if (phases.includes('egress-laundering') && allowWrite) {
+    try {
+      egressLaunderingOob = createOobCollaborator({
+        listenHost: opts.oobListenHost || process.env.DM_OOB_LISTEN_HOST || '0.0.0.0',
+        listenPort: opts.oobListenPort || (process.env.DM_OOB_PORT ? Number(process.env.DM_OOB_PORT) : 0),
+        callbackHost: opts.oobCallbackHost || process.env.DM_OOB_CALLBACK_HOST || '172.17.0.1',
+      });
+      await egressLaunderingOob.start();
+    } catch (e) {
+      errors.push(`oob-collaborator: ${e && e.message ? e.message : String(e)}`);
+      egressLaunderingOob = null;
+    }
+  }
+  plan(
+    'egress-laundering',
+    () =>
+      probeEgressLaundering(forms, url, {
+        ...opts,
+        labTargets,
+        ...(egressLaunderingOob
+          ? {
+              oobCallback: egressLaunderingOob.baseUrl(),
+              oobWaitFor: (token, ms) => egressLaunderingOob.waitFor(token, ms),
+              oobHasHit: (token) => egressLaunderingOob.hasHit(token),
+            }
+          : {}),
+        // Authenticated render when the scan acquired a lab session:
+        // the stored page is post-login, so an anonymous render would
+        // see the login page, not the stored content. The closure
+        // reads authSession at execution time (after the dom-render
+        // step sets it); without a session the probe's default
+        // (plain renderDom) applies.
+        ...(authSession && authSession.ok
+          ? { renderDom: (u, o) => renderDomAuthenticated(u, authSession.session, o) }
+          : {}),
+      }),
+    undefined,
+    { teardown: egressLaunderingOob ? () => egressLaunderingOob.stop() : undefined }
+  );
   plan('weak-creds', () => probeWeakCreds(forms, url, opts));
   plan('host-header', () => probeHostHeader(url, opts));
   // SSRF VIA ROUTING-BASED HOST HEADER (10 Nov 2026, row #494
