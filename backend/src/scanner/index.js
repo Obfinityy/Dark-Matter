@@ -15,7 +15,8 @@ import { runPhaseTasks, resolvePhaseConcurrency } from './parallel.js';
 import { withThrottledFetch } from './httpBackoff.js';
 import { probeHeaders } from './probes/headers.js';
 import { probeSqliError } from './probes/sqliError.js';
-import { probeBlindSqli } from './probes/sqliBlind.js';
+import { probeBlindSqli, probeBooleanBlindSqli } from './probes/sqliBlind.js';
+import { probeSqliUnion } from './probes/sqliUnion.js';
 import { probeSqliOob } from './probes/sqliOob.js';
 import { probeSqliSecondOrder } from './probes/sqliSecondOrder.js';
 import { probeXssReflected, probeXssUriScheme } from './probes/xss.js';
@@ -179,6 +180,8 @@ export const DEFAULT_PHASES = [
   'headers',
   'sqli-error',
   'sqli-blind',
+  'sqli-union',
+  'sqli-boolean-blind',
   'sqli-oob',
   'sqli-second-order',
   'xss',
@@ -325,7 +328,7 @@ export const DEFAULT_PHASES = [
   'nuclei',
 ];
 
-// PARAM BATTERY (5 Nov 2026, 35/63 fix): the 30 injection-class phases
+// PARAM BATTERY (5 Nov 2026, 35/63 fix): the 32 injection-class phases
 // below run per URL inside the param loop in runScan. When a scan has ZERO
 // param-bearing targets (bare-root paste on a POST-login page, SPA with no
 // links/forms), the loop body never executes and step() is never invoked
@@ -335,6 +338,8 @@ export const DEFAULT_PHASES = [
 export const PARAM_BATTERY_PHASES = [
   'sqli-error',
   'sqli-blind',
+  'sqli-union',
+  'sqli-boolean-blind',
   'hpp',
   'csv-log-injection',
   'xss',
@@ -1297,6 +1302,14 @@ async function runScanInner(
     batteryStep('sqli-error', (o) => probeSqliError(u, points, { ...o, tech: fp?.tech }), points);
     batteryStep('sqli-blind', (o) =>
       probeBlindSqli(u, points, { ...o, dbHint: fp?.dbHint }), points);
+    // UNION leg (row #277) + boolean-blind leg (row #278), 14 Nov 2026:
+    // both are lab-gated inside their probes (non-lab targets return []
+    // without a single request) and read-only (ORDER BY / SELECT /
+    // TRUE-vs-FALSE comparisons, no writes).
+    batteryStep('sqli-union', (o) =>
+      probeSqliUnion(u, points, { ...o, dbHint: fp?.dbHint, labTargets }), points);
+    batteryStep('sqli-boolean-blind', (o) =>
+      probeBooleanBlindSqli(u, points, { ...o, labTargets }), points);
     batteryStep('hpp', (o) => probeHpp(u, points, { ...o, labTargets }), points);
     batteryStep('csv-log-injection', (o) => probeCsvLog(u, points, o), points);
     batteryStep('xss', async (o) => [...(await probeXssReflected(u, points, o)), ...(await probeXssUriScheme(u, points, o))], points);
