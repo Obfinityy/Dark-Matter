@@ -1350,7 +1350,49 @@ async function runScanInner(
     batteryStep('ognl-injection', (o) => probeOgnlInject(u, points, o), points);
     batteryStep('redirect', (o) => probeOpenRedirect(u, points, o), points);
     batteryStep('crlf', (o) => probeCrlf(u, points, o), points);
-    batteryStep('ssrf', (o) => probeSsrf(u, points, o), points);
+    // BLIND SSRF (14 Nov 2026, coverage rows #237 [High] + #311 — the
+    // same concept filed twice): the metadata leg proves SSRF only
+    // when fetched content comes back — a fetch that returns nothing
+    // to the attacker can never confirm under it. The blind leg in
+    // ssrf.js sends a collaborator canary URL as the param value and
+    // confirms ONLY on a collaborator hit for the probe token with no
+    // hit for a never-advertised control token. The control token is
+    // never sent to the target (see ssrf.js header — a literal copy
+    // of the ssrfReferer.js leg-1 control would reject genuinely
+    // vulnerable param-fetchers). One collaborator per ssrf task — the battery
+    // plans one task per scan target, and a task teardown would stop
+    // a shared listener after the first task — started only when
+    // this target is a lab host, always stopped afterwards in a
+    // finally, so no listener outlives the scan. The probe re-checks
+    // opts.labTargets before sending anything, and labTargets is
+    // passed explicitly (the bare battery opts do not carry it).
+    batteryStep('ssrf', async (o) => {
+      let ssrfBlindOob = null;
+      if (isLabTargetHost(u, labTargets)) {
+        try {
+          ssrfBlindOob = createOobCollaborator({
+            listenHost: opts.oobListenHost || process.env.DM_OOB_LISTEN_HOST || '0.0.0.0',
+            listenPort: opts.oobListenPort || (process.env.DM_OOB_PORT ? Number(process.env.DM_OOB_PORT) : 0),
+            callbackHost: opts.oobCallbackHost || process.env.DM_OOB_CALLBACK_HOST || '172.17.0.1',
+          });
+          await ssrfBlindOob.start();
+        } catch (e) {
+          errors.push(`oob-collaborator: ${e && e.message ? e.message : String(e)}`);
+          ssrfBlindOob = null;
+        }
+      }
+      try {
+        return await probeSsrf(u, points, {
+          ...o,
+          labTargets,
+          ...(ssrfBlindOob
+            ? { oobCallback: ssrfBlindOob.baseUrl(), oobWaitFor: (token, ms) => ssrfBlindOob.waitFor(token, ms) }
+            : {}),
+        });
+      } finally {
+        if (ssrfBlindOob) await ssrfBlindOob.stop();
+      }
+    }, points);
   }
   // 35/63 FIX: no param-bearing target existed, so the whole injection
   // battery was skipped in silence. Emit one skipped record per phase so
