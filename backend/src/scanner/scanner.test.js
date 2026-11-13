@@ -152,6 +152,23 @@ describe('probeHeaders', () => {
     });
     assert.equal(findings.length, 0);
   });
+  it("does not flag 'wasm-unsafe-eval' as unsafe-eval (muse.ai CSP FP)", () => {
+    // 12 Nov 2026, hunt h_e2d40734ddcb: muse.ai script-src carries
+    // 'wasm-unsafe-eval' (Wasm only) + nonce + 'strict-dynamic' — no
+    // 'unsafe-eval' token. The old /unsafe-eval/ substring regex fired
+    // 'csp-unsafe-eval' on it: a false positive. Token-exact match only.
+    const csp = "script-src 'self' 'wasm-unsafe-eval' 'nonce-YjMwYzE4M2ItNjNkYi00YjczLWIxNWEtMDE4YjYwYTFmZDAx' 'strict-dynamic' blob: *.fbcdn.net; object-src 'none'; frame-ancestors 'self'";
+    const findings = probeHeaders({ url: 'https://muse.ai/', headers: { 'content-security-policy': csp } });
+    const ids = findings.map((f) => f.id);
+    assert.ok(!ids.includes('csp-unsafe-eval'));
+    assert.ok(!findings.some((f) => f.class === 'csp_weak'));
+  });
+  it("still flags a real 'unsafe-eval' token", () => {
+    const csp = "script-src 'self' 'unsafe-eval'; object-src 'none'; frame-ancestors 'none'";
+    const findings = probeHeaders({ url: 'https://example.com/', headers: { 'content-security-policy': csp } });
+    const ids = findings.map((f) => f.id);
+    assert.ok(ids.includes('csp-unsafe-eval'));
+  });
 });
 
 describe('probeCsrf', () => {
