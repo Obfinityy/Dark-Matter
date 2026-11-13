@@ -786,7 +786,7 @@ const searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 155);
+      assert.equal(DEFAULT_PHASES.length, 156);
     } finally {
       teardown();
     }

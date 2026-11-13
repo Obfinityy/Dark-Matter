@@ -308,6 +308,9 @@ describe('param battery skipped records (35/63 fix)', () => {
     // need a lab target' on a non-lab host; runs next to stored-xss
     // on the same forms surface — stores a canary quote via a form,
     // confirms only on a DB error on the SECOND request).
+    // (156 since 14 Nov 2026 (blind XSS): 'blind-xss' joins as a
+    // standalone lab-gated OOB phase (one record per scan; the OOB leg
+    // runs only when the target is lab-gated and a collaborator is up).
     // (147 since 10 Nov 2026 (scout classes 479-515): 17 new
     // non-OAuth phases — 'ssti-pebble' joins the battery as a loop
     // phase; xxe-xinclude, smuggling-cl-cl, smuggling-zero-cl,
@@ -343,7 +346,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
     assert.ok(DEFAULT_PHASES.includes('sqli-second-order'), "'sqli-second-order' must be registered");
-    assert.equal(DEFAULT_PHASES.length, 155);
+    assert.equal(DEFAULT_PHASES.length, 156);
   });
 
   it('zero param targets: all 33 param phases emit skipped records, rollup reports them', async () => {

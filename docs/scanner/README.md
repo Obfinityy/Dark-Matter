@@ -42,6 +42,7 @@ proves the signal comes from the malicious input.
 | [headers.md](headers.md) | Security headers + CORS + CSP directives | probes/headers.js |
 | [files.md](files.md) | Sensitive file exposure | probes/files.js |
 | [stored-xss.md](stored-xss.md) | Stored XSS (two-step oracle) | probes/storedXss.js |
+| [blind-xss.md](blind-xss.md) | Blind XSS (out-of-band oracle) | probes/blindXss.js |
 | [weak-creds.md](weak-creds.md) | Weak / default credentials | probes/weakCreds.js |
 | [host-header.md](host-header.md) | Host header injection | probes/hostHeader.js |
 | [nosqli.md](nosqli.md) | NoSQL injection | probes/nosqli.js |
