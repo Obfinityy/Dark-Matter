@@ -39,6 +39,26 @@ function isParentDomain(domain, host) {
   return d !== '' && d !== h && h.endsWith(`.${d}`);
 }
 
+// Session-cookie SameSite reader (row #407, CSRF SameSite-only leg).
+// cookies.js owns cookie-flag parsing: given Set-Cookie strings, return
+// the SameSite attribute of the first session-like cookie that carries
+// one (name matches sess|auth|token|sid — the same session test
+// probeCookieFlags uses), or null when no session cookie carries a
+// SameSite value. Pure — no network.
+const SESSION_NAME_RE = /sess|auth|token|sid/i;
+const SAMESITE_ATTR_RE = /samesite\s*=\s*(lax|strict|none)/i;
+
+export function getSessionCookieSameSite(setCookieValues) {
+  for (const c of setCookieValues || []) {
+    const name = (String(c).split('=')[0] || '').trim();
+    if (!name || !SESSION_NAME_RE.test(name)) continue;
+    const ss = SAMESITE_ATTR_RE.exec(String(c));
+    if (!ss) continue;
+    return { name, sameSite: ss[1].toLowerCase() };
+  }
+  return null;
+}
+
 export async function probeCookieFlags(url, opts = {}) {
   const findings = [];
   const ctrl = new AbortController();
