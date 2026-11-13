@@ -10,14 +10,23 @@
 //   T5. $where server-side JS — CRITICAL, Deep-gated: true/false legs must
 //       diverge exactly AND a JS-canary leg must reflect (proves arbitrary
 //       JS, not query semantics).
+//   T6. Aggregation pipeline injection — HIGH, Deep-gated + lab-gated:
+//       an injected {"pipeline": [...]} stage executes against OUR OWN
+//       canary record only; $lookup join (the canary value is never sent,
+//       so echo cannot fake it) or $match widen (canary leg vs
+//       random-value control + anti-echo guard). CONFIRMED only on the
+//       joined/widened canary data appearing where the control did not
+//       return it.
 //
 // Honest limits (docs/scanner/nosql-deep.md): modern MongoDB/drivers disable
 // $where by default — a clean negative is documented, not a miss. $where has
-// no sleep in modern Mongo — no fake time oracle.
+// no sleep in modern Mongo — no fake time oracle. T6 tries only the
+// {"pipeline": [...]} carrier key — raw-array pipeline bodies are untested.
 // Depth: Quick = T3 only; Standard = T3 (+T4 capped when canary present);
-// Deep = full battery + T5. Read-only HTTP, per-run canaries, redirects
+// Deep = full battery + T5 + T6. Read-only HTTP, per-run canaries, redirects
 // never followed, $0 AI.
 import { probePointName, probePointParameter, noteAttemptedPoints } from '../probePoints.js';
+import { isLabTargetHost } from '../../labCreds.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -269,6 +278,97 @@ async function t5Where(url, params, opts) {
   return findings;
 }
 
+// T6 — aggregation pipeline injection (Deep-gated + lab-gated, HIGH).
+// opts.nosqlCanary = { userParam, field, value, collection? } — the
+// scanner's OWN canary record (same seam as T4; no production caller sets
+// it today, so T6 — like T4 — runs only when a lab harness supplies it).
+// Two variants, first confirmed wins:
+//   (a) $lookup join — only when canary.collection is set. The request
+//       body carries NO canary value (only the collection + field names),
+//       so the value can appear in the response ONLY if the join actually
+//       executed against the database — echo cannot fake it. Anti-echo
+//       guard: the response must not contain the "$lookup" literal.
+//   (b) $match widen — the canary leg's pipeline matches the known canary
+//       document; the control leg matches a random nonexistent value.
+//       Confirm ONLY when the canary value appears in the canary leg, is
+//       absent from the control leg, AND the canary response carries no
+//       "$match" literal (anti-echo guard — a verbatim echo of the
+//       request body would contain it).
+// Carrier: a single {"pipeline": [...]} JSON key — the standard shape for
+// aggregation endpoints. Raw-array pipeline bodies are NOT tried (scope
+// limit, see docs/scanner/nosql-deep.md).
+async function t6Aggregate(url, params, canary, opts) {
+  const findings = [];
+  // LAB GATE (fail-closed): pipeline-injection payloads go out ONLY when
+  // the authorized host is listed in opts.labTargets — the same gate as
+  // the OOB family. index.js passes labTargets into this probe's opts
+  // (hpp precedent); without it the gate stays shut and T6 sends
+  // nothing. Checked BEFORE any request.
+  if (!isLabTargetHost(url, opts.labTargets)) return findings;
+  const { field, value, collection } = canary;
+  if (!field || !value) return findings;
+
+  const pushFinding = (variant, request, responseText) => {
+    const idx = responseText.indexOf(value);
+    const window = responseText.slice(Math.max(0, idx - 60), idx + 120);
+    findings.push({
+      class: 'nosql_injection',
+      id: `nosql-aggregate-${rand()}`,
+      title: 'NoSQL injection — aggregation pipeline injection (HIGH)',
+      severity: 'high',
+      url,
+      parameter: '$pipeline',
+      evidence: ev(
+        request,
+        `Injected pipeline stage (${variant}) executed: the canary value appears in the response — "...${window}..." — where the control leg did not return it. Differential holds.`,
+        'Attacker-controlled aggregation stages run inside the database — cross-collection joins ($lookup) and result-set widening ($match) leak data the query was never meant to return.'
+      ),
+    });
+  };
+
+  // (a) $lookup join — strongest oracle: the canary value is never sent.
+  if (collection) {
+    try {
+      const r = await postJson(
+        url,
+        { pipeline: [{ $lookup: { from: collection, localField: field, foreignField: field, as: 'dmjoined' } }] },
+        opts
+      );
+      if (r.text.includes(value) && !r.text.includes('"$lookup"')) {
+        pushFinding(
+          '$lookup',
+          `POST ${url} JSON {"pipeline":[{"$lookup":{"from":"${collection}","localField":"${field}","foreignField":"${field}","as":"dmjoined"}}]}`,
+          r.text
+        );
+        return findings;
+      }
+    } catch {
+      // endpoint rejects pipeline-shaped JSON — fall through to $match
+    }
+  }
+
+  // (b) $match widen — canary leg vs random-value control + anti-echo.
+  try {
+    const rCanary = await postJson(url, { pipeline: [{ $match: { [field]: value } }] }, opts);
+    const control = `zz_${rand()}`;
+    const rControl = await postJson(url, { pipeline: [{ $match: { [field]: control } }] }, opts);
+    if (
+      rCanary.text.includes(value) &&
+      !rControl.text.includes(value) &&
+      !rCanary.text.includes('"$match"')
+    ) {
+      pushFinding(
+        '$match',
+        `POST ${url} JSON {"pipeline":[{"$match":{"${field}":"${value}"}}]} vs control {"pipeline":[{"$match":{"${field}":"${control}"}}]}`,
+        rCanary.text
+      );
+    }
+  } catch {
+    // endpoint rejects pipeline-shaped JSON — clean negative
+  }
+  return findings;
+}
+
 export async function probeNoSqlDeep(url, params, opts = {}) {
   const findings = [];
   const depth = opts.depth || 'standard';
@@ -280,6 +380,9 @@ export async function probeNoSqlDeep(url, params, opts = {}) {
   }
   if (depth === 'deep') {
     findings.push(...(await t5Where(url, params, opts)));
+    if (opts.nosqlCanary && opts.nosqlCanary.value) {
+      findings.push(...(await t6Aggregate(url, params, opts.nosqlCanary, opts)));
+    }
   }
   return findings;
 }

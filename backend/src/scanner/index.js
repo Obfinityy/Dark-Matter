@@ -1291,7 +1291,7 @@ async function runScanInner(
     batteryStep('csv-log-injection', (o) => probeCsvLog(u, points, o), points);
     batteryStep('xss', (o) => probeXssReflected(u, points, o), points);
     batteryStep('nosqli', (o) => probeNoSqli(u, points, o), points);
-    batteryStep('nosql-deep', (o) => probeNoSqlDeep(u, points, o), points);
+    batteryStep('nosql-deep', (o) => probeNoSqlDeep(u, points, { ...o, labTargets }), points);
     batteryStep('ldapi', (o) => probeLdapInjection(u, points, { ...o, stack: fp?.tech }), points);
     batteryStep('ldap-blind', (o) => probeLdapBlind(u, points, { ...o, stack: fp?.tech }), points);
     batteryStep('xpathi', (o) => probeXpathInjection(u, points, o), points);
