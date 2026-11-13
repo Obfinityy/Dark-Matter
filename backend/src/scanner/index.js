@@ -3318,8 +3318,10 @@ async function runScanInner(
   );
   plan('cache-poisoning', () => probeCachePoisoning(url, opts));
   plan('request-smuggling', () => probeRequestSmuggling(url, opts));
-  // REQUEST SMUGGLING — CL.CL (10 Nov 2026, row #503 [High]
-  // request smuggling — CL.CL, CWE-444): duplicate Content-Length
+  // REQUEST SMUGGLING — CL.CL (10 Nov 2026, row #166 [Critical] HTTP
+  // Request Smuggling — CL.CL variant, CWE-444; CL.CL has no dedicated
+  // checklist row, #351–#354 cover CL.TE / TE.CL / TE.TE /
+  // chunked-extension only): duplicate Content-Length
   // headers let front and back disagree on where the body ends, so
   // attacker bytes are processed as a new request. Raw-socket
   // oracle (baseline must pipeline cleanly or the phase skips —
@@ -3335,8 +3337,10 @@ async function runScanInner(
       skipNote: smugglingClClDiag.skipped || null,
     })
   );
-  // REQUEST SMUGGLING — 0.CL / CL.0 (10 Nov 2026, row #504 [High]
-  // request smuggling — 0.CL / CL.0, CWE-444): a zero
+  // REQUEST SMUGGLING — 0.CL / CL.0 (10 Nov 2026, row #166 [Critical]
+  // HTTP Request Smuggling — 0.CL / CL.0 variant, CWE-444; 0.CL / CL.0
+  // has no dedicated checklist row, #351–#354 cover CL.TE / TE.CL /
+  // TE.TE / chunked-extension only): a zero
   // Content-Length against a non-zero one is the same front/back
   // disagreement with a different shape (see
   // smugglingZeroCl.js). Same raw-socket oracle and https skip as
@@ -3350,9 +3354,9 @@ async function runScanInner(
       skipNote: smugglingZeroClDiag.skipped || null,
     })
   );
-  // HTTP/2 REQUEST TUNNELLING (10 Nov 2026, row #505 [High] HTTP/2
-  // tunnelling, CWE-444): a front-end that terminates HTTP/2 and
-  // forwards to HTTP/1.1 must sanitise header values when it
+  // HTTP/2 REQUEST TUNNELLING (10 Nov 2026, row #168 [Critical] HTTP/2
+  // Desync / Downgrading Attacks, CWE-444): a front-end that terminates
+  // HTTP/2 and forwards to HTTP/1.1 must sanitise header values when it
   // re-serialises them — a CRLF inside an H2 header value becomes
   // a new HTTP/1.1 request on the back-end connection. Node's
   // http2 client refuses \r / \n outright, so the probe speaks

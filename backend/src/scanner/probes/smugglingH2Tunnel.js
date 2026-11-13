@@ -1,7 +1,7 @@
 // Dark Matter rule-based scanner — HTTP/2 request tunnelling,
 // H2→H1 downgrade CRLF smuggling.
-// (Coverage row #505 [High] HTTP/2 tunnelling, CWE-444;
-// phase 'smuggling-h2-tunnel'.)
+// (Coverage row #168 [Critical] HTTP/2 Desync / Downgrading Attacks,
+// CWE-444; phase 'smuggling-h2-tunnel'.)
 //
 // A front-end that terminates HTTP/2 and forwards to an HTTP/1.1
 // back-end must sanitise header values when it re-serialises them

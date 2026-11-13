@@ -1,6 +1,7 @@
-// Tests for the request-smuggling 0.CL / CL.0 probe (row #504 [High]
-// HTTP request smuggling — 0.CL / CL.0, CWE-444; phase
-// 'smuggling-zero-cl').
+// Tests for the request-smuggling 0.CL / CL.0 probe (row #166
+// [Critical] HTTP Request Smuggling — 0.CL / CL.0 variant, CWE-444;
+// phase 'smuggling-zero-cl'). 0.CL / CL.0 has no dedicated checklist
+// row (#351–#354 cover CL.TE / TE.CL / TE.TE / chunked-extension only).
 //
 // Raw-socket mocks: 'disagree-zero' (one tier honours the 0, so the
 // body bytes are parsed as the next request — the desync shape),

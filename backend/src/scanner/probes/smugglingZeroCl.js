@@ -1,7 +1,9 @@
 // Dark Matter rule-based scanner — HTTP request smuggling probe,
 // 0.CL / CL.0 (Content-Length: 0 alongside a body).
-// (Coverage row #504 [High] request smuggling — 0.CL / CL.0, CWE-444;
-// phase 'smuggling-zero-cl'.)
+// (Coverage row #166 [Critical] HTTP Request Smuggling — 0.CL / CL.0
+// variant, CWE-444; phase 'smuggling-zero-cl'. 0.CL / CL.0 has no
+// dedicated checklist row: #351–#354 cover CL.TE / TE.CL / TE.TE /
+// chunked-extension only.)
 //
 // One Content-Length header says 0 while a second says N (and the
 // reverse): a front-end that honours the 0 treats the body bytes as
