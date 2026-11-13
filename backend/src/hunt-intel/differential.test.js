@@ -4,7 +4,7 @@
 // `_oob` is judged on oobHit, exactly like SSRF.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { assessConfirmation, dedupeFindings, isTinyErrorPageDivergence } from './differential.js';
+import { assessConfirmation, dedupeFindings, isTinyErrorPageDivergence, scoreExploitability } from './differential.js';
 import { probeHeaders } from '../scanner/probes/headers.js';
 import { verifyFindings } from '../scanner/verifier.js';
 
@@ -375,5 +375,40 @@ describe('tiny-error-page differential guard', () => {
     assert.equal(confirmed.length, 0);
     assert.equal(unconfirmed.length, 1);
     assert.equal(unconfirmed[0].confirmation, 'rejected');
+  });
+});
+
+// Log poisoning judge routing + exploitability (14 Nov 2026, coverage
+// row #337): class 'log_poisoning' normalises to 'logpoisoning', which
+// matches no family branch in protocolFor, so it falls to the default
+// protocol judged on signalCorrelated — the flag the probe carries
+// alongside diverged and executed. The capability map must also carry
+// it (file_read + code_exec) or scoreExploitability would rate a
+// confirmed RCE BENIGN.
+describe('log_poisoning judge routing + exploitability', () => {
+  it('confirms log_poisoning on signalCorrelated (default protocol)', () => {
+    const r = assessConfirmation({
+      class: 'log_poisoning',
+      evidence: { signalCorrelated: true, diverged: true, executed: true },
+    });
+    assert.equal(r.verdict, 'confirmed');
+  });
+
+  it('rejects log_poisoning when signalCorrelated is false', () => {
+    const r = assessConfirmation({
+      class: 'log_poisoning',
+      evidence: { signalCorrelated: false },
+    });
+    assert.equal(r.verdict, 'rejected');
+  });
+
+  it('is unconfirmed for log_poisoning with no signalCorrelated flag', () => {
+    const r = assessConfirmation({ class: 'log_poisoning', evidence: {} });
+    assert.equal(r.verdict, 'unconfirmed');
+  });
+
+  it('scores a confirmed log_poisoning finding LIKELY_EXPLOITABLE (file_read + code_exec)', () => {
+    const r = scoreExploitability({ class: 'log_poisoning' }, 'confirmed');
+    assert.equal(r.level, 'LIKELY_EXPLOITABLE');
   });
 });

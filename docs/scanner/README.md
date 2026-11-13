@@ -33,6 +33,7 @@ proves the signal comes from the malicious input.
 | [xss.md](xss.md) | Reflected XSS | probes/xss.js |
 | [cmdi.md](cmdi.md) | OS command injection (time-based) | probes/cmdi.js |
 | [traversal.md](traversal.md) | Path traversal / LFI | probes/traversal.js |
+| [log-poisoning.md](log-poisoning.md) | Log poisoning to RCE (two-step oracle) | probes/logPoisoning.js |
 | [ssti.md](ssti.md) | Server-side template injection | probes/ssti.js |
 | [xxe.md](xxe.md) | XML external entity | probes/xxe.js |
 | [ssrf.md](ssrf.md) | Server-side request forgery | probes/ssrf.js |

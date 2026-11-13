@@ -22,6 +22,7 @@ import { probeSqliSecondOrder } from './probes/sqliSecondOrder.js';
 import { probeXssReflected, probeXssUriScheme } from './probes/xss.js';
 import { probeCmdiTime } from './probes/cmdi.js';
 import { probeTraversal } from './probes/traversal.js';
+import { probeLogPoisoning } from './probes/logPoisoning.js';
 import { probeSsti } from './probes/ssti.js';
 import { probeSstiPebble } from './probes/sstiPebble.js';
 import { probeOpenRedirect } from './probes/redirect.js';
@@ -188,6 +189,7 @@ export const DEFAULT_PHASES = [
   'xss',
   'cmdi',
   'traversal',
+  'log-poisoning',
   'ssti',
   'ssti-pebble',
   'el-injection',
@@ -355,6 +357,7 @@ export const PARAM_BATTERY_PHASES = [
   'ssi',
   'cmdi',
   'traversal',
+  'log-poisoning',
   'rfi',
   'xslt',
   'eval-injection',
@@ -1272,7 +1275,7 @@ async function runScanInner(
   );
   // 35/63 FIX: track whether the param battery ran at all. If no scan
   // target carried a single parameter, the loop body below never executes
-  // and the 30 phases inside it would vanish in silence — record each of
+  // and the 31 phases inside it would vanish in silence — record each of
   // them as skipped instead (after the loop).
   let paramBatteryRan = false;
   // PER-PHASE COVERAGE DIAGNOSTIC (9 Nov 2026, deep-coverage audit):
@@ -1360,6 +1363,12 @@ async function runScanInner(
     batteryStep('ssi', (o) => probeSsiInjection(u, points, o), points);
     batteryStep('cmdi', (o) => probeCmdiTime(u, points, o), points);
     batteryStep('traversal', (o) => probeTraversal(u, points, o), points);
+    // LOG POISONING TO RCE (14 Nov 2026, coverage row #337 [Critical]):
+    // a canary in a log field (User-Agent, Referer fallback) included
+    // through an LFI sink — confirms ONLY when the poisoned entry
+    // executes (see logPoisoning.js). Lab-gated like rfi/xslt: the
+    // probe writes attacker content into server logs.
+    batteryStep('log-poisoning', (o) => probeLogPoisoning(u, points, { ...o, labTargets }), points);
     batteryStep('rfi', (o) => probeRfi(u, points, { ...o, labTargets }), points);
     batteryStep('xslt', (o) => probeXslt(u, points, { ...o, labTargets }), points);
     batteryStep('eval-injection', (o) => probeEvalInject(u, points, o), points);

@@ -29,6 +29,7 @@ export const CAPABILITY_MAP = {
   ssrf_cloud_meta: ['ssrf', 'cloud_meta', 'cred_leak'],
   lfi: ['file_read'],
   rfi: ['file_read', 'code_exec'],
+  log_poisoning: ['file_read', 'code_exec'],
   rce: ['code_exec'],
   cmd_injection: ['code_exec'],
   idor: ['data_read', 'data_write'],

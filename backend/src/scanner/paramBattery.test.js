@@ -42,9 +42,9 @@ function stubPage(html) {
 }
 
 describe('param battery skipped records (35/63 fix)', () => {
-  it('PARAM_BATTERY_PHASES is exactly the 33 loop phases, all in DEFAULT_PHASES', () => {
-    assert.equal(PARAM_BATTERY_PHASES.length, 33);
-    assert.equal(new Set(PARAM_BATTERY_PHASES).size, 33);
+  it('PARAM_BATTERY_PHASES is exactly the 34 loop phases, all in DEFAULT_PHASES', () => {
+    assert.equal(PARAM_BATTERY_PHASES.length, 34);
+    assert.equal(new Set(PARAM_BATTERY_PHASES).size, 34);
     for (const name of PARAM_BATTERY_PHASES) {
       assert.ok(DEFAULT_PHASES.includes(name), `${name} missing from DEFAULT_PHASES`);
     }
@@ -288,6 +288,10 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (150 since 14 Nov 2026 (UNION + boolean-blind SQLi, rows
     // #277/#278): 'sqli-union' and 'sqli-boolean-blind' join the
     // battery as loop phases (both lab-gated inside their probes).
+    // (157 since 14 Nov 2026 (log poisoning to RCE, row #337
+    // [Critical]): 'log-poisoning' joins the battery as a loop
+    // phase (one record per scan target with probe points; lab-gated,
+    // confirms only when a PHP payload in the log executes on include).
     // (148 since 10 Nov 2026 (anti-automation, row #79): 'anti-automation'
     // joins as a standalone gated phase (one record per scan,
     // always-run as an honest no-op: no login route on a bare page;
@@ -346,10 +350,10 @@ describe('param battery skipped records (35/63 fix)', () => {
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
     assert.ok(DEFAULT_PHASES.includes('sqli-second-order'), "'sqli-second-order' must be registered");
-    assert.equal(DEFAULT_PHASES.length, 156);
+    assert.equal(DEFAULT_PHASES.length, 157);
   });
 
-  it('zero param targets: all 33 param phases emit skipped records, rollup reports them', async () => {
+  it('zero param targets: all 34 param phases emit skipped records, rollup reports them', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -360,7 +364,7 @@ describe('param battery skipped records (35/63 fix)', () => {
         },
         { timeoutMs: 5000 }
       );
-      assert.equal(result.phases.length, 33);
+      assert.equal(result.phases.length, 34);
       assert.deepEqual(
         result.phases.map((p) => p.name),
         PARAM_BATTERY_PHASES
@@ -373,12 +377,12 @@ describe('param battery skipped records (35/63 fix)', () => {
         assert.equal(p.findingsCount, 0);
         assert.equal(p.durationMs, 0);
       }
-      // The rollup must NOT read this as a pass: 0 ok, 33 skipped.
+      // The rollup must NOT read this as a pass: 0 ok, 34 skipped.
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 33,
+        total: 34,
         ok: 0,
         failed: 0,
-        skipped: 33,
+        skipped: 34,
         timedOut: 0,
       });
     } finally {
@@ -567,14 +571,14 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
     })),
   ];
 
-  it('35/31 case renders the split with the shared skip reason — never 66/66 ok', () => {
+  it('35/32 case renders the split with the shared skip reason — never 67/67 ok', () => {
     const phases = skippedBattery();
     // Skipped records still carry ok:true by design (see skipPhase) — the
     // line must read the rollup's skipped count, never ok:true.
     assert.ok(phases.filter((p) => p.skipped).every((p) => p.ok === true));
     assert.equal(
       buildPhaseSummaryLine(phases),
-      'Phases: 35 ran ok, 33 skipped (no param targets), 0 failed, 0 timed out.'
+      'Phases: 35 ran ok, 34 skipped (no param targets), 0 failed, 0 timed out.'
     );
   });
 
@@ -726,17 +730,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 156,
+        total: 157,
         ok: 101,
         failed: 0,
-        skipped: 55,
-        failed: 0,
-        skipped: 55,
+        skipped: 56,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 101 ran ok, 55 skipped, 0 failed, 0 timed out.'
+        'Phases: 101 ran ok, 56 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

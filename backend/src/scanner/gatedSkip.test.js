@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 156/101/55 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 157/101/56 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -299,7 +299,9 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // no-op alongside them (no sensitive inputs on a bare page —
       // 9 Nov 2026, 105th phase), and blind-xpath SKIPS with the
       // battery (no param targets on a bare page — 9 Nov 2026,
-      // 106th phase), and exceptional-conditions RUNS as an honest
+      // 106th phase), and log-poisoning SKIPS with the battery (no
+      // param targets on a bare page — 14 Nov 2026, 149th phase),
+      // and exceptional-conditions RUNS as an honest
       // no-op alongside them (no basket routes on a bare page —
       // 9 Nov 2026, 107th phase), and workflow-data-exposure RUNS
       // as an honest no-op alongside them (no workflow routes on a
@@ -362,24 +364,22 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // And blind-xss RUNS as an honest no-op alongside them (no
       // oobCallback on a non-lab target — 14 Nov 2026, 156th phase).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 156,
+        total: 157,
         ok: 101,
         failed: 0,
-        skipped: 55,
-        failed: 0,
-        skipped: 55,
+        skipped: 56,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 101 ran ok, 55 skipped, 0 failed, 0 timed out.'
+        'Phases: 101 ran ok, 56 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 189/188/1', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 191/190/1', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -433,7 +433,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // source-code-disclosure + metadata-leakage +
       // sensitive-data-in-logs + sensitive-info-disclosure +
       // timing-side-channel + xml-injection + blind-xpath: the battery
-      // ran twice (two DOM targets, 60 records), 58 non-param phases
+      // ran twice (two DOM targets, 64 records), 58 non-param phases
       // ran ok (36 +
       // verb-tampering + method-override + secrets-in-js +
       // browser-storage + dom-xss-sinks + dom-xss-location-hash +
@@ -579,15 +579,15 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // alongside them (no oobCallback on a non-lab target —
       // 14 Nov 2026).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 189,
-        ok: 188,
+        total: 191,
+        ok: 190,
         failed: 0,
         skipped: 1,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 188 ran ok, 1 skipped (no MCP endpoint discovered), 0 failed, 0 timed out.'
+        'Phases: 190 ran ok, 1 skipped (no MCP endpoint discovered), 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -785,7 +785,7 @@ const searchService = {
         },
         { timeoutMs: 5000 }
       );
-      assert.equal(result.phases.length, 33);
+      assert.equal(result.phases.length, 34);
       for (const name of ['dom-render', 'openapi-targets', 'js-api-routes']) {
         assert.equal(
           result.phases.some((p) => p.name === name),
@@ -793,7 +793,7 @@ const searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 156);
+      assert.equal(DEFAULT_PHASES.length, 157);
     } finally {
       teardown();
     }
