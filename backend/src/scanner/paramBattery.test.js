@@ -726,15 +726,17 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 155,
-        ok: 100,
+        total: 156,
+        ok: 101,
+        failed: 0,
+        skipped: 55,
         failed: 0,
         skipped: 55,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 100 ran ok, 55 skipped, 0 failed, 0 timed out.'
+        'Phases: 101 ran ok, 55 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

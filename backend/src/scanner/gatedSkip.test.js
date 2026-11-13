@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 155/100/55 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 156/101/55 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -359,23 +359,27 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // mcp-tool-poisoning SKIPS with 'no MCP endpoint discovered'.
       // (The scout lane's nine OAuth-family phases are not in this
       // tree: the merged oauth-lab phase already covers those rows.)
+      // And blind-xss RUNS as an honest no-op alongside them (no
+      // oobCallback on a non-lab target — 14 Nov 2026, 156th phase).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 155,
-        ok: 100,
+        total: 156,
+        ok: 101,
+        failed: 0,
+        skipped: 55,
         failed: 0,
         skipped: 55,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 100 ran ok, 55 skipped, 0 failed, 0 timed out.'
+        'Phases: 101 ran ok, 55 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 183/182/1', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 189/188/1', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -571,16 +575,19 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // no-op alongside them (lab target with a login form; the stub
       // trigger pages carry no DB error — 14 Nov 2026, rows
       // #208/#281).
+      // and blind-xss, the 156th phase, RUNS as an honest no-op
+      // alongside them (no oobCallback on a non-lab target —
+      // 14 Nov 2026).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 188,
-        ok: 187,
+        total: 189,
+        ok: 188,
         failed: 0,
         skipped: 1,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 187 ran ok, 1 skipped (no MCP endpoint discovered), 0 failed, 0 timed out.'
+        'Phases: 188 ran ok, 1 skipped (no MCP endpoint discovered), 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
