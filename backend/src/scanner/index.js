@@ -25,6 +25,7 @@ import { probeTraversal } from './probes/traversal.js';
 import { probeLogPoisoning } from './probes/logPoisoning.js';
 import { probeSsti } from './probes/ssti.js';
 import { probeSstiPebble } from './probes/sstiPebble.js';
+import { probeSstiEngines } from './probes/sstiEngines.js';
 import { probeOpenRedirect } from './probes/redirect.js';
 import { probeCsrf } from './probes/csrf.js';
 import { probePostForms } from './probes/postForms.js';
@@ -192,6 +193,7 @@ export const DEFAULT_PHASES = [
   'log-poisoning',
   'ssti',
   'ssti-pebble',
+  'ssti-engines',
   'el-injection',
   'ognl-injection',
   'redirect',
@@ -369,6 +371,7 @@ export const PARAM_BATTERY_PHASES = [
   'arg-injection',
   'ssti',
   'ssti-pebble',
+  'ssti-engines',
   'el-injection',
   'ognl-injection',
   'redirect',
@@ -1380,6 +1383,7 @@ async function runScanInner(
     batteryStep('arg-injection', (o) => probeArgInjection(u, points, o), points);
     batteryStep('ssti', (o) => probeSsti(u, points, o), points);
     batteryStep('ssti-pebble', (o) => probeSstiPebble(u, points, o), points);
+    batteryStep('ssti-engines', (o) => probeSstiEngines(u, points, o), points);
     batteryStep('el-injection', (o) => probeElInject(u, points, { ...o, stack: fp?.tech }), points);
     batteryStep('ognl-injection', (o) => probeOgnlInject(u, points, o), points);
     batteryStep('redirect', (o) => probeOpenRedirect(u, points, o), points);

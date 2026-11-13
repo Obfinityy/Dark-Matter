@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 157/101/56 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 158/101/57 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -364,22 +364,22 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // And blind-xss RUNS as an honest no-op alongside them (no
       // oobCallback on a non-lab target — 14 Nov 2026, 156th phase).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 157,
+        total: 158,
         ok: 101,
         failed: 0,
-        skipped: 56,
+        skipped: 57,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 101 ran ok, 56 skipped, 0 failed, 0 timed out.'
+        'Phases: 101 ran ok, 57 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 191/190/1', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 193/192/1', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -562,7 +562,8 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // phases (10 Nov 2026, 131st-147th phases) add 18 records —
       // ssti-pebble records once per scan target (two targets here),
       // the other 16 once each — with mcp-tool-poisoning the only
-      // skip ('no MCP endpoint discovered'); deep-link and
+      // skip ('no MCP endpoint discovered'); ssti-engines (14 Nov
+      // 2026) records once per scan target too, like ssti-pebble; deep-link and
       // webview-bridge RUN here (the stub bundle carries script
       // targets) and the rest run as honest no-ops (non-lab target
       // / no surface), and anti-automation, the 148th phase, runs
@@ -579,15 +580,15 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // alongside them (no oobCallback on a non-lab target —
       // 14 Nov 2026).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 191,
-        ok: 190,
+        total: 193,
+        ok: 192,
         failed: 0,
         skipped: 1,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 190 ran ok, 1 skipped (no MCP endpoint discovered), 0 failed, 0 timed out.'
+        'Phases: 192 ran ok, 1 skipped (no MCP endpoint discovered), 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -785,7 +786,7 @@ const searchService = {
         },
         { timeoutMs: 5000 }
       );
-      assert.equal(result.phases.length, 34);
+      assert.equal(result.phases.length, 35);
       for (const name of ['dom-render', 'openapi-targets', 'js-api-routes']) {
         assert.equal(
           result.phases.some((p) => p.name === name),
@@ -793,7 +794,7 @@ const searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 157);
+      assert.equal(DEFAULT_PHASES.length, 158);
     } finally {
       teardown();
     }
