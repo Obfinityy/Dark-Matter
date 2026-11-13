@@ -8,7 +8,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { probeXxe } from './xxe.js';
+import { probeXxe, buildDocx, ooxmlDocumentXmlMalicious, ooxmlDocumentXmlControl, assessXxeFile, buildZip, crc32 } from './xxe.js';
 import { createOobCollaborator } from '../oobCollaborator.js';
 import { verifyFindings } from '../verifier.js';
 import { assessConfirmation } from '../../hunt-intel/differential.js';
@@ -249,6 +249,316 @@ describe('xxe internal entity expansion (v1 regression)', () => {
     try {
       const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, { timeoutMs: 3000, labTargets: '127.0.0.1' });
       assert.deepEqual(findings, [], 'no oobCallback means no OOB variant at all');
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+});
+
+// Stub D — file-resolving XML/SOAP endpoint: resolves a SYSTEM
+// file:///etc/passwd entity by inlining fake passwd content, expands
+// internal entities, never fetches external URLs. Records requests.
+function fileResolveHandler(records = []) {
+  return async (req, res) => {
+    if (req.method !== 'POST') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end('<html><body>stub</body></html>'); return; }
+    const xml = await readBody(req);
+    records.push({ headers: req.headers, body: xml });
+    const sys = /<!ENTITY\s+(\w+)\s+SYSTEM\s+"file:\/\/\/etc\/passwd">/.exec(xml);
+    if (sys) {
+      const out = xml.replace(new RegExp(`&${sys[1]};`, 'g'), 'root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin');
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end(`parsed: ${out}`);
+      return;
+    }
+    const defs = {};
+    for (const m of xml.matchAll(/<!ENTITY\s+(\w+)\s+"([^"]*)">/g)) defs[m[1]] = m[2];
+    const out = xml.replace(/&(\w+);/g, (s, n) => (n in defs ? defs[n] : s));
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end(`parsed: ${out}`);
+  };
+}
+
+// Stub E — reflecting endpoint: echoes the submitted XML verbatim —
+// the entity DECLARATION is reflected, but nothing is ever resolved,
+// so no file leg may confirm on it.
+function reflectHandler(records = []) {
+  return async (req, res) => {
+    if (req.method !== 'POST') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end('<html><body>stub</body></html>'); return; }
+    const xml = await readBody(req);
+    records.push({ headers: req.headers, body: xml });
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end(`echo: ${xml}`);
+  };
+}
+
+// Stub F — OOXML upload endpoint: serves an upload form, accepts a
+// .docx, and (when resolve=true) "processes" it with an XXE-capable
+// parser: a SYSTEM file entity in word/document.xml inlines fake
+// passwd content into the extracted text. When direct=true the root
+// line is in the upload response; otherwise only at the disclosed
+// /files/<name> URL (fetch-back path). When resolve=false the parser
+// is strict: uploads are accepted but entities are never resolved.
+function ooxmlUploadStub({ resolve = true, direct = true } = {}) {
+  const files = new Map();
+  const uploads = [];
+  const handler = async (req, res) => {
+    const u = new URL(req.url, 'http://127.0.0.1');
+    if (req.method === 'GET' && u.pathname === '/') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html><body><form action="/upload" method="post" enctype="multipart/form-data"><input type="file" name="file"><input type="submit" value="Upload"></form></body></html>');
+      return;
+    }
+    if (req.method === 'GET' && u.pathname.startsWith('/files/')) {
+      const text = files.get(u.pathname.slice(7));
+      if (text === undefined) { res.writeHead(404); res.end('not found'); return; }
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end(text);
+      return;
+    }
+    if (req.method === 'POST' && u.pathname === '/upload') {
+      const chunks = [];
+      for await (const c of req) chunks.push(c);
+      const raw = Buffer.concat(chunks).toString('latin1');
+      uploads.push(raw);
+      const name = (/filename="([^"]+)"/.exec(raw) || [])[1] || 'upload.docx';
+      const hasSystemFile = /<!ENTITY\s+\w+\s+SYSTEM\s+"file:\/\/\/etc\/passwd">/.test(raw);
+      const extracted = (resolve && hasSystemFile)
+        ? 'extracted text:\nroot:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin'
+        : 'extracted text:\nhello from the document';
+      files.set(name, extracted);
+      let resp = `upload ok: ${name}\nfile at /files/${name}\n`;
+      if (direct) resp += `${extracted}\n`;
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end(resp);
+      return;
+    }
+    res.writeHead(404); res.end();
+  };
+  return { handler, files, uploads };
+}
+
+describe('xxe pure helpers (file legs)', () => {
+  it('crc32 matches the known vector', () => {
+    assert.equal(crc32(Buffer.from('123456789', 'ascii')), 0xCBF43926);
+  });
+
+  it('buildZip writes a deterministic stored zip', () => {
+    const z1 = buildZip([{ name: 'a.txt', data: 'hello' }]);
+    const z2 = buildZip([{ name: 'a.txt', data: 'hello' }]);
+    assert.deepEqual(z1, z2, 'same input must give byte-identical output');
+    assert.equal(z1.subarray(0, 4).toString('latin1'), 'PK\x03\x04');
+    assert.ok(z1.includes('a.txt'));
+    assert.ok(z1.includes('hello'));
+    assert.ok(z1.includes('PK\x05\x06'), 'end-of-central-directory record present');
+  });
+
+  it('buildDocx carries the malicious document.xml; the control has no DOCTYPE', () => {
+    const evil = buildDocx(ooxmlDocumentXmlMalicious());
+    const ctrl = buildDocx(ooxmlDocumentXmlControl());
+    assert.ok(evil.includes('<!ENTITY dmxxefile SYSTEM "file:///etc/passwd">'));
+    assert.ok(evil.includes('[Content_Types].xml'));
+    assert.ok(evil.includes('word/document.xml'));
+    assert.ok(!ctrl.includes('<!ENTITY'));
+    assert.ok(!ctrl.includes('<!DOCTYPE'));
+    assert.ok(ctrl.includes('dm-control'));
+  });
+
+  it('assessXxeFile: confirmed only on root line, absent from control, repeat-stable', () => {
+    const probe = 'parsed: root:x:0:0:root:/root:/bin/bash';
+    assert.equal(assessXxeFile({ control: 'parsed ok', probe, repeat: probe }).verdict, 'confirmed');
+    assert.equal(assessXxeFile({ control: probe, probe, repeat: probe }).verdict, 'rejected');
+    assert.equal(assessXxeFile({ control: 'parsed ok', probe: 'parsed ok', repeat: probe }).verdict, 'rejected');
+    assert.equal(assessXxeFile({ control: 'parsed ok', probe, repeat: 'parsed ok' }).verdict, 'unconfirmed');
+    assert.equal(assessXxeFile({ control: '', probe, repeat: probe }).verdict, 'unconfirmed');
+    const judged = assessXxeFile({ control: 'parsed ok', probe, repeat: probe });
+    assert.equal(judged.match, 'root:x:0:0:root:/root:/bin/bash');
+  });
+});
+
+describe('xxe classic file disclosure (leg c, row #301)', () => {
+  const labOpts = { timeoutMs: 3000, labTargets: '127.0.0.1' };
+
+  it('CONFIRMS xxe_file (high) when the parser resolves the SYSTEM file entity', async () => {
+    const stub = await startStub(); stub.setHandler(fileResolveHandler());
+    try {
+      const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, labOpts);
+      const classes = findings.map((f) => f.class);
+      assert.ok(classes.includes('xxe_file'), `expected xxe_file, got ${classes}`);
+      const f = findings.find((x) => x.class === 'xxe_file');
+      assert.equal(f.severity, 'high');
+      assert.equal(f.evidence.signalCorrelated, true);
+      assert.ok(f.evidence.response.includes('root:x:0:0'), 'evidence must quote the matched root-line fragment');
+      assert.ok(!f.evidence.response.includes('daemon:x:1:1'), 'evidence must quote ONLY the matched fragment, never a file dump');
+      const { confirmed } = verifyFindings(findings);
+      assert.ok(confirmed.some((x) => x.class === 'xxe_file'), 'xxe_file must verify confirmed');
+      assert.equal(assessConfirmation(f).verdict, 'confirmed');
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('NEGATIVE: reflection of the entity declaration does NOT confirm', async () => {
+    const stub = await startStub(); stub.setHandler(reflectHandler());
+    try {
+      const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, labOpts);
+      const classes = findings.map((f) => f.class);
+      assert.ok(!classes.includes('xxe_file'), `reflection must not confirm xxe_file, got ${classes}`);
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('NEGATIVE: strict parser stays silent', async () => {
+    const stub = await startStub(); stub.setHandler(strictHandler());
+    try {
+      const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, labOpts);
+      assert.deepEqual(findings, []);
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('lab gate: no SYSTEM file payload leaves toward a non-lab host', async () => {
+    const records = [];
+    const stub = await startStub(); stub.setHandler(fileResolveHandler(records));
+    try {
+      const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, { timeoutMs: 3000, labTargets: '' });
+      assert.ok(!findings.some((f) => f.class === 'xxe_file'), 'gate closed: no xxe_file');
+      assert.ok(!records.some((r) => r.body.includes('SYSTEM "file:')), 'gate closed: the SYSTEM file payload must never be sent');
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+});
+
+describe('xxe SOAP envelope file disclosure (leg d, row #304)', () => {
+  const labOpts = { timeoutMs: 3000, labTargets: '127.0.0.1' };
+
+  it('CONFIRMS xxe_soap (high) when the SOAP parser resolves the SYSTEM file entity', async () => {
+    const records = [];
+    const stub = await startStub(); stub.setHandler(fileResolveHandler(records));
+    try {
+      const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, labOpts);
+      const classes = findings.map((f) => f.class);
+      assert.ok(classes.includes('xxe_soap'), `expected xxe_soap, got ${classes}`);
+      const f = findings.find((x) => x.class === 'xxe_soap');
+      assert.equal(f.severity, 'high');
+      assert.equal(f.evidence.signalCorrelated, true);
+      const soapReq = records.find((r) => r.body.includes('soap:Envelope'));
+      assert.ok(soapReq, 'the probe must send a SOAP envelope');
+      assert.ok(String(soapReq.headers['content-type'] || '').includes('text/xml'), 'SOAP body must be text/xml');
+      assert.ok(soapReq.headers.soapaction, 'SOAP body must carry a SOAPAction header');
+      const { confirmed } = verifyFindings(findings);
+      assert.ok(confirmed.some((x) => x.class === 'xxe_soap'), 'xxe_soap must verify confirmed');
+      assert.equal(assessConfirmation(f).verdict, 'confirmed');
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('NEGATIVE: reflection of the SOAP envelope does NOT confirm', async () => {
+    const stub = await startStub(); stub.setHandler(reflectHandler());
+    try {
+      const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, labOpts);
+      const classes = findings.map((f) => f.class);
+      assert.ok(!classes.includes('xxe_soap'), `reflection must not confirm xxe_soap, got ${classes}`);
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('lab gate: no SOAP file payload leaves toward a non-lab host', async () => {
+    const records = [];
+    const stub = await startStub(); stub.setHandler(fileResolveHandler(records));
+    try {
+      const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, { timeoutMs: 3000, labTargets: '' });
+      assert.ok(!findings.some((f) => f.class === 'xxe_soap'), 'gate closed: no xxe_soap');
+      assert.ok(!records.some((r) => r.body.includes('soap:Envelope') && r.body.includes('SYSTEM "file:')), 'gate closed: the SOAP file payload must never be sent');
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+});
+
+describe('xxe OOXML file disclosure (leg e, row #304)', () => {
+  const labOpts = { timeoutMs: 3000, labTargets: '127.0.0.1', allowWrite: true };
+
+  it('CONFIRMS xxe_ooxml (high) when the document parser resolves the SYSTEM file entity (direct path)', async () => {
+    const up = ooxmlUploadStub({ resolve: true, direct: true });
+    const stub = await startStub(); stub.setHandler(up.handler);
+    try {
+      const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, labOpts);
+      const classes = findings.map((f) => f.class);
+      assert.ok(classes.includes('xxe_ooxml'), `expected xxe_ooxml, got ${classes}`);
+      const f = findings.find((x) => x.class === 'xxe_ooxml');
+      assert.equal(f.severity, 'high');
+      assert.equal(f.evidence.signalCorrelated, true);
+      assert.ok(f.evidence.response.includes('root:x:0:0'), 'evidence must quote the matched root-line fragment');
+      const { confirmed } = verifyFindings(findings);
+      assert.ok(confirmed.some((x) => x.class === 'xxe_ooxml'), 'xxe_ooxml must verify confirmed');
+      assert.equal(assessConfirmation(f).verdict, 'confirmed');
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('CONFIRMS xxe_ooxml via the fetch-back path when the upload response only discloses the file URL', async () => {
+    const up = ooxmlUploadStub({ resolve: true, direct: false });
+    const stub = await startStub(); stub.setHandler(up.handler);
+    try {
+      const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, labOpts);
+      assert.ok(findings.some((f) => f.class === 'xxe_ooxml'), `expected xxe_ooxml via fetch-back, got ${findings.map((f) => f.class)}`);
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('NEGATIVE: strict document parser stays silent', async () => {
+    const up = ooxmlUploadStub({ resolve: false, direct: true });
+    const stub = await startStub(); stub.setHandler(up.handler);
+    try {
+      const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, labOpts);
+      assert.ok(!findings.some((f) => f.class === 'xxe_ooxml'), `strict parser must not confirm, got ${findings.map((f) => f.class)}`);
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('NEGATIVE: no upload form on the page means no OOXML leg at all', async () => {
+    const up = ooxmlUploadStub({ resolve: true, direct: true });
+    const stub = await startStub();
+    stub.setHandler(async (req, res) => {
+      if (req.method === 'GET') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end('<html><body>no forms here</body></html>'); return; }
+      res.writeHead(404); res.end();
+    });
+    try {
+      const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, labOpts);
+      assert.ok(!findings.some((f) => f.class === 'xxe_ooxml'), 'no form means no OOXML leg');
+      assert.equal(up.uploads.length, 0, 'no form means no upload was attempted');
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('lab gate: allowWrite false means no upload is attempted', async () => {
+    const up = ooxmlUploadStub({ resolve: true, direct: true });
+    const stub = await startStub(); stub.setHandler(up.handler);
+    try {
+      const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, { timeoutMs: 3000, labTargets: '127.0.0.1', allowWrite: false });
+      assert.ok(!findings.some((f) => f.class === 'xxe_ooxml'), 'gate closed: no xxe_ooxml');
+      assert.equal(up.uploads.length, 0, 'gate closed: no file was uploaded');
+    } finally {
+      await new Promise((r) => stub.server.close(r));
+    }
+  });
+
+  it('lab gate: non-lab host means no upload is attempted even with allowWrite', async () => {
+    const up = ooxmlUploadStub({ resolve: true, direct: true });
+    const stub = await startStub(); stub.setHandler(up.handler);
+    try {
+      const findings = await probeXxe(`http://127.0.0.1:${stub.port}/`, { timeoutMs: 3000, labTargets: '', allowWrite: true });
+      assert.ok(!findings.some((f) => f.class === 'xxe_ooxml'), 'gate closed: no xxe_ooxml');
+      assert.equal(up.uploads.length, 0, 'gate closed: no file was uploaded');
     } finally {
       await new Promise((r) => stub.server.close(r));
     }
