@@ -1,5 +1,5 @@
 // Dark Matter rule-based scanner — password-reset token disclosure /
-// predictability probe (#324).
+// predictability probe (#324) + Host-header poisoning leg (#50).
 //
 // Owns ONLY the token surface of password-reset forms (the valid/invalid
 // account ORACLE lives in userEnum.js #45 — non-overlap).
@@ -13,17 +13,40 @@
 //       tokens across accounts ⇒ predictable. Otherwise the token shape is
 //       checked: <16 chars, purely numeric <10 digits, or guessable prefixes
 //       (123/abc/test/qwerty/…) ⇒ weak.
+//   T3. Host-header poisoning — HIGH (coverage row #50): the SECOND reset
+//       submission carries a canary Host header
+//       (`Host: dmprobe-<rand>.example.invalid`). If the reset link emitted
+//       in that response (body, or a 302 Location) carries the canary host,
+//       the link is built from the Host header: an attacker requests a reset
+//       for the victim with their own Host and receives a link pointing at
+//       the attacker host. Confirm ONLY on the canary host inside a
+//       reset-link context (reset path or token/code param) — a bare
+//       reflection of the host elsewhere in the body is hostHeader.js's
+//       territory, not this probe's.
 //
 // Hard safety (probe-side): SUBMISSIONS are LAB-GATED — the POST only fires
 // when the target host is listed in opts.labTargets (fail-closed, same model
 // as race.js / fileUpload.js). The email used is a per-run canary at
 // @example.invalid — no real mailbox, no real account touched. Max 2
-// submissions per form. Non-lab targets get a PASSIVE check only: GET the
-// reset page and flag a token/link embedded in HTML/JS without any request.
-// Defensively framed: we decode our own canary responses; we never claim to
-// intercept anyone's mailbox (documented limit in docs/scanner/password-reset.md).
+// submissions per form (T3 rides the T2 submission slot: the second POST
+// carries the canary Host, so its response serves both the T2 comparison
+// and the T3 oracle — no extra request). Consequence of the shared slot:
+// T3 runs only when T1 disclosed a token (no token ⇒ no reset link to
+// judge), and a Host-strict target may reject the poisoned second
+// submission, in which case T2's comparison is unavailable (no false
+// positive — the leg simply reports nothing). Non-lab targets get a PASSIVE
+// check only: GET the reset page and flag a token/link embedded in HTML/JS
+// without any request. Defensively framed: we decode our own canary
+// responses; we never claim to intercept anyone's mailbox (documented limit
+// in docs/scanner/password-reset.md).
+//
+// Transport note: Node fetch (undici) treats `Host` as a forbidden header
+// and drops it (documented in hostHeader.js and ssrfRouting.js), so the T3
+// submission goes through the shared rawHeaderFetch (node:http.request,
+// which honours an explicit Host header) instead of fetch.
 
 import { isLabTargetHost } from '../../labCreds.js';
+import { rawHeaderFetch } from './ssrfRouting.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -69,6 +92,31 @@ export function weakTokenReason(t) {
   return null;
 }
 
+// ---- T3 oracle (pure, exported for unit tests) --------------------------
+// A URL is a reset link when its path is reset-related OR it carries a
+// token/code parameter. The canary host must appear INSIDE such a URL —
+// a bare reflection of the host elsewhere in the body is hostHeader.js's
+// territory and must not confirm here.
+const RESET_PATH_RE = /reset|forgot|recover|password/i;
+const TOKEN_PARAM_RE = /[?&](?:token|code)=/i;
+const CANDIDATE_URL_RE = /(?:https?:)?\/\/([^\s"'<>/]+)([^\s"'<>]*)/gi;
+
+// Find a reset link carrying the canary host in `text`, or null. The host
+// comparison is case-insensitive and tolerates a trailing :port on the URL.
+export function extractPoisonedResetLink(text, canaryHost) {
+  if (!text || !canaryHost) return null;
+  const host = String(canaryHost).toLowerCase();
+  CANDIDATE_URL_RE.lastIndex = 0;
+  let m;
+  while ((m = CANDIDATE_URL_RE.exec(text)) !== null) {
+    const urlHost = String(m[1] || '').toLowerCase().replace(/:\d+$/, '');
+    if (urlHost !== host) continue;
+    const rest = m[2] || '';
+    if (RESET_PATH_RE.test(rest) || TOKEN_PARAM_RE.test(m[0])) return m[0];
+  }
+  return null;
+}
+
 // Password-reset forms: reset/forgot/recover in the action, and NO password
 // input (a form with a password field is a login/change form, not a request).
 export function resetTokenForms(forms) {
@@ -106,6 +154,29 @@ async function submitReset(action, fields, opts) {
     });
     const text = await res.text().catch(() => '');
     return { status: res.status, text: text.slice(0, 200000) };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// T3 submission: same reset POST, but with a canary Host header. Goes
+// through the shared rawHeaderFetch because fetch (undici) drops Host.
+// Returns { status, text, location } (location is the 302 target, if any),
+// or null on transport failure. Redirects are never followed.
+async function submitResetHost(action, fields, host, opts) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs || 10000);
+  try {
+    const res = await rawHeaderFetch(action, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded', Host: host },
+      body: new URLSearchParams(fields).toString(),
+    });
+    const text = await res.text().catch(() => '');
+    return { status: res.status, text: text.slice(0, 200000), location: res.headers.get('location') || '' };
   } catch {
     return null;
   } finally {
@@ -172,57 +243,83 @@ export async function probePasswordReset(forms, url, opts = {}) {
   const email2 = `dmprobe+${rid}b@example.invalid`;
   const r1 = await submitReset(action, fillReset(form, email1), opts);
   const t1 = r1 ? extractResetToken(r1.text) : null;
-  if (!t1) return findings; // no token disclosed — nothing to claim
-
-  // T1: token disclosed in the HTTP response.
-  findings.push({
-    class: 'pwdreset_token_in_response',
-    id: `pwdreset-disclose-${rid}`,
-    title: 'Password reset token disclosed in HTTP response — no mailbox needed',
-    severity: 'critical',
-    url: action,
-    parameter: param,
-    evidence: ev(
-      `POST ${action} (reset request, canary email ${email1}) — redirect:manual`,
-      `response body carries the reset token: "${t1.slice(0, 10)}…" (truncated; ${r1.status})`,
-      'Whoever triggers the reset receives the token directly — the email hop is bypassable: account takeover'
-    ),
-  });
-
-  // T2: predictability / entropy — second token for a DIFFERENT email.
-  const r2 = await submitReset(action, fillReset(form, email2), opts);
-  const t2 = r2 ? extractResetToken(r2.text) : null;
-  if (t2 && t1 === t2) {
+  if (t1) {
+    // T1: token disclosed in the HTTP response.
     findings.push({
-      class: 'pwdreset_token_predictable',
-      id: `pwdreset-predict-${rid}`,
-      title: 'Password reset token predictable — identical token issued for different accounts',
+      class: 'pwdreset_token_in_response',
+      id: `pwdreset-disclose-${rid}`,
+      title: 'Password reset token disclosed in HTTP response — no mailbox needed',
       severity: 'critical',
       url: action,
       parameter: param,
       evidence: ev(
-        `POST ${action} ×2 with different canary emails (${email1} vs ${email2})`,
-        `BOTH responses carried the SAME token "${t1.slice(0, 10)}…" (truncated)`,
-        'Tokens are not per-account random — an attacker requests a token for their own account and replays it for the victim'
+        `POST ${action} (reset request, canary email ${email1}) — redirect:manual`,
+        `response body carries the reset token: "${t1.slice(0, 10)}…" (truncated; ${r1.status})`,
+        'Whoever triggers the reset receives the token directly — the email hop is bypassable: account takeover'
       ),
     });
-    return findings;
-  }
-  const weakOn = t2 ? (weakTokenReason(t2) || weakTokenReason(t1)) : weakTokenReason(t1);
-  if (weakOn) {
-    findings.push({
-      class: 'pwdreset_token_predictable',
-      id: `pwdreset-weak-${rid}`,
-      title: 'Password reset token weak entropy — guessable token format',
-      severity: 'critical',
-      url: action,
-      parameter: param,
-      evidence: ev(
-        `POST ${action} with canary email(s); issued token inspected (our own canary response only)`,
-        `issued token "${t1.slice(0, 10)}…" (truncated) fails the entropy bar: ${weakOn}`,
-        'Weak token formats can be brute-forced offline — mailbox never needed'
-      ),
-    });
+
+    // T2 + T3 share the second submission (2-submission cap): it carries
+    // the canary Host header, so its response serves both the T2 token
+    // comparison and the T3 reset-link host oracle.
+    const canaryHost = `dmprobe-${rid}.example.invalid`;
+    const r2 = await submitResetHost(action, fillReset(form, email2), canaryHost, opts);
+    const t2 = r2 ? extractResetToken(r2.text) : null;
+    if (t2 && t1 === t2) {
+      findings.push({
+        class: 'pwdreset_token_predictable',
+        id: `pwdreset-predict-${rid}`,
+        title: 'Password reset token predictable — identical token issued for different accounts',
+        severity: 'critical',
+        url: action,
+        parameter: param,
+        evidence: ev(
+          `POST ${action} ×2 with different canary emails (${email1} vs ${email2})`,
+          `BOTH responses carried the SAME token "${t1.slice(0, 10)}…" (truncated)`,
+          'Tokens are not per-account random — an attacker requests a token for their own account and replays it for the victim'
+        ),
+      });
+    } else {
+      const weakOn = t2 ? (weakTokenReason(t2) || weakTokenReason(t1)) : weakTokenReason(t1);
+      if (weakOn) {
+        findings.push({
+          class: 'pwdreset_token_predictable',
+          id: `pwdreset-weak-${rid}`,
+          title: 'Password reset token weak entropy — guessable token format',
+          severity: 'critical',
+          url: action,
+          parameter: param,
+          evidence: ev(
+            `POST ${action} with canary email(s); issued token inspected (our own canary response only)`,
+            `issued token "${t1.slice(0, 10)}…" (truncated) fails the entropy bar: ${weakOn}`,
+            'Weak token formats can be brute-forced offline — mailbox never needed'
+          ),
+        });
+      }
+    }
+
+    // T3: Host-header poisoning — confirm ONLY on the canary host inside a
+    // reset link (response body, or a 302 Location). A bare reflection of
+    // the host elsewhere in the body does not confirm (hostHeader.js's job).
+    if (r2) {
+      const link = extractPoisonedResetLink(r2.text, canaryHost)
+        || (r2.location ? extractPoisonedResetLink(r2.location, canaryHost) : null);
+      if (link) {
+        findings.push({
+          class: 'pwdreset_host_poisoning',
+          id: `pwdreset-poison-${rid}`,
+          title: 'Password reset link poisoned via Host header — reset link carries attacker host',
+          severity: 'high',
+          url: action,
+          parameter: param,
+          evidence: ev(
+            `POST ${action} with Host: ${canaryHost} (reset request, canary email ${email2}) — raw transport, fetch drops Host`,
+            `reset link in response carries the canary host: "${link.slice(0, 120)}" (truncated; ${r2.status})`,
+            'The reset link is built from the Host header — an attacker requests a reset for the victim with their own Host and receives a link pointing at the attacker host; the victim clicks it and hands their reset token to the attacker'
+          ),
+        });
+      }
+    }
   }
   return findings;
 }

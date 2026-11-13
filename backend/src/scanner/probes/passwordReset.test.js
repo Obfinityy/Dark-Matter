@@ -10,6 +10,7 @@ import crypto from 'node:crypto';
 import {
   probePasswordReset,
   extractResetToken,
+  extractPoisonedResetLink,
   weakTokenReason,
   resetTokenForms,
 } from './passwordReset.js';
@@ -20,33 +21,87 @@ describe('passwordReset probe (#324)', () => {
   const base = () => `http://127.0.0.1:${port}`;
   // Stub modes: 'disclose' (short token in JSON), 'same' (identical token for
   // any email), 'strong' (unique 64-hex tokens), 'passive' (token embedded in
-  // the GET page HTML), 'clean' (no token anywhere).
+  // the GET page HTML), 'clean' (no token anywhere), 'poison' (reset link
+  // built from the received Host header — T3 positive), 'ignore-host'
+  // (reset link always built from a fixed configured host — T3 negative),
+  // 'reflect' (canary Host echoed as bare text, no reset link — T3 guard),
+  // 'redirect' (canary-Host request gets a 302 whose Location carries the
+  // poisoned reset link — T3 via Location header).
   let mode = 'disclose';
   let postCount = 0;
+  let hostsSeen = [];
   const fixedToken = 'fixed-token-abc123-fixed-token-abc123-x';
+  const strongTok = () => crypto.randomBytes(32).toString('hex');
 
   before(async () => {
     server = http.createServer((req, res) => {
       const u = new URL(req.url, base());
       if (u.pathname === '/reset' && req.method === 'POST') {
         postCount++;
+        hostsSeen.push(req.headers.host || '');
         let raw = '';
         req.on('data', (c) => { raw += c; });
         req.on('end', () => {
           const params = new URLSearchParams(raw);
           const email = params.get('email') || 'anon';
-          res.writeHead(200, { 'Content-Type': 'application/json' });
+          const host = req.headers.host || '';
+          // The probe POSTs to 127.0.0.1:<port>, so a normal Host is
+          // '127.0.0.1:<port>'; anything else is the T3 canary Host.
+          const isCanary = !host.startsWith('127.0.0.1');
           if (mode === 'disclose') {
             // Short (weak) but per-email-unique: exercises the entropy branch,
             // not the identical-token branch.
             const h = crypto.createHash('sha256').update(email).digest('hex').slice(0, 6);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ reset_token: `tok-${h}`, status: 'ok' }));
           }
-          else if (mode === 'same') res.end(JSON.stringify({ reset_token: fixedToken, status: 'ok' }));
+          else if (mode === 'same') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ reset_token: fixedToken, status: 'ok' }));
+          }
           else if (mode === 'strong') {
             const tok = crypto.randomBytes(32).toString('hex') + Buffer.from(email).toString('hex').slice(0, 8);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ reset_token: tok, status: 'ok' }));
-          } else res.end(JSON.stringify({ status: 'ok', message: 'if the account exists, a mail was sent' }));
+          }
+          else if (mode === 'poison') {
+            // Reset link built from the received Host header — a poisoned
+            // Host lands in the link. Strong unique token per email, so
+            // only T1 (disclosure) + T3 (poisoning) fire, not T2.
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ reset_link: `https://${host}/reset/confirm?token=${strongTok()}`, status: 'ok' }));
+          }
+          else if (mode === 'ignore-host') {
+            // Reset link always built from the configured base URL,
+            // whatever Host arrives — the poisoning oracle must stay silent.
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ reset_link: `https://app.example.com/reset/confirm?token=${strongTok()}`, status: 'ok' }));
+          }
+          else if (mode === 'reflect') {
+            // Canary Host echoed as bare text, no reset link anywhere —
+            // the T3 guard (reset-link context only) must stay silent.
+            // Normal-Host request discloses a strong token so T1 fires
+            // and the T3 submission actually runs.
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            if (isCanary) res.end(JSON.stringify({ status: 'ok', echo_host: host }));
+            else res.end(JSON.stringify({ reset_token: strongTok(), status: 'ok' }));
+          }
+          else if (mode === 'redirect') {
+            // Canary-Host request gets a 302 whose Location carries the
+            // poisoned reset link; normal-Host request discloses a token
+            // (T1) so the T3 submission runs.
+            if (isCanary) {
+              res.writeHead(302, { Location: `https://${host}/reset/confirm?token=${strongTok()}` });
+              res.end();
+            } else {
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ reset_token: strongTok(), status: 'ok' }));
+            }
+          }
+          else {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ status: 'ok', message: 'if the account exists, a mail was sent' }));
+          }
         });
         return;
       }
@@ -194,6 +249,103 @@ describe('passwordReset probe (#324)', () => {
     });
     assert.deepEqual(findings, []);
     assert.equal(postCount, 0, 'a near-miss labTargets entry must not open the lab branch');
+  });
+
+  // ---- T3: Host-header poisoning (coverage row #50 fix) --------------------
+  // T3 rides the T2 submission slot (2-submission cap): the second POST
+  // carries the canary Host header via rawHeaderFetch (fetch drops Host),
+  // and its response serves both the T2 comparison and the T3 oracle.
+
+  it('T3: fires HIGH when the reset link in the poisoned-Host response carries the canary host', async () => {
+    mode = 'poison';
+    postCount = 0;
+    hostsSeen = [];
+    const findings = await probePasswordReset(forms(), base(), labOpts);
+    const p = findings.find((f) => f.class === 'pwdreset_host_poisoning');
+    assert.ok(p, `expected pwdreset_host_poisoning, got ${findings.map((f) => f.class)}`);
+    assert.equal(p.severity, 'high');
+    assert.equal(p.parameter, 'email');
+    // Transport proof: the stub actually received a canary Host header.
+    assert.ok(
+      hostsSeen.some((h) => /^dmprobe-[a-z0-9]+\.example\.invalid$/.test(h)),
+      `expected a dmprobe canary Host header, saw ${JSON.stringify(hostsSeen)}`
+    );
+    assert.ok(/Host: dmprobe-/.test(p.evidence.request), `expected canary Host in evidence, got ${p.evidence.request}`);
+    assert.ok(/example\.invalid/.test(p.evidence.response), `expected canary host in evidence, got ${p.evidence.response}`);
+    assert.equal(postCount, 2, 'lab mode still submits at most twice (T3 rides the T2 slot)');
+  });
+
+  it('T3: no finding when the reset link ignores the Host header (configured base URL)', async () => {
+    mode = 'ignore-host';
+    const findings = await probePasswordReset(forms(), base(), labOpts);
+    const classes = findings.map((f) => f.class);
+    assert.ok(!classes.includes('pwdreset_host_poisoning'), `configured base URL must not trip T3, got ${classes}`);
+    // T1 still fires — the link (with a token) is disclosed in the response.
+    assert.ok(classes.includes('pwdreset_token_in_response'), 'disclosure still applies');
+  });
+
+  it('T3: bare Host reflection without a reset link does NOT confirm', async () => {
+    mode = 'reflect';
+    const findings = await probePasswordReset(forms(), base(), labOpts);
+    const classes = findings.map((f) => f.class);
+    assert.ok(!classes.includes('pwdreset_host_poisoning'), `bare reflection is hostHeader.js territory, got ${classes}`);
+    assert.ok(classes.includes('pwdreset_token_in_response'), 'T1 must still fire from the first response');
+  });
+
+  it('T3: fires when the poisoned reset link arrives via a 302 Location header', async () => {
+    mode = 'redirect';
+    const findings = await probePasswordReset(forms(), base(), labOpts);
+    const p = findings.find((f) => f.class === 'pwdreset_host_poisoning');
+    assert.ok(p, `expected pwdreset_host_poisoning via Location, got ${findings.map((f) => f.class)}`);
+    assert.equal(p.severity, 'high');
+  });
+
+  it('T3: non-lab targets never submit, no T3 finding', async () => {
+    mode = 'poison';
+    postCount = 0;
+    hostsSeen = [];
+    const findings = await probePasswordReset(forms(), base(), { labTargets: 'lab.local', timeoutMs: 2000 });
+    assert.deepEqual(findings, []);
+    assert.equal(postCount, 0, 'non-lab mode must never POST — no canary Host ever leaves the scanner');
+    assert.deepEqual(hostsSeen, []);
+  });
+
+  it('extractPoisonedResetLink: oracle unit checks', () => {
+    const canary = 'dmprobe-abc12345.example.invalid';
+    assert.equal(
+      extractPoisonedResetLink(`{"reset_link":"https://${canary}/reset/confirm?token=tok-abcdef123456"}`, canary),
+      `https://${canary}/reset/confirm?token=tok-abcdef123456`
+    );
+    // Protocol-relative link counts too.
+    assert.equal(
+      extractPoisonedResetLink(`<a href="//${canary}/forgot?token=tok-abcdef123456">x</a>`, canary),
+      `//${canary}/forgot?token=tok-abcdef123456`
+    );
+    // Token param alone is a reset-link context even on a non-reset path.
+    assert.equal(
+      extractPoisonedResetLink(`see https://${canary}/verify?token=tok-abcdef123456 for details`, canary),
+      `https://${canary}/verify?token=tok-abcdef123456`
+    );
+    // Bare reflection — no URL — must NOT confirm.
+    assert.equal(extractPoisonedResetLink(`<p>Request host: ${canary}</p>`, canary), null);
+    // Canary host in a non-reset URL with no token param must NOT confirm.
+    assert.equal(extractPoisonedResetLink(`<a href="https://${canary}/about">x</a>`, canary), null);
+    // Same reset link, different host must NOT confirm.
+    assert.equal(
+      extractPoisonedResetLink('<a href="https://app.example.com/reset/confirm?token=tok-abcdef123456">x</a>', canary),
+      null
+    );
+    // Host comparison is case-insensitive; a trailing port is tolerated.
+    assert.equal(
+      extractPoisonedResetLink('https://DMPROBE-ABC12345.EXAMPLE.INVALID/reset?token=tok-abcdef123456', canary),
+      'https://DMPROBE-ABC12345.EXAMPLE.INVALID/reset?token=tok-abcdef123456'
+    );
+    assert.equal(
+      extractPoisonedResetLink(`https://${canary}:8443/reset?token=tok-abcdef123456`, canary),
+      `https://${canary}:8443/reset?token=tok-abcdef123456`
+    );
+    assert.equal(extractPoisonedResetLink('', canary), null);
+    assert.equal(extractPoisonedResetLink('nothing here', canary), null);
   });
 
 });

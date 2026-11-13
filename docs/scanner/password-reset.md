@@ -1,9 +1,10 @@
-# Password-Reset Token Probe (#324) — Disclosure & Predictability
+# Password-Reset Token Probe (#324) — Disclosure, Predictability & Host Poisoning
 
 `backend/src/scanner/probes/passwordReset.js`, exported as
 `probePasswordReset(forms, url, opts)` — the same signature as
 `probeUserEnum(forms, url, opts)` so the coordinator can wire it as the
-`password-reset` phase. Owns ONLY the reset-token surface; the valid/invalid
+`password-reset` phase. Owns the reset-token surface AND the reset-link
+Host-poisoning leg (coverage row #50); the valid/invalid
 account oracle stays in `userEnum.js` (#45) — no overlap.
 
 ## Method
@@ -28,7 +29,22 @@ token shape is checked against the entropy bar — <16 characters, purely
 numeric <10 digits, single repeated character, or a guessable prefix
 (`123/abc/test/qwerty/password/reset/000…`) ⇒ weak, brute-forceable offline.
 
-Max 2 submissions per form. All submissions use `@example.invalid` canary
+**T3 — Host-header poisoning — HIGH** (`pwdreset_host_poisoning`, coverage
+row #50): the SECOND submission carries a canary Host header
+(`Host: dmprobe-<rand>.example.invalid`). If the reset link emitted in that
+response — body, or a 302 `Location` — carries the canary host, the link is
+built from the Host header: an attacker requests a reset for the victim with
+their own Host and receives a link pointing at the attacker host; the victim
+clicks it and hands their reset token to the attacker. Confirm ONLY on the
+canary host inside a reset-link context (reset path or `token`/`code`
+param) — a bare reflection of the host elsewhere in the body does NOT
+confirm (that is the `host-header` probe's territory). Transport: the
+submission goes through the shared `rawHeaderFetch` (`node:http.request`,
+which honours an explicit Host header) because Node fetch (undici) treats
+`Host` as a forbidden header and drops it.
+
+Max 2 submissions per form — T3 rides the T2 submission slot, so no extra
+request is made. All submissions use `@example.invalid` canary
 addresses — no real mailbox, no real account touched.
 
 ## Entropy criteria (exact)
@@ -59,8 +75,16 @@ submitted).
 
 - **Email interception is never claimed.** A token "sent to the email" is not
   observable by the scanner; we test only what the HTTP layer discloses.
+  The same applies to T3: a reset link that only ever travels by email is
+  unobservable — T3 confirms only on links the HTTP response itself emits
+  (body or 302 `Location`).
 - A second submission is only made when the first response disclosed a token
-  (no blind double-submits against clean endpoints).
+  (no blind double-submits against clean endpoints). T3 rides that second
+  submission, so it runs only when T1 disclosed a token — if the response
+  carries no token, there is no reset link for T3 to judge.
+- A Host-strict target may reject the poisoned second submission, in which
+  case T2's comparison is unavailable (no false positive — the leg simply
+  reports nothing).
 - Tokens of 4–5 chars fall below the extraction floor (documented edge).
 
 ## Wiring & cost
