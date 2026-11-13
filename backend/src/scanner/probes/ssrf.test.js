@@ -15,7 +15,23 @@
 // percent-encoded) is stripped from the response.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { probeSsrf, stripReflectedUrl, fetchedMetadataMarker, ssrfBlindCanaryUrl, assessBlindSsrf } from './ssrf.js';
+import http from 'node:http';
+import net from 'node:net';
+import {
+  probeSsrf,
+  stripReflectedUrl,
+  fetchedMetadataMarker,
+  ssrfBlindCanaryUrl,
+  assessBlindSsrf,
+  alternateIpForms,
+  assessFetchedContent,
+  assessInternalFetch,
+  assessSchemeTap,
+  passwdMarker,
+  schemeTapUrls,
+  redirectorUrl,
+  COLLAB_FRAGMENT_MARKER,
+} from './ssrf.js';
 
 const realFetch = globalThis.fetch;
 test.after(() => {
@@ -224,4 +240,367 @@ test('SSRF-16: assessBlindSsrf — pure verdicts', () => {
 test('SSRF-17: ssrfBlindCanaryUrl — pure builder', () => {
   assert.equal(ssrfBlindCanaryUrl('http://172.17.0.1:18099/', 'dmssrf-abc'), 'http://172.17.0.1:18099/dmssrf-abc');
   assert.equal(ssrfBlindCanaryUrl('http://172.17.0.1:18099', 'dmssrf-abc'), 'http://172.17.0.1:18099/dmssrf-abc');
+});
+
+// ---- New legs (coverage rows #306/#308/#309/#310, Nov 2026) -----------------
+// #306 internal-service probing, #308 redirect bypass, #309 alternate-IP
+// forms, #310 non-HTTP schemes. Local mock servers only (loopback); no
+// external service, no lab needed. The probe starts its own OOB
+// collaborator / scheme tap per call (lab-gated); the stubs below play
+// the vulnerable server-side fetcher.
+
+const METADATA_LISTING = 'ami-id\nami-launch-index\nami-manifest-path\ninstance-id\ninstance-type\nlocal-ipv4\n';
+const PASSWD_BODY = 'root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\n';
+const BENIGN_PAGE = '<html><body><p>hello, a plain page</p></body></html>';
+const PAGE_URL = 'http://127.0.0.1:18080/fetch?url=https://example.com/';
+const LAB_OPTS = {
+  labTargets: ['127.0.0.1'],
+  oobListenHost: '127.0.0.1',
+  oobCallbackHost: '127.0.0.1',
+  tapWaitMs: 1500,
+  tapControlWaitMs: 300,
+};
+
+function mockServer(handler) {
+  const server = http.createServer(handler);
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      resolve({ server, base: `http://127.0.0.1:${server.address().port}` });
+    });
+  });
+}
+async function closeServer(server) {
+  await new Promise((resolve) => server.close(resolve));
+}
+
+// The stub pretends to be a vulnerable server-side fetcher: it reads the
+// `url` param value and hands it to fetchImpl, returning whatever the
+// fetch returns as the page body. `seen` records every param value sent.
+function fetcherStub(fetchImpl, seen) {
+  return async (url) => {
+    const value = new URL(String(url)).searchParams.get('url') || '';
+    if (seen) seen.push(value);
+    const body = await fetchImpl(value, String(url));
+    return { status: 200, text: async () => body };
+  };
+}
+
+// Minimal raw-TCP client: connect, optionally wait for the greeting
+// line, write `send`, wait briefly, close. Used to simulate a fetcher
+// speaking gopher/dict/ftp to the scheme tap.
+function tcpSend(host, port, send, waitForGreeting) {
+  return new Promise((resolve, reject) => {
+    const sock = net.createConnection({ host, port });
+    let done = false;
+    const finish = (err) => {
+      if (done) return;
+      done = true;
+      try { sock.destroy(); } catch { /* ignore */ }
+      if (err) reject(err);
+      else resolve();
+    };
+    const timer = setTimeout(() => finish(), 800);
+    sock.on('connect', () => {
+      if (!waitForGreeting) {
+        if (send) sock.write(send);
+        return;
+      }
+      // FTP waits for the 220 greeting before USER.
+      sock.once('data', () => {
+        if (send) sock.write(send);
+      });
+    });
+    sock.on('error', (e) => {
+      clearTimeout(timer);
+      finish(e);
+    });
+    sock.on('close', () => {
+      clearTimeout(timer);
+      finish();
+    });
+  });
+}
+
+// ---- #306 — internal-service probing --------------------------------------
+
+test('SSRF-18: #306 internal canary body echoed — one high finding', async () => {
+  globalThis.fetch = fetcherStub(async (value) => {
+    // The vulnerable fetcher fetches the internal canary URL and echoes it.
+    if (value.includes('/dmssrf-')) return (await realFetch(value)).text();
+    return BENIGN_PAGE;
+  });
+  const findings = await probeSsrf(PAGE_URL, ['url'], { ...LAB_OPTS });
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].class, 'ssrf_internal');
+  assert.equal(findings[0].severity, 'high');
+  assert.equal(findings[0].evidence.oobHit, true);
+});
+
+test('SSRF-19: #306 canary URL reflected but never fetched — no finding', async () => {
+  globalThis.fetch = fetcherStub(async (value) => `<p>you asked for ${value}</p>`);
+  const findings = await probeSsrf(PAGE_URL, ['url'], { ...LAB_OPTS });
+  assert.equal(findings.length, 0, 'echoing the canary URL is not fetch proof');
+});
+
+test('SSRF-20: #306 benign control also returns the fragment — no finding', async () => {
+  globalThis.fetch = fetcherStub(async (value) => {
+    if (value.includes('/dmssrf-')) return (await realFetch(value)).text();
+    // The benign control fetch ALSO returns the collaborator fragment:
+    // the marker is not correlated with the internal fetch.
+    return `<!ENTITY ${COLLAB_FRAGMENT_MARKER} "1">`;
+  });
+  const findings = await probeSsrf(PAGE_URL, ['url'], { ...LAB_OPTS });
+  assert.equal(findings.length, 0);
+});
+
+test('SSRF-21: #306 non-lab target — internal legs never sent, no finding', async () => {
+  const seen = [];
+  globalThis.fetch = fetcherStub(async (value) => {
+    if (value.includes('/dmssrf-')) return (await realFetch(value)).text();
+    return BENIGN_PAGE;
+  }, seen);
+  const findings = await probeSsrf(PAGE_URL, ['url'], { labTargets: [] });
+  assert.equal(findings.length, 0);
+  assert.equal(seen.some((v) => v.includes('/dmssrf-')), false, 'canary must never be sent to a non-lab target');
+  assert.equal(seen.some((v) => v.includes('/redir/')), false, 'redirector must never be sent to a non-lab target');
+});
+
+// ---- #308 — redirect bypass -----------------------------------------------
+
+test('SSRF-22: #308 redirect to mock metadata — one high finding', async () => {
+  const { server, base } = await mockServer((req, res) => {
+    if (req.url === '/latest/meta-data/') {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end(METADATA_LISTING);
+    } else {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(BENIGN_PAGE);
+    }
+  });
+  try {
+    globalThis.fetch = fetcherStub(async (value) => {
+      // The fetcher follows the redirector URL and echoes what it fetched.
+      if (value.includes('/redir/')) return (await realFetch(value)).text();
+      return BENIGN_PAGE;
+    });
+    const findings = await probeSsrf(PAGE_URL, ['url'], {
+      ...LAB_OPTS,
+      redirectTarget: `${base}/latest/meta-data/`,
+      redirectBenignTarget: `${base}/benign`,
+    });
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].class, 'ssrf_redirect');
+    assert.equal(findings[0].severity, 'high');
+    assert.equal(findings[0].evidence.oobHit, true);
+  } finally {
+    await closeServer(server);
+  }
+});
+
+test('SSRF-23: #308 redirect to a benign page — no finding', async () => {
+  const { server, base } = await mockServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(BENIGN_PAGE);
+  });
+  try {
+    globalThis.fetch = fetcherStub(async (value) => {
+      if (value.includes('/redir/')) return (await realFetch(value)).text();
+      return BENIGN_PAGE;
+    });
+    const findings = await probeSsrf(PAGE_URL, ['url'], {
+      ...LAB_OPTS,
+      redirectTarget: `${base}/benign`,
+      redirectBenignTarget: `${base}/benign`,
+    });
+    assert.equal(findings.length, 0);
+  } finally {
+    await closeServer(server);
+  }
+});
+
+test('SSRF-24: #308 redirector URL reflected but never followed — no finding', async () => {
+  globalThis.fetch = fetcherStub(async (value) => `<p>you asked for ${value}</p>`);
+  const findings = await probeSsrf(PAGE_URL, ['url'], { ...LAB_OPTS });
+  assert.equal(findings.length, 0);
+});
+
+// ---- #309 — alternate IP forms --------------------------------------------
+
+const ALT_FORM_MARKERS = ['0xA9', '2852039166', '0251.0376', '::ffff:'];
+// The percent-encoded form double-encodes in the query string, so it
+// is detected on the raw URL, not the decoded value.
+const PCT_FORM_RAW_MARKER = '%2531%2536%2539';
+function isAltFormValue(value, rawUrl) {
+  return (
+    ALT_FORM_MARKERS.some((m) => value.includes(m)) || String(rawUrl || '').includes(PCT_FORM_RAW_MARKER)
+  );
+}
+
+test('SSRF-25: #309 every alternate IMDS form returns metadata — six findings', async () => {
+  globalThis.fetch = fetcherStub(async (value, rawUrl) => {
+    if (isAltFormValue(value, rawUrl)) return METADATA_LISTING;
+    return BENIGN_PAGE;
+  });
+  const findings = await probeSsrf(PAGE_URL, ['url'], {});
+  const alt = findings.filter((f) => f.class === 'ssrf_alt_ip');
+  assert.equal(alt.length, 6, `expected 6 alt-IP findings, got ${JSON.stringify(findings.map((f) => f.id))}`);
+  assert.equal(new Set(alt.map((f) => f.id)).size, 6, 'each form has a distinct id');
+  assert.ok(alt.every((f) => f.severity === 'high' && f.evidence.oobHit === true));
+  assert.equal(findings.length, 6, 'no other leg fires on this stub');
+});
+
+test('SSRF-26: #309 alternate-form URLs reflected only — no finding', async () => {
+  globalThis.fetch = fetcherStub(async (value) => `<p>you asked for ${value}</p>`);
+  const findings = await probeSsrf(PAGE_URL, ['url'], {});
+  assert.equal(findings.length, 0);
+});
+
+test('SSRF-27: #309 benign control also returns metadata — no finding', async () => {
+  globalThis.fetch = fetcherStub(async (value, rawUrl) => {
+    if (value === 'https://example.com/') return METADATA_LISTING;
+    if (isAltFormValue(value, rawUrl)) return METADATA_LISTING;
+    return BENIGN_PAGE;
+  });
+  const findings = await probeSsrf(PAGE_URL, ['url'], {});
+  assert.equal(findings.length, 0, 'a metadata leak on the benign control is not a form bypass');
+});
+
+// ---- #310 — non-HTTP schemes: file:// --------------------------------------
+
+test('SSRF-28: #310 file:///etc/passwd content echoed — one high finding', async () => {
+  globalThis.fetch = fetcherStub(async (value) => {
+    if (value === 'file:///etc/passwd') return PASSWD_BODY;
+    if (value === 'file:///etc/hostname') return 'labhost\n';
+    return BENIGN_PAGE;
+  });
+  const findings = await probeSsrf(PAGE_URL, ['url'], {});
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].class, 'ssrf_file');
+  assert.equal(findings[0].severity, 'high');
+  assert.equal(findings[0].evidence.oobHit, true);
+});
+
+test('SSRF-29: #310 file:// URL reflected but never read — no finding', async () => {
+  globalThis.fetch = fetcherStub(async (value) => `<p>you asked for ${value}</p>`);
+  const findings = await probeSsrf(PAGE_URL, ['url'], {});
+  assert.equal(findings.length, 0);
+});
+
+test('SSRF-30: #310 benign file control also returns passwd content — no finding', async () => {
+  globalThis.fetch = fetcherStub(async (value) => {
+    if (value === 'file:///etc/passwd') return PASSWD_BODY;
+    if (value === 'file:///etc/hostname') return PASSWD_BODY;
+    return BENIGN_PAGE;
+  });
+  const findings = await probeSsrf(PAGE_URL, ['url'], {});
+  assert.equal(findings.length, 0);
+});
+
+// ---- #310 — non-HTTP schemes: gopher / dict / ftp (scheme tap) -------------
+
+test('SSRF-31: #310 gopher tap hit — one high finding', async () => {
+  globalThis.fetch = fetcherStub(async (value) => {
+    if (value.startsWith('gopher://')) {
+      const u = new URL(value);
+      await tcpSend(u.hostname, Number(u.port), `${u.pathname.replace(/^\//, '')}\r\n`, false);
+    }
+    return BENIGN_PAGE;
+  });
+  const findings = await probeSsrf(PAGE_URL, ['url'], { ...LAB_OPTS });
+  const tap = findings.filter((f) => f.class === 'ssrf_gopher');
+  assert.equal(tap.length, 1);
+  assert.equal(tap[0].severity, 'high');
+  assert.equal(tap[0].evidence.oobHit, true);
+  assert.equal(findings.length, 1, 'only the gopher leg fires on this stub');
+});
+
+test('SSRF-32: #310 dict tap hit — one high finding', async () => {
+  globalThis.fetch = fetcherStub(async (value) => {
+    if (value.startsWith('dict://')) {
+      const u = new URL(value);
+      const word = u.pathname.replace(/^\/d:/, '');
+      await tcpSend(u.hostname, Number(u.port), `CLIENT dm-test\r\nDEFINE * ${word}\r\n`, false);
+    }
+    return BENIGN_PAGE;
+  });
+  const findings = await probeSsrf(PAGE_URL, ['url'], { ...LAB_OPTS });
+  const tap = findings.filter((f) => f.class === 'ssrf_dict');
+  assert.equal(tap.length, 1);
+  assert.equal(tap[0].severity, 'high');
+  assert.equal(tap[0].evidence.oobHit, true);
+  assert.equal(findings.length, 1, 'only the dict leg fires on this stub');
+});
+
+test('SSRF-33: #310 ftp tap hit (greeting, then USER) — one high finding', async () => {
+  globalThis.fetch = fetcherStub(async (value) => {
+    if (value.startsWith('ftp://')) {
+      const u = new URL(value);
+      await tcpSend(u.hostname, Number(u.port), `USER ${u.username}\r\nPASS x\r\n`, true);
+    }
+    return BENIGN_PAGE;
+  });
+  const findings = await probeSsrf(PAGE_URL, ['url'], { ...LAB_OPTS });
+  const tap = findings.filter((f) => f.class === 'ssrf_ftp');
+  assert.equal(tap.length, 1);
+  assert.equal(tap[0].severity, 'high');
+  assert.equal(tap[0].evidence.oobHit, true);
+  assert.equal(findings.length, 1, 'only the ftp leg fires on this stub');
+});
+
+test('SSRF-34: #310 tap legs on a non-lab target — never sent, no finding', async () => {
+  const seen = [];
+  globalThis.fetch = fetcherStub(async () => BENIGN_PAGE, seen);
+  const findings = await probeSsrf(PAGE_URL, ['url'], { labTargets: [] });
+  assert.equal(findings.length, 0);
+  assert.equal(seen.some((v) => /^(gopher|dict|ftp):\/\//.test(v)), false, 'no non-HTTP URL may be sent to a non-lab target');
+});
+
+// ---- pure helpers -----------------------------------------------------------
+
+test('SSRF-35: alternateIpForms covers hex, decimal, octal and IPv6', () => {
+  const forms = alternateIpForms();
+  const byName = Object.fromEntries(forms.map((f) => [f.name, f.url]));
+  assert.equal(forms.length, 6);
+  assert.equal(byName.hex, 'http://0xA9.0xFE.0xA9.0xFE/latest/meta-data/');
+  assert.equal(byName.decimal, 'http://2852039166/latest/meta-data/');
+  assert.equal(byName.octal, 'http://0251.0376.0251.0376/latest/meta-data/');
+  assert.equal(byName['ipv6-hex'], 'http://[::ffff:a9fe:a9fe]/latest/meta-data/');
+  assert.equal(byName['ipv6-dotted'], 'http://[::ffff:169.254.169.254]/latest/meta-data/');
+  assert.equal(byName['pct-encoded'], 'http://%31%36%39.254.169.254/latest/meta-data/');
+});
+
+test('SSRF-36: assessFetchedContent judges probe-vs-benign', () => {
+  assert.equal(assessFetchedContent({ probeMarker: 'ami-0a1b2c3d', benignMarker: null }).verdict, 'confirmed');
+  assert.equal(assessFetchedContent({ probeMarker: null, benignMarker: null }).verdict, 'rejected');
+  assert.equal(assessFetchedContent({ probeMarker: 'ami-0a1b2c3d', benignMarker: 'ami-0a1b2c3d' }).verdict, 'rejected');
+});
+
+test('SSRF-37: assessInternalFetch judges fragment-vs-benign', () => {
+  assert.equal(assessInternalFetch({ probeHasFragment: true, benignHasFragment: false }).verdict, 'confirmed');
+  assert.equal(assessInternalFetch({ probeHasFragment: false, benignHasFragment: false }).verdict, 'rejected');
+  assert.equal(assessInternalFetch({ probeHasFragment: true, benignHasFragment: true }).verdict, 'rejected');
+});
+
+test('SSRF-38: assessSchemeTap judges probe-vs-control hits', () => {
+  assert.equal(assessSchemeTap({ probeHit: true, controlHit: false }).verdict, 'confirmed');
+  assert.equal(assessSchemeTap({ probeHit: false, controlHit: false }).verdict, 'rejected');
+  assert.equal(assessSchemeTap({ probeHit: true, controlHit: true }).verdict, 'rejected');
+});
+
+test('SSRF-39: passwdMarker finds the root line only', () => {
+  assert.ok(passwdMarker(PASSWD_BODY, 'file:///etc/passwd'));
+  assert.equal(passwdMarker(PASSWD_BODY, 'file:///etc/passwd').marker, 'root:x:0:0:');
+  assert.equal(passwdMarker('labhost\n', 'file:///etc/hostname'), null);
+  assert.equal(passwdMarker('<p>you asked for file:///etc/passwd</p>', 'file:///etc/passwd'), null);
+});
+
+test('SSRF-40: schemeTapUrls and redirectorUrl build exact URLs', () => {
+  const urls = schemeTapUrls('172.17.0.1:45678', 'dmssrf-gopher-abc123');
+  assert.equal(urls.gopher, 'gopher://172.17.0.1:45678/dmssrf-gopher-abc123');
+  assert.equal(urls.dict, 'dict://172.17.0.1:45678/d:dmssrf-gopher-abc123');
+  assert.equal(urls.ftp, 'ftp://dmssrf-gopher-abc123@172.17.0.1:45678/');
+  assert.equal(
+    redirectorUrl('http://172.17.0.1:45678', 'http://169.254.169.254/latest/meta-data/'),
+    'http://172.17.0.1:45678/redir/http%3A%2F%2F169.254.169.254%2Flatest%2Fmeta-data%2F'
+  );
 });
