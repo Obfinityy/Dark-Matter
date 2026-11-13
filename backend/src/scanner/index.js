@@ -17,6 +17,7 @@ import { probeHeaders } from './probes/headers.js';
 import { probeSqliError } from './probes/sqliError.js';
 import { probeBlindSqli } from './probes/sqliBlind.js';
 import { probeSqliOob } from './probes/sqliOob.js';
+import { probeSqliSecondOrder } from './probes/sqliSecondOrder.js';
 import { probeXssReflected } from './probes/xss.js';
 import { probeCmdiTime } from './probes/cmdi.js';
 import { probeTraversal } from './probes/traversal.js';
@@ -179,6 +180,7 @@ export const DEFAULT_PHASES = [
   'sqli-error',
   'sqli-blind',
   'sqli-oob',
+  'sqli-second-order',
   'xss',
   'cmdi',
   'traversal',
@@ -3177,6 +3179,26 @@ async function runScanInner(
   plan('cors', () => probeCors(url, opts));
   plan('cookies', () => probeCookieFlags(url, opts));
   plan('stored-xss', () => probeStoredXss(forms, url, opts));
+  // SECOND-ORDER SQL INJECTION (14 Nov 2026, rows #208 + #281 [High],
+  // CWE-89 — the same concept filed twice, one leg covers both): the
+  // payload is STORED by one request (a profile/registration field)
+  // and executed only when a later request re-uses the stored value.
+  // The probe stores a canary quote via a form, then re-reads the
+  // trigger pages and confirms ONLY on a DB error on the SECOND
+  // request, absent on the pre-store baseline and after a benign
+  // store (see sqliSecondOrder.js). LAB-GATED (allowWrite, the same
+  // host check as file-upload / sqli-oob): the store step WRITES to
+  // the target, so on a non-lab host the phase records a gated skip
+  // instead of running — the probe re-checks the gate itself, defence
+  // in depth. Runs next to stored-xss: same forms surface, same
+  // two-step shape, different sink.
+  if (allowWrite) {
+    plan('sqli-second-order', () =>
+      probeSqliSecondOrder(forms, url, { ...opts, labTargets, tech: fp?.tech, dbHint: fp?.dbHint })
+    );
+  } else {
+    planSkip('sqli-second-order', 'lab-gated: second-order writes need a lab target');
+  }
   // EGRESS LAUNDERING (H3(b), V8-F1, Meta Cat 7 up to $5k): a stored
   // content sink that preserves an external URL in a fetchable
   // attribute causes every viewer browser to fetch that URL directly
