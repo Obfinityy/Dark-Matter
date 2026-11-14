@@ -30,6 +30,7 @@ import { probeOpenRedirect } from './probes/redirect.js';
 import { probeCsrf, fetchSessionSameSite, probeCsrfRefererOnly } from './probes/csrf.js';
 import { probePostForms } from './probes/postForms.js';
 import { probeSensitiveFiles } from './probes/files.js';
+import { probeDisclosure } from './probes/disclosure.js';
 import { probeXxe } from './probes/xxe.js';
 import { probeXxeXinclude } from './probes/xxeXinclude.js';
 import { probeSsrf } from './probes/ssrf.js';
@@ -3168,7 +3169,16 @@ async function runScanInner(
       { ...opts, labTargets }
     )
   );
-  plan('files', () => probeSensitiveFiles(url, opts));
+  // DISCLOSURE LEGS (14 Nov 2026, rows #409/#410 [Low]): robots.txt /
+  // sitemap.xml listing sensitive paths, and secrets / internals
+  // inside HTML comments. Same phase as the sensitive-file probe —
+  // no new phase, so DEFAULT_PHASES stays 148 (see disclosure.js).
+  // The comment half inspects the HTML the fingerprint step already
+  // fetched (fp.body) — zero extra requests in-scan.
+  plan('files', async () => [
+    ...(await probeSensitiveFiles(url, opts)),
+    ...(await probeDisclosure(url, { ...opts, html: fp ? fp.body : '' })),
+  ]);
   // MISSING AUTH (7 Nov 2026, row #47 [Critical], CWE-306 / ASVS
   // V4.1): a critical function (admin, management, setup, ...) that
   // answers an unauthenticated GET with authenticated-only content.
