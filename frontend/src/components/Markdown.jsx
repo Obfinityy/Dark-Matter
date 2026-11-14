@@ -3,6 +3,26 @@
 // blockquotes, paragraphs. Used for assistant replies and hunt reports.
 import React from 'react';
 
+// FIX (#444): links from assistant replies and hunt reports can
+// carry attacker-influenced text (target content, steered LLM
+// output). Only http:/https: (and relative) links become clickable;
+// anything else (javascript:, data:text/html, vbscript:, …) renders
+// as plain text, so it cannot execute in the app origin where
+// dm_token lives. Scheme matching is case-insensitive and rejects
+// leading whitespace/control characters (a "java\tscript:"-style
+// smuggle must not pass).
+function isSafeLinkUrl(url) {
+  // Strip ALL ASCII control characters, not just leading whitespace:
+  // browsers remove tab/LF/CR from URLs before parsing, so
+  // "java\tscript:…" would otherwise execute as javascript:.
+  const u = String(url || '').replace(/[\u0000-\u0020\u007F]/g, '');
+  if (u.startsWith('/') || u.startsWith('#')) return true;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(u)) {
+    return /^https?:/i.test(u);
+  }
+  return true; // no scheme: relative link
+}
+
 function renderInline(text, keyPrefix) {
   const parts = [];
   // Order matters: code, link, bold, italic
@@ -18,11 +38,18 @@ function renderInline(text, keyPrefix) {
     } else if (token.startsWith('[')) {
       const label = token.slice(1, token.indexOf(']'));
       const url = token.slice(token.indexOf('(') + 1, token.lastIndexOf(')'));
-      parts.push(
-        <a key={`${keyPrefix}-${i++}`} href={url} target="_blank" rel="noreferrer" className="md-link">
-          {label}
-        </a>,
-      );
+      // Render the control-stripped URL, never the raw one, so the
+      // href the browser parses is exactly the URL that was checked.
+      const cleanUrl = url.replace(/[\u0000-\u0020\u007F]/g, '');
+      if (isSafeLinkUrl(cleanUrl)) {
+        parts.push(
+          <a key={`${keyPrefix}-${i++}`} href={cleanUrl} target="_blank" rel="noreferrer" className="md-link">
+            {label}
+          </a>,
+        );
+      } else {
+        parts.push(`${label} (${url})`);
+      }
     } else if (token.startsWith('**')) {
       parts.push(<strong key={`${keyPrefix}-${i++}`}>{token.slice(2, -2)}</strong>);
     } else {
