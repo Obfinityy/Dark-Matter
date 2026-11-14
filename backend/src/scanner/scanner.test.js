@@ -379,6 +379,115 @@ describe('probeCors', () => {
       teardown();
     }
   });
+  it('flags null origin reflected with credentials as high (#395)', async () => {
+    const seenOrigins = [];
+    globalThis.fetch = async (_url, init) => {
+      const origin = init?.headers?.Origin;
+      seenOrigins.push(origin);
+      const h = new Headers();
+      if (origin === 'null') {
+        h.set('Access-Control-Allow-Origin', 'null');
+        h.set('Access-Control-Allow-Credentials', 'true');
+      }
+      return { headers: h, text: async () => '' };
+    };
+    try {
+      const { probeCors } = await import('./probes/cors.js');
+      const findings = await probeCors('http://example.com/', { timeoutMs: 5000 });
+      assert.ok(seenOrigins.includes('null'), 'expected a request with Origin: null');
+      assert.ok(seenOrigins.includes('https://evil-dm-probe.example'));
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].id, 'cors-null-origin');
+      assert.equal(findings[0].class, 'cors_misconfig');
+      assert.equal(findings[0].severity, 'high');
+      assert.ok(findings[0].evidence.signalCorrelated);
+    } finally {
+      teardown();
+    }
+  });
+  it('stays silent when null is reflected without credentials (#395)', async () => {
+    globalThis.fetch = async (_url, init) => {
+      const h = new Headers();
+      if (init?.headers?.Origin === 'null') {
+        h.set('Access-Control-Allow-Origin', 'null');
+      }
+      return { headers: h, text: async () => '' };
+    };
+    try {
+      const { probeCors } = await import('./probes/cors.js');
+      const findings = await probeCors('http://example.com/', { timeoutMs: 5000 });
+      assert.equal(findings.length, 0);
+    } finally {
+      teardown();
+    }
+  });
+  it('flags a bare wildcard without credentials as medium (#396)', async () => {
+    globalThis.fetch = async () => {
+      const h = new Headers();
+      h.set('Access-Control-Allow-Origin', '*');
+      return { headers: h, text: async () => '' };
+    };
+    try {
+      const { probeCors } = await import('./probes/cors.js');
+      const findings = await probeCors('http://example.com/', { timeoutMs: 5000 });
+      assert.equal(findings.length, 1, 'bare wildcard must fire exactly once');
+      assert.equal(findings[0].id, 'cors-wildcard-no-creds');
+      assert.equal(findings[0].class, 'cors_wildcard');
+      assert.equal(findings[0].severity, 'medium');
+      assert.ok(findings[0].evidence.signalCorrelated);
+    } finally {
+      teardown();
+    }
+  });
+  it('flags a bare wildcard when credentials are explicitly false (#396)', async () => {
+    globalThis.fetch = async () => {
+      const h = new Headers();
+      h.set('Access-Control-Allow-Origin', '*');
+      h.set('Access-Control-Allow-Credentials', 'false');
+      return { headers: h, text: async () => '' };
+    };
+    try {
+      const { probeCors } = await import('./probes/cors.js');
+      const findings = await probeCors('http://example.com/', { timeoutMs: 5000 });
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].id, 'cors-wildcard-no-creds');
+    } finally {
+      teardown();
+    }
+  });
+  it('keeps the wildcard-with-credentials leg distinct (#394/#396)', async () => {
+    globalThis.fetch = async () => {
+      const h = new Headers();
+      h.set('Access-Control-Allow-Origin', '*');
+      h.set('Access-Control-Allow-Credentials', 'true');
+      return { headers: h, text: async () => '' };
+    };
+    try {
+      const { probeCors } = await import('./probes/cors.js');
+      const findings = await probeCors('http://example.com/', { timeoutMs: 5000 });
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].id, 'cors-wildcard-creds');
+      assert.equal(findings[0].class, 'cors_misconfig');
+      assert.equal(findings[0].severity, 'medium');
+    } finally {
+      teardown();
+    }
+  });
+  it('stays silent on a correct single-origin policy with Vary: Origin', async () => {
+    globalThis.fetch = async () => {
+      const h = new Headers();
+      h.set('Access-Control-Allow-Origin', 'https://trusted.example');
+      h.set('Vary', 'Origin');
+      return { headers: h, text: async () => '' };
+    };
+    try {
+      const { probeCors } = await import('./probes/cors.js');
+      const findings = await probeCors('http://example.com/', { timeoutMs: 5000 });
+      assert.equal(findings.length, 0);
+    } finally {
+      teardown();
+    }
+  });
 });
 
 describe('probeCookieFlags', () => {
