@@ -16,6 +16,8 @@ import {
   assessFileRead,
   assessApprovalResponse,
   assessAuditCoverage,
+  assessHookResult,
+  assessHookLogCoverage,
   extractUserIds,
   EXEC_PROBE_COMMAND,
   CANARY_MARKER,
@@ -47,6 +49,12 @@ const BASE_OPTS = {
 //     (unapproved calls already execute)
 //   auditExec / auditAdmin: 'log' (the tool is recorded) or 'omit'
 //     (the tool never reaches the audit log)
+//   hook: 'gated' (default — refuses while untrusted, fires after
+//     trust and logs hook_run_started + hook_run_terminal),
+//     'ungated' (fires while untrusted — a trust-gate bypass),
+//     'absent' (the hook endpoint 404s — no hook surface)
+//   hookLog: 'full' (default — started + terminal) or
+//     'omit-terminal' (started only — the log is incomplete)
 function makeFakeAgent(behavior = {}) {
   const flags = {
     surface: behavior.surface !== false,
@@ -55,10 +63,13 @@ function makeFakeAgent(behavior = {}) {
     approval: behavior.approval || 'strict',
     auditExec: behavior.auditExec || 'log',
     auditAdmin: behavior.auditAdmin || 'log',
+    hook: behavior.hook || 'gated',
+    hookLog: behavior.hookLog || 'full',
   };
   const state = {
     users: [{ id: 'u1' }, { id: 'u2' }, { id: 'u3' }],
     audit: [],
+    trusted: false,
     posts: 0,
   };
   const stubShell = (command) => {
@@ -85,6 +96,26 @@ function makeFakeAgent(behavior = {}) {
     }
     if (method === 'GET' && u.pathname === '/agent/audit') {
       return reply(200, { entries: state.audit });
+    }
+    if (method === 'GET' && u.pathname === '/agent/trust') {
+      return reply(200, { trusted: state.trusted });
+    }
+    if (method === 'POST' && u.pathname === '/agent/trust') {
+      if (body && body.trust === true) state.trusted = true;
+      return reply(200, { ok: true, trusted: state.trusted });
+    }
+    if (method === 'POST' && u.pathname === '/agent/hook') {
+      if (flags.hook === 'absent') return reply(404, { error: 'not found' });
+      const hookName = (body && body.hook) || 'SessionStart';
+      const args = { hook: hookName, matcher: (body && body.matcher) || 'startup' };
+      if (!state.trusted && flags.hook !== 'ungated') {
+        return reply(403, { ok: false, error: 'workspace_not_trusted' });
+      }
+      state.audit.push({ tool: 'hook', event: 'hook_run_started', hook_key: 'hooks.json:session_start:def-test', arguments: args, at: Date.now() });
+      if (flags.hookLog !== 'omit-terminal') {
+        state.audit.push({ tool: 'hook', event: 'hook_run_terminal', hook_key: 'hooks.json:session_start:def-test', arguments: args, status: 'completed', exit_code: 0, at: Date.now() });
+      }
+      return reply(200, { ok: true, executed: true, result: stubShell(String((body && body.command) || '')) });
     }
     if (method === 'POST' && u.pathname === '/agent/execute') {
       state.posts += 1;
@@ -343,6 +374,11 @@ describe('probeAgentSandboxEscape — full fake', () => {
     const l3 = findings.find((f) => f.class === 'agent_sandbox_audit_evasion');
     assert.ok(l3.evidence.request.includes('exec'), 'L3 names the omitted exec');
     assert.ok(l3.evidence.request.includes('run_admin'), 'L3 names the omitted run_admin');
+    // The hook leg ran too — and stayed silent: trust-gated + logged
+    // execution is designed behaviour, not a bypass.
+    assert.equal(diag.hookSurface, true);
+    assert.equal(diag.hookFired, true);
+    assert.equal(diag.hookLogged, true);
     assert.equal(diag.agentEndpoints, 1);
     assert.equal(diag.executed, true);
     assert.equal(diag.deletedUserId, 'u3');
@@ -401,5 +437,108 @@ describe('probeAgentSandboxEscape — gates', () => {
     });
     assert.deepEqual(findings, []);
     assert.equal(state.posts, 0, `expected 0 POSTs to a non-lab target, got ${state.posts}`);
+  });
+});
+
+// ---- L4: trust-gated hook ----------------------------------------------------
+// The control case — models the VERIFIED muse-code SessionStart hook:
+// trust-gated + logged execution is designed behaviour (silent); a
+// hook that fires while untrusted is a trust-gate bypass (finding).
+
+describe('probeAgentSandboxEscape — L4 trust-gated hook', () => {
+  it('ASE-23: assessHookResult — executed / refused / other (a bare 404 is other, never a refusal)', () => {
+    assert.equal(assessHookResult(200, { ok: true, executed: true }).kind, 'executed');
+    assert.equal(assessHookResult(200, { ok: true, executed: false }).kind, 'other');
+    assert.equal(assessHookResult(403, { ok: false, error: 'workspace_not_trusted' }).kind, 'refused');
+    assert.equal(assessHookResult(200, { ok: false, error: 'approval_required' }).kind, 'refused');
+    assert.equal(assessHookResult(404, { error: 'not found' }).kind, 'other');
+    assert.equal(assessHookResult(200, { ok: true }).kind, 'other');
+    assert.equal(assessHookResult(200, null).kind, 'other');
+  });
+  it('ASE-24: assessHookLogCoverage — logged only when BOTH started and terminal are present', () => {
+    const started = { tool: 'hook', event: 'hook_run_started', arguments: { hook: 'SessionStart', matcher: 'startup' } };
+    const terminal = { tool: 'hook', event: 'hook_run_terminal', arguments: { hook: 'SessionStart', matcher: 'startup' }, status: 'completed' };
+    assert.equal(assessHookLogCoverage([started, terminal], 'SessionStart').kind, 'logged');
+    assert.equal(assessHookLogCoverage([started], 'SessionStart').kind, 'missing');
+    assert.equal(assessHookLogCoverage([terminal], 'SessionStart').kind, 'missing');
+    assert.equal(assessHookLogCoverage([], 'SessionStart').kind, 'missing');
+    assert.equal(assessHookLogCoverage([started, terminal], 'OtherHook').kind, 'missing');
+    assert.equal(assessHookLogCoverage(null, 'SessionStart').kind, 'unknown');
+    assert.equal(assessHookLogCoverage('nope', 'SessionStart').kind, 'unknown');
+  });
+  it('ASE-25: a hook that fires while UNTRUSTED fires exactly one [Critical] agent_sandbox_hook_trust_gate finding', async () => {
+    const { fetchFn } = makeFakeAgent({ hook: 'ungated' });
+    const diag = {};
+    const findings = await probeAgentSandboxEscape('http://lab.local/', { ...BASE_OPTS, fetchFn, diagnostics: diag });
+    assert.equal(findings.length, 1, `expected 1 finding, got: ${findings.map((f) => f.class).join(', ')}`);
+    assert.match(findings[0].title, /hook fires without workspace trust/);
+    assert.equal(findings[0].severity, 'critical');
+    assert.equal(findings[0].class, 'agent_sandbox_hook_trust_gate');
+    assert.equal(diag.hookSurface, true);
+    assert.equal(diag.hookFired, true);
+    assert.equal(diag.hookLogged, true);
+    const { confirmed } = verifyFindings(findings);
+    assert.equal(confirmed.length, 1);
+  });
+  it('ASE-26: a trust-gated hook that fires after trust AND logs both records stays silent (the control case)', async () => {
+    const { state, fetchFn } = makeFakeAgent({});
+    const diag = {};
+    const findings = await probeAgentSandboxEscape('http://lab.local/', { ...BASE_OPTS, fetchFn, diagnostics: diag });
+    assert.deepEqual(findings, []);
+    assert.equal(diag.hookSurface, true);
+    assert.equal(diag.hookFired, true);
+    assert.equal(diag.hookLogged, true);
+    assert.equal(state.trusted, true, 'the probe granted trust (the one-time click) before firing');
+    const hookEntries = state.audit.filter((e) => e.tool === 'hook');
+    assert.deepEqual(
+      hookEntries.map((e) => e.event),
+      ['hook_run_started', 'hook_run_terminal']
+    );
+  });
+  it('ASE-27: a trusted hook that fires but leaves the terminal record out fires one [Medium] audit-evasion finding naming the hook', async () => {
+    const { fetchFn } = makeFakeAgent({ hookLog: 'omit-terminal' });
+    const diag = {};
+    const findings = await probeAgentSandboxEscape('http://lab.local/', { ...BASE_OPTS, fetchFn, diagnostics: diag });
+    assert.equal(findings.length, 1, `expected 1 finding, got: ${findings.map((f) => f.class).join(', ')}`);
+    assert.equal(findings[0].class, 'agent_sandbox_audit_evasion');
+    assert.equal(findings[0].severity, 'medium');
+    assert.match(findings[0].title, /missing from the audit log/);
+    assert.ok(findings[0].evidence.request.includes("hook 'SessionStart'"), 'L3 names the hook');
+    assert.equal(diag.hookFired, true);
+    assert.equal(diag.hookLogged, false);
+    const { confirmed } = verifyFindings(findings);
+    assert.equal(confirmed.length, 1);
+  });
+  it('ASE-28: no hook surface at all leaves L4 uncalibrated (no hook findings, diag hookSurface false)', async () => {
+    const { fetchFn } = makeFakeAgent({ hook: 'absent' });
+    const diag = {};
+    const findings = await probeAgentSandboxEscape('http://lab.local/', { ...BASE_OPTS, fetchFn, diagnostics: diag });
+    assert.deepEqual(findings, []);
+    assert.equal(diag.hookSurface, false);
+    assert.equal(diag.hookFired, false);
+  });
+  it('ASE-29: a fully bypassable sandbox with an UNGATED hook fires 5 findings (L0, L1, L2, L3, hook trust bypass), all confirmed', async () => {
+    const { fetchFn } = makeFakeAgent({
+      execVulnerable: true,
+      readVulnerable: true,
+      approval: 'bypass',
+      auditExec: 'omit',
+      auditAdmin: 'omit',
+      hook: 'ungated',
+    });
+    const diag = {};
+    const findings = await probeAgentSandboxEscape('http://lab.local/', { ...BASE_OPTS, fetchFn, diagnostics: diag });
+    assert.equal(findings.length, 5, `expected 5 findings, got: ${findings.map((f) => f.class).join(', ')}`);
+    const classes = findings.map((f) => f.class).sort();
+    assert.deepEqual(classes, [
+      'agent_sandbox_approval_gate',
+      'agent_sandbox_audit_evasion',
+      'agent_sandbox_exec',
+      'agent_sandbox_file_read',
+      'agent_sandbox_hook_trust_gate',
+    ]);
+    const { confirmed, unconfirmed } = verifyFindings(findings);
+    assert.equal(confirmed.length, 5);
+    assert.equal(unconfirmed.length, 0);
   });
 });

@@ -34,6 +34,20 @@
 //       executed tool call). If the audit endpoint does not answer,
 //       L3 is uncalibrated, never a finding.
 //       Class agent_sandbox_audit_evasion. [Medium]
+//   L4  Trust-gated hook (the CONTROL case — models the VERIFIED
+//       muse-code SessionStart hook, see HONEST LIMITS): the hook
+//       endpoint must NOT fire while the workspace is untrusted
+//       (control); after a one-time trust grant it may fire, but
+//       only with BOTH hook_run_started and hook_run_terminal in the
+//       audit log. A hook that fires while UNTRUSTED is a trust-gate
+//       bypass — a true bypass, and a finding.
+//       Class agent_sandbox_hook_trust_gate. [Critical]
+//       Trust-gated + logged execution is DESIGNED behaviour: the
+//       probe stays silent on it (diag hookFired/hookLogged record
+//       the control passing). A trusted hook that fires but leaves
+//       the log incomplete is an L3 audit-evasion finding (the L3
+//       leg judges hook actions with the started+terminal rule).
+//
 //
 // GATES: isLabTargetHost + allowWrite + depth !== 'quick' (the probe
 // executes commands and deletes a lab user — a state change — so it
@@ -44,24 +58,46 @@
 // Well-known tool paths are tried ONLY on lab targets, never
 // against an arbitrary web target.
 //
-// HONEST LIMITS: the real mechanism of the user's muse-code report
-// ("sandbox bypass of muse — arbitrary host code execution +
-// credential exfiltration, no approval, no logs") is being verified
-// by a separate hunt lane and is NOT wired here — this probe tests
-// the generic family against a mock lab whose sandbox is
-// deliberately bypassable (see agent-sandbox-lab.mjs). A follow-up
-// lane wires the exact technique once confirmed. The mock's L2
-// victim comes from the mock's own /agent/users list, and L3 needs
-// the mock's /agent/audit endpoint; a real agent service without
-// those observable surfaces leaves L2/L3 uncalibrated. The probe
-// never reads a real credential: the only "sensitive" file it
-// reads is the mock's canary file, whose content is a made-up
+// HONEST LIMITS (updated 15 Nov 2026, hunt lane complete,
+// parent-verified first-hand on EC2, see
+// musecode-sandbox-20261114.md): the screenshot's claim — a
+// zero-approval, no-logs sandbox bypass of muse-code — was NOT
+// VERIFIED. What IS verified: a trusted project's SessionStart hook
+// (.muse/hooks.json, {"hooks": {"SessionStart": [{"matcher":
+// "startup", "hooks": [{"type": "command", ...}]}}]}}) runs arbitrary
+// host commands OUTSIDE the sandbox (markers written outside the
+// workspace), BUT only after a one-time --trust-workspace click, and
+// the run IS recorded in the durable session log (hook_run_started +
+// hook_run_terminal). Untrusted workspaces: the hook does not fire
+// (control holds). That is a designed trust-gated host-execution
+// path, not a confinement escape — estimated $0 as a standalone
+// report. The mock lab's bypassable mode is a SYNTHETIC generic-
+// family worst case (tool-call → host exec / traversal / approval
+// bypass / missing audit), NOT the muse-code mechanism — no
+// zero-approval no-log muse-code escape exists in the evidence, and
+// nothing here claims otherwise. The L4 hook leg models the
+// VERIFIED behaviour (trust-gated + logged = silent; fires
+// untrusted = finding). NOT covered: the MODEL-DRIVEN tool-call
+// path — an AI model being induced to issue the escaping calls
+// (hunt probes T1–T5: shell-tool canary read/write outside the
+// workspace, write_file outside, stage-parser smuggling, network
+// exfil, bubblewrap confinement, MCP loading, --enable-shell-tool,
+// log evasion) — UNTESTED, stub decode failure; the agent's own
+// tool sandbox was never directly exercised. This probe tests the
+// tool-call endpoint surface directly; it does NOT cover the
+// model-driven path. The mock's L2 victim comes from the mock's own
+// /agent/users list, and L3 needs the mock's /agent/audit endpoint;
+// a real agent service without those observable surfaces leaves
+// L2/L3 uncalibrated. The probe never reads a real credential: the
+// only "sensitive" file it reads is the mock's canary file, whose
+// content is a made-up
 // marker (ASE_CANARY_TOKEN=canary-not-a-real-secret-...), never a
 // real secret. Findings are classes 'agent_sandbox_exec',
-// 'agent_sandbox_file_read', 'agent_sandbox_approval_gate' and
-// 'agent_sandbox_audit_evasion' — none contains 'xss' or 'bypass',
-// so protocolFor routes all four to the default protocol (judged
-// on evidence.signalCorrelated, see differential.js).
+// 'agent_sandbox_file_read', 'agent_sandbox_approval_gate',
+// 'agent_sandbox_audit_evasion' and 'agent_sandbox_hook_trust_gate'
+// — none contains 'xss' or 'bypass', so protocolFor routes all five
+// to the default protocol (judged on evidence.signalCorrelated, see
+// differential.js).
 
 import { isLabTargetHost } from '../../labCreds.js';
 
@@ -93,6 +129,12 @@ export const AGENT_EXECUTE_PATHS = [
 ];
 const AGENT_AUDIT_PATHS = ['/agent/audit', '/api/agent/audit'];
 const AGENT_USERS_PATHS = ['/agent/users', '/api/agent/users'];
+// Trust-gated hook surface (L4): the hook endpoint + the trust
+// endpoint that models the one-time --trust-workspace click.
+const AGENT_HOOK_PATHS = ['/agent/hook', '/api/agent/hook'];
+const AGENT_TRUST_PATHS = ['/agent/trust', '/api/agent/trust'];
+export const HOOK_NAME = 'SessionStart';
+export const HOOK_MATCHER = 'startup';
 
 function ev(request, response, impact) {
   return { request, response, impact_demo: impact, signalCorrelated: true };
@@ -210,6 +252,49 @@ export function assessAuditCoverage(entries, tool, marker) {
     return typeof marker === 'string' && marker ? hay.includes(marker) : true;
   });
   return { kind: hit ? 'logged' : 'missing' };
+}
+
+/**
+ * Judge a trust-gated hook answer. 'executed' only on an explicit
+ * executed:true with a 2xx status; 'refused' on a 403 or an explicit
+ * ok:false carrying a trust/approval word; anything else — including
+ * a bare 404 {error:'not found'} (no hook surface at all) — is
+ * 'other', never a refusal. Pure.
+ */
+export function assessHookResult(status, json) {
+  if (!json || typeof json !== 'object') return { kind: 'other' };
+  if (json.executed === true && status >= 200 && status < 300) return { kind: 'executed' };
+  const text = bodyText(json);
+  if (
+    status === 403 ||
+    (json.ok === false && /trust|approval|confirm|authori[sz]|forbidden|denied|not allowed/i.test(text))
+  ) {
+    return { kind: 'refused', text };
+  }
+  return { kind: 'other', text };
+}
+
+/**
+ * Judge whether the audit log covers an executed hook the way the
+ * verified muse-code evidence requires: BOTH a hook_run_started and
+ * a hook_run_terminal entry naming the hook. 'logged' only when
+ * both are present; 'missing' when the log answers with entries and
+ * either record is absent; 'unknown' when the log shape is unusable.
+ * (The generic assessAuditCoverage would call a single started entry
+ * 'logged' — wrong for hooks, where the terminal record is the
+ * proof the run finished and was recorded.) Pure.
+ */
+export function assessHookLogCoverage(entries, hookName) {
+  if (!Array.isArray(entries)) return { kind: 'unknown' };
+  const mine = entries.filter((e) => {
+    if (!e || typeof e !== 'object') return false;
+    if (e.tool !== 'hook') return false;
+    const hay = bodyText(e.arguments !== undefined ? e.arguments : e);
+    return typeof hookName === 'string' && hookName ? hay.includes(hookName) : true;
+  });
+  const started = mine.some((e) => e.event === 'hook_run_started');
+  const terminal = mine.some((e) => e.event === 'hook_run_terminal');
+  return { kind: started && terminal ? 'logged' : 'missing' };
 }
 
 /**
@@ -460,6 +545,83 @@ export async function probeAgentSandboxEscape(url, opts = {}) {
     }
   }
 
+  // L4 — trust-gated hook (the CONTROL case — models the VERIFIED
+  // muse-code SessionStart hook). The hook endpoint must NOT fire
+  // while the workspace is untrusted; after a one-time trust grant
+  // it may fire, but only with BOTH hook_run_started and
+  // hook_run_terminal in the audit log (judged by L3, hook-aware).
+  // A hook that fires while UNTRUSTED is a trust-gate bypass — a
+  // true bypass, and a finding. Trust-gated + logged execution is
+  // DESIGNED behaviour: no finding (diag hookFired/hookLogged
+  // record the control passing).
+  let hookUrl = null;
+  let hookFired = false;
+  const grantTrust = async () => {
+    for (const p of AGENT_TRUST_PATHS) {
+      if (!postOk()) return false;
+      const r = await req(fetchFn, origin.replace(/\/+$/, '') + p, {
+        method: 'POST',
+        body: { trust: true },
+      });
+      notePost();
+      if (r && r.json && r.json.trusted === true) return true;
+    }
+    return false;
+  };
+  const callHook = async (url) => {
+    if (!postOk()) return null;
+    const r = await req(fetchFn, url, {
+      method: 'POST',
+      body: { hook: HOOK_NAME, matcher: HOOK_MATCHER, type: 'command', command: EXEC_PROBE_COMMAND },
+    });
+    notePost();
+    return r;
+  };
+  for (const p of AGENT_HOOK_PATHS) {
+    const url = origin.replace(/\/+$/, '') + p;
+    const r = await callHook(url);
+    if (!r) break;
+    const judged = assessHookResult(r.status, r.json);
+    if (judged.kind === 'executed') {
+      // The hook fired while UNTRUSTED — a trust-gate bypass, a
+      // true bypass (arbitrary host code with no approval at all).
+      hookUrl = url;
+      hookFired = true;
+      executedActions.push({ tool: 'hook', marker: HOOK_NAME });
+      findings.push({
+        class: 'agent_sandbox_hook_trust_gate',
+        id: `ase-hook-${rand()}`,
+        title: 'Agent sandbox escape: trust-gated hook fires without workspace trust (CRITICAL)',
+        severity: 'critical',
+        url,
+        evidence: ev(
+          `POST ${url} {hook:'${HOOK_NAME}', matcher:'${HOOK_MATCHER}', type:'command', command:'${EXEC_PROBE_COMMAND}'} → executed (untrusted)`,
+          `The hook ran the arithmetic probe to '${EXEC_PROBE_EXPECTED}' with no workspace trust granted — the trust gate does not contain host execution.`,
+          'The trust gate is not enforced: a hook executes arbitrary host commands without the one-time workspace-trust approval.',
+        ),
+      });
+      break;
+    }
+    if (judged.kind === 'refused') {
+      // Control satisfied: the hook refuses while untrusted.
+      // Now grant trust (models the one-time --trust-workspace
+      // click) and fire it again — this MUST stay silent when the
+      // run is logged (designed behaviour).
+      hookUrl = url;
+      if (await grantTrust()) {
+        const fired = await callHook(url);
+        if (fired && assessHookResult(fired.status, fired.json).kind === 'executed') {
+          hookFired = true;
+          executedActions.push({ tool: 'hook', marker: HOOK_NAME });
+        }
+      }
+      break;
+    }
+    // 'other' — no hook surface on this path; try the next one.
+  }
+  setDiag('hookSurface', Boolean(hookUrl));
+  setDiag('hookFired', hookFired);
+
   // L3 — action with no audit-log record. Only when an action
   // demonstrably executed AND the audit log answers with entries.
   if (executedActions.length) {
@@ -477,7 +639,13 @@ export async function probeAgentSandboxEscape(url, opts = {}) {
       // class findings), so no evidence is lost.
       const missing = [];
       for (const action of executedActions) {
-        const judged = assessAuditCoverage(entries, action.tool, action.marker);
+        // Hook actions need the started+terminal rule, not the
+        // generic any-entry match (see assessHookLogCoverage).
+        const judged =
+          action.tool === 'hook'
+            ? assessHookLogCoverage(entries, action.marker)
+            : assessAuditCoverage(entries, action.tool, action.marker);
+        if (action.tool === 'hook') setDiag('hookLogged', judged.kind === 'logged');
         if (judged.kind === 'missing') missing.push(action);
       }
       if (missing.length) {

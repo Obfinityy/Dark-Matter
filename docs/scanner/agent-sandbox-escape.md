@@ -18,12 +18,36 @@ sandbox is escaped when a tool call reaches the host anyway:
   ([High]).
 - **Audit-log evasion** — an executed action leaves no audit record
   ([Medium]).
+- **Trust-gated hook** — the hook endpoint fires a host command
+  while the workspace is UNTRUSTED, i.e. the trust gate does not
+  contain host execution ([Critical]). The reverse — trust-gated
+  execution that IS logged — is designed behaviour, not a finding
+  (see below).
 
 Related existing coverage: row #485 [Critical] MCP tool poisoning
 (a poisoned tool description — a different attack: the tool itself
 is the vector, not the sandbox), rows #17/#379 [Critical/High] LLM
 excessive agency (a state-changing agent action with no confirmation
 step). This phase tests the sandbox boundary itself, not the model.
+
+## Verified muse-code behaviour (15 Nov 2026)
+The screenshot's claim — a zero-approval, no-logs sandbox bypass
+of muse-code — was **NOT VERIFIED** (hunt lane complete,
+parent-verified first-hand on EC2; see
+`musecode-sandbox-20261114.md`). What IS verified: a trusted
+project's `SessionStart` hook (`.muse/hooks.json`,
+`{"hooks": {"SessionStart": [{"matcher": "startup", "hooks":
+[{"type": "command", ...}]}}]}}`) runs arbitrary host commands
+OUTSIDE the sandbox (markers written outside the workspace), BUT
+only after a one-time `--trust-workspace` click, and the run IS
+recorded in the durable session log (`hook_run_started` +
+`hook_run_terminal`). Untrusted workspaces: the hook does not fire
+(control holds). That is a designed trust-gated host-execution
+path, not a confinement escape — estimated $0 as a standalone
+report. The mock lab's bypassable mode is a SYNTHETIC generic-family
+worst case, NOT the muse-code mechanism: no zero-approval no-log
+muse-code escape exists in the evidence, and nothing here claims
+otherwise.
 
 ## How Dark Matter uses it
 `backend/src/scanner/probes/agentSandboxEscape.js`
@@ -60,6 +84,24 @@ Legs (each a bounded differential with a benign control):
   the admin action are missing, both are named in the single L3
   finding (the verifier dedupes same-class findings). If the audit
   endpoint does not answer, L3 is uncalibrated, never a finding.
+  Hook actions are judged with the started+terminal rule (see L4).
+- **L4 trust-gated hook** — the CONTROL case. The hook endpoint
+  (`POST /agent/hook`, `{hook: 'SessionStart', matcher: 'startup',
+  type: 'command', command: 'expr 6 + 36'}`) must NOT fire while
+  the workspace is untrusted (control: 403
+  `workspace_not_trusted`). A hook that fires untrusted is a
+  trust-gate bypass — a true bypass, class
+  `agent_sandbox_hook_trust_gate` ([Critical]). After a one-time
+  trust grant (`POST /agent/trust`, modelling the
+  `--trust-workspace` click) the hook may fire — but only with
+  BOTH `hook_run_started` and `hook_run_terminal` in the audit log;
+  that combination stays SILENT (designed behaviour, diag
+  `hookFired`/`hookLogged` record the control passing). A trusted
+  hook that fires with the log incomplete is an L3 audit-evasion
+  finding. If the hook surface does not answer (404), L4 is
+  uncalibrated, never a finding. The hook's `executed` flag is the
+  service's own attestation; the arithmetic command is the input
+  and the audit-log pair is the corroboration.
 
 Fingerprint: mined routes matching agent/tool-call patterns from
 `apiRoutes` first, then the well-known paths above — but well-known
@@ -71,14 +113,20 @@ return 200 + JSON carrying the marker verbatim.
 Deterministic, no judge, no LLM, $0: the computed value `42` from
 the arithmetic probe; the canary marker from the traversal; the
 victim gone from the re-read user list; the executed action absent
-from an answering audit log. Every finding carries structured
+from an answering audit log; a hook that fires while untrusted;
+a trusted hook whose log lacks the started or the terminal record.
+Every finding carries structured
 evidence (`request`, `response`, `impact_demo`,
 `signalCorrelated: true`) and passes through the same differential
 verifier as the other probes. Finding classes
 (`agent_sandbox_exec`, `agent_sandbox_file_read`,
-`agent_sandbox_approval_gate`, `agent_sandbox_audit_evasion`)
+`agent_sandbox_approval_gate`, `agent_sandbox_audit_evasion`,
+`agent_sandbox_hook_trust_gate`)
 contain neither `xss` nor `bypass`, so they route to the default
-confirmation protocol.
+confirmation protocol. (The hook class is deliberately named
+`..._trust_gate`, not `..._trust_bypass`: a class containing
+`bypass` would route to the auth-bypass protocol and judge on
+`evidence.bypassWorks`, which this probe does not produce.)
 
 ## Mock lab
 `~/workspace/dm-v2/probes/agent-sandbox-lab.mjs` (node:http, no
@@ -88,18 +136,30 @@ dir so traversal escapes it; run_admin honors client-supplied
 `approved: true`; audit logs only echo + read_file) and `control`
 on port 18791 (exec refused; read_file confined to the public dir;
 run_admin ignores the client flag and needs a server-issued token
-from `POST /agent/approve`; audit logs everything). Re-proof
+from `POST /agent/approve`; audit logs everything). BOTH modes
+serve the trust-gated hook identically (`POST /agent/trust` grants
+workspace trust; `POST /agent/hook` refuses untrusted, and while
+trusted runs the command on the host shell and records BOTH
+`hook_run_started` and `hook_run_terminal` in the audit log) —
+the hook is the evidence-anchored CONTROL case, not a bypassable
+leg. Re-proof
 driver: `agent-sandbox-escape-reproof-driver.mjs` — full standard
 battery against both mocks plus the Juice (31/0) and DVWA (21/0)
 baselines.
 
 ## Limits
-The real mechanism of the user's muse-code report ("sandbox bypass
-of muse — arbitrary host code execution + credential exfiltration,
-no approval, no logs") is being verified by a separate hunt lane
-and is NOT wired here — this probe tests the generic family against
-the mock lab. A follow-up lane wires the exact technique once
-confirmed. L2 needs an observable user list and L3 needs an
+The mock lab's bypassable mode is a SYNTHETIC generic-family worst
+case, NOT the muse-code mechanism (see "Verified muse-code
+behaviour" above): no zero-approval no-log muse-code escape exists
+in the evidence. NOT covered: the MODEL-DRIVEN tool-call path — an
+AI model being induced to issue the escaping calls (hunt probes
+T1–T5: shell-tool canary read/write outside the workspace,
+write_file outside, stage-parser smuggling, network exfil,
+bubblewrap confinement, MCP loading, `--enable-shell-tool`, log
+evasion) — UNTESTED, stub decode failure; the agent's own tool
+sandbox was never directly exercised. This probe tests the
+tool-call endpoint surface directly; it does NOT cover the
+model-driven path. L2 needs an observable user list and L3 needs an
 answering audit endpoint; a real agent service without those
 surfaces leaves L2/L3 uncalibrated (quiet, never a guess). The
 probe never reads a real credential: the only "sensitive" file it

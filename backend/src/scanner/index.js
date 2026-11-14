@@ -3543,15 +3543,19 @@ async function runScanInner(
   // be escaped to the host — host command execution (L0), sensitive
   // file read via traversal (L1), approval-gate bypass via crafted
   // tool input (L2), executed action missing from the audit log
-  // (L3). See agentSandboxEscape.js. Lab-gated (allowWrite + lab
-  // host + depth !== 'quick'); no labCreds — the agent service is
-  // unauthenticated in the mock, like the LLM lab. Diagnostics ride
-  // the phase extras (agentEndpoints, controlOk, attempts, executed,
-  // deletedUserId). STATE NOTE: each confirming run consumes one
-  // seeded mock-lab user; the lab re-seeds on restart. PHASE-COUNT
-  // NOTE: this lane claims the 149th phase; PRs #499/#505/#507/
-  // #510/#511 and #526 claim the same slot — whichever merges later
-  // renumbers.
+  // (L3), and the trust-gated hook leg (L4, added 15 Nov 2026: the
+  // hook must NOT fire while untrusted; trust-gated + logged
+  // execution is designed behaviour and stays silent — see
+  // agentSandboxEscape.js and musecode-sandbox-20261114.md).
+  // Lab-gated (allowWrite + lab host + depth !== 'quick'); no
+  // labCreds — the agent service is unauthenticated in the mock,
+  // like the LLM lab. Diagnostics ride the phase extras
+  // (agentEndpoints, controlOk, attempts, executed, deletedUserId,
+  // hookSurface, hookFired, hookLogged). STATE NOTE: each confirming
+  // run consumes one seeded mock-lab user; the lab re-seeds on
+  // restart. PHASE-COUNT NOTE: this lane claims the 149th phase;
+  // PRs #499/#505/#507/#510/#511 and #526 claim the same slot —
+  // whichever merges later renumbers.
   const aseDiag = {};
   plan(
     'agent-sandbox-escape',
@@ -3569,6 +3573,9 @@ async function runScanInner(
       attempts: aseDiag.attempts || 0,
       executed: Boolean(aseDiag.executed),
       deletedUserId: aseDiag.deletedUserId || null,
+      hookSurface: Boolean(aseDiag.hookSurface),
+      hookFired: Boolean(aseDiag.hookFired),
+      hookLogged: aseDiag.hookLogged === undefined ? null : Boolean(aseDiag.hookLogged),
     })
   );
   // LLM OUTPUT HANDLING (9 Nov 2026, row #18 [High]): model
