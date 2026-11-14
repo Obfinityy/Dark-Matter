@@ -27,7 +27,7 @@ import { probeSsti } from './probes/ssti.js';
 import { probeSstiPebble } from './probes/sstiPebble.js';
 import { probeSstiEngines } from './probes/sstiEngines.js';
 import { probeOpenRedirect } from './probes/redirect.js';
-import { probeCsrf } from './probes/csrf.js';
+import { probeCsrf, fetchSessionSameSite, probeCsrfRefererOnly } from './probes/csrf.js';
 import { probePostForms } from './probes/postForms.js';
 import { probeSensitiveFiles } from './probes/files.js';
 import { probeXxe } from './probes/xxe.js';
@@ -2402,7 +2402,22 @@ async function runScanInner(
   // Register/reset forms, password-length oracles and cryptographic
   // timing attacks are out of scope.
   plan('timing-side-channel', () => probeTimingSideChannel(forms, url, opts));
-  plan('csrf', () => probeCsrf(forms, url));
+  // CSRF SameSite / referer-only legs (14 Nov 2026, row #407): the
+  // session cookie's SameSite attribute is read once (one GET of the
+  // target — the same fetch the cookies phase already makes) and
+  // passed to both legs. Leg S flags token-less forms whose only
+  // defense is SameSite=Lax/Strict; Leg R runs the Referer
+  // differential on token-less forms with no SameSite protection.
+  // A failed SameSite read degrades honestly to null — probeCsrf
+  // then keeps its original missing-token behaviour and Leg R
+  // still fires only on its own clean differential.
+  plan('csrf', async () => {
+    const sessionSameSite = await fetchSessionSameSite(url, opts).catch(() => null);
+    return [
+      ...probeCsrf(forms, url, { sessionSameSite }),
+      ...(await probeCsrfRefererOnly(forms, url, { sessionSameSite, ...opts })),
+    ];
+  });
   // Stack gate input (9 Nov 2026, Zerodha FP fix): same as sqli-error
   // — the POST form battery needs the fingerprinted tech.
   plan('post-forms', () => probePostForms(postForms, { ...opts, tech: fp?.tech }));
