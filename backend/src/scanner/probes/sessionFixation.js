@@ -9,8 +9,12 @@
 //   T1. No-regeneration on login — MEDIUM (HIGH only with T2): S_pre == S_post.
 //   T2. Planted-ID adoption — HIGH (LAB-GATED): two jars, same planted ID,
 //       authenticated state reachable with the planted value.
-//   T3. Session ID in URL — MEDIUM: authenticated request with URL-carried
-//       ID alone, no regeneration.
+//   T3. Session ID in URL (planted via URL param) — MEDIUM (LAB-GATED):
+//       two jars, URL-planted ID adopted through login AND reaches an
+//       authenticated page with the URL parameter alone (no cookie);
+//       control jar with a different planted ID stays out; repeat-stable.
+//       (Row #473 — implemented 14 Nov 2026; before that T3 was a
+//       documented ride on the T1 oracle, with no URL-parameter leg.)
 //   T4. Logout does not invalidate (cookie) — MEDIUM: old session cookie
 //       still auths after logout (row #474, CWE-613).
 //   T4b. Logout does not invalidate (bearer) — MEDIUM: old bearer token
@@ -339,6 +343,105 @@ async function t2PlantedAdoption(form, opts, creds, rid) {
   return findings;
 }
 
+// ---- T3: planted-ID adoption via URL parameter (lab-only) ------------------
+// Row #473. Same two-jar shape as T2, but the planted ID travels in the
+// URL (?PHPSESSID=…) instead of a cookie. Confirm ONLY when (a) the
+// victim login keeps the URL-planted ID as its authenticated session,
+// (b) an attacker jar with NO cookie reaches an authenticated page
+// carrying ONLY the URL parameter, (c) the same holds on a repeat with
+// a fresh jar, and (d) a control jar carrying a DIFFERENT planted ID
+// does not. Bare URL reflection of the planted ID never confirms, and
+// a server that merely accepts a URL session ID for anonymous requests
+// (never adopting it through login) stays silent — adoption is the
+// finding. The URL parameter name is the server's own session-cookie
+// name (PHPSESSID for PHP, JSESSIONID for Java, … — the names
+// sessionTokenInUrl.js recognises); PHPSESSID is the fallback when
+// the login page issues no session cookie at all.
+// T3 runs in standard/deep depth only (like T4) — quick stays light.
+// It plants its OWN canary (rid + 'u'), distinct from T2's, so its
+// proof never rides T2's adoption of the same value.
+const URL_SESSION_PARAM_FALLBACK = 'PHPSESSID';
+
+function addUrlParam(urlStr, name, value) {
+  try {
+    const u = new URL(urlStr);
+    u.searchParams.set(name, value);
+    return u.toString();
+  } catch {
+    return urlStr;
+  }
+}
+
+// T4's gate, shared: an auth marker AND no login-page text in the
+// first 2000 chars (a redirect to the login page must not read as
+// authenticated state).
+function authedPageLooksAuthed(r) {
+  return Boolean(r) && AUTH_MARKER_RE.test(r.text) && !/login/i.test(r.text.slice(0, 2000));
+}
+
+async function t3UrlPlanted(form, opts, creds, rid) {
+  const findings = [];
+  // D2 (same gate as T2): canonical host comparison, port-insensitive.
+  if (!isLabTargetHost(form.action || form.pageUrl || '', opts.labTargets)) return findings;
+  const loginUrl = form.action || form.pageUrl;
+  if (!loginUrl) return findings;
+  // Discover the session-cookie name with a throwaway jar — the probe
+  // request must not pollute the victim jar's session.
+  const jarProbe = new Jar();
+  const rProbe = await req(loginUrl, opts, { jar: jarProbe });
+  if (!rProbe) return findings;
+  const names = sessionCookieNames(rProbe.setCookies);
+  const paramName = names[0] || URL_SESSION_PARAM_FALLBACK;
+  const canary = sessionFixationCanary(`${rid}u`);
+  const otherCanary = sessionFixationCanary(`${rid}c`);
+  // Victim jar: plant the ID via the URL parameter, then log in with
+  // the parameter carried on every login-flow request (re-fetch +
+  // POST) so a URL-only session is not lost mid-flow.
+  const jarV = new Jar();
+  const rPlant = await req(addUrlParam(loginUrl, paramName, canary), opts, { jar: jarV });
+  if (!rPlant) return findings;
+  const formUrl = { ...form, action: addUrlParam(loginUrl, paramName, canary) };
+  await loginWithFreshToken(formUrl, opts, creds, jarV);
+  // (a) the victim's session after login IS the planted ID: the
+  // planted URL parameter reaches an authenticated page. (The
+  // attacker check below is the discriminating step — this one only
+  // proves the login itself succeeded with the planted session.)
+  const rVictim = await fetchAuthedPage(addUrlParam(form.pageUrl, paramName, canary), opts, jarV);
+  if (!authedPageLooksAuthed(rVictim)) return findings;
+  // (b)+(c) attacker jar, NO cookie, URL parameter only — twice,
+  // fresh jar each time (repeat-stable). The jar starts empty, so the
+  // only session material in the first request is the URL parameter
+  // (a cookie the server sets FROM the parameter mid-chain still
+  // originates from the URL — the vector is the parameter).
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const jarA = new Jar();
+    const rAuth = await fetchAuthedPage(addUrlParam(form.pageUrl, paramName, canary), opts, jarA);
+    if (!authedPageLooksAuthed(rAuth)) return findings;
+  }
+  // (d) control: a DIFFERENT planted ID must NOT reach authenticated
+  // state — otherwise the oracle is not discriminating.
+  const jarC = new Jar();
+  const rControl = await fetchAuthedPage(addUrlParam(form.pageUrl, paramName, otherCanary), opts, jarC);
+  if (authedPageLooksAuthed(rControl)) return findings;
+  const m = rVictim.text.match(AUTH_MARKER_RE);
+  const idx = rVictim.text.indexOf(m[0]);
+  const window = rVictim.text.slice(Math.max(0, idx - 60), idx + 120);
+  findings.push({
+    class: 'session_fixation',
+    id: `sf-url-${rand()}`,
+    title: 'Session fixation — URL-carried session ID reaches authenticated state (MEDIUM)',
+    severity: 'medium',
+    url: loginUrl,
+    parameter: paramName,
+    evidence: ev(
+      `Planted ${paramName}=${canary} in URL -> canary login -> attacker jar replays URL-carried ID only (no cookie)`,
+      `Server kept the URL-planted ID through login AND it reaches an authenticated page with the URL parameter alone — "...${window}..." — full URL fixation chain, lab-only, both sides ours.`,
+      'Full session-fixation primitive via URL: no password needed with a planted URL session ID.'
+    ),
+  });
+  return findings;
+}
+
 // ---- T4: logout does not invalidate (cookie) ----------------------------------------
 async function t4Logout(form, opts, creds) {
   const findings = [];
@@ -661,8 +764,8 @@ export async function probeSessionFixation(forms, url, opts = {}) {
     findings.push(...(await t1NoRegen(form, opts, creds)));
     findings.push(...(await t2PlantedAdoption(form, opts, creds, rid)));
     if (depth === 'quick') continue;
+    findings.push(...(await t3UrlPlanted(form, opts, creds, rid)));
     findings.push(...(await t4Logout(form, opts, creds)));
-    // T3 URL-carried session ID rides the T1 oracle (documented).
   }
   return findings;
 }
