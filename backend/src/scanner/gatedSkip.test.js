@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 153/100/53 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 155/100/55 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -360,15 +360,15 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // (The scout lane's nine OAuth-family phases are not in this
       // tree: the merged oauth-lab phase already covers those rows.)
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 153,
+        total: 155,
         ok: 100,
         failed: 0,
-        skipped: 53,
+        skipped: 55,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 100 ran ok, 53 skipped, 0 failed, 0 timed out.'
+        'Phases: 100 ran ok, 55 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
@@ -572,15 +572,15 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // trigger pages carry no DB error — 14 Nov 2026, rows
       // #208/#281).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 184,
-        ok: 183,
+        total: 188,
+        ok: 187,
         failed: 0,
         skipped: 1,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 183 ran ok, 1 skipped (no MCP endpoint discovered), 0 failed, 0 timed out.'
+        'Phases: 187 ran ok, 1 skipped (no MCP endpoint discovered), 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -778,7 +778,7 @@ const searchService = {
         },
         { timeoutMs: 5000 }
       );
-      assert.equal(result.phases.length, 31);
+      assert.equal(result.phases.length, 33);
       for (const name of ['dom-render', 'openapi-targets', 'js-api-routes']) {
         assert.equal(
           result.phases.some((p) => p.name === name),
@@ -786,7 +786,7 @@ const searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 153);
+      assert.equal(DEFAULT_PHASES.length, 155);
     } finally {
       teardown();
     }
