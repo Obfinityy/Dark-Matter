@@ -2716,3 +2716,42 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .hunt-agent-chat-who { font-weight: 700; font-size: 11px; display: block; color: #666; margin-bottom: 2px; }
 .hunt-agent-chat-row { display: flex; gap: 8px; }
 .hunt-agent-chat-input { flex: 1; padding: 8px 10px; border: 1px solid var(--border, #ddd); border-radius: 8px; font-size: 13px; }
+
+/* ---------- Self (Hunter Self) mode ---------- */
+.self-run-bar { border: 1px solid var(--dm-border); border-radius: 14px; padding: 18px; background: #fff; margin-bottom: 20px; }
+.self-auth-check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--dm-secondary); margin: 4px 0 12px; cursor: pointer; }
+.self-auth-check input { accent-color: var(--dm-brand); }
+.self-run-actions { margin-top: 4px; }
+.self-run-status { margin-top: 12px; font-size: 13px; color: var(--dm-secondary); }
+.self-run-id { font-weight: 600; color: var(--dm-text); }
+.self-consent-card { border: 1px solid rgba(146, 97, 12, 0.5); background: #fffaf0; border-radius: 14px; padding: 18px; margin-bottom: 20px; }
+.self-consent-title { font-size: 17px; font-weight: 650; margin-bottom: 6px; }
+.self-series-summary { font-size: 13px; color: var(--dm-secondary); margin-bottom: 16px; }
+.self-category { margin-bottom: 28px; }
+.self-category-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.self-category-name { margin: 0 0 2px; font-size: 18px; font-weight: 650; }
+.self-category-counts { font-size: 13px; color: var(--dm-secondary); }
+.self-check-list { display: flex; flex-direction: column; gap: 10px; }
+.self-check-card { border: 1px solid var(--dm-border); border-radius: 14px; padding: 14px 16px; background: #fff; }
+.self-check-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.self-check-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.self-check-id { font-size: 12px; font-weight: 700; letter-spacing: 0.02em; color: var(--dm-secondary); }
+.self-check-name { font-size: 14px; font-weight: 600; }
+.self-check-desc { font-size: 13px; color: var(--dm-secondary); margin: 6px 0 10px; }
+.self-check-badges { display: flex; gap: 6px; flex-shrink: 0; }
+.self-badge { font-size: 12px; font-weight: 650; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--dm-border); background: var(--dm-surface); color: var(--dm-secondary); white-space: nowrap; }
+.self-badge-ai { border-color: rgba(146, 97, 12, 0.5); background: #fffaf0; color: var(--dm-yellow); }
+.self-verdict-yes { border-color: rgba(26, 127, 75, 0.5); background: #eef7f0; color: var(--dm-green); }
+.self-verdict-no { border-color: var(--dm-border); background: #fff; color: var(--dm-secondary); }
+.self-verdict-running { border-color: rgba(23, 111, 121, 0.5); background: #eef6f7; color: var(--dm-blue); }
+.self-verdict-skipped { background: var(--dm-surface); }
+.self-verdict-blocked, .self-verdict-failed { border-color: rgba(196, 61, 43, 0.45); background: #fdf1ef; color: var(--dm-red); }
+.self-check-run-row { margin-top: 10px; }
+.self-check-run-row .btn { flex-shrink: 0; }
+.self-check-result { margin-top: 12px; border-top: 1px solid var(--dm-border); padding-top: 10px; font-size: 13px; }
+.self-result-counts { font-weight: 600; margin-bottom: 6px; }
+.self-result-list { margin: 0 0 6px; padding-left: 18px; line-height: 1.6; }
+.self-result-summary { color: var(--dm-secondary); line-height: 1.6; }
+.self-result-evidence { margin-top: 6px; }
+.self-evidence-line { color: var(--dm-secondary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.6; word-break: break-word; }
+.self-result-error { color: var(--dm-red); margin-top: 6px; }
