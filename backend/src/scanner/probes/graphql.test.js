@@ -141,6 +141,7 @@ function jsonRes(obj, status = 200) {
 }
 
 function makeGqlStub(cfg) {
+  let aliasCalls = 0;
   return async (url, opts) => {
     const method = (opts && opts.method) || 'GET';
     const u = String(url);
@@ -216,6 +217,31 @@ function makeGqlStub(cfg) {
       return cfg.mutationEcho
         ? jsonRes({ data: { updateUser: { __typename: 'User' } } })
         : jsonRes({ errors: [{ message: 'Unknown field "isAdmin"' }] });
+    }
+    // #350 alias-bypass behaviour (only when cfg.aliasBypass is set):
+    // the plain form of a sensitive field is refused, while the same
+    // field under an alias returns data.
+    if (cfg.aliasBypass) {
+      const fieldNames = (cfg.fields || [{ name: 'userEmail' }]).map((f) => f.name);
+      const aliasMatch = /^\{\s*([A-Za-z_]\w*)\s*:\s*([A-Za-z_]\w*)\s*\}$/.exec(q.trim());
+      if (aliasMatch && fieldNames.includes(aliasMatch[2])) {
+        aliasCalls++;
+        if (cfg.aliasRefuse) {
+          return jsonRes({ data: { [aliasMatch[1]]: null }, errors: [{ message: 'Unauthorized' }] });
+        }
+        if (cfg.aliasBypassRepeat === 'refuse' && aliasCalls > 1) {
+          return jsonRes({ data: { [aliasMatch[1]]: null }, errors: [{ message: 'Unauthorized' }] });
+        }
+        return jsonRes({ data: { [aliasMatch[1]]: cfg.aliasValue || 'admin@example.com' } });
+      }
+      const bareMatch = /^\{\s*([A-Za-z_]\w*(?:\s+[A-Za-z_]\w*)*)\s*\}$/.exec(q.trim());
+      if (bareMatch) {
+        const asked = bareMatch[1].split(/\s+/);
+        const hit = asked.find((n) => fieldNames.includes(n));
+        if (hit) {
+          return jsonRes({ data: { [hit]: null }, errors: [{ message: 'Unauthorized' }] });
+        }
+      }
     }
     // Sensitive-field query fallback: {userEmail} etc.
     return jsonRes({ data: { userEmail: 'admin@example.com' } });
@@ -684,4 +710,186 @@ describe('graphql mutation BOLA (#385)', () => {
       global.fetch = origFetch;
     }
   });
+
+});
+
+describe('graphql alias-based auth bypass (#350)', () => {
+  // Lab opts for the #350 leg: the triple gate (labCreds + allowWrite +
+  // isLabTargetHost) plus standard depth. Fake lab creds — never real.
+  const LAB_OPTS = {
+    timeoutMs: 5000,
+    depth: 'standard',
+    labTargets: 'test.example',
+    labCreds: { username: 'lab-admin', password: 'dm-lab-pass' },
+    allowWrite: true,
+  };
+
+  it('#350 fires HIGH in lab mode when the alias returns data but the plain control is refused', async () => {
+    const origFetch = global.fetch;
+    global.fetch = makeGqlStub({
+      introOn: true,
+      getQueryWorks: false,
+      fields: [{ name: 'userEmail' }, { name: 'me' }],
+      aliasBypass: true,
+    });
+    try {
+      const findings = await probeGraphql('http://test.example/', LAB_OPTS);
+      const f = findings.find((x) => x.class === 'graphql_alias_auth_bypass');
+      assert.ok(f, 'graphql_alias_auth_bypass should fire');
+      assert.equal(f.severity, 'high');
+      assert.ok(f.parameter.includes('userEmail'));
+      assert.ok(f.id.startsWith('graphql-alias-auth-'));
+      assert.ok(f.evidence.signalCorrelated);
+      assert.ok(f.evidence.response.includes('repeat'));
+      // The plain field must NOT also fire as a #156 (control refused).
+      assert.ok(!findings.some((x) => x.class === 'graphql_field_auth_bypass'), 'no #156 when the plain control is refused');
+    } finally {
+      global.fetch = origFetch;
+    }
+  });
+
+  it('#350 fires CRITICAL when the aliased field is a privileged-name field with a long value', async () => {
+    const origFetch = global.fetch;
+    global.fetch = makeGqlStub({
+      introOn: true,
+      getQueryWorks: false,
+      fields: [{ name: 'password' }, { name: 'me' }],
+      aliasBypass: true,
+      aliasValue: 'a1b2c3d4e5f6g7h8',
+    });
+    try {
+      const findings = await probeGraphql('http://test.example/', LAB_OPTS);
+      const f = findings.find((x) => x.class === 'graphql_alias_auth_bypass');
+      assert.ok(f, 'graphql_alias_auth_bypass should fire');
+      assert.equal(f.severity, 'critical');
+      assert.ok(f.parameter.includes('password'));
+    } finally {
+      global.fetch = origFetch;
+    }
+  });
+
+  it('#350 stays silent when the aliased query is refused too (true negative)', async () => {
+    const origFetch = global.fetch;
+    global.fetch = makeGqlStub({
+      introOn: true,
+      getQueryWorks: false,
+      fields: [{ name: 'userEmail' }, { name: 'me' }],
+      aliasBypass: true,
+      aliasRefuse: true,
+    });
+    try {
+      const findings = await probeGraphql('http://test.example/', LAB_OPTS);
+      assert.ok(!findings.some((x) => x.class === 'graphql_alias_auth_bypass'), 'refused alias must not fire');
+    } finally {
+      global.fetch = origFetch;
+    }
+  });
+
+  it('#350 stays silent when the plain query already returns data (#156 territory, not #350)', async () => {
+    const origFetch = global.fetch;
+    global.fetch = makeGqlStub({
+      introOn: true,
+      getQueryWorks: false,
+      fields: [{ name: 'userEmail' }, { name: 'me' }],
+    });
+    try {
+      const findings = await probeGraphql('http://test.example/', LAB_OPTS);
+      assert.ok(!findings.some((x) => x.class === 'graphql_alias_auth_bypass'), 'no alias finding when the plain field leaks');
+      assert.ok(findings.some((x) => x.class === 'graphql_field_auth_bypass'), '#156 should fire instead');
+    } finally {
+      global.fetch = origFetch;
+    }
+  });
+
+  it('#350 stays silent when the aliased result does not repeat (unstable)', async () => {
+    const origFetch = global.fetch;
+    global.fetch = makeGqlStub({
+      introOn: true,
+      getQueryWorks: false,
+      fields: [{ name: 'userEmail' }, { name: 'me' }],
+      aliasBypass: true,
+      aliasBypassRepeat: 'refuse',
+    });
+    try {
+      const findings = await probeGraphql('http://test.example/', LAB_OPTS);
+      assert.ok(!findings.some((x) => x.class === 'graphql_alias_auth_bypass'), 'unstable alias must not fire');
+    } finally {
+      global.fetch = origFetch;
+    }
+  });
+
+  it('#350 gates — no labCreds / no allowWrite / non-lab host all return no alias finding', async () => {
+    const origFetch = global.fetch;
+    const stub = () =>
+      makeGqlStub({
+        introOn: true,
+        getQueryWorks: false,
+        fields: [{ name: 'userEmail' }, { name: 'me' }],
+        aliasBypass: true,
+      });
+    try {
+      global.fetch = stub();
+      const noCreds = await probeGraphql('http://test.example/', { ...LAB_OPTS, labCreds: null });
+      assert.ok(!noCreds.some((x) => x.class === 'graphql_alias_auth_bypass'), 'no labCreds must not fire');
+
+      global.fetch = stub();
+      const noWrite = await probeGraphql('http://test.example/', { ...LAB_OPTS, allowWrite: false });
+      assert.ok(!noWrite.some((x) => x.class === 'graphql_alias_auth_bypass'), 'allowWrite false must not fire');
+
+      global.fetch = stub();
+      const offLab = await probeGraphql('http://other.example/', LAB_OPTS);
+      assert.ok(!offLab.some((x) => x.class === 'graphql_alias_auth_bypass'), 'non-lab host must not fire');
+    } finally {
+      global.fetch = origFetch;
+    }
+  });
+
+  it('#350 skips on quick depth', async () => {
+    const origFetch = global.fetch;
+    global.fetch = makeGqlStub({
+      introOn: true,
+      getQueryWorks: false,
+      fields: [{ name: 'userEmail' }, { name: 'me' }],
+      aliasBypass: true,
+    });
+    try {
+      const findings = await probeGraphql('http://test.example/', { ...LAB_OPTS, depth: 'quick' });
+      assert.ok(!findings.some((x) => x.class === 'graphql_alias_auth_bypass'), 'quick depth must skip the leg');
+    } finally {
+      global.fetch = origFetch;
+    }
+  });
+
+  it('#350 stays silent when introspection is disabled', async () => {
+    const origFetch = global.fetch;
+    global.fetch = makeGqlStub({
+      introOn: false,
+      getQueryWorks: false,
+      fields: [{ name: 'userEmail' }, { name: 'me' }],
+      aliasBypass: true,
+    });
+    try {
+      const findings = await probeGraphql('http://test.example/', LAB_OPTS);
+      assert.ok(!findings.some((x) => x.class === 'graphql_alias_auth_bypass'), 'no introspection means no candidate fields');
+    } finally {
+      global.fetch = origFetch;
+    }
+  });
+
+  it('#350 stays silent when no sensitive field exists', async () => {
+    const origFetch = global.fetch;
+    global.fetch = makeGqlStub({
+      introOn: true,
+      getQueryWorks: false,
+      fields: [{ name: 'me' }],
+      aliasBypass: true,
+    });
+    try {
+      const findings = await probeGraphql('http://test.example/', LAB_OPTS);
+      assert.ok(!findings.some((x) => x.class === 'graphql_alias_auth_bypass'), 'no sensitive field means no candidate');
+    } finally {
+      global.fetch = origFetch;
+    }
+  });
+
 });

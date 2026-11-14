@@ -1,6 +1,6 @@
 // Dark Matter rule-based scanner — GraphQL endpoint testing probe.
 // Tests GraphQL endpoints for: introspection enabled, query-depth DoS,
-// unauthenticated mutations, mutation BOLA (two-session differential),
+// unauthenticated mutations, mutation BOLA (two-session differential), alias-based authorization bypass (#350),
 // error-based field leakage, and batching abuse.
 // All tests use differential oracles per the 100% truth rule.
 import { isLabTargetHost } from '../../labCreds.js';
@@ -444,6 +444,91 @@ async function t385MutationBola(endpoint, opts, timeoutMs, canary) {
   return findings;
 }
 
+// ---- #350: GraphQL alias-based authorization bypass (HIGH/CRITICAL, lab-gated) --
+// Some servers enforce field authorization on the literal field name: the
+// plain query `{userEmail}` is refused unauthenticated, but the SAME field
+// under an alias (`{dm350:userEmail}`) returns data — the alias slips past
+// the name-keyed check. CONFIRMED only on the three-way differential:
+// (1) plain query unauthenticated is refused (null data / errors); (2) the
+// aliased query unauthenticated returns non-null data under the alias key;
+// (3) the aliased query repeats stable. Mere alias acceptance never
+// confirms; a field the plain query already returns is #156's territory
+// (skipped here, never double-reported). Gates: labCreds + allowWrite +
+// isLabTargetHost + depth !== 'quick'. One finding max (first confirmed
+// field). The owner-session variant (two sessions, admin control) is a
+// follow-up: this leg needs no second credential set. T2's alias-overloading
+// DoS test is untouched — this leg aliases ONE field, not fifty.
+const ALIAS_350 = 'dm350';
+const PRIV_VALUE_RE = /^(password|passhash|ssn|secret|token|apikey|api_key)$/i;
+
+function hasNonNullData(res, key) {
+  if (!res || !res.ok || !res.json || !res.json.data) return false;
+  const v = res.json.data[key];
+  return v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0);
+}
+
+async function t350AliasAuthBypass(endpoint, opts, timeoutMs, canary) {
+  const findings = [];
+  const creds = opts.labCreds;
+  if (!creds || !creds.username || !creds.password) return findings;
+  if (opts.allowWrite !== true) return findings;
+  if (!isLabTargetHost(endpoint, opts.labTargets)) return findings;
+  if (opts.depth === 'quick') return findings;
+
+  const fRes = await gqlPost(
+    endpoint,
+    '{__schema{queryType{fields{name}}}}',
+    { timeoutMs, headers: opts.headers }
+  );
+  const fields =
+    fRes.ok && fRes.json && fRes.json.data
+      ? fRes.json.data.__schema?.queryType?.fields || []
+      : [];
+  const sensitive = fields
+    .map((f) => f.name)
+    .filter((n) => SENSITIVE_FIELD_RE.test(n))
+    .slice(0, 3);
+  if (!sensitive.length) return findings;
+
+  for (const field of sensitive) {
+    // (1) Control: plain query, NO auth headers — must be refused.
+    const control = await gqlPost(endpoint, `{${field}}`, { timeoutMs });
+    if (hasNonNullData(control, field)) continue; // leaks plainly: #156's territory
+    // (2) Probe: same field under an alias, NO auth headers.
+    const aliasQuery = `{${ALIAS_350}:${field}}`;
+    const probe = await gqlPost(endpoint, aliasQuery, { timeoutMs });
+    if (!hasNonNullData(probe, ALIAS_350)) continue;
+    // (3) Repeat: identical aliased query must return data again.
+    const repeat = await gqlPost(endpoint, aliasQuery, { timeoutMs });
+    if (!hasNonNullData(repeat, ALIAS_350)) continue;
+
+    const value = probe.json.data[ALIAS_350];
+    const valuePreview = String(
+      value && typeof value === 'object' ? JSON.stringify(value) : (value ?? '')
+    ).slice(0, 60);
+    let severity = 'high';
+    if (PRIV_VALUE_RE.test(field) && String(value ?? '').length >= 8) severity = 'critical';
+
+    findings.push({
+      class: 'graphql_alias_auth_bypass',
+      id: `graphql-alias-auth-${canary}`,
+      title: `GraphQL alias-based authorization bypass — "${field}" returns data only under an alias (${severity.toUpperCase()})`,
+      severity,
+      url: endpoint,
+      parameter: field,
+      evidence: {
+        request: `POST ${endpoint} {"query":"${aliasQuery}"} (no auth headers; control "{${field}}" refused)`,
+        response: `Plain query refused (null data / errors) but the aliased query returned data under "${ALIAS_350}" twice (repeat-stable): ${valuePreview}`,
+        impact_demo:
+          'Authorization is keyed on the literal field name — aliasing the same field bypasses the check, exposing sensitive data to unauthenticated callers.',
+        signalCorrelated: true,
+      },
+    });
+    break; // max 1 finding
+  }
+  return findings;
+}
+
 export async function probeGraphql(url, opts = {}) {
   const findings = [];
   const timeoutMs = opts.timeoutMs || 15000;
@@ -498,6 +583,8 @@ export async function probeGraphql(url, opts = {}) {
       findings.push(...(await t158MutationMassAssign(endpoint, opts, timeoutMs, canary)));
       // #385: mutation BOLA (lab-gated two-session differential)
       findings.push(...(await t385MutationBola(endpoint, opts, timeoutMs, canary)));
+      // #350: alias-based authorization bypass (lab-gated differential)
+      findings.push(...(await t350AliasAuthBypass(endpoint, opts, timeoutMs, canary)));
       const fakeField = `dmfield${rand()}`;
       const errRes = await gqlPost(endpoint, `{${fakeField}}}`, { timeoutMs, headers: opts.headers });
       if (errRes.ok && errRes.json && errRes.json.errors) {
