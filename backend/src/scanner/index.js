@@ -3389,7 +3389,42 @@ async function runScanInner(
       attempts: refererAcDiag.attempts || 0,
     })
   );
-  plan('file-upload', () => probeFileUpload(url, { ...opts, allowWrite }));
+  // FILE-UPLOAD OOB collaborator (14 Nov 2026): the file-upload probe's
+  // XML leg (row #149, stored XXE via uploaded file) needs a callback base
+  // AND a waiter — same pattern as the xxe block above, one collaborator
+  // per OOB phase so each listener lives only for its own phase. Only when
+  // the target is lab-gated (allowWrite, the same host check as the
+  // file-upload gate). Start is best-effort: a bind failure is recorded
+  // in errors and the scan continues with the XML leg skipped, exactly as
+  // the xxe OOB variant does. The collaborator is always stopped
+  // afterwards (teardown), so no listener outlives the scan.
+  let fileUploadOob = null;
+  if (phases.includes('file-upload') && allowWrite) {
+    try {
+      fileUploadOob = createOobCollaborator({
+        listenHost: opts.oobListenHost || process.env.DM_OOB_LISTEN_HOST || '0.0.0.0',
+        listenPort: opts.oobListenPort || (process.env.DM_OOB_PORT ? Number(process.env.DM_OOB_PORT) : 0),
+        callbackHost: opts.oobCallbackHost || process.env.DM_OOB_CALLBACK_HOST || '172.17.0.1',
+      });
+      await fileUploadOob.start();
+    } catch (e) {
+      errors.push(`oob-collaborator: ${e && e.message ? e.message : String(e)}`);
+      fileUploadOob = null;
+    }
+  }
+  plan(
+    'file-upload',
+    () =>
+      probeFileUpload(url, {
+        ...opts,
+        allowWrite,
+        ...(fileUploadOob
+          ? { oobCallback: fileUploadOob.baseUrl(), oobWaitFor: (token, ms) => fileUploadOob.waitFor(token, ms) }
+          : {}),
+      }),
+    undefined,
+    { teardown: fileUploadOob ? () => fileUploadOob.stop() : undefined }
+  );
   // FILE UPLOAD RACE CONDITION (10 Nov 2026, row #498 [High] File
   // upload — race condition (validation bypass), CWE-434 / CWE-367):
   // a handler that moves the file into the public directory BEFORE
