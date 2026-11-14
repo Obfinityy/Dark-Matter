@@ -13,6 +13,17 @@ export async function fetchPage(url, { timeoutMs = 15000, headers = {} } = {}) {
     });
     const respHeaders = {};
     for (const [k, v] of res.headers) respHeaders[k.toLowerCase()] = v;
+    // MULTI-COOKIE (14 Nov 2026, rows #124/#261/#369): iterating a
+    // Headers object collapses several Set-Cookie values into ONE
+    // entry — last wins, the rest are silently lost (verified: a
+    // two-cookie response collapses to the second cookie only).
+    // Keep the collapsed headers object untouched for existing
+    // consumers, and ALSO return the full list via getSetCookie()
+    // so callers that need every cookie (the crypto token harvest)
+    // can read it. Guarded: stubbed fetch impls in tests may not
+    // implement getSetCookie().
+    const setCookies =
+      res.headers && typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : [];
     let body = '';
     try {
       body = await res.text();
@@ -26,7 +37,13 @@ export async function fetchPage(url, { timeoutMs = 15000, headers = {} } = {}) {
     // pre-redirect root instead of the real page. `res.url` is absent on
     // stubbed fetch implementations in tests — fall back to the requested
     // URL then, never undefined.
-    return { url: res.url || url, status: res.status, headers: respHeaders, body: body.slice(0, 500000) };
+    return {
+      url: res.url || url,
+      status: res.status,
+      headers: respHeaders,
+      setCookies,
+      body: body.slice(0, 500000),
+    };
   } finally {
     clearTimeout(t);
   }
@@ -149,6 +166,7 @@ export async function fingerprint(url, opts = {}) {
     url: page.url,
     status: page.status,
     headers: page.headers,
+    setCookies: page.setCookies || [],
     server: page.headers['server'] || null,
     poweredBy: page.headers['x-powered-by'] || null,
     tech: detectTech(page.headers, page.body),

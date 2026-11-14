@@ -53,6 +53,7 @@ proves the signal comes from the malicious input.
 | [file-upload.md](file-upload.md) | Unrestricted file upload (lab-gated) | probes/fileUpload.js |
 | [cache-poisoning.md](cache-poisoning.md) | Web cache poisoning | probes/cachePoison.js |
 | [request-smuggling.md](request-smuggling.md) | HTTP request smuggling (raw socket) | probes/smuggling.js |
+| [crypto.md](crypto.md) | Weak cryptography (TLS / predictable tokens / exposed hashes) | probes/crypto.js |
 | [nuclei.md](nuclei.md) | Nuclei template battery (CVEs etc.) | nuclei.js |
 
 ## Honest limits

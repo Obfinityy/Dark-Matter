@@ -6,10 +6,11 @@
 //   T2. Session-token structure — HIGH when predictable: >=2 independent
 //       structural signals (monotonic, timestamp-decode, low entropy,
 //       username-derived). Needs harvested tokens (opts.cryptoTokens).
-//   T3. Reset-token analysis — HIGH/CRITICAL: static or structured tokens.
-//       Needs lab mailbox surface; skipped gracefully when absent.
-//   T4. Plaintext password in reset flow — CRITICAL: single observation,
-//       password redacted at capture (p***d).
+//   T3. Reset-token analysis — NOT IMPLEMENTED: no T3 leg exists in
+//       code (probeCrypto has no T3 function). Needs a lab mailbox
+//       surface first — row #368 stays BROKEN until one lands.
+//   T4. Plaintext password in reset flow — NOT IMPLEMENTED: no T4
+//       function exists in code; same mailbox surface as T3.
 //   T5. Exposed password hashes — HIGH: MD5/SHA1 tied to an account;
 //       bcrypt/argon2 -> INFO (sound). Scans fetched page/API bodies.
 //   T6. Weak secret derivation — MEDIUM: base64(username:ts)/md5(username)
@@ -310,9 +311,10 @@ export async function probeCrypto(url, opts = {}) {
   const findings = [];
   findings.push(...(await t1Tls(url, opts)));
   findings.push(...(await t2Tokens(opts)));
-  // T3 (reset-token analysis) + T4 (plaintext password in reset): need the
-  // lab mailbox read surface. Skipped gracefully when absent — documented,
-  // never silently missing: the phase ran, the surface was absent.
+  // T3 (reset-token analysis) + T4 (plaintext password in reset):
+  // NOT IMPLEMENTED — no T3/T4 function exists in code; both need
+  // the lab mailbox read surface first. The phase ran; the legs do
+  // not exist yet (documented in the header, never silently missing).
   findings.push(...(await t5Hashes(url, opts)));
   return findings;
 }

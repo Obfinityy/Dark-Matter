@@ -166,6 +166,10 @@ export async function crawl(url, opts = {}) {
     forms: extractForms(page.body, page.url),
     params: extractParams(page.url),
     headers: page.headers,
+    // Full Set-Cookie list (see fingerprint.js: the collapsed headers
+    // object keeps only one cookie). Test-seam fetchers may not set
+    // it — default to [].
+    setCookies: Array.isArray(page.setCookies) ? page.setCookies : [],
     body: page.body,
     scanScope: 'page',
     pagesScanned: 1,
@@ -225,6 +229,7 @@ export async function crawlSite(url, opts = {}) {
       links,
       forms,
       params: extractParams(pageUrl),
+      setCookies: Array.isArray(page.setCookies) ? page.setCookies : [],
     };
     pages.push(entry);
     if (!root) root = { ...entry, headers: page.headers };
@@ -250,6 +255,7 @@ export async function crawlSite(url, opts = {}) {
     forms: allForms,
     params: extractParams(root.url),
     headers: root.headers,
+    setCookies: Array.isArray(root.setCookies) ? root.setCookies : [],
     body: root.body,
     scanScope: 'site',
     pagesScanned: pages.length,
