@@ -15,7 +15,7 @@
 // percent-encoded) is stripped from the response.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { probeSsrf, stripReflectedUrl, fetchedMetadataMarker } from './ssrf.js';
+import { probeSsrf, stripReflectedUrl, fetchedMetadataMarker, ssrfBlindCanaryUrl, assessBlindSsrf } from './ssrf.js';
 
 const realFetch = globalThis.fetch;
 test.after(() => {
@@ -120,4 +120,108 @@ test('SSRF-9: fetchedMetadataMarker ignores a match inside the reflection', () =
   assert.equal(fetchedMetadataMarker(body, SENT), null);
   const listing = 'ami-id\nami-launch-index\n';
   assert.ok(fetchedMetadataMarker(listing, SENT));
+});
+
+// ---- Blind SSRF leg (row #237 [High] + #311, same concept filed twice) ----
+//
+// The blind leg sends a collaborator canary URL as the param value and
+// confirms ONLY on a collaborator hit for the probe token with no hit
+// for a never-advertised control token (the ssrfReferer.js leg-1
+// model). The tests drive the collaborator seam with a mock waiter:
+// waitFor calls arrive probe-first, control-second, so the mock
+// answers from an ordered hit list.
+const LAB_PAGE = 'http://172.17.0.1:3100/fetch?url=x';
+const LAB_TARGETS = '172.17.0.1';
+const OOB_BASE = 'http://172.17.0.1:18099';
+
+// A waiter mock: answers each waitFor call in order from `hits`
+// (true = a hit arrived for that token, false = none).
+function orderWaiter(hits) {
+  let i = 0;
+  return async (token, ms) => {
+    const hit = hits[i++] === true;
+    return hit ? { token, path: `/${token}`, method: 'GET', at: new Date().toISOString() } : null;
+  };
+}
+
+// A fetch stub that records every requested URL and returns an empty
+// body — the server returns nothing, so only the collaborator hit can
+// confirm. The metadata leg therefore stays quiet in these tests.
+function recordingFetch(seen) {
+  return async (url) => {
+    seen.push(String(url));
+    return { status: 200, text: async () => '' };
+  };
+}
+
+function blindOpts(seen, hits) {
+  return {
+    labTargets: LAB_TARGETS,
+    oobCallback: OOB_BASE,
+    oobWaitFor: orderWaiter(hits),
+  };
+}
+
+test('SSRF-10: blind leg — probe hit, control silent — one high finding', async () => {
+  const seen = [];
+  globalThis.fetch = recordingFetch(seen);
+  const findings = await probeSsrf(LAB_PAGE, ['url'], blindOpts(seen, [true, false]));
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].class, 'ssrf_blind');
+  assert.equal(findings[0].severity, 'high');
+  assert.equal(findings[0].evidence.oobHit, true);
+  // The probe canary went out as the param value.
+  assert.ok(seen.some((u) => decodeURIComponent(u).includes(OOB_BASE)), 'canary URL was sent as the param value');
+});
+
+test('SSRF-11: blind leg — no probe hit — no finding', async () => {
+  const seen = [];
+  globalThis.fetch = recordingFetch(seen);
+  const findings = await probeSsrf(LAB_PAGE, ['url'], blindOpts(seen, [false, false]));
+  assert.equal(findings.length, 0, 'a fetch that never arrives is not a finding');
+});
+
+test('SSRF-12: blind leg — control token also hit — no finding', async () => {
+  const seen = [];
+  globalThis.fetch = recordingFetch(seen);
+  const findings = await probeSsrf(LAB_PAGE, ['url'], blindOpts(seen, [true, true]));
+  assert.equal(findings.length, 0, 'a hit for the never-advertised control means the listener is noisy, not a fetch');
+});
+
+test('SSRF-13: blind leg — non-lab target — no canary sent, no finding', async () => {
+  const seen = [];
+  globalThis.fetch = recordingFetch(seen);
+  const findings = await probeSsrf(PAGE, ['url'], blindOpts(seen, [true, false]));
+  assert.equal(findings.length, 0);
+  assert.equal(seen.some((u) => decodeURIComponent(u).includes(OOB_BASE)), false, 'a non-lab target never receives a callback URL');
+});
+
+test('SSRF-14: blind leg — no collaborator in opts — leg skipped, metadata leg unaffected', async () => {
+  const seen = [];
+  globalThis.fetch = recordingFetch(seen);
+  const findings = await probeSsrf(LAB_PAGE, ['url'], { labTargets: LAB_TARGETS });
+  assert.equal(findings.length, 0, 'without the collaborator seam the leg is skipped, never guessed at');
+  assert.equal(seen.some((u) => decodeURIComponent(u).includes(OOB_BASE)), false);
+});
+
+test('SSRF-15: blind leg — cap of 2 params (sqli-oob global-cap discipline)', async () => {
+  const seen = [];
+  globalThis.fetch = recordingFetch(seen);
+  // Three URL-shaped params; both attempted params confirm.
+  const findings = await probeSsrf(LAB_PAGE, ['url', 'src', 'next'], blindOpts(seen, [true, false, true, false]));
+  assert.equal(findings.length, 2, 'only the first 2 params are attempted');
+  const canaryUrls = seen.filter((u) => decodeURIComponent(u).includes(OOB_BASE));
+  assert.equal(canaryUrls.length, 2, '2 probe canaries only — the control token is never sent, no third param');
+});
+
+test('SSRF-16: assessBlindSsrf — pure verdicts', () => {
+  assert.equal(assessBlindSsrf({ probeHit: true, controlHit: false }).verdict, 'confirmed');
+  assert.equal(assessBlindSsrf({ probeHit: false, controlHit: false }).verdict, 'rejected');
+  assert.equal(assessBlindSsrf({ probeHit: true, controlHit: true }).verdict, 'rejected');
+  assert.equal(assessBlindSsrf({ probeHit: false, controlHit: true }).verdict, 'rejected');
+});
+
+test('SSRF-17: ssrfBlindCanaryUrl — pure builder', () => {
+  assert.equal(ssrfBlindCanaryUrl('http://172.17.0.1:18099/', 'dmssrf-abc'), 'http://172.17.0.1:18099/dmssrf-abc');
+  assert.equal(ssrfBlindCanaryUrl('http://172.17.0.1:18099', 'dmssrf-abc'), 'http://172.17.0.1:18099/dmssrf-abc');
 });
