@@ -1,6 +1,7 @@
-// Tests for the request-smuggling CL.CL probe (row #503 [High]
-// HTTP request smuggling — duplicate Content-Length, CWE-444;
-// phase 'smuggling-cl-cl').
+// Tests for the request-smuggling CL.CL probe (row #166 [Critical]
+// HTTP Request Smuggling — CL.CL variant, CWE-444; phase
+// 'smuggling-cl-cl'). CL.CL has no dedicated checklist row (#351–#354
+// cover CL.TE / TE.CL / TE.TE / chunked-extension only).
 //
 // Raw-socket mocks simulate the three behaviours a two-tier setup
 // can show: 'disagree-last' (the back-end honours the LAST

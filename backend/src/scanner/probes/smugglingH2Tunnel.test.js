@@ -1,6 +1,6 @@
-// Tests for the HTTP/2 tunnelling probe (row #505 [High] HTTP/2
-// request tunnelling, H2→H1 downgrade CRLF smuggling, CWE-444;
-// phase 'smuggling-h2-tunnel').
+// Tests for the HTTP/2 tunnelling probe (row #168 [Critical] HTTP/2
+// Desync / Downgrading Attacks, H2→H1 downgrade CRLF smuggling,
+// CWE-444; phase 'smuggling-h2-tunnel').
 //
 // The mock is a raw-socket HTTP/2 server (preface + SETTINGS +
 // HEADERS with HPACK decode, using the probe's own codec): the

@@ -1,7 +1,8 @@
 // Dark Matter rule-based scanner — HTTP request smuggling probe,
 // duplicate Content-Length (CL.CL).
-// (Coverage row #503 [High] request smuggling — CL.CL, CWE-444;
-// phase 'smuggling-cl-cl'.)
+// (Coverage row #166 [Critical] HTTP Request Smuggling — CL.CL variant,
+// CWE-444; phase 'smuggling-cl-cl'. CL.CL has no dedicated checklist
+// row: #351–#354 cover CL.TE / TE.CL / TE.TE / chunked-extension only.)
 //
 // Two Content-Length headers with different values on one request:
 // a front-end that honours the first and a back-end that honours the
