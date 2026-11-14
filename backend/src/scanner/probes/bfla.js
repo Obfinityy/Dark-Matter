@@ -70,7 +70,7 @@ const MAX_LOGIN_POSTS = 4;
 const MAX_TOTAL_POSTS = 10;
 // Fixed canary password for the throwaway low-privilege account —
 // never a real password, never derived from a secret.
-const LOW_PRIV_PASSWORD = 'dm-bfla-low-pass-01';
+export const LOW_PRIV_PASSWORD = 'dm-bfla-low-pass-01';
 const TOKEN_FIELDS = ['token', 'accessToken', 'access_token', 'jwt'];
 const REFUSAL_TEXT_RE =
   /unauthori[sz]ed|forbidden|access denied|not allowed|admin[ -](required|only)|insufficient (privilege|permission|rights)|requires? (admin|elevated|administrator)|role[ -]?required|must be (an? )?admin/i;
@@ -306,7 +306,7 @@ async function req(fetchFn, url, { method = 'GET', body = null, headers = {}, ti
 // across candidates until one returns a token. Returns
 // { ok, token, spent } — spent counts the POSTs made, so the
 // caller shares one budget across both logins (admin + low-priv).
-async function apiLogin(fetchFn, loginUrls, creds, budget) {
+export async function apiLogin(fetchFn, loginUrls, creds, budget) {
   let spent = 0;
   for (const loginUrl of loginUrls) {
     for (const body of [
@@ -331,7 +331,7 @@ async function apiLogin(fetchFn, loginUrls, creds, budget) {
 // candidate, Juice shape {email, password, passwordRepeat}. A
 // non-2xx answer means this candidate is not a registration
 // endpoint (or the account already exists) — the caller moves on.
-async function registerLowPriv(fetchFn, registerUrls, email) {
+export async function registerLowPriv(fetchFn, registerUrls, email) {
   let spent = 0;
   for (const registerUrl of registerUrls) {
     if (spent >= MAX_REGISTER_CANDIDATES) return { ok: false, spent };

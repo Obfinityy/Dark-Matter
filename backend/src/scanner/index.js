@@ -3950,7 +3950,19 @@ async function runScanInner(
       ragLeak: Boolean(llmInjectionDiag.ragLeak),
     })
   );
-  plan('graphql', () => probeGraphql(url, { ...opts, labTargets }));
+  // GRAPHQL (row #385 [High] mutation BOLA, 14 Nov 2026): the probe
+  // itself gates the active leg on lab host + allowWrite + labCreds,
+  // so the plan passes the same wiring as BFLA (allowWrite +
+  // apiRoutes for the login/register session mining) — without it
+  // the leg could never run in production.
+  plan('graphql', () =>
+    probeGraphql(url, {
+      ...opts,
+      allowWrite,
+      apiRoutes: [...scanTargets, ...jsWriteTargets],
+      labTargets,
+    })
+  );
   // GRAPHQL RELAY NODE IDOR (10 Nov 2026, row #507 [High] GraphQL
   // Relay Node interface IDOR, CWE-639): node(id:) resolves any
   // global id, so a neighbouring user's object is readable through
