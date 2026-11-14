@@ -27,6 +27,15 @@ Three steps per text-ish form input (max 5 forms, 3 inputs each):
 A single canary string per input — no payload list. The canary IS the proof;
 executability follows from verbatim reflection into HTML.
 
+## URI-scheme leg (14 Nov 2026, row #272)
+`probeStoredXssUriScheme` (same file, wired into the `stored-xss` plan
+alongside `probeStoredXss`) submits `javascript:dmxss<rand>` and
+`data:text/html,dmxss<rand>` into the first text-ish input per form and
+confirms **only** when the value re-renders verbatim inside a
+navigable-URL attribute on the action page or site root — class
+`xss_uri_scheme_stored`, severity **medium** (click-required). A bare
+text re-render never confirms.
+
 ## Limits
 - Only re-reads the form's action page and the site root; stored values
   rendered on other pages are missed (the Nuclei battery covers per-path

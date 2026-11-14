@@ -18,7 +18,7 @@ import { probeSqliError } from './probes/sqliError.js';
 import { probeBlindSqli } from './probes/sqliBlind.js';
 import { probeSqliOob } from './probes/sqliOob.js';
 import { probeSqliSecondOrder } from './probes/sqliSecondOrder.js';
-import { probeXssReflected } from './probes/xss.js';
+import { probeXssReflected, probeXssUriScheme } from './probes/xss.js';
 import { probeCmdiTime } from './probes/cmdi.js';
 import { probeTraversal } from './probes/traversal.js';
 import { probeSsti } from './probes/ssti.js';
@@ -36,7 +36,7 @@ import { probeRefererAccessControl } from './probes/refererAccessControl.js';
 import { probeIdorSurface } from './probes/idor.js';
 import { probeCors } from './probes/cors.js';
 import { probeCookieFlags } from './probes/cookies.js';
-import { probeStoredXss } from './probes/storedXss.js';
+import { probeStoredXss, probeStoredXssUriScheme } from './probes/storedXss.js';
 import { probeEgressLaundering } from './probes/egressLaundering.js';
 import { probeDocumentExternalImage } from './probes/documentExternalImage.js';
 import { probeSpreadsheetExternalImage } from './probes/spreadsheetExternalImage.js';
@@ -1299,7 +1299,7 @@ async function runScanInner(
       probeBlindSqli(u, points, { ...o, dbHint: fp?.dbHint }), points);
     batteryStep('hpp', (o) => probeHpp(u, points, { ...o, labTargets }), points);
     batteryStep('csv-log-injection', (o) => probeCsvLog(u, points, o), points);
-    batteryStep('xss', (o) => probeXssReflected(u, points, o), points);
+    batteryStep('xss', async (o) => [...(await probeXssReflected(u, points, o)), ...(await probeXssUriScheme(u, points, o))], points);
     batteryStep('nosqli', (o) => probeNoSqli(u, points, o), points);
     batteryStep('nosql-deep', (o) => probeNoSqlDeep(u, points, { ...o, labTargets }), points);
     batteryStep('ldapi', (o) => probeLdapInjection(u, points, { ...o, stack: fp?.tech }), points);
@@ -3220,7 +3220,7 @@ async function runScanInner(
   plan('idor', () => probeIdorSurface(url));
   plan('cors', () => probeCors(url, opts));
   plan('cookies', () => probeCookieFlags(url, opts));
-  plan('stored-xss', () => probeStoredXss(forms, url, opts));
+  plan('stored-xss', async () => [...(await probeStoredXss(forms, url, opts)), ...(await probeStoredXssUriScheme(forms, url, opts))]);
   // SECOND-ORDER SQL INJECTION (14 Nov 2026, rows #208 + #281 [High],
   // CWE-89 — the same concept filed twice, one leg covers both): the
   // payload is STORED by one request (a profile/registration field)

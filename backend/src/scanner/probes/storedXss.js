@@ -15,7 +15,18 @@
 // routes any class containing 'xss' to xss_reflected) → 'confirmed'.
 // SAFETY: unique canary per attempt; authorized targets only — the whole
 // scan runs behind authorizeTarget, so this probe never fires elsewhere.
+//
+// URI-SCHEME leg (14 Nov 2026, row #272 [Medium] XSS — JavaScript URI /
+// data URI): probeStoredXssUriScheme below. Same two-step oracle, but the
+// submitted value is a javascript: / data:text/html, URI and the
+// confirmation requires the value verbatim inside a navigable-URL
+// attribute on re-read (see uriSchemeInAttribute in xss.js). Budget:
+// only the FIRST text-ish input per form carries the URI leg (the plain
+// canary leg already covers every input); the URI leg is the extra
+// vector, capped so one scan stays bounded. Severity is medium
+// (click-required), matching the row's [Medium] filing.
 import { randomBytes } from 'node:crypto';
+import { URI_SCHEMES, uriSchemeInAttribute } from './xss.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -144,6 +155,70 @@ export async function probeStoredXss(forms, url, opts = {}) {
           canaryReflected: true,
         },
       });
+    }
+  }
+  return findings;
+}
+
+export async function probeStoredXssUriScheme(forms, url, opts = {}) {
+  const findings = [];
+  const root = siteRoot(url);
+  for (const form of (forms || []).slice(0, 5)) {
+    // First text-ish input only — see the budget note in the header.
+    const targets = (form.inputs || []).filter((i) => i.name && !isSubmittish(i.name)).slice(0, 1);
+    for (const input of targets) {
+      const inputName = input.name;
+      for (const scheme of URI_SCHEMES) {
+        const rand = randomBytes(8).toString('hex');
+        const payload = `${scheme}dmxss${rand}`;
+        let baseline = '';
+        try {
+          baseline = await get(form.action, opts);
+        } catch {
+          continue;
+        }
+        if (baseline.includes(payload)) continue; // sanity: fresh canary must be absent
+        const params = fillParams(form.inputs, inputName, payload);
+        try {
+          if (String(form.method || 'get').toLowerCase() === 'post') {
+            await post(form.action, params, opts);
+          } else {
+            await get(`${form.action}${form.action.includes('?') ? '&' : '?'}${params.toString()}`, opts);
+          }
+        } catch {
+          continue;
+        }
+        // Verify: re-read the action page and the site root; confirm
+        // ONLY on an attribute-context reflection of the URI value.
+        for (const checkUrl of [form.action, root]) {
+          let body = '';
+          try {
+            body = await get(checkUrl, opts);
+          } catch {
+            continue;
+          }
+          if (!uriSchemeInAttribute(body, payload)) continue;
+          const idx = body.toLowerCase().indexOf(payload.toLowerCase());
+          const storedWindow = idx >= 0 ? body.slice(Math.max(0, idx - 60), idx + 120) : body.slice(0, 200);
+          findings.push({
+            class: 'xss_uri_scheme_stored',
+            id: `xss-uri-scheme-stored-${form.action}-${inputName}-${scheme.replace(/[^a-z]/g, '')}`.slice(0, 120),
+            title: `Stored XSS via ${scheme} URI in form input '${inputName}'`,
+            severity: 'medium',
+            url: form.action,
+            param: inputName,
+            parameter: inputName,
+            evidence: {
+              request: `${String(form.method || 'get').toUpperCase()} ${form.action} (${inputName}=${payload})`,
+              response: `${scheme} URI re-rendered verbatim in an attribute context on ${checkUrl} after submit — "...${storedWindow}..." — absent in pre-submit baseline`,
+              impact_demo: 'attacker-controlled javascript:/data: URI persisted server-side and rendered into an href/src attribute — executes for every later visitor who clicks the link',
+              canaryReflected: true,
+              scheme,
+            },
+          });
+          break;
+        }
+      }
     }
   }
   return findings;
