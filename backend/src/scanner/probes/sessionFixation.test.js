@@ -30,6 +30,7 @@ import { resolveLabCreds } from '../../labCreds.js';
 const T4_TITLE = 'Session lifecycle — logout does not invalidate server-side (MEDIUM)';
 const T4B_TITLE = 'Session lifecycle — bearer token remains valid after logout (MEDIUM)';
 const T1_TITLE = 'Session fixation — session ID not regenerated on login (MEDIUM)';
+const T3_TITLE = 'Session fixation — URL-carried session ID reaches authenticated state (MEDIUM)';
 
 const LAB_USER = 'admin';
 const LAB_PASS = 'pass' + 'word';
@@ -66,6 +67,11 @@ const PHP_SESSION_ID_RE = /^[A-Za-z0-9,-]+$/;
 // phpSessionValidation (false — when true the server mimics PHP: a
 // presented ID outside [A-Za-z0-9,-] is rejected and a fresh one issued,
 // so an underscore canary never reaches authenticated state).
+// adoptUrlSessionId (false — T3, row #473): when true the server
+// honours a PHPSESSID URL parameter as the presented session ID
+// (use_trans_sid-style) — the parameter wins over the cookie when
+// present, and a GET /login.php carrying one is adopted into a
+// Set-Cookie (trans_sid behaviour).
 function startCookieFixture(cfg = {}) {
   const {
     rotateOnLogin = true,
@@ -75,16 +81,19 @@ function startCookieFixture(cfg = {}) {
     issueCookie = true,
     adoptPlantedOnLogin = false,
     phpSessionValidation = false,
+    adoptUrlSessionId = false,
   } = cfg;
   const validSessions = new Set();
   let tokenSeq = 0;
   let currentToken = '';
   let sessionSeq = 0;
+  let urlAuthedHits = 0;
   const calls = [];
   const server = http.createServer(async (req, res) => {
     const u = new URL(req.url, 'http://127.0.0.1');
     const cookies = parseCookies(req);
-    const sess = cookies.PHPSESSID || '';
+    const urlSess = u.searchParams.get('PHPSESSID') || '';
+    const sess = (adoptUrlSessionId && urlSess) ? urlSess : (cookies.PHPSESSID || '');
     calls.push(`${req.method} ${u.pathname}`);
     if (req.method === 'GET' && u.pathname === '/login.php') {
       // An authed session is redirected away from the login page — the
@@ -106,7 +115,10 @@ function startCookieFixture(cfg = {}) {
       // phpSessionValidation: PHP REJECTS a presented ID outside
       // [A-Za-z0-9,-] and issues a fresh one instead — an underscore
       // canary is dropped here, before login ever sees it.
-      if (issueCookie && !sess) headers['Set-Cookie'] = 'PHPSESSID=sess-anon-001; Path=/';
+      // T3: the server adopts a URL-carried ID into a cookie
+      // (trans_sid behaviour) — the ID then propagates by cookie too.
+      if (issueCookie && adoptUrlSessionId && urlSess && PHP_SESSION_ID_RE.test(urlSess)) headers['Set-Cookie'] = `PHPSESSID=${urlSess}; Path=/`;
+      else if (issueCookie && !sess) headers['Set-Cookie'] = 'PHPSESSID=sess-anon-001; Path=/';
       else if (phpSessionValidation && sess && !PHP_SESSION_ID_RE.test(sess)) {
         headers['Set-Cookie'] = `PHPSESSID=sess-fresh-${++sessionSeq}; Path=/`;
       }
@@ -133,6 +145,13 @@ function startCookieFixture(cfg = {}) {
       // adopted, even when adoption is on.
       if (adoptPlantedOnLogin && sess && (!phpSessionValidation || PHP_SESSION_ID_RE.test(sess))) validSessions.add(sess);
       if (rotateOnLogin) {
+        // Rotation destroys the pre-login session (real
+        // session_regenerate_id(true) semantics): a planted ID added
+        // just above does NOT survive login, so neither T2 nor T3
+        // can fire. (Without this delete, the old code left the
+        // planted ID valid after rotation — a different flaw — and
+        // T3 fired under rotation, which its negative forbids.)
+        validSessions.delete(sess);
         sessionSeq += 1;
         const id = `sess-login-${sessionSeq}`;
         validSessions.add(id);
@@ -158,6 +177,10 @@ function startCookieFixture(cfg = {}) {
     }
     if (req.method === 'GET' && u.pathname === '/') {
       if (sess && validSessions.has(sess)) {
+        // T3 counter: an authenticated page reached via a URL-carried
+        // session ID (victim check + attacker repeats count; the
+        // control carries a never-planted ID and never counts).
+        if (adoptUrlSessionId && urlSess) urlAuthedHits += 1;
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end('<html><body><h1>Welcome back</h1><a href="/logout">Log out</a><p>Dashboard</p></body></html>');
         return;
@@ -179,6 +202,7 @@ function startCookieFixture(cfg = {}) {
       server,
       base: `http://127.0.0.1:${server.address().port}`,
       calls,
+      get urlAuthedHits() { return urlAuthedHits; },
       close: () => new Promise((r) => server.close(r)),
     }));
   });
@@ -721,6 +745,86 @@ describe('sessionFixation re-proof repair (8 Nov 2026)', () => {
       assert.equal(findings.length, 1);
       assert.equal(findings[0].title, T4B_TITLE);
       assert.match(findings[0].evidence.response, /no server logout endpoint exists/);
+    } finally {
+      await fx.close();
+    }
+  });
+});
+
+describe('sessionFixation T3 (URL parameter) — row #473', () => {
+  it('(T3-a) URL-planted ID adopted through login + attacker jar reaches authed page with URL param only -> 1 MEDIUM T3 finding', async () => {
+    const fx = await startCookieFixture({ rotateOnLogin: false, invalidateOnLogout: true, adoptPlantedOnLogin: true, adoptUrlSessionId: true });
+    try {
+      const port = new URL(fx.base).port;
+      const opts = { ...cookieOpts, labTargets: `127.0.0.1:${port}` };
+      const findings = await probeSessionFixation([cookieForm(fx.base)], `${fx.base}/`, opts);
+      const t3 = findings.find((f) => f.title === T3_TITLE);
+      assert.ok(t3, `T3 MEDIUM must fire; got: ${findings.map((f) => f.title).join(' | ')}`);
+      assert.equal(t3.class, 'session_fixation');
+      assert.equal(t3.severity, 'medium');
+      assert.equal(t3.parameter, 'PHPSESSID');
+      assert.equal(t3.evidence.signalCorrelated, true);
+      // T1 (no rotation) + T2 (cookie-planted adoption) fire alongside; T4 stays silent (logout invalidates).
+      assert.equal(findings.length, 3, `expected T1+T2+T3; got: ${findings.map((f) => f.title).join(' | ')}`);
+      // Repeat-stable: victim check + 2 attacker attempts all reached the authed page via the URL param.
+      assert.equal(fx.urlAuthedHits, 3, `expected 3 URL-param authed hits; calls: ${fx.calls.join(', ')}`);
+      const r = assessConfirmation(t3);
+      assert.equal(r.verdict, 'confirmed');
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(T3-b) server ignores URL session IDs -> T3 stays silent (T1+T2 still fire)', async () => {
+    const fx = await startCookieFixture({ rotateOnLogin: false, invalidateOnLogout: true, adoptPlantedOnLogin: true, adoptUrlSessionId: false });
+    try {
+      const port = new URL(fx.base).port;
+      const opts = { ...cookieOpts, labTargets: `127.0.0.1:${port}` };
+      const findings = await probeSessionFixation([cookieForm(fx.base)], `${fx.base}/`, opts);
+      assert.equal(findings.length, 2, `expected T1+T2 only; got: ${findings.map((f) => f.title).join(' | ')}`);
+      assert.ok(!findings.some((f) => f.title === T3_TITLE), 'T3 must not fire when the server ignores URL session IDs');
+      assert.equal(fx.urlAuthedHits, 0);
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(T3-c) session rotated on login -> T3 stays silent (canary discarded; T4 fires instead)', async () => {
+    const fx = await startCookieFixture({ rotateOnLogin: true, invalidateOnLogout: false, adoptPlantedOnLogin: true, adoptUrlSessionId: true });
+    try {
+      const port = new URL(fx.base).port;
+      const opts = { ...cookieOpts, labTargets: `127.0.0.1:${port}` };
+      const findings = await probeSessionFixation([cookieForm(fx.base)], `${fx.base}/`, opts);
+      assert.ok(!findings.some((f) => f.title === T3_TITLE), 'T3 must not fire when login rotates the session');
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].title, T4_TITLE);
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(T3-d) no labTargets -> T3 stays silent (lab gate; T1 still fires)', async () => {
+    const fx = await startCookieFixture({ rotateOnLogin: false, invalidateOnLogout: true, adoptPlantedOnLogin: true, adoptUrlSessionId: true });
+    try {
+      const findings = await probeSessionFixation([cookieForm(fx.base)], `${fx.base}/`, cookieOpts);
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].title, T1_TITLE);
+      assert.ok(!findings.some((f) => f.title === T3_TITLE), 'T3 must not fire without labTargets');
+    } finally {
+      await fx.close();
+    }
+  });
+
+  it('(T3-e) URL IDs accepted but never adopted through login -> T3 stays silent (acceptance alone is not fixation)', async () => {
+    const fx = await startCookieFixture({ rotateOnLogin: false, invalidateOnLogout: true, adoptPlantedOnLogin: false, adoptUrlSessionId: true });
+    try {
+      const port = new URL(fx.base).port;
+      const opts = { ...cookieOpts, labTargets: `127.0.0.1:${port}` };
+      const findings = await probeSessionFixation([cookieForm(fx.base)], `${fx.base}/`, opts);
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].title, T1_TITLE);
+      assert.ok(!findings.some((f) => f.title === T3_TITLE), 'T3 must not fire when the URL-planted ID never becomes authenticated');
+      assert.equal(fx.urlAuthedHits, 0);
     } finally {
       await fx.close();
     }
