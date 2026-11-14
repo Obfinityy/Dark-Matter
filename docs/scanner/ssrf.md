@@ -81,6 +81,59 @@ probe token AND a never-advertised control token records NO hit.
   parameter is already proven fetchable.
 - Waits: 5 s for the probe token, 1 s for the control token.
 
+## URL parser differentials (coverage row #469)
+
+A server that validates a URL with one parser and fetches it with another
+can be tricked into fetching an internal host the validator thought was
+external. `probeSsrfParserDifferentials` (lab-gated, `opts.allowWrite`
+only — the value `runScan` sets for lab targets) tries four families,
+each verified to normalize to `169.254.169.254` under Node's WHATWG URL
+parser while evading a naive validator (plain-regex host extraction +
+exact-literal blocklist):
+
+| Family | Payloads |
+| --- | --- |
+| `alt-ip` | `0xA9FEA9FE`, `0xA9.0xFE.0xA9.0xFE`, `2852039166`, `0251.0376.0251.0376` (hex / decimal / octal forms of 169.254.169.254) |
+| `userinfo` | `trusted.example@169.254.169.254`, `trusted.example:80@169.254.169.254` (@-confusion; the second also covers port confusion in the authority) |
+| `host-normalization` | trailing dot `169.254.169.254.`, U+3002 ideographic full stop `169。254。169。254`, percent-encoded U+3002 `%E3%80%82` |
+| `whitespace-trim` | literal tab after the host, tab inside the host (WHATWG strips tabs/newlines from URLs) |
+
+## What counts as proof (differential oracle)
+
+All three required, per parameter (one finding per parameter, first
+confirming family wins, class `ssrf_parser_differential`, HIGH):
+
+1. **Control** — the plain metadata URL must NOT return fetched
+   metadata (same `fetchedMetadataMarker` bar as the plain leg). An
+   open control means the target blocks nothing; the plain leg
+   already covers it.
+2. **Payload + repeat** — an ambiguous payload must return fetched
+   metadata twice in a row. A single divergent response is jitter,
+   not a finding.
+3. A single-parse fetch that merely returns data never confirms.
+
+Evidence carries `variant` (family), `coverageRow: 469`, and
+`oobHit: true`. Request budget: 5 parameters max, control + payloads
++ one repeat per confirming payload (lab only).
+
+## Investigated and NOT legs
+
+Empirically rejected on Node 24 — documented so nobody re-tries them
+blindly:
+
+- **Backslash in authority** — `http://trusted.example\@169.../`
+  parses under WHATWG to host `trusted.example` (the backslash
+  terminates the authority); the reverse contains the blocked literal.
+- **Overlong UTF-8 in host** (`%C0%AE` for `.`) — `new URL()` throws
+  `Invalid URL`.
+- **Scheme-relative** (`//169.../`) — `new URL()` throws without a
+  base; a server-side fetcher has no base to resolve against.
+- **`http:169.../` (no slashes)** — WHATWG does parse it to the
+  metadata host, but a validator must FAIL OPEN on the missing `//`
+  for any differential to exist; too weak an assumption to confirm on.
+- **Fragment** (`http://trusted.example#@169.../`) — the fragment is
+  never fetched by any parser.
+
 ## Limits
 Metadata-exfil plus the blind collaborator leg in v1. No timing-differential
 blind channel (a fetcher that is slow but synchronous would show as a hit
@@ -98,3 +151,8 @@ only if it fetches within the 5 s window); no DNS-only exfiltration channel
 - DNS-rebinding bypass (row #307) is still unbuilt: it needs a
   definition + oracle first (a controlled DNS name resolving
   differently on the validator's lookup versus the fetcher's).
+
+- Parser differentials (#469) only bypass validators that do NOT
+  normalize: a validator that WHATWG-parses the URL and
+  canonicalizes the IP before comparing is not bypassed by these
+  payloads.

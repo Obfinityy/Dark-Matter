@@ -1426,6 +1426,9 @@ async function runScanInner(
         return await probeSsrf(u, points, {
           ...o,
           labTargets,
+          // #469 parser differentials gate on allowWrite (PR wiring);
+          // without it the leg returns [] on every target.
+          allowWrite,
           ...(ssrfBlindOob
             ? { oobCallback: ssrfBlindOob.baseUrl(), oobWaitFor: (token, ms) => ssrfBlindOob.waitFor(token, ms) }
             : {}),
