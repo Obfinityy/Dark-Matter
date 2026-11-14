@@ -15,6 +15,7 @@ import {
 } from './engine.js';
 import { recordEngineEvent, getCachedEvents } from './routes/hunts.js';
 import huntsRouter from './routes/hunts.js';
+import selfRouter from './routes/self.js';
 import authRouter from './routes/auth.js';
 import { ensureAdmin, verifyToken, canAccessHuntStream, verifyTerminalTicket, verifyControlTicket } from './routes/auth.js';
 import {
@@ -98,6 +99,7 @@ app.get('/api/v1/health', (req, res) => {
 });
 
 app.use('/api/v1/hunts', huntsRouter);
+app.use('/api/v1/self', selfRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/admin', adminRouter);
 ensureAdmin();
