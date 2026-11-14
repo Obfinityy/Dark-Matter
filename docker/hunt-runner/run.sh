@@ -53,6 +53,20 @@ if [ -n "$MISSING" ]; then
   emit "{\"type\":\"thinking\",\"huntId\":\"$(json_escape "$HUNT_ID")\",\"text\":\"Tool inventory: missing:$(json_escape "$MISSING") — phases using them will skip\"}"
 fi
 
+# Tool inventory (#352): the image build used to swallow install failures
+# (|| true), so hunts ran degraded with no signal. Required tools now fail
+# the build, but the one deliberate best-effort tool (ysoserial) and any
+# future drift are REPORTED here in the event stream instead of silently
+# skipping phases below. Uses the existing `thinking` event type so the
+# backend parses it with no changes.
+MISSING=""
+for t in nmap nuclei tmux ttyd ysoserial jq; do
+  command -v "$t" >/dev/null 2>&1 || MISSING="$MISSING $t"
+done
+if [ -n "$MISSING" ]; then
+  emit "{\"type\":\"thinking\",\"huntId\":\"$HUNT_ID\",\"text\":\"Tool inventory: missing:$MISSING — phases using them will skip\"}"
+fi
+
 # Phase 1: DNS + port recon
 if command -v nmap >/dev/null 2>&1; then
   emit "{\"type\":\"thinking\",\"huntId\":\"$(json_escape "$HUNT_ID")\",\"text\":\"Running port scan on $(json_escape "$HOST")\"}"
