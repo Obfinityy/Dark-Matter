@@ -3176,6 +3176,7 @@ async function runScanInner(
       probeXxe(url, {
         ...opts,
         labTargets,
+        allowWrite,
         ...(xxeOob
           ? { oobCallback: xxeOob.baseUrl(), oobWaitFor: (token, ms) => xxeOob.waitFor(token, ms) }
           : {}),
