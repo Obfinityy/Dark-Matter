@@ -117,4 +117,44 @@ describe('oobCollaborator', () => {
     // waitFor after stop resolves null at once.
     assert.equal(await collab.waitFor('tok-late', 5000), null);
   });
+
+  it('redir path 302s to the decoded target and records the hit', async () => {
+    const collab = loopbackCollab();
+    try {
+      const base = await collab.start();
+      const target = 'http://127.0.0.1:9/latest/meta-data/';
+      const res = await fetch(`${base}/redir/${encodeURIComponent(target)}`, { redirect: 'manual' });
+      assert.equal(res.status, 302);
+      assert.equal(res.headers.get('location'), target);
+      const hit = collab.hasHit('redir');
+      assert.ok(hit, 'the redirect must still be recorded');
+      assert.equal(hit.path, `/redir/${encodeURIComponent(target)}`);
+    } finally {
+      await collab.stop();
+    }
+  });
+
+  it('redir to a benign target 302s the same way (no metadata involved)', async () => {
+    const collab = loopbackCollab();
+    try {
+      const base = await collab.start();
+      const target = 'https://example.com/';
+      const res = await fetch(`${base}/redir/${encodeURIComponent(target)}`, { redirect: 'manual' });
+      assert.equal(res.status, 302);
+      assert.equal(res.headers.get('location'), target);
+    } finally {
+      await collab.stop();
+    }
+  });
+
+  it('a malformed redir target answers 400, not a redirect', async () => {
+    const collab = loopbackCollab();
+    try {
+      const base = await collab.start();
+      const res = await fetch(`${base}/redir/%E0%A4%A`, { redirect: 'manual' });
+      assert.equal(res.status, 400);
+    } finally {
+      await collab.stop();
+    }
+  });
 });

@@ -67,6 +67,32 @@ export function createOobCollaborator({
       // the 200 + DTD fragment is just a well-formed answer for a parser
       // fetching an external parameter entity.
       try { recordHit(req); } catch { /* ignore */ }
+      // REDIRECTOR (SSRF redirect-bypass leg, coverage row #308): a
+      // path of /redir/<urlencoded-target> 302s to the decoded target
+      // instead of answering 200. The hit is still recorded (token
+      // 'redir'). The probe sends a canary URL of this shape as the
+      // param value and confirms only on the fetched target's content
+      // coming back — the redirect itself is never confirmation.
+      // A malformed target (undecodable, or not http(s)) answers 400.
+      const redir = /^\/redir\/(.+)$/.exec(new URL(req.url || '/', 'http://oob.invalid').pathname);
+      if (redir) {
+        let target;
+        try {
+          target = decodeURIComponent(redir[1]);
+        } catch {
+          res.writeHead(400, { 'Content-Type': 'text/plain' });
+          res.end('bad redirect target\n');
+          return;
+        }
+        if (!/^https?:\/\//i.test(target)) {
+          res.writeHead(400, { 'Content-Type': 'text/plain' });
+          res.end('redirect target must be http(s)\n');
+          return;
+        }
+        res.writeHead(302, { Location: target });
+        res.end();
+        return;
+      }
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end(`${DTD_FRAGMENT}\n`);
     });
