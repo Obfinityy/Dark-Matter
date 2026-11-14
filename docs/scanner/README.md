@@ -52,6 +52,7 @@ proves the signal comes from the malicious input.
 | [cache-poisoning.md](cache-poisoning.md) | Web cache poisoning | probes/cachePoison.js |
 | [request-smuggling.md](request-smuggling.md) | HTTP request smuggling (raw socket) | probes/smuggling.js |
 | [nuclei.md](nuclei.md) | Nuclei template battery (CVEs etc.) | nuclei.js |
+| [agent-sandbox-escape.md](agent-sandbox-escape.md) | Agent sandbox escape: tool-call → host exec, file read, approval bypass, audit evasion (lab-gated) | probes/agentSandboxEscape.js |
 
 ## Honest limits
 

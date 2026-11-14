@@ -60,6 +60,7 @@ import { probeWorkflowSkip } from './probes/workflowSkip.js';
 import { probeTwoFaBruteForce } from './probes/twoFaBruteForce.js';
 import { probeCredentialStuffing } from './probes/credentialStuffing.js';
 import { probeAntiAutomation } from './probes/antiAutomation.js';
+import { probeAgentSandboxEscape } from './probes/agentSandboxEscape.js';
 import { probeBfla } from './probes/bfla.js';
 import { probeWeakPasswordPolicy } from './probes/weakPasswordPolicy.js';
 import { probeBusinessFlowAccess } from './probes/businessFlowAccess.js';
@@ -313,6 +314,7 @@ export const DEFAULT_PHASES = [
   'css-injection',
   'mutation-xss',
   'nuclei',
+  'agent-sandbox-escape',
 ];
 
 // PARAM BATTERY (5 Nov 2026, 35/63 fix): the 30 injection-class phases
@@ -3533,6 +3535,40 @@ async function runScanInner(
       usersAfter: llmAgencyDiag.usersAfter || 0,
       deletedUserId: llmAgencyDiag.deletedUserId || null,
       confirmationRequired: Boolean(llmAgencyDiag.confirmationRequired),
+    })
+  );
+  // AGENT SANDBOX ESCAPE (14 Nov 2026, NEW class — no coverage row
+  // yet; related #485 [Critical] MCP tool poisoning, #17/#379
+  // LLM excessive agency): a tool-call endpoint whose sandbox can
+  // be escaped to the host — host command execution (L0), sensitive
+  // file read via traversal (L1), approval-gate bypass via crafted
+  // tool input (L2), executed action missing from the audit log
+  // (L3). See agentSandboxEscape.js. Lab-gated (allowWrite + lab
+  // host + depth !== 'quick'); no labCreds — the agent service is
+  // unauthenticated in the mock, like the LLM lab. Diagnostics ride
+  // the phase extras (agentEndpoints, controlOk, attempts, executed,
+  // deletedUserId). STATE NOTE: each confirming run consumes one
+  // seeded mock-lab user; the lab re-seeds on restart. PHASE-COUNT
+  // NOTE: this lane claims the 149th phase; PRs #499/#505/#507/
+  // #510/#511 and #526 claim the same slot — whichever merges later
+  // renumbers.
+  const aseDiag = {};
+  plan(
+    'agent-sandbox-escape',
+    () =>
+      probeAgentSandboxEscape(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: aseDiag,
+      }),
+    () => ({
+      agentEndpoints: aseDiag.agentEndpoints || 0,
+      controlOk: Boolean(aseDiag.controlOk),
+      attempts: aseDiag.attempts || 0,
+      executed: Boolean(aseDiag.executed),
+      deletedUserId: aseDiag.deletedUserId || null,
     })
   );
   // LLM OUTPUT HANDLING (9 Nov 2026, row #18 [High]): model

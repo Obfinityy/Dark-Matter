@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 148/96/52 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 149/97/52 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -349,27 +349,29 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // referer-access-control, upload-race, upload-htaccess and
       // the GraphQL trio RUN as honest no-ops (non-lab target / no
       // surface / no endpoint — 0 findings on the bare stub);
+      // agent-sandbox-escape RUNS as an honest no-op alongside them
+      // (non-lab target — no agent surface on the bare stub).
       // deep-link and webview-bridge SKIP with 'no script targets';
       // mcp-tool-poisoning SKIPS with 'no MCP endpoint discovered'.
       // (The scout lane's nine OAuth-family phases are not in this
       // tree: the merged oauth-lab phase already covers those rows.)
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 148,
-        ok: 96,
+        total: 149,
+        ok: 97,
         failed: 0,
         skipped: 52,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 96 ran ok, 52 skipped, 0 failed, 0 timed out.'
+        'Phases: 97 ran ok, 52 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
     }
   });
 
-  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 179/178/1', async () => {
+  it('GS-5: Juice shape — DOM fires, openapi + js-api-routes FIRE on landing-page-only params (error-disclosure coverage fix), rollup 180/179/1', async () => {
     const calls = [];
     const server = http.createServer((req, res) => {
       let raw = '';
@@ -557,17 +559,19 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // targets) and the rest run as honest no-ops (non-lab target
       // / no surface), and anti-automation, the 148th phase, runs
       // as an honest no-op alongside them (the stub carries no
-      // labCreds, so the lab gate fails before the login mine runs).
+      // labCreds, so the lab gate fails before the login mine runs);
+      // agent-sandbox-escape, the 149th phase, runs as an honest
+      // no-op alongside them (no agent surface on the stub).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 179,
-        ok: 178,
+        total: 180,
+        ok: 179,
         failed: 0,
         skipped: 1,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 178 ran ok, 1 skipped (no MCP endpoint discovered), 0 failed, 0 timed out.'
+        'Phases: 179 ran ok, 1 skipped (no MCP endpoint discovered), 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -773,7 +777,7 @@ const searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 148);
+      assert.equal(DEFAULT_PHASES.length, 149);
     } finally {
       teardown();
     }
