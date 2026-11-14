@@ -182,7 +182,7 @@ function capabilitiesOfFinding(finding) {
   const map = {
     sqli: ['db_read', 'db_write'], sqli_blind: ['db_read'], sqli_error: ['db_read'],
     xss_stored: ['js_exec', 'session_theft'], xss_reflected: ['js_exec'], xss_dom: ['js_exec'],
-    ssrf: ['ssrf'], lfi: ['file_read'], rfi: ['file_read', 'code_exec'], rce: ['code_exec'],
+    ssrf: ['ssrf'], lfi: ['file_read'], rfi: ['file_read', 'code_exec'], log_poisoning: ['file_read', 'code_exec'], rce: ['code_exec'],
     cmd_injection: ['code_exec'], idor: ['data_read', 'data_write'], auth_bypass: ['auth_bypass'],
     jwt_weak: ['auth_bypass', 'priv_esc'], priv_esc: ['priv_esc'], cred_leak: ['cred_leak'],
     file_upload: ['file_write'], xxe: ['file_read', 'ssrf'], ssti: ['code_exec'],
