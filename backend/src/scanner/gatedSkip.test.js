@@ -224,7 +224,7 @@ describe('gated discovery phases record a skip on the false branch', () => {
     }
   });
 
-  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 152/100/52 rollup', async () => {
+  it('GS-4: all three discovery phases FIRE on a bare page — no skip records, 153/100/53 rollup', async () => {
     stubPage(BARE_PAGE);
     try {
       const result = await runScan(
@@ -274,7 +274,9 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // document-external-image, spreadsheet-external-image,
       // presentation-external-image), and dom-postmessage SKIPS with 'no script targets' alongside
       // dom-xss-location-hash (a bare page carries no bundles —
-      // 9 Nov 2026, 93rd phase), and csti SKIPS with 'no script
+      // 9 Nov 2026, 93rd phase), and sqli-second-order SKIPS with
+      // 'lab-gated: second-order writes need a lab target' (a bare
+      // page is a non-lab target — 14 Nov 2026, 153rd phase), and csti SKIPS with 'no script
       // targets' alongside them (a bare page carries no bundles —
       // 9 Nov 2026, 94th phase), and csti-frameworks SKIPS with
       // 'no script targets' alongside them (a bare page carries no
@@ -358,15 +360,15 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // (The scout lane's nine OAuth-family phases are not in this
       // tree: the merged oauth-lab phase already covers those rows.)
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 152,
+        total: 153,
         ok: 100,
         failed: 0,
-        skipped: 52,
+        skipped: 53,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 100 ran ok, 52 skipped, 0 failed, 0 timed out.'
+        'Phases: 100 ran ok, 53 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
@@ -565,16 +567,20 @@ describe('gated discovery phases record a skip on the false branch', () => {
       // and the three V10 generated-document phases, the 150th-152nd
       // phases, run as honest no-ops alongside them (no document
       // links in the stub shell).
+      // and sqli-second-order, the 153rd phase, runs as an honest
+      // no-op alongside them (lab target with a login form; the stub
+      // trigger pages carry no DB error — 14 Nov 2026, rows
+      // #208/#281).
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 183,
-        ok: 182,
+        total: 184,
+        ok: 183,
         failed: 0,
         skipped: 1,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 182 ran ok, 1 skipped (no MCP endpoint discovered), 0 failed, 0 timed out.'
+        'Phases: 183 ran ok, 1 skipped (no MCP endpoint discovered), 0 failed, 0 timed out.'
       );
       // The battery really ran on the DOM-discovered params.
       assert.ok(
@@ -780,7 +786,7 @@ const searchService = {
           `${name} must not leak into a restricted phases list`
         );
       }
-      assert.equal(DEFAULT_PHASES.length, 152);
+      assert.equal(DEFAULT_PHASES.length, 153);
     } finally {
       teardown();
     }

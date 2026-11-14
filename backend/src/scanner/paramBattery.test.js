@@ -299,6 +299,12 @@ describe('param battery skipped records (35/63 fix)', () => {
     // confirm only on TargetMode="External" + r:link with no media
     // embedding; the presentation phase records the embedded-image
     // control instead of a finding).
+    // (153 since 14 Nov 2026 (second-order SQLi, rows #208/#281):
+    // 'sqli-second-order' joins as a standalone gated phase (one
+    // record per scan, skipped with 'lab-gated: second-order writes
+    // need a lab target' on a non-lab host; runs next to stored-xss
+    // on the same forms surface — stores a canary quote via a form,
+    // confirms only on a DB error on the SECOND request).
     // (147 since 10 Nov 2026 (scout classes 479-515): 17 new
     // non-OAuth phases — 'ssti-pebble' joins the battery as a loop
     // phase; xxe-xinclude, smuggling-cl-cl, smuggling-zero-cl,
@@ -333,7 +339,8 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 152);
+    assert.ok(DEFAULT_PHASES.includes('sqli-second-order'), "'sqli-second-order' must be registered");
+    assert.equal(DEFAULT_PHASES.length, 153);
   });
 
   it('zero param targets: all 31 param phases emit skipped records, rollup reports them', async () => {
@@ -713,15 +720,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 152,
+        total: 153,
         ok: 100,
         failed: 0,
-        skipped: 52,
+        skipped: 53,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 100 ran ok, 52 skipped, 0 failed, 0 timed out.'
+        'Phases: 100 ran ok, 53 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();

@@ -48,6 +48,29 @@ describe('assessConfirmation OOB protocol', () => {
     assert.equal(assessConfirmation({ class: 'sqli_oob', evidence: { oobHit: false } }).verdict, 'rejected');
     assert.equal(assessConfirmation({ class: 'sqli_oob', evidence: {} }).verdict, 'unconfirmed');
   });
+
+  it('confirms sqli_second_order on diverged — the boolean protocol judges the second-request divergence', () => {
+    // 14 Nov 2026 (#208): 'sqli_second_order' contains 'sqli' but
+    // neither 'time'/'blind' nor 'error', so protocolFor routes it to
+    // the sqli_boolean protocol, judged on `diverged`. The probe
+    // carries diverged:true (the trigger response diverged between
+    // the malicious-stored and benign-stored values) alongside
+    // errorCorrelated:true (the specific signal), so the finding
+    // confirms instead of landing 'unconfirmed' for carrying the
+    // wrong flag.
+    assert.equal(
+      assessConfirmation({ class: 'sqli_second_order', evidence: { diverged: true, errorCorrelated: true } }).verdict,
+      'confirmed'
+    );
+    assert.equal(
+      assessConfirmation({ class: 'sqli_second_order', evidence: { diverged: false, errorCorrelated: true } }).verdict,
+      'rejected'
+    );
+    assert.equal(
+      assessConfirmation({ class: 'sqli_second_order', evidence: { errorCorrelated: true } }).verdict,
+      'unconfirmed'
+    );
+  });
 });
 
 // assessConfirmation egress_laundering protocol (H3(b), V8-F1, 11 Nov
