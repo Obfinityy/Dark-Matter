@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import tls from 'node:tls';
+import net from 'node:net';
 import http from 'node:http';
 import {
   probeTls,
@@ -16,6 +17,8 @@ import {
   getChainDepth,
   mapStrictHandshakeError,
   isCbcCipher,
+  buildSsl3ClientHello,
+  probeSsl3Raw,
 } from './tlsScan.js';
 
 // ---- fabricated cert fixtures (pure analysis, no network) ------------------
@@ -116,6 +119,156 @@ describe('tlsScan pure analysis helpers', () => {
   });
 });
 
+describe('tlsScan SSLv3 raw-socket leg (#446)', () => {
+  // Minimal ServerHello record: handshake type 0x02, body = version(2) +
+  // random(32) + session-id length(1)=0. The leg only reads the record type,
+  // the handshake type and the ServerHello body version (bytes 0, 5, 9, 10).
+  function serverHelloBuf(version) {
+    const body = Buffer.alloc(35);
+    body.writeUInt16BE(version, 0);
+    const hs = Buffer.alloc(4 + body.length);
+    hs[0] = 0x02;
+    hs.writeUIntBE(body.length, 1, 3);
+    body.copy(hs, 4);
+    const rec = Buffer.alloc(5 + hs.length);
+    rec[0] = 0x16;
+    rec.writeUInt16BE(version, 1);
+    rec.writeUInt16BE(hs.length, 3);
+    hs.copy(rec, 5);
+    return rec;
+  }
+
+  // Raw TCP server that runs `handler(sock, chunk)` on the first data chunk.
+  function startRawServer(handler) {
+    return new Promise((resolve) => {
+      const server = net.createServer((sock) => {
+        sock.on('error', () => {});
+        sock.once('data', (chunk) => handler(sock, chunk));
+      });
+      server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port }));
+    });
+  }
+
+  it('builds a well-formed SSLv3 ClientHello (record 0x16, version 0x0300)', () => {
+    const hello = buildSsl3ClientHello();
+    assert.equal(hello.length, 54);
+    assert.equal(hello[0], 0x16, 'record type must be handshake');
+    assert.equal(hello.readUInt16BE(1), 0x0300, 'record version must be SSLv3');
+    assert.equal(hello.readUInt16BE(3), 49, 'record length must cover the handshake message');
+    assert.equal(hello[5], 0x01, 'handshake type must be ClientHello');
+    assert.equal(hello.readUIntBE(6, 3), 45, 'handshake length must cover the body');
+    assert.equal(hello.readUInt16BE(9), 0x0300, 'client version must be SSLv3');
+    assert.equal(hello[43], 0x00, 'session-id length must be 0');
+    assert.equal(hello.readUInt16BE(44), 6, 'cipher-suite list length must be 3 suites');
+    assert.deepEqual(
+      [hello.readUInt16BE(46), hello.readUInt16BE(48), hello.readUInt16BE(50)],
+      [0x002f, 0x0005, 0x000a],
+      'offered suites must be SSLv3-valid (AES128-SHA, RC4-SHA, 3DES-SHA)'
+    );
+    assert.equal(hello[52], 0x01, 'compression-methods length must be 1');
+    assert.equal(hello[53], 0x00, 'compression must be null');
+  });
+
+  it('randomises only the 32-byte client random between ClientHellos', () => {
+    const a = buildSsl3ClientHello();
+    const b = buildSsl3ClientHello();
+    assert.deepEqual(a.subarray(0, 11), b.subarray(0, 11), 'header must be identical');
+    assert.deepEqual(a.subarray(43), b.subarray(43), 'tail must be identical');
+    assert.notDeepEqual(a.subarray(11, 43), b.subarray(11, 43), 'random must differ');
+  });
+
+  it('confirms SSLv3 offered on a 0x0300 ServerHello and sends a well-formed ClientHello', async () => {
+    let received = null;
+    const { server, port } = await startRawServer((sock, chunk) => {
+      received = chunk;
+      sock.write(serverHelloBuf(0x0300));
+    });
+    try {
+      const r = await probeSsl3Raw('127.0.0.1', port, { timeoutMs: 3000 });
+      assert.equal(r.offered, true, `expected offered, got ${JSON.stringify(r)}`);
+      assert.equal(r.version, 'SSLv3');
+      assert.ok(received, 'mock must have received the ClientHello');
+      assert.equal(received[0], 0x16);
+      assert.equal(received.readUInt16BE(1), 0x0300);
+      assert.equal(received[5], 0x01);
+      assert.equal(received.readUInt16BE(9), 0x0300);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('confirms on a fragmented ServerHello (buffered across chunks)', async () => {
+    const { server, port } = await startRawServer((sock) => {
+      const full = serverHelloBuf(0x0300);
+      sock.write(full.subarray(0, 3));
+      setTimeout(() => sock.write(full.subarray(3)), 50);
+    });
+    try {
+      const r = await probeSsl3Raw('127.0.0.1', port, { timeoutMs: 3000 });
+      assert.equal(r.offered, true, `expected offered, got ${JSON.stringify(r)}`);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('stays silent on a TLS 1.2 ServerHello (higher version is not SSLv3)', async () => {
+    const { server, port } = await startRawServer((sock) => {
+      sock.write(serverHelloBuf(0x0303));
+    });
+    try {
+      const r = await probeSsl3Raw('127.0.0.1', port, { timeoutMs: 3000 });
+      assert.equal(r.offered, false, `expected silent, got ${JSON.stringify(r)}`);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('stays silent on a TLS alert (protocol_version) then close', async () => {
+    const { server, port } = await startRawServer((sock) => {
+      sock.write(Buffer.from([0x15, 0x03, 0x00, 0x00, 0x02, 0x02, 0x46])); // fatal alert
+      sock.end();
+    });
+    try {
+      const r = await probeSsl3Raw('127.0.0.1', port, { timeoutMs: 3000 });
+      assert.equal(r.offered, false, `expected silent, got ${JSON.stringify(r)}`);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('stays silent when the server closes without answering', async () => {
+    const { server, port } = await startRawServer((sock) => {
+      sock.end();
+    });
+    try {
+      const r = await probeSsl3Raw('127.0.0.1', port, { timeoutMs: 3000 });
+      assert.equal(r.offered, false, `expected silent, got ${JSON.stringify(r)}`);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('stays silent on connection refused', async () => {
+    const r = await probeSsl3Raw('127.0.0.1', 1, { timeoutMs: 2000 });
+    assert.equal(r.offered, false, `expected silent, got ${JSON.stringify(r)}`);
+  });
+
+  it('stays silent and resolves on timeout (server accepts, never answers)', async () => {
+    const { server, port } = await startRawServer(() => {
+      // accept the connection, never reply — the leg must time out, not hang
+    });
+    try {
+      const t0 = Date.now();
+      const r = await probeSsl3Raw('127.0.0.1', port, { timeoutMs: 200 });
+      assert.equal(r.offered, false, `expected silent, got ${JSON.stringify(r)}`);
+      assert.equal(r.error, 'timeout');
+      assert.ok(Date.now() - t0 < 2000, 'must resolve near the timeout, not hang');
+    } finally {
+      server.close();
+    }
+  });
+});
+
 describe('tlsScan integration', () => {
   let tmp;
   let tlsServer;
@@ -200,6 +353,12 @@ describe('tlsScan integration', () => {
     assert.ok(!ids.includes('tls_weak_protocol_1_0'), `unexpected: ${ids.join(',')}`);
     assert.ok(!ids.includes('tls_weak_protocol_1_1'));
     assert.ok(!ids.includes('tls_beast'));
+  });
+
+  it('stays silent on SSLv3 against a TLS-1.2-only server (#446)', async () => {
+    const f = await probeTls(`https://localhost:${tlsPort}/`);
+    const ids = f.map((x) => x.id);
+    assert.ok(!ids.includes('tls_sslv3_offered'), `unexpected: ${ids.join(',')}`);
   });
 
   it('completes weak-cipher attempts without crashing', async () => {

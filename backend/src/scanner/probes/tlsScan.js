@@ -19,6 +19,10 @@
 //   #450  SWEET32 (3DES) (medium)
 //   #134  weak protocol versions TLS 1.0/1.1 (medium/low)
 //   #447  BEAST (TLS 1.0 + CBC) (medium)
+//   #446  SSLv3 offered (POODLE) — raw-socket ClientHello (high); node:tls
+//         cannot send SSLv3 at all, so the leg below hand-builds the
+//         ClientHello on a plain TCP socket and confirms ONLY on a
+//         ServerHello that actually negotiates version 0x0300.
 //   #448  BREACH oracle surface (compression + secret reflection) (medium)
 // Honest gaps (no code, reported so the coordinator marks them GAP):
 //   #123  improper certificate validation (client-side; unobservable black-box)
@@ -35,6 +39,7 @@
 import tls from 'node:tls';
 import net from 'node:net';
 import https from 'node:https';
+import crypto from 'node:crypto';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 const BUDGET_MS = 25000;
@@ -80,7 +85,9 @@ function handshake(host, port, { minVersion, maxVersion, ciphers, strict = false
       );
     } catch (e) {
       // e.g. node throws synchronously for SSLv3 min/max — treated as
-      // "not offered", never as an error. See probeTls SSLv3 stage.
+      // "not offered", never as an error. (That is a statement about the
+      // node:tls API, not about the server: the SSLv3 leg below does NOT
+      // use handshake() for exactly this reason.)
       clearTimeout(watchdog);
       resolve({ ok: false, error: e && e.code ? e.code : 'connect-throw' });
       return;
@@ -93,6 +100,99 @@ function handshake(host, port, { minVersion, maxVersion, ciphers, strict = false
       clearTimeout(watchdog);
       done({ ok: false, error: 'timeout' });
     });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// SSLv3 raw-socket leg (#446 POODLE)
+// ---------------------------------------------------------------------------
+// node:tls cannot send an SSLv3 ClientHello at all: tls.connect() throws
+// synchronously for minVersion/maxVersion 'SSLv3', so a node:tls-based leg
+// can never confirm SSLv3 — and the old comment claiming that throw "IS the
+// evidence it is not offered" was wrong (the throw proves Node can't attempt
+// SSLv3, not that the server doesn't offer it). The leg below hand-builds
+// an SSLv3 ClientHello and sends it over a plain TCP socket, then reads the
+// server's first record. Oracle (conservative, confirm-only):
+//   ServerHello (record 0x16, handshake type 0x02) whose body version is
+//   0x0300  →  server negotiated SSLv3 → CONFIRM tls_sslv3_offered.
+//   Anything else — TLS alert, TCP close/reset/refused, timeout, or a
+//   ServerHello with a HIGHER version (0x0301+) — is NOT an SSLv3
+//   negotiation and stays silent. A higher-version ServerHello in reply to
+//   an SSLv3 ClientHello is non-standard behaviour, but it is evidence the
+//   server did not settle on SSLv3, so it must not confirm.
+// The record version field is deliberately NOT consulted: some stacks echo
+// 0x0301 in the record header while negotiating SSLv3 in the ServerHello
+// body — the body version is the negotiated version.
+
+// Hand-built SSLv3 ClientHello (54 bytes, deterministic except the 32-byte
+// client random): record 0x16 / version 0x0300, handshake type 0x01,
+// client version 0x0300, empty session id, three SSLv3-valid cipher suites
+// (TLS_RSA_WITH_AES_128_CBC_SHA, SSL_RSA_WITH_RC4_128_SHA,
+// SSL_RSA_WITH_3DES_EDE_CBC_SHA), null compression, no extensions (SSLv3
+// has none). Exported for unit tests.
+export function buildSsl3ClientHello() {
+  const random = crypto.randomBytes(32);
+  const suites = [0x002f, 0x0005, 0x000a];
+  const body = Buffer.alloc(2 + 32 + 1 + 2 + suites.length * 2 + 1 + 1);
+  let o = 0;
+  body.writeUInt16BE(0x0300, o); o += 2; // client_version = SSLv3
+  random.copy(body, o); o += 32; // client random
+  body[o++] = 0x00; // session_id length = 0
+  body.writeUInt16BE(suites.length * 2, o); o += 2;
+  for (const s of suites) { body.writeUInt16BE(s, o); o += 2; }
+  body[o++] = 0x01; // compression_methods length = 1
+  body[o++] = 0x00; // null compression
+  const hs = Buffer.alloc(4 + body.length);
+  hs[0] = 0x01; // ClientHello
+  hs.writeUIntBE(body.length, 1, 3);
+  body.copy(hs, 4);
+  const rec = Buffer.alloc(5 + hs.length);
+  rec[0] = 0x16; // handshake record
+  rec.writeUInt16BE(0x0300, 1);
+  rec.writeUInt16BE(hs.length, 3);
+  hs.copy(rec, 5);
+  return rec;
+}
+
+// Send the raw SSLv3 ClientHello and read the server's first record.
+// Resolves {offered, version, error}: offered is true ONLY on a ServerHello
+// negotiating 0x0300. Exported for unit tests (mock socket servers).
+export function probeSsl3Raw(host, port, { timeoutMs = 5000 } = {}) {
+  return new Promise((resolve) => {
+    let sock;
+    let buf = Buffer.alloc(0);
+    let settled = false;
+    const finish = (r) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { if (sock) sock.destroy(); } catch { /* already closed */ }
+      resolve(r);
+    };
+    const timer = setTimeout(() => finish({ offered: false, version: null, error: 'timeout' }), timeoutMs);
+    try {
+      sock = net.connect({ host, port }, () => {
+        try {
+          sock.write(buildSsl3ClientHello());
+        } catch {
+          finish({ offered: false, version: null, error: 'write-failed' });
+        }
+      });
+    } catch (e) {
+      finish({ offered: false, version: null, error: e && e.code ? e.code : 'connect-throw' });
+      return;
+    }
+    sock.on('data', (chunk) => {
+      buf = Buffer.concat([buf, chunk]);
+      if (buf.length >= 11) {
+        // Bytes: [0] record type, [5] handshake type, [9..10] ServerHello
+        // body version. Only 0x16 / 0x02 / 0x0300 confirms.
+        const offered = buf[0] === 0x16 && buf[5] === 0x02 && buf[9] === 0x03 && buf[10] === 0x00;
+        finish({ offered, version: offered ? 'SSLv3' : null, error: null });
+      }
+    });
+    sock.on('error', () => finish({ offered: false, version: null, error: 'socket-error' }));
+    sock.on('close', () => finish({ offered: false, version: null, error: 'closed' }));
   });
 }
 
@@ -443,17 +543,25 @@ export async function probeTls(url, opts = {}) {
   };
   await tryVersion('TLSv1', 'tls_weak_protocol_1_0', 'Server accepts TLS 1.0', 'medium', true);
   await tryVersion('TLSv1.1', 'tls_weak_protocol_1_1', 'Server accepts TLS 1.1', 'low', false);
-  // SSLv3: node:tls throws (unsupported protocol) — that throw IS the
-  // evidence it is not offered. No finding, no error, by design.
+  // ---- #446: SSLv3 (POODLE) via raw socket --------------------------------
+  // node:tls cannot send an SSLv3 ClientHello — tls.connect() throws
+  // synchronously for minVersion/maxVersion 'SSLv3' — so the old node:tls
+  // leg could never fire, and its comment claiming the throw "IS the
+  // evidence it is not offered" was wrong (the throw proves Node can't
+  // attempt SSLv3, not that the server doesn't offer it). probeSsl3Raw
+  // hand-builds the ClientHello on a plain TCP socket and confirms ONLY on
+  // a ServerHello that actually negotiates version 0x0300. Anything else
+  // (alert, close, refused, timeout, higher-version ServerHello) is not
+  // offered and stays silent.
   if (timeLeft() > 2000) {
-    const ssl3 = await handshake(host, port, { minVersion: 'SSLv3', maxVersion: 'SSLv3' });
-    if (ssl3.ok) {
+    const ssl3 = await probeSsl3Raw(host, port, { timeoutMs: Math.min(5000, timeLeft()) });
+    if (ssl3.offered) {
       mk('tls', 'tls_sslv3_offered', 'Server accepts SSLv3 (POODLE)', 'high', 'tls-protocol',
-        `TLS handshake to ${host}:${port} with maxVersion=SSLv3`,
-        `server negotiated ${ssl3.protocol} — SSLv3 must never be offered`,
+        `Raw-socket SSLv3 ClientHello to ${host}:${port} (node:tls cannot offer SSLv3)`,
+        `server negotiated SSLv3 — ServerHello version 0x0300 in response to an SSLv3 ClientHello; SSLv3 must never be offered`,
         'POODLE padding-oracle: full plaintext recovery of cookies');
     }
-    // ssl3.ok === false (throw / alert) → not offered → silent, correct.
+    // offered === false → not offered → silent, correct.
   }
 
   // ---- #133 / #450: weak cipher suites --------------------------------------
