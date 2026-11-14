@@ -39,6 +39,7 @@ import { probeSsrfReferer } from './probes/ssrfReferer.js';
 import { probeRefererAccessControl } from './probes/refererAccessControl.js';
 import { probeIdorSurface } from './probes/idor.js';
 import { probeIdorUuid } from './probes/idorUuid.js';
+import { probeIdorNumeric } from './probes/idorNumeric.js';
 import { probeCors } from './probes/cors.js';
 import { probeCookieFlags } from './probes/cookies.js';
 import { probeStoredXss, probeStoredXssUriScheme } from './probes/storedXss.js';
@@ -3319,7 +3320,12 @@ async function runScanInner(
   // throwaway other user, confirming ONLY on the same object
   // coming back to the other user (see idorUuid.js). Lab-gated
   // inside the probe; non-lab scans behave exactly as before.
+  // BOLA — SEQUENTIAL / NUMERIC IDs (rows #10/#338, CWE-639):
+  // the same three-way differential on mined numeric-id object
+  // URLs, plus the id±1 sequential-neighbour leg (see
+  // idorNumeric.js). Same 'idor' phase, no new phase number.
   const idorUuidDiag = {};
+  const idorNumericDiag = {};
   plan(
     'idor',
     async () => [
@@ -3331,6 +3337,13 @@ async function runScanInner(
         labTargets,
         diagnostics: idorUuidDiag,
       })),
+      ...(await probeIdorNumeric(url, {
+        ...opts,
+        allowWrite,
+        routes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: idorNumericDiag,
+      })),
     ],
     () => ({
       uuidObjectUrls: idorUuidDiag.objectUrls || 0,
@@ -3338,6 +3351,12 @@ async function runScanInner(
       uuidControlOk: Boolean(idorUuidDiag.controlOk),
       uuidAttempts: idorUuidDiag.attempts || 0,
       uuidBypassKind: idorUuidDiag.bypassKind || null,
+      numericObjectUrls: idorNumericDiag.objectUrls || 0,
+      numericRegisterOk: Boolean(idorNumericDiag.registerOk),
+      numericControlOk: Boolean(idorNumericDiag.controlOk),
+      numericAttempts: idorNumericDiag.attempts || 0,
+      numericNeighbourAttempts: idorNumericDiag.neighbourAttempts || 0,
+      numericBypassKind: idorNumericDiag.bypassKind || null,
     })
   );
   plan('cors', () => probeCors(url, opts));

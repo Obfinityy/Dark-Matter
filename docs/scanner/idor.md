@@ -48,8 +48,10 @@ routes any class containing 'idor' to the idor protocol, judged on
 `evidence.crossUserRead` (see `backend/src/hunt-intel/differential.js`).
 
 Pure numeric ids are NOT candidates for this leg — the numeric
-cross-user differential is rows #10/#338, a follow-up, not this
-lane.
+cross-user differential is rows #10/#338, implemented by the
+follow-up leg in `idorNumeric.js` (see
+[idor-numeric-differential.md](idor-numeric-differential.md)),
+riding the same `idor` phase.
 
 ## Payloads used
 The object id itself is the payload: the probe replays the mined
@@ -87,5 +89,6 @@ Honest limits of the leg:
   sampling) is a documented next step, not this lane: this leg
   proves the cross-user **access** flaw on UUID /
   predictable-token objects, which is the BOLA half of row #339.
-- Numeric-id confirmation (rows #10/#338) is a separate
-  follow-up.
+- Numeric-id confirmation (rows #10/#338) is the follow-up leg
+  in `idorNumeric.js` — see
+  [idor-numeric-differential.md](idor-numeric-differential.md).
