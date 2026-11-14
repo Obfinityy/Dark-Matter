@@ -45,6 +45,7 @@ proves the signal comes from the malicious input.
 | [stored-xss.md](stored-xss.md) | Stored XSS (two-step oracle) | probes/storedXss.js |
 | [blind-xss.md](blind-xss.md) | Blind XSS (out-of-band oracle) | probes/blindXss.js |
 | [weak-creds.md](weak-creds.md) | Weak / default credentials | probes/weakCreds.js |
+| [mfa-bypass.md](mfa-bypass.md) | MFA bypass (direct replay, OTP reuse, enrollment bypass, wide TOTP window) | probes/mfaBypass.js |
 | [host-header.md](host-header.md) | Host header injection | probes/hostHeader.js |
 | [nosqli.md](nosqli.md) | NoSQL injection | probes/nosqli.js |
 | [ldapi.md](ldapi.md) | LDAP injection | probes/ldapi.js |

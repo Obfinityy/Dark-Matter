@@ -69,6 +69,7 @@ import { probeSessionFixation } from './probes/sessionFixation.js';
 import { probeBasketLogic } from './probes/basketLogic.js';
 import { probeWorkflowSkip } from './probes/workflowSkip.js';
 import { probeTwoFaBruteForce } from './probes/twoFaBruteForce.js';
+import { probeMfaBypass } from './probes/mfaBypass.js';
 import { probeCredentialStuffing } from './probes/credentialStuffing.js';
 import { probeAntiAutomation } from './probes/antiAutomation.js';
 import { probeBfla } from './probes/bfla.js';
@@ -241,6 +242,7 @@ export const DEFAULT_PHASES = [
   'basket-logic',
   'workflow-skip',
   'twofa-bruteforce',
+  'mfa-bypass',
   'credential-stuffing',
   'anti-automation',
   'bfla',
@@ -2570,6 +2572,40 @@ async function runScanInner(
       twoFaRoutes: tfbDiag.twoFaRoutes || 0,
       controlOk: Boolean(tfbDiag.controlOk),
       attempts: tfbDiag.attempts || 0,
+    })
+  );
+  // MFA BYPASS (14 Nov 2026, rows #46 + #327 [Critical], CWE-287 |
+  // OWASP A07:2021, AUTH-08): a second factor that can be skipped —
+  // a pre-MFA credential that opens protected routes, a login that
+  // never challenges though 2FA is enrolled, a sensitive action
+  // accepted pre-MFA, a consumable code that verifies twice, a
+  // recovery route with no throttle, an enrollment that accepts a
+  // wrong code, or a validity window two steps wide (see
+  // mfaBypass.js). OTP brute-force (#326) is NOT re-implemented —
+  // twofa-bruteforce already owns it. Same apiRoutes wiring as
+  // twofa-bruteforce. Diagnostics ride the phase extras
+  // (mfaRoutes, controlOk, attempts, enrolled, restoreOk) so a
+  // live proof can tell "no surface" from "oracle uncalibrated"
+  // without re-running the scan. NOTE: this is the 149th phase
+  // (shared with PRs #499/#505/#507/#510/#511 — whichever merges
+  // later renumbers).
+  const mfbDiag = {};
+  plan(
+    'mfa-bypass',
+    () =>
+      probeMfaBypass(url, {
+        ...opts,
+        allowWrite,
+        apiRoutes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: mfbDiag,
+      }),
+    () => ({
+      mfaRoutes: mfbDiag.mfaRoutes || 0,
+      controlOk: Boolean(mfbDiag.controlOk),
+      attempts: mfbDiag.attempts || 0,
+      enrolled: Boolean(mfbDiag.enrolled),
+      restoreOk: Boolean(mfbDiag.restoreOk),
     })
   );
   // CREDENTIAL STUFFING (9 Nov 2026, row #42 [High], OWASP A07:2021):

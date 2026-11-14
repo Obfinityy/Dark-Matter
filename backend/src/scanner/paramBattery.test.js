@@ -292,6 +292,13 @@ describe('param battery skipped records (35/63 fix)', () => {
     // [Critical]): 'log-poisoning' joins the battery as a loop
     // phase (one record per scan target with probe points; lab-gated,
     // confirms only when a PHP payload in the log executes on include).
+    // (159 since 14 Nov 2026 (mfa-bypass, rows #46/#327): 'mfa-bypass'
+    // joins as a standalone gated phase (one record per scan,
+    // always-run as an honest no-op: no 2FA routes on a bare page;
+    // lab-gated, pre-MFA credential replay on mined protected routes,
+    // sensitive-action replay, OTP-reuse / enrollment / window legs
+    // via a server-disclosed TOTP secret, recovery-code throttle
+    // oracle; confirms only on a differential / state-change oracle).
     // (148 since 10 Nov 2026 (anti-automation, row #79): 'anti-automation'
     // joins as a standalone gated phase (one record per scan,
     // always-run as an honest no-op: no login route on a bare page;
@@ -350,7 +357,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
     assert.ok(DEFAULT_PHASES.includes('sqli-second-order'), "'sqli-second-order' must be registered");
-    assert.equal(DEFAULT_PHASES.length, 158);
+    assert.equal(DEFAULT_PHASES.length, 159);
   });
 
   it('zero param targets: all 35 param phases emit skipped records, rollup reports them', async () => {
@@ -730,15 +737,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 158,
-        ok: 101,
+        total: 159,
+        ok: 102,
         failed: 0,
         skipped: 57,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 101 ran ok, 57 skipped, 0 failed, 0 timed out.'
+        'Phases: 102 ran ok, 57 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
