@@ -16,7 +16,23 @@
 // class 'cache_poisoning' → default protocol → signalCorrelated=true.
 // Severity: medium (high when the reflected input is script-executable,
 // but this probe claims medium — the XSS layer is a separate finding).
+//
+// New legs (#356 / #357 / #358, Nov 2026): the same three-step
+// differential, one leg per unkeyed input — a `dmcache` query
+// parameter, a `dmcache` cookie value, and a GET carrying a
+// `dmcache` body parameter (fat GET / parameter cloaking; fetch
+// cannot send a GET body, so that leg uses the shared rawHeaderFetch
+// transport from ssrfRouting.js). The fat-GET differential is the
+// body itself: the baseline plain GET has no canary, the GET-with-body
+// reflects it, and the clean victim GET serves it — only a server
+// that reads body parameters on a GET can be poisoned this way.
+// Lab-gated: the three new legs run only when opts.allowWrite is
+// true (cache poisoning writes shared state — the fileUpload
+// pattern). The older XFH leg is ungated by history and is left
+// byte-untouched (row #355 VERIFIED); its gating is a separate
+// decision, not this lane's.
 import { randomBytes } from 'node:crypto';
+import { rawHeaderFetch } from './ssrfRouting.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -55,6 +71,88 @@ async function get(url, headers, opts = {}) {
   }
 }
 
+function withQueryParam(url, name, value) {
+  try {
+    const u = new URL(url);
+    u.searchParams.set(name, value);
+    return u.toString();
+  } catch {
+    return `${url}${url.includes('?') ? '&' : '?'}${name}=${encodeURIComponent(value)}`;
+  }
+}
+
+// GET carrying a body (fat GET) via the shared raw transport — fetch
+// cannot send a GET body, so this goes through node:http(s) directly.
+// Returns the response body text, or null on any failure. Never throws.
+async function getWithBody(url, body, opts = {}) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), opts.timeoutMs || 15000);
+  try {
+    const res = await rawHeaderFetch(url, {
+      method: 'GET',
+      signal: ctrl.signal,
+      headers: {
+        'User-Agent': UA,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': String(Buffer.byteLength(body)),
+      },
+      body,
+    });
+    return await res.text().catch(() => '');
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// Generic three-step poison differential shared by the #356/#357/#358
+// legs: baseline (clean GET must NOT contain the canary) → poison
+// (one request carrying the canary through the leg's vector; its
+// response must reflect the canary, else there is nothing to poison
+// with) → victim (clean GET; canary present ⇒ the poisoned variant
+// was served from cache). A first-response reflection alone is never
+// confirmation. Returns a finding or null; never throws.
+async function runPoisonLeg({ url, canary, poison, id, title, requestDesc, opts }) {
+  let baseline;
+  try {
+    baseline = await get(url, {}, opts);
+  } catch {
+    return null;
+  }
+  if (baseline.body.includes(canary)) return null; // sanity: canary already there
+  let poisonBody = null;
+  try {
+    poisonBody = await poison(canary);
+  } catch {
+    return null;
+  }
+  if (poisonBody == null || !poisonBody.includes(canary)) return null;
+  let victim;
+  try {
+    victim = await get(url, {}, opts);
+  } catch {
+    return null;
+  }
+  if (!victim.body.includes(canary)) return null;
+  const idx = victim.body.indexOf(canary);
+  const window = victim.body.slice(Math.max(0, idx - 60), idx + 80);
+  const hitHeader = Object.entries(victim.headers || {}).find(([k, v]) => /hit/i.test(String(v)) || k === 'age');
+  return {
+    class: 'cache_poisoning',
+    id,
+    title,
+    severity: 'medium',
+    url,
+    evidence: {
+      request: requestDesc(canary),
+      response: `canary served to the clean victim request — "...${window}..."${hitHeader ? ` (${hitHeader[0]}: ${hitHeader[1]})` : ''} — poisoned page cached`,
+      impact_demo: 'attacker-controlled value cached and served to every visitor — defacement/phishing/JS injection primitive',
+      signalCorrelated: true,
+    },
+  };
+}
+
 export async function probeCachePoisoning(url, opts = {}) {
   const findings = [];
   const rand = randomBytes(4).toString('hex');
@@ -90,6 +188,47 @@ export async function probeCachePoisoning(url, opts = {}) {
     }
   } catch {
     // Network failure — deception phase below still runs its own requests.
+  }
+  // ---- New unkeyed-input legs (#356 / #357 / #358) -------------------------
+  // Same three-step differential as the XFH leg, one leg per unkeyed
+  // input. Lab-gated (see header): run only when opts.allowWrite is
+  // true. Each leg uses its own canary so findings never cross-attribute.
+  if (opts && opts.allowWrite === true) {
+    const qpCanary = `dmcache-${randomBytes(4).toString('hex')}`;
+    const qp = await runPoisonLeg({
+      url,
+      canary: qpCanary,
+      poison: async (c) => (await get(withQueryParam(url, 'dmcache', c), {}, opts)).body,
+      id: 'cache-poisoning-query-param',
+      title: 'Web cache poisoning via unkeyed query parameter',
+      requestDesc: (c) => `GET ${withQueryParam(url, 'dmcache', c)}, then clean GET`,
+      opts,
+    });
+    if (qp) findings.push(qp);
+
+    const fatCanary = `dmcache-${randomBytes(4).toString('hex')}`;
+    const fat = await runPoisonLeg({
+      url,
+      canary: fatCanary,
+      poison: async (c) => getWithBody(url, `dmcache=${c}`, opts),
+      id: 'cache-poisoning-fat-get',
+      title: 'Web cache poisoning via fat GET (parameter cloaking)',
+      requestDesc: (c) => `GET ${url} with body dmcache=${c}, then clean GET`,
+      opts,
+    });
+    if (fat) findings.push(fat);
+
+    const ckCanary = `dmcache-${randomBytes(4).toString('hex')}`;
+    const ck = await runPoisonLeg({
+      url,
+      canary: ckCanary,
+      poison: async (c) => (await get(url, { Cookie: `dmcache=${c}` }, opts)).body,
+      id: 'cache-poisoning-cookie',
+      title: 'Web cache poisoning via unkeyed cookie',
+      requestDesc: (c) => `GET ${url} with Cookie: dmcache=${c}, then clean GET`,
+      opts,
+    });
+    if (ck) findings.push(ck);
   }
   // Phase 2: web cache deception (#169 / #434 / #435) — path-confusion
   // variants are probed regardless of the XFH result.
