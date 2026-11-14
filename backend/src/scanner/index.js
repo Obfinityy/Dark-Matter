@@ -37,6 +37,7 @@ import { probeSsrfRouting } from './probes/ssrfRouting.js';
 import { probeSsrfReferer } from './probes/ssrfReferer.js';
 import { probeRefererAccessControl } from './probes/refererAccessControl.js';
 import { probeIdorSurface } from './probes/idor.js';
+import { probeIdorUuid } from './probes/idorUuid.js';
 import { probeCors } from './probes/cors.js';
 import { probeCookieFlags } from './probes/cookies.js';
 import { probeStoredXss, probeStoredXssUriScheme } from './probes/storedXss.js';
@@ -3261,7 +3262,34 @@ async function runScanInner(
     }),
     { teardown: xxeXincludeOob ? () => xxeXincludeOob.stop() : undefined }
   );
-  plan('idor', () => probeIdorSurface(url));
+  // BOLA — UUID / PREDICTABLE-TOKEN IDs (row #339 [Medium]
+  // BOLA — UUID / predictable token IDs, CWE-639): the surface
+  // detector flags the shapes; the confirmable leg replays each
+  // mined object URL as the owner (labCreds control) and as a
+  // throwaway other user, confirming ONLY on the same object
+  // coming back to the other user (see idorUuid.js). Lab-gated
+  // inside the probe; non-lab scans behave exactly as before.
+  const idorUuidDiag = {};
+  plan(
+    'idor',
+    async () => [
+      ...probeIdorSurface(url),
+      ...(await probeIdorUuid(url, {
+        ...opts,
+        allowWrite,
+        routes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: idorUuidDiag,
+      })),
+    ],
+    () => ({
+      uuidObjectUrls: idorUuidDiag.objectUrls || 0,
+      uuidRegisterOk: Boolean(idorUuidDiag.registerOk),
+      uuidControlOk: Boolean(idorUuidDiag.controlOk),
+      uuidAttempts: idorUuidDiag.attempts || 0,
+      uuidBypassKind: idorUuidDiag.bypassKind || null,
+    })
+  );
   plan('cors', () => probeCors(url, opts));
   plan('cookies', () => probeCookieFlags(url, opts));
   plan('stored-xss', async () => [...(await probeStoredXss(forms, url, opts)), ...(await probeStoredXssUriScheme(forms, url, opts))]);
