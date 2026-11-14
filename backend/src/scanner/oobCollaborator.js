@@ -39,6 +39,11 @@ export function createOobCollaborator({
       token,
       path: u.pathname,
       method: req.method || 'GET',
+      // The fetching client's User-Agent: a browser UA on a hit proves
+      // the fetch came from a viewer render (egress laundering), not
+      // from an agent-issued request. Additive only — existing
+      // consumers read token/path/method/at and are unaffected.
+      userAgent: (req.headers && req.headers['user-agent']) || '',
       at: new Date().toISOString(),
     };
     hits.push(hit);

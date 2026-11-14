@@ -325,7 +325,7 @@ describe('param battery skipped records (35/63 fix)', () => {
     // (66 since 7 Nov 2026 (JS-bundle API routes): 'js-api-routes'
     // joins the battery so spec-less SPA APIs get a bundle-mined
     // inventory pass. (65 since 6 Nov 2026: 'openapi-targets'.)
-    assert.equal(DEFAULT_PHASES.length, 148);
+    assert.equal(DEFAULT_PHASES.length, 149);
   });
 
   it('zero param targets: all 31 param phases emit skipped records, rollup reports them', async () => {
@@ -705,15 +705,15 @@ describe('buildPhaseSummaryLine (phase-split message)', () => {
         }
       );
       assert.deepEqual(buildPhaseRollup(result.phases), {
-        total: 148,
-        ok: 96,
+        total: 149,
+        ok: 97,
         failed: 0,
         skipped: 52,
         timedOut: 0,
       });
       assert.equal(
         buildPhaseSummaryLine(result.phases),
-        'Phases: 96 ran ok, 52 skipped, 0 failed, 0 timed out.'
+        'Phases: 97 ran ok, 52 skipped, 0 failed, 0 timed out.'
       );
     } finally {
       teardown();
