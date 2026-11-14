@@ -2584,9 +2584,13 @@ async function runScanInner(
   // mfaBypass.js). OTP brute-force (#326) is NOT re-implemented —
   // twofa-bruteforce already owns it. Same apiRoutes wiring as
   // twofa-bruteforce. Diagnostics ride the phase extras
-  // (mfaRoutes, controlOk, attempts, enrolled, restoreOk) so a
-  // live proof can tell "no surface" from "oracle uncalibrated"
-  // without re-running the scan. NOTE: this is the 149th phase
+  // (mfaRoutes, controlOk, attempts, enrolled, restoreOk,
+  // mfa48Surface) so a live proof can tell "no surface" from
+  // "oracle uncalibrated" without re-running the scan. mfa48Surface
+  // is the row-#48 Missing-MFA diagnostic (never a finding — see
+  // mfaBypass.js header): 'none' | 'available-not-enrolled' |
+  // 'available-enrolment-unknown' | 'enrolled'; 'unknown' when the
+  // probe never ran (gate skip). NOTE: this is the 149th phase
   // (shared with PRs #499/#505/#507/#510/#511 — whichever merges
   // later renumbers).
   const mfbDiag = {};
@@ -2606,6 +2610,7 @@ async function runScanInner(
       attempts: mfbDiag.attempts || 0,
       enrolled: Boolean(mfbDiag.enrolled),
       restoreOk: Boolean(mfbDiag.restoreOk),
+      mfa48Surface: mfbDiag.mfa48Surface || 'unknown',
     })
   );
   // CREDENTIAL STUFFING (9 Nov 2026, row #42 [High], OWASP A07:2021):

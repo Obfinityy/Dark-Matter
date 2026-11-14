@@ -76,6 +76,44 @@
 // honest [] — DVWA has no 2FA surface at all and returns [] before
 // any login POST).
 //
+// ROW #48 — MISSING MFA: PARKED AS DIAGNOSTIC-ONLY (15 Nov 2026).
+// "MFA is missing" is a policy claim, not a behaviour the scanner
+// can prove black-box, and no firing oracle for it survives the
+// two lab controls — so this probe classifies the MFA surface and
+// reports it as an informational diagnostic (diag mfa48Surface,
+// never a finding) instead of improvising a weak oracle:
+//   (a) "2FA enrolment exists, yet a full-privilege session does
+//       sensitive actions with no step-up" — REJECTED. Juice
+//       exposes /rest/2fa and the canary is NOT enrolled (2FA is
+//       opt-in there): a full session doing a password change with
+//       no step-up is CORRECT behaviour for a non-enrolled
+//       account. Firing here false-positives on every opt-in-MFA
+//       shop. The only sound sub-case — the account IS enrolled —
+//       is already L0 (enrolled-but-never-challenged) / L2.
+//   (b) "target advertises MFA but login never challenges" —
+//       REJECTED, same control failure: login correctly never
+//       challenges a non-enrolled account, so it collapses into
+//       L0 when enrolled; and "advertises in docs" is not
+//       machine-checkable by a rule-based HTTP probe.
+//   (c) "no 2FA surface at all" — REJECTED. DVWA has no MFA
+//       surface, and neither does most of the internet's login
+//       forms; nothing in-band distinguishes "must have MFA" from
+//       "legitimately has none" without an external policy input
+//       (compliance regime, advertised policy, admin-role rule).
+//       A firing leg here would flag every login form on the
+//       internet.
+//   (d) "privileged/admin account with no MFA option" — REJECTED,
+//       same policy-input problem: role alone establishes no
+//       requirement.
+// A future firing leg needs that policy input supplied out of
+// band (e.g. "this target's policy requires MFA for role X").
+// Until then: surface values are 'none' (DVWA shape),
+// 'available-not-enrolled' (Juice canary shape),
+// 'available-enrolment-unknown' (surface exists, enrolment state
+// unreadable), 'enrolled' (L0 owns the never-challenged case).
+// See docs/scanner/mfa-bypass.md ("Row #48") and
+// missingMfaDiagnostic() + missingMfa.test.js.
+//
 // GATES: labCreds + allowWrite + isLabTargetHost (same lab gate as
 // basket-logic / workflow-skip / session-fixation /
 // twofa-bruteforce / credential-stuffing); depth 'quick' skips the
@@ -412,6 +450,62 @@ export function assessSetupResponse(status) {
   return { kind: 'rejected', reason: `setup endpoint refused with HTTP ${status}` };
 }
 
+/**
+ * Row #48 — Missing MFA: classify the MFA surface for the
+ * diagnostic-only verdict. NEVER a finding: no black-box oracle
+ * can prove "MFA is missing" without an external policy input
+ * (see the header comment — candidates (a)-(d) all fail a lab
+ * control). Pure.
+ *
+ *   hasSurface false            → 'none' (DVWA shape)
+ *   hasSurface true, enrolled
+ *     false                     → 'available-not-enrolled' (Juice
+ *                                 canary shape: 2FA offered, this
+ *                                 account not enrolled)
+ *     true                      → 'enrolled' (the
+ *                                 enrolled-but-never-challenged
+ *                                 case belongs to leg L0, not #48)
+ *     null/undefined            → 'available-enrolment-unknown'
+ *                                 (surface exists, enrolment state
+ *                                 could not be read)
+ */
+export function missingMfaDiagnostic({ hasSurface, enrolled } = {}) {
+  if (!hasSurface) {
+    return {
+      surface: 'none',
+      verdict: 'diagnostic-only',
+      finding: false,
+      reason:
+        'No 2FA surface was mined (no verify/status/setup route). Absence of MFA is not a finding: without an external policy requirement there is no sound way to tell a target that must have MFA from one that legitimately has none (DVWA control: silent).',
+    };
+  }
+  if (enrolled === true) {
+    return {
+      surface: 'enrolled',
+      verdict: 'diagnostic-only',
+      finding: false,
+      reason:
+        '2FA is enrolled on this account, so MFA is not missing. Whether the enrolled second factor is actually enforced at login is leg L0 (enrolled-but-never-challenged), not row #48.',
+    };
+  }
+  if (enrolled === false) {
+    return {
+      surface: 'available-not-enrolled',
+      verdict: 'diagnostic-only',
+      finding: false,
+      reason:
+        '2FA is offered but this account is not enrolled. Sensitive actions without a step-up are correct behaviour for a non-enrolled account; flagging them would false-positive on every opt-in-MFA shop (Juice control: silent).',
+    };
+  }
+  return {
+    surface: 'available-enrolment-unknown',
+    verdict: 'diagnostic-only',
+    finding: false,
+    reason:
+      'A 2FA surface exists but the enrolment state could not be read (status fetch failed or login failed), so neither "missing" nor "present" can be claimed. No finding is reported on an unreadable state.',
+  };
+}
+
 // ---- network (fetchFn seam, defaults to global fetch) -----------------------
 
 async function req(fetchFn, url, { method = 'GET', token = null, body = null, timeoutMs = TIMEOUT_MS } = {}) {
@@ -497,8 +591,20 @@ export async function probeMfaBypass(url, opts = {}) {
   }
   const routes = (opts.apiRoutes || []).map(String);
   const rs = mfaRouteSet(routes, origin);
+  // Row #48 diagnostic (never a finding): classify the MFA surface
+  // for the phase extras; set at every informative exit below.
+  const setMfa48 = (enrolled) => {
+    const d = missingMfaDiagnostic({
+      hasSurface: Boolean(rs.verify || rs.status || rs.setup),
+      enrolled,
+    });
+    setDiag('mfa48Surface', d.surface);
+  };
   // No 2FA surface at all (DVWA): an honest [] before any login POST.
-  if (!rs.verify && !rs.status && !rs.setup) return findings;
+  if (!rs.verify && !rs.status && !rs.setup) {
+    setMfa48(null);
+    return findings;
+  }
   setDiag(
     'mfaRoutes',
     [rs.verify, rs.status, rs.setup, rs.disable, rs.recovery].filter(Boolean).length
@@ -517,7 +623,10 @@ export async function probeMfaBypass(url, opts = {}) {
   // Login (shared budget, same as basket-logic / workflow-skip /
   // twofa-bruteforce): exact /login candidates first.
   const loginUrls = loginCandidates(routes, origin).slice(0, MAX_LOGIN_CANDIDATES);
-  if (!loginUrls.length) return findings;
+  if (!loginUrls.length) {
+    setMfa48(null);
+    return findings;
+  }
   const doLogin = async () => {
     let token = null;
     let tmpToken = null;
@@ -542,7 +651,10 @@ export async function probeMfaBypass(url, opts = {}) {
   };
 
   const session = await doLogin();
-  if (!session.token && !session.tmpToken && !session.mfaPending) return findings;
+  if (!session.token && !session.tmpToken && !session.mfaPending) {
+    setMfa48(null);
+    return findings;
+  }
 
   // L1 — direct endpoint access with a pre-MFA credential. Control:
   // the same route with no token must refuse (or answer the same
@@ -773,6 +885,9 @@ export async function probeMfaBypass(url, opts = {}) {
   try {
     const preMfaCreds = [session.token, session.tmpToken].filter(Boolean);
     if (session.mfaPending) {
+      // Pending ⇒ enrolled: the #48 surface is 'enrolled'
+      // (L0 owns the never-challenged case, not #48).
+      setMfa48(true);
       // Pending session straight from login: L1, L2, L5, then the
       // enrolled-session legs if the status endpoint discloses a
       // secret for this account.
@@ -786,6 +901,7 @@ export async function probeMfaBypass(url, opts = {}) {
 
     // Not pending: is MFA enrolled but never challenged at login?
     const st = await getStatus(session.token);
+    setMfa48(st ? st.setup : null);
     if (st && st.setup === true) {
       // L0 — enrolled, yet the login issued a full token with no
       // challenge. The direct-access replay is the confirmation:
@@ -816,6 +932,7 @@ export async function probeMfaBypass(url, opts = {}) {
         if (judged.kind === 'success') {
           enrolled = true;
           setDiag('enrolled', true);
+          setMfa48(true); // L6 fired: the account is now enrolled
           findings.push({
             class: 'auth_mfa_bypass',
             id: `mfa-enroll-wrong-code-${Math.random().toString(36).slice(2, 10)}`,
@@ -843,6 +960,7 @@ export async function probeMfaBypass(url, opts = {}) {
             if (enroll && assessSetupResponse(enroll.status).kind === 'success') {
               enrolled = true;
               setDiag('enrolled', true);
+              setMfa48(true); // enrolled for real by this probe
               const again = await doLogin();
               if (again.tmpToken || again.mfaPending) {
                 const credsToTry = [again.token, again.tmpToken].filter(Boolean);
@@ -880,6 +998,10 @@ export async function probeMfaBypass(url, opts = {}) {
         }
       }
       setDiag('restoreOk', restoreOk);
+      // Restored to the pre-run state: the steady-state #48 surface
+      // is 'available-not-enrolled' again. If the restore failed the
+      // account is left enrolled and the diag stays 'enrolled'.
+      if (restoreOk) setMfa48(false);
     }
   }
 }
