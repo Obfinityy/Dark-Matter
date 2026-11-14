@@ -143,6 +143,7 @@ import { createOobCollaborator } from './oobCollaborator.js';
 import { createSmtpCanaryInbox } from './smtpCanaryInbox.js';
 import { discoverDomForms } from './domRender.js';
 import { acquireLabSession } from './labSession.js';
+import { harvestScanTokens } from './tokenHarvest.js';
 import { renderDomAuthenticated, mergeAuthAnalysis } from './authDomRender.js';
 import { discoverOpenApiTargets } from './openapi.js';
 import { discoverJsRoutes } from './jsRoutes.js';
@@ -4106,7 +4107,33 @@ async function runScanInner(
   );
   plan('tls', () => probeTls(url, opts));
   plan('password-reset', () => probePasswordReset(forms, url, { ...opts, labTargets }));
-  plan('crypto', () => probeCrypto(url, opts));
+  // CRYPTO TOKEN SUPPLY (14 Nov 2026, rows #124/#261/#369): crypto.js
+  // T2 (predictable session-token structure) needs opts.cryptoTokens,
+  // and nothing in the scan supplied it — the leg was dead in
+  // production, untested. Harvest what the scan already saw (zero
+  // extra requests): Set-Cookie values on the fingerprinted/crawled
+  // pages, hidden token/CSRF inputs in discovered forms, and the lab
+  // session's bearer token + cookies (lab targets only). An explicit
+  // opts.cryptoTokens from the caller (lab harness / tests) wins.
+  // The harvest runs only when the crypto phase is planned. Phase
+  // extras carry the harvested COUNT only — token values never land
+  // in a phase record.
+  const cryptoTokens =
+    phases.includes('crypto') && !(opts.cryptoTokens && opts.cryptoTokens.length)
+      ? harvestScanTokens({
+          fingerprint: fp,
+          crawled,
+          forms,
+          authSession,
+          labUsername: opts.labCreds && opts.labCreds.username,
+          targetUrl: url,
+        })
+      : opts.cryptoTokens || [];
+  plan(
+    'crypto',
+    () => probeCrypto(url, { ...opts, cryptoTokens, cryptoTokenSource: url }),
+    () => ({ cryptoTokensHarvested: cryptoTokens.length })
+  );
   // HASH LENGTH EXTENSION (10 Nov 2026, row #506 [High] hash
   // length extension, CWE-327 / CWE-347): a secret-prefix MAC
   // (hash(secret || message)) lets an attacker forge a valid MAC

@@ -1235,6 +1235,94 @@ describe('runScan XXE OOB wiring', () => {
 });
 
 // ---------------------------------------------------------------------------
+// runScan crypto token-supply wiring (14 Nov 2026, rows #124/#261/#369):
+// proves the full path — the scan harvests session tokens it already saw
+// (Set-Cookie on the fingerprinted page + hidden CSRF input in a crawled
+// form) and passes them to probeCrypto as opts.cryptoTokens, so the T2
+// predictable-token leg fires in production instead of silently skipping
+// for lack of supply. Zero extra requests: the harvest reads only the
+// fingerprint/crawl results the scan already fetched. Probe-level tests
+// pass cryptoTokens directly and cannot catch a missing call-site supply.
+describe('runScan crypto token-supply wiring', () => {
+  function startTokenStub({ predictable }) {
+    const server = http.createServer((req, res) => {
+      const session = predictable ? 'sess-100001' : '9f2c47ab81d5e03a6c4b9f0d2e7a5c8f1a';
+      const csrf = predictable ? 'csrf-200001' : '7d4e1a9c05b8f236a1d4e7b9c0f3a6d2e';
+      res.setHeader('Set-Cookie', [
+        `session=${session}; Path=/`,
+        '_ga=GA1.2.1234567890.1234567890; Path=/',
+      ]);
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(
+        `<html><body><form action="/login" method="post">` +
+          `<input name="csrf_token" type="hidden" value="${csrf}">` +
+          `<input name="username" type="text"><input name="password" type="password">` +
+          `<input type="submit"></form></body></html>`
+      );
+    });
+    return new Promise((resolve) => {
+      server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port }));
+    });
+  }
+
+  const stopStub = (s) => new Promise((r) => s.server.close(r));
+
+  const tokenFinding = (result) =>
+    (result.findings || []).find(
+      (x) => x.title && x.title.startsWith('Predictable session/token structure')
+    );
+
+  it('CONFIRMS predictable-token end-to-end when the scan harvests predictable tokens', async () => {
+    const stub = await startTokenStub({ predictable: true });
+    try {
+      const result = await runScan(
+        {
+          target: `http://127.0.0.1:${stub.port}/`,
+          labTargets: '',
+          phases: ['fingerprint', 'crawl', 'crypto'],
+          confirmedAuthorized: true,
+        },
+        { timeoutMs: 3000 }
+      );
+      const f = tokenFinding(result);
+      assert.ok(
+        f,
+        `expected T2 finding in confirmed findings, got ${JSON.stringify((result.findings || []).map((x) => x.title))}`
+      );
+      assert.equal(f.confirmation, 'confirmed');
+      assert.equal(f.severity, 'high');
+      assert.equal(f.class, 'weak_crypto');
+      const cryptoPhase = (result.phases || []).find((p) => p.name === 'crypto');
+      assert.ok(cryptoPhase && cryptoPhase.ok, 'crypto phase must record ok');
+      assert.equal(cryptoPhase.cryptoTokensHarvested, 2, 'cookie + form token must be harvested');
+    } finally {
+      await stopStub(stub);
+    }
+  });
+
+  it('NEGATIVE: no T2 finding when the harvested tokens are high-entropy', async () => {
+    const stub = await startTokenStub({ predictable: false });
+    try {
+      const result = await runScan(
+        {
+          target: `http://127.0.0.1:${stub.port}/`,
+          labTargets: '',
+          phases: ['fingerprint', 'crawl', 'crypto'],
+          confirmedAuthorized: true,
+        },
+        { timeoutMs: 3000 }
+      );
+      assert.equal(tokenFinding(result), undefined);
+      const cryptoPhase = (result.phases || []).find((p) => p.name === 'crypto');
+      assert.ok(cryptoPhase && cryptoPhase.ok, 'crypto phase must record ok');
+      assert.equal(cryptoPhase.cryptoTokensHarvested, 2, 'supply must still run on random tokens');
+    } finally {
+      await stopStub(stub);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // runScan password-reset wiring (isLab follow-up, 8 Nov 2026): proves the
 // full path — runScan passes labTargets to the password-reset step, so the
 // lab submission branch runs on a lab target (token disclosed in the
