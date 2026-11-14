@@ -1,8 +1,11 @@
 // Dark Matter rule-based scanner — GraphQL endpoint testing probe.
 // Tests GraphQL endpoints for: introspection enabled, query-depth DoS,
-// unauthenticated mutations, error-based field leakage, and batching abuse.
+// unauthenticated mutations, mutation BOLA (two-session differential),
+// error-based field leakage, and batching abuse.
 // All tests use differential oracles per the 100% truth rule.
 import { isLabTargetHost } from '../../labCreds.js';
+import { loginCandidates } from './sessionFixation.js';
+import { apiLogin, registerLowPriv, findRegisterRoutes, LOW_PRIV_PASSWORD } from './bfla.js';
 
 const UA = 'DarkMatter-Scanner/1.0 (+authorized-scan)';
 
@@ -294,6 +297,153 @@ async function t158MutationMassAssign(endpoint, opts, timeoutMs, canary) {
   return findings;
 }
 
+// ---- #385: GraphQL mutation BOLA (HIGH, lab-gated) ---------------------------
+// Two-session differential on the BFLA session model: an admin session
+// learns its own id via a self field ({me{id}}); a throwaway low-privilege
+// session then mutates the ADMIN's object with a canary value. CONFIRMED
+// only on the re-read differential (T3 three-step): pre-mutation value V0,
+// post-mutation value V1 == canary and V1 != V0. A mutation response alone
+// never confirms — only the persisted re-read does. Destructive mutations
+// (delete/remove/drop/destroy/purge) are never candidates, and the leg
+// sends exactly one mutation. Gates: lab host + allowWrite + labCreds +
+// apiRoutes (login/register mining) + depth !== 'quick'. Anything
+// uncalibrated (no candidate, no self field, no sessions, no readable
+// pre-value) returns [] — never a finding.
+const BOLA_DESTRUCTIVE_RE = /^(delete|remove|drop|destroy|purge)/i;
+const BOLA_SELF_FIELDS = ['me', 'viewer', 'currentUser', 'self', 'whoami'];
+const BOLA_MAX_LOGIN_POSTS = 4;
+const BOLA_MAX_TOTAL_POSTS = 10;
+
+async function t385MutationBola(endpoint, opts, timeoutMs, canary) {
+  const findings = [];
+  const creds = opts.labCreds;
+  if (!creds || !creds.username || !creds.password) return findings;
+  if (opts.allowWrite !== true) return findings;
+  if (!isLabTargetHost(endpoint, opts.labTargets)) return findings;
+  const routes = (opts.apiRoutes || []).map(String);
+  if (!routes.length) return findings;
+
+  // (1) Mutation candidate: an update-style mutation whose input object
+  // carries both an id field and a mutable 'name' field. Destructive
+  // mutations are never candidates.
+  const mRes = await gqlPost(
+    endpoint,
+    '{__schema{mutationType{fields{name args{name type{kind ofType{name inputFields{name}}}}}}}}',
+    { timeoutMs, headers: opts.headers }
+  );
+  const mutFields =
+    mRes.ok && mRes.json && mRes.json.data
+      ? mRes.json.data.__schema?.mutationType?.fields || []
+      : [];
+  let candidate = null;
+  for (const m of mutFields.slice(0, 5)) {
+    if (BOLA_DESTRUCTIVE_RE.test(m.name || '')) continue;
+    for (const a of m.args || []) {
+      const inner = a.type && a.type.ofType;
+      if (!inner || !Array.isArray(inner.inputFields)) continue;
+      const names = inner.inputFields.map((f) => f.name);
+      if (names.some((n) => /^id$/i.test(n)) && names.some((n) => /^name$/i.test(n))) {
+        candidate = { mutation: m.name, arg: a.name, idField: 'id', nameField: 'name' };
+        break;
+      }
+    }
+    if (candidate) break;
+  }
+  if (!candidate) return findings;
+
+  // (2) Query-shape calibration: a self field (for the admin's own id)
+  // and a query field taking an id (for the pre/post re-reads).
+  const qRes = await gqlPost(
+    endpoint,
+    '{__schema{queryType{fields{name args{name}}}}}',
+    { timeoutMs, headers: opts.headers }
+  );
+  const qFields =
+    qRes.ok && qRes.json && qRes.json.data
+      ? qRes.json.data.__schema?.queryType?.fields || []
+      : [];
+  const selfField = (qFields.map((f) => f.name).find((n) => BOLA_SELF_FIELDS.includes(n)) || null);
+  const readField = (qFields.find((f) => (f.args || []).some((a) => /^id$/i.test(a.name))) || {}).name || null;
+  if (!selfField || !readField) return findings;
+
+  // (3) Sessions (BFLA model): admin control login, throwaway low-priv
+  // registration, low-priv login — one shared POST budget.
+  let origin;
+  try {
+    origin = new URL(endpoint).origin;
+  } catch {
+    return findings;
+  }
+  const loginUrls = loginCandidates(routes, origin);
+  if (!loginUrls.length) return findings;
+  const registerRoutes = findRegisterRoutes(routes, origin);
+  if (!registerRoutes.length) return findings;
+  let postsSpent = 0;
+  const adminLogin = await apiLogin(fetch, loginUrls, creds, BOLA_MAX_LOGIN_POSTS);
+  postsSpent += adminLogin.spent;
+  if (!adminLogin.ok) return findings;
+  const lowEmail = `dm-gql-low-${rand()}@example.com`;
+  const registered = await registerLowPriv(fetch, registerRoutes, lowEmail);
+  postsSpent += registered.spent;
+  if (!registered.ok) return findings;
+  if (postsSpent >= BOLA_MAX_TOTAL_POSTS) return findings;
+  const lowLogin = await apiLogin(
+    fetch,
+    loginUrls,
+    { username: lowEmail, password: LOW_PRIV_PASSWORD },
+    Math.min(BOLA_MAX_LOGIN_POSTS, BOLA_MAX_TOTAL_POSTS - postsSpent)
+  );
+  postsSpent += lowLogin.spent;
+  if (!lowLogin.ok) return findings;
+  const adminHeaders = { Authorization: `Bearer ${adminLogin.token}` };
+  const lowHeaders = { Authorization: `Bearer ${lowLogin.token}` };
+
+  // (4) Foreign id: the admin's own id via the self field (admin session).
+  const meRes = await gqlPost(endpoint, `{${selfField}{id}}`, { timeoutMs, headers: adminHeaders });
+  const adminId = meRes.ok && meRes.json && meRes.json.data ? meRes.json.data[selfField]?.id : null;
+  if (!adminId || typeof adminId !== 'string') return findings;
+
+  // (5) Pre-mutation re-read (low-priv session): V0.
+  const readQuery = `{${readField}(id:"${adminId}"){${candidate.nameField}}}`;
+  const preRes = await gqlPost(endpoint, readQuery, { timeoutMs, headers: lowHeaders });
+  const v0 = preRes.ok && preRes.json && preRes.json.data ? preRes.json.data[readField]?.[candidate.nameField] : null;
+  if (v0 === null || v0 === undefined || v0 === '') return findings;
+
+  // (6) The single mutation (low-priv session, canary value).
+  const canaryVal = `dmbola${rand()}`;
+  const mutQuery =
+    `mutation{${candidate.mutation}(${candidate.arg}:{${candidate.idField}:"${adminId}" ` +
+    `${candidate.nameField}:"${canaryVal}"}){id ${candidate.nameField}}}`;
+  const mutRes = await gqlPost(endpoint, mutQuery, { timeoutMs, headers: lowHeaders });
+  if (!mutRes.ok || !mutRes.json || !mutRes.json.data || (mutRes.json.errors && mutRes.json.errors.length)) {
+    return findings;
+  }
+
+  // (7) Post-mutation re-read (low-priv session): CONFIRM only on V1 ==
+  // canary and V1 != V0 — the persisted cross-user write.
+  const postRes = await gqlPost(endpoint, readQuery, { timeoutMs, headers: lowHeaders });
+  const v1 = postRes.ok && postRes.json && postRes.json.data ? postRes.json.data[readField]?.[candidate.nameField] : null;
+  if (v1 !== canaryVal || v1 === v0) return findings;
+
+  findings.push({
+    class: 'graphql_mutation_bola',
+    id: `graphql-mutation-bola-${canary}`,
+    title: `GraphQL mutation BOLA — low-privilege session mutated another user's object (${candidate.mutation}) (HIGH)`,
+    severity: 'high',
+    url: endpoint,
+    parameter: `${candidate.mutation}.${candidate.nameField}`,
+    evidence: {
+      request: `POST ${endpoint} {"query":"${mutQuery}"} (lab target, low-privilege session, canary value only)`,
+      response: `Pre-mutation re-read: ${readField} ${candidate.nameField}="${v0}"; post-mutation re-read: ${candidate.nameField}="${v1}" — the low-privilege mutation persisted on the foreign (admin) object`,
+      impact_demo:
+        'A low-privilege user can mutate another user\'s object through a GraphQL mutation — object-level authorization is missing on the mutation resolver.',
+      signalCorrelated: true,
+      crossUserWrite: true,
+    },
+  });
+  return findings;
+}
+
 export async function probeGraphql(url, opts = {}) {
   const findings = [];
   const timeoutMs = opts.timeoutMs || 15000;
@@ -346,6 +496,8 @@ export async function probeGraphql(url, opts = {}) {
       findings.push(...(await t156FieldAuthBypass(endpoint, opts, timeoutMs, canary)));
       // #158: mutation mass assignment (lab-gated active; passive low elsewhere)
       findings.push(...(await t158MutationMassAssign(endpoint, opts, timeoutMs, canary)));
+      // #385: mutation BOLA (lab-gated two-session differential)
+      findings.push(...(await t385MutationBola(endpoint, opts, timeoutMs, canary)));
       const fakeField = `dmfield${rand()}`;
       const errRes = await gqlPost(endpoint, `{${fakeField}}}`, { timeoutMs, headers: opts.headers });
       if (errRes.ok && errRes.json && errRes.json.errors) {
