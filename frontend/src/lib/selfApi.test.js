@@ -50,6 +50,7 @@ const {
   submitSelfAiConsent,
   normalizeChecklist,
   normalizeRun,
+  normalizeCheckResult,
   checkVerdict,
   shortResult,
 } = await import('./selfApi.js');
@@ -182,4 +183,68 @@ test('shortResult: caps findings + evidence at 5, clips long lines, never dumps 
   assert.ok(out.evidence[0].length <= 160);
   assert.equal(out.topFindings[0], 'finding-0');
   assert.equal('raw' in out, false);
+});
+
+test('normalizeChecklist: LIVE backend shape — metadata categories + flat checks', () => {
+  // The exact shape GET /api/v1/self/checklist returns (verified 14 Nov
+  // 2026): categories are {code, sheet, title, checks:<count>} metadata,
+  // checks are a flat array with `category` as the code. Before the
+  // merge fix this normalised to 0 categories / 0 checks (empty page).
+  const out = normalizeChecklist({
+    ok: true,
+    categories: [
+      { code: 'REC', sheet: 'Reconnaissance', title: 'Reconnaissance', checks: 15 },
+      { code: 'A01', sheet: 'A01 Broken Access Control', title: 'Broken Access Control', checks: 72 },
+      { code: 'A11', sheet: 'A11 SSRF', title: 'SSRF (focused view)', checks: 0 },
+    ],
+    checks: [
+      { id: 'REC-01', category: 'REC', name: 'Subdomain Enumeration', kind: 'rule-based' },
+      { id: 'REC-05', category: 'REC', name: 'Technology Fingerprinting', kind: 'rule-based' },
+      { id: 'AUTHZ-01', category: 'A01', name: 'Insecure Direct Object Reference (IDOR)', kind: 'rule-based' },
+    ],
+    counts: { total: 3, ruleBased: 3, ai: 0 },
+  });
+  assert.equal(out.totalChecks, 3);
+  assert.equal(out.categories.length, 2);
+  // Category id IS the backend code, so run-category sends 'REC'/'A01'.
+  assert.equal(out.categories[0].id, 'REC');
+  assert.equal(out.categories[0].name, 'Reconnaissance');
+  assert.equal(out.categories[0].checks.length, 2);
+  assert.equal(out.categories[1].id, 'A01');
+  assert.equal(out.categories[1].name, 'Broken Access Control');
+  // A11 carries no checks in the flat array and is dropped, not rendered empty.
+  assert.equal(out.categories.some((c) => c.id === 'A11'), false);
+});
+
+test('normalizeCheckResult: backend verdict beats completion status', () => {
+  // runCheck returns status 'done' + verdict 'yes'|'no'. A finished
+  // check whose tools ran clean (verdict 'no') must display No, not Yes.
+  assert.equal(normalizeCheckResult({ status: 'done', verdict: 'no' }).status, 'no');
+  assert.equal(normalizeCheckResult({ status: 'done', verdict: 'yes' }).status, 'yes');
+  assert.equal(normalizeCheckResult({ status: 'partial', verdict: 'no' }).status, 'no');
+  assert.equal(normalizeCheckResult({ status: 'blocked', verdict: 'unknown' }).status, 'blocked');
+  // No verdict at all: the 'done' fallback still means Yes (old behaviour).
+  assert.equal(checkVerdict(normalizeCheckResult({ status: 'done' })), 'yes');
+  assert.equal(checkVerdict(normalizeCheckResult({ status: 'done', verdict: 'no' })), 'no');
+});
+
+test('normalizeRun: live backend {ok, run} envelope + array check state', () => {
+  // POST/GET /runs return {ok:true, run:{...}} — before the merge fix
+  // normalizeRun returned null for this envelope (page: "cannot read").
+  const fromEnvelope = normalizeRun({
+    ok: true,
+    run: {
+      id: 'self_ca0a3507c1f15ac2', target: 'http://172.17.0.1:3100',
+      phase: 'predefined', aiConsent: null,
+      checks: [
+        { checkId: 'REC-01', status: 'done', verdict: 'no', summary: 'clean' },
+        { checkId: 'REC-05', status: 'done', verdict: 'yes', summary: 'headers missing' },
+      ],
+    },
+  });
+  assert.equal(fromEnvelope.id, 'self_ca0a3507c1f15ac2');
+  assert.equal(fromEnvelope.phase, 'predefined');
+  assert.equal(fromEnvelope.aiConsent, null);
+  assert.equal(checkVerdict(fromEnvelope.checks['REC-01']), 'no');
+  assert.equal(checkVerdict(fromEnvelope.checks['REC-05']), 'yes');
 });

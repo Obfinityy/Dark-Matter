@@ -347,6 +347,16 @@ test('routes: unauthenticated checklist is 401; authenticated returns 202 checks
   assert.equal(r.json.checks.length, 202);
   assert.equal(r.json.counts.ai, 14);
   assert.equal(r.json.categories.length, 17);
+  // Contract pin for the Self frontend (merge 14 Nov 2026): categories are
+  // metadata {code, title, checks:<count>} and checks are flat with
+  // `category` as the code — the frontend groups by code. If this shape
+  // changes, the frontend normalizers must change with it.
+  assert.equal(r.json.categories[0].code, 'REC');
+  assert.equal(r.json.categories[0].title, 'Reconnaissance');
+  assert.equal(typeof r.json.categories[0].checks, 'number');
+  assert.equal(r.json.checks[0].category, 'REC');
+  assert.equal(r.json.counts.total, 202);
+  assert.equal(r.json.counts.ruleBased, 188);
 });
 
 test('routes: create requires confirmedAuthorized:true and rejects other owners', async () => {

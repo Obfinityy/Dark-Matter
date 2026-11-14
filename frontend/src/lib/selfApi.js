@@ -149,7 +149,14 @@ function normalizeCategory(raw) {
 
 // Accepts: {categories:[{id,name,checks:[...]}]}, {checks:[...]} flat
 // (grouped by check.category/sheet in first-seen order), or a `data`
-// wrapper around either. Duplicate check ids across categories (the
+// wrapper around either. ALSO the live backend's shape (verified
+// 14 Nov 2026 against GET /api/v1/self/checklist): categories are
+// metadata {code, sheet, title, checks:<count>} plus a flat `checks`
+// array whose entries carry `category` as the code ('REC', 'A01', …).
+// When no category carries embedded checks, the flat array is grouped
+// by code and the metadata titles become the display names, so the
+// category id the page sends to run-category IS the backend's code.
+// Duplicate check ids across categories (the
 // A11–A16 focused views repeat A01/A05/A08 checks) are kept ONCE, at
 // their first occurrence, so the total is the 202 distinct checks —
 // categories left empty by dedupe are dropped.
@@ -159,6 +166,31 @@ export function normalizeChecklist(raw) {
   let categories = [];
   if (Array.isArray(body.categories)) {
     categories = body.categories.map(normalizeCategory).filter(Boolean);
+    if (categories.reduce((n, c) => n + c.checks.length, 0) === 0 && Array.isArray(body.checks)) {
+      // Backend metadata shape: categories carry a checks COUNT, not an
+      // array — group the flat checks by category code instead.
+      const meta = new Map();
+      for (const rawCat of body.categories) {
+        if (!rawCat || typeof rawCat !== 'object') continue;
+        const code = asText(rawCat.code || rawCat.id || rawCat.key || '').trim();
+        if (code) meta.set(code, asText(rawCat.title || rawCat.name || code).trim());
+      }
+      const byCategory = new Map();
+      for (const rawCheck of body.checks) {
+        const check = normalizeCheck(rawCheck, '');
+        if (!check) continue;
+        const code = check.category || 'Uncategorised';
+        if (!byCategory.has(code)) {
+          byCategory.set(code, {
+            id: code === 'Uncategorised' ? 'uncategorised' : code,
+            name: meta.get(code) || code,
+            checks: [],
+          });
+        }
+        byCategory.get(code).checks.push(check);
+      }
+      categories = [...byCategory.values()];
+    }
   } else if (Array.isArray(body.checks)) {
     const byCategory = new Map();
     for (const rawCheck of body.checks) {
@@ -184,12 +216,21 @@ export function normalizeChecklist(raw) {
   return { categories: deduped, totalChecks: seen.size };
 }
 
-const CHECK_VERDICTS = new Set(['yes', 'no', 'running', 'pending', 'skipped', 'blocked', 'failed', 'done']);
+const CHECK_VERDICTS = new Set(['yes', 'no', 'running', 'pending', 'skipped', 'blocked', 'failed', 'done', 'partial']);
 
 export function normalizeCheckResult(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const statusRaw = String(raw.status || raw.verdict || raw.state || '').toLowerCase().replace(/[\s_]+/g, '-');
   let status = CHECK_VERDICTS.has(statusRaw) ? statusRaw : null;
+  // The live backend sends BOTH a completion status ('done' | 'partial' |
+  // 'blocked') and a Yes/No verdict ('yes' | 'no' | 'unknown'). The verdict
+  // is the checklist tick: a finished check whose tools ran clean is
+  // verdict 'no' and must NOT display as Yes just because status is
+  // 'done'. Prefer an explicit yes/no verdict over a completion status.
+  const verdictRaw = String(raw.verdict || '').toLowerCase();
+  if ((status === 'done' || status === 'partial') && (verdictRaw === 'yes' || verdictRaw === 'no')) {
+    status = verdictRaw;
+  }
   if (!status) {
     // Boolean-shaped results: explicit found/vulnerable flags only.
     if (raw.found === true || raw.vulnerable === true) status = 'yes';
@@ -210,11 +251,14 @@ export function normalizeCheckResult(raw) {
   };
 }
 
-// Accepts run state as the object itself or wrapped in `data`; per-check
+// Accepts run state as the object itself, wrapped in `data`, or in the
+// live backend's `{ok, run}` envelope (GET/POST /runs return
+// {ok:true, run:{...}} — verified 14 Nov 2026); per-check
 // state from `checks` / `checklist` / `results` as an object map
 // ({checkId: result}) or an array ([{checkId|id, ...result}]).
 export function normalizeRun(raw) {
-  const body = raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object' && !raw.id ? raw.data : raw;
+  let body = raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object' && !raw.id ? raw.data : raw;
+  if (body && typeof body === 'object' && body.run && typeof body.run === 'object' && !body.id) body = body.run;
   if (!body || typeof body !== 'object') return null;
   const id = asText(body.id || body.runId || '').trim();
   if (!id) return null;
