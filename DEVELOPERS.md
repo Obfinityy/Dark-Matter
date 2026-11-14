@@ -235,24 +235,42 @@ Brain call N+1:
 
 **File:** `backend/src/osControl.js`
 
-**17 actions available to the brain:**
-1. `shell` — Run any shell command
-2. `browser_navigate` — Go to URL
-3. `browser_click` — Click element
-4. `browser_type` — Type into field
-5. `browser_snapshot` — Get page accessibility tree
-6. `screenshot` — Capture screenshot (page)
-7. `see_screen` — Capture desktop + OCR (full GUI)
-8. `key` — Press keyboard key
-9. `open_url` — Open URL in browser
-10. `upload_file` — Upload file to target
-11. `download_file` — Download from target
-12. `intercept_proxy` — Burp/ZAP proxy control
-13. `run_tool` — Run security tool (nmap, sqlmap, etc.)
-14. `gui_click` — Click at desktop coordinates
-15. `gui_type` — Type at desktop
-16. `terminal` — Open GUI terminal
-17. `claim_finding` — File a vulnerability claim
+**Actions available to the brain (the brain-JSON contract):**
+The authoritative list is the `type` enum in
+`backend/src/brainReply.schema.json`, validated server-side by
+`backend/src/brainReply.js` — prompt authors must emit these
+names, not the retired ones below. The OS-control subset is
+also enumerated as `OS_CONTROL_ACTIONS` in
+`backend/src/osControl.js`.
+1. `shell` — Run a shell command in the hunt container
+2. `browser_open` — Open a URL in the hunt browser
+3. `click` — Click text on the page (maps to `browser_click`)
+4. `type` — Type into a named field (maps to `browser_type`)
+5. `recall` — Fetch a past action's full record by hash/id
+6. `claim_finding` — File a vulnerability claim (gated + verified)
+7. `browser_snapshot` — Get the page accessibility tree
+8. `screenshot` — Capture screenshot (page)
+9. `see_screen` — Capture desktop + OCR (full GUI text map)
+10. `desktop_snapshot` — List desktop windows + focused app
+11. `desktop_click` — Focus a window by title
+12. `desktop_key` — Send a keystroke
+13. `desktop_click_at` — Click at map coordinates (x, y)
+14. `desktop_click_control` — Click a named control
+15. `list_controls` — List a window's controls
+16. `desktop_screenshot` — Capture the desktop frame
+17. `desktop_terminal` — Run a command in the visible terminal
+18. `launch_tool` — Launch a named tool
+19. `download_tool` — Download/install a named tool
+20. `proxy_start` — Start the intercept proxy
+21. `intercept_list` — List captured proxy traffic
+22. `intercept_read` — Read one captured entry
+23. `intercept_replay` — Replay one captured entry
+
+Retired names (do NOT emit — the dispatcher does not list
+them): `browser_navigate`, `open_url`, `key`, `upload_file`,
+`download_file`, `intercept_proxy`, `run_tool`, `gui_click`,
+`gui_type`, `terminal`. The old "17 actions" count was stale;
+the contract above has 23.
 
 **The Docker + Xvfb desktop IS the full Kali GUI:**
 - fluxbox window manager
@@ -461,7 +479,7 @@ Every brain response MUST be valid JSON with this structure:
 **Exactly ONE action per turn.** Multiple actions are rejected.
 
 ### Valid Action Types
-See [5.3 OS Control](#53-os-control) for the 17 available actions.
+See [5.3 OS Control](#53-os-control) for the 23 contracted actions (and the retired names not to emit). The contract file is `backend/src/brainReply.schema.json`.
 
 ### Claim Filing Action
 ```json
@@ -690,7 +708,7 @@ Resource constraints (2 vCPU, 8GB RAM) and focus. One elite hunter does one targ
 > **Note (9 Nov 2026): this section is frozen at 1 Nov 2026 and is kept for the record. For current live status, see `PROOF.md`.**
 
 **Built (infrastructure):**
-- ✅ Full OS control (17 actions)
+- ✅ Full OS control (23 contracted actions — see §5.3)
 - ✅ Per-hunt memory system
 - ✅ Auto-filer with strict evidence gate
 - ✅ OCR pipeline (screenMap.js)
