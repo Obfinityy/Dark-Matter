@@ -92,6 +92,22 @@ Safety: 20 cheap `{__typename}` queries only, never mutations.
 
 **Reference:** 2024 GraphQL batching attacks.
 
+### T6. Alias-based authorization bypass (#350) — HIGH (CRITICAL for privileged-name fields) — lab-gated
+**Gate:** labCreds + allowWrite + isLabTargetHost + Standard/Deep depth (quick skips). No new phase — rides the `graphql` phase.
+
+Some servers enforce field authorization on the literal field name: the plain query is refused unauthenticated, but the SAME field under an alias returns data — the alias slips past the name-keyed check.
+
+- Field discovery: introspection `queryType{fields{name}}`, same sensitive-name regex as #156, cap 3 fields
+- **Oracle (three-way differential, all unauthenticated, no auth headers):**
+  1. Control: plain `{field}` → must be refused (null data / errors). A field the plain query already returns is #156's territory — skipped, never double-reported.
+  2. Probe: aliased `{dm350:field}` → must return non-null data under the alias key.
+  3. Repeat: identical aliased query → must return data again (repeat-stable).
+- CONFIRMED only when all three hold. Mere alias acceptance never confirms.
+- Severity: HIGH by default; CRITICAL only for a clearly privileged field name (`password|passhash|ssn|secret|token|apikey|api_key`, exact match) returning a value ≥ 8 chars — same rule as #156.
+- Cap: 1 finding max (first confirmed field); at most 10 requests (1 introspection + 3 fields × 3).
+
+**Untouched:** T2's alias-overloading DoS test — this leg aliases ONE field once, not fifty. **Follow-up (not this lane):** the owner-session variant (admin control session vs low-privilege aliased query) needs two credential sets; this leg needs none.
+
 ## What counts as proof
 
 Per the 100% truth rule:
@@ -102,12 +118,14 @@ Per the 100% truth rule:
   requires an admin control session and a low-privilege actor session
 - **Error leakage:** "Did you mean" + isomorphic control
 - **Batching:** 20/20 bypass vs 429 baseline
+- **Alias bypass (#350):** plain query refused + aliased query returns data + repeat stable
 
 ## Scan-time budget
 
 T1–T4 ≈ 12 requests; T5 ≈ 26. The #385 leg adds ≈ 9 (2 introspection,
-up to 3 session POSTs, identity + 2 reads + 1 mutation). Full battery
-≈ under 50 requests per endpoint.
+up to 3 session POSTs, identity + 2 reads + 1 mutation). The #350 leg adds
+at most 10 (1 introspection + 3 fields × 3 requests). Full battery
+≈ under 60 requests per endpoint.
 
 ## Not in scope (v1 limits)
 
