@@ -10,6 +10,7 @@ import AdminPage from '../pages/AdminPage';
 import ChatPage from '../pages/ChatPage';
 import PluginsPage from '../pages/PluginsPage';
 import ReportsPage from '../pages/ReportsPage';
+import SelfPage from '../pages/SelfPage';
 import LiveMachinesPage from '../pages/LiveMachinesPage';
 import SettingsPage from '../pages/SettingsPage';
 import AuthPage from '../pages/AuthPage';
@@ -164,6 +165,7 @@ export default function AppRoutes({
           />
         )}
         {page === 'plugins' && <PluginsPage />}
+        {page === 'self' && <SelfPage />}
         {page === 'reports' && <ReportsPage preselectedHuntId={reportHuntId} />}
         {page === 'machines' && <LiveMachinesPage onOpenHunt={openHuntChat} />}
         {page === 'pay' && <UpiPayPage />}
