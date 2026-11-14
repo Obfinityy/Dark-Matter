@@ -89,3 +89,18 @@ Honest limits of the leg:
   predictable-token objects, which is the BOLA half of row #339.
 - Numeric-id confirmation (rows #10/#338) is a separate
   follow-up.
+
+## Nested / batch leg (row #345)
+
+The same two-session differential, on the nested/batch sink
+instead of the flat object URL: see
+[api-nested-batch-idor.md](api-nested-batch-idor.md). Probe
+`nestedBatchIdor.js` rides this `idor` phase — it mines
+nested paths (two or more id-shaped segments, outer-swapped
+against the owner's own id when a self endpoint reveals it)
+and batch endpoints (`batch`/`bulk`/`multi` segments or
+`ids`-style query params), and confirms only on the same
+foreign object coming back to the throwaway other-user
+session. Findings are class `idor_nested` / `idor_batch`,
+severity medium. Row #385 (GraphQL mutation BOLA) is a
+different leg, closed by PR #518.

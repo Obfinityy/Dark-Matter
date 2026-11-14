@@ -39,6 +39,7 @@ import { probeSsrfReferer } from './probes/ssrfReferer.js';
 import { probeRefererAccessControl } from './probes/refererAccessControl.js';
 import { probeIdorSurface } from './probes/idor.js';
 import { probeIdorUuid } from './probes/idorUuid.js';
+import { probeNestedBatchIdor } from './probes/nestedBatchIdor.js';
 import { probeCors } from './probes/cors.js';
 import { probeCookieFlags } from './probes/cookies.js';
 import { probeStoredXss, probeStoredXssUriScheme } from './probes/storedXss.js';
@@ -3320,6 +3321,7 @@ async function runScanInner(
   // coming back to the other user (see idorUuid.js). Lab-gated
   // inside the probe; non-lab scans behave exactly as before.
   const idorUuidDiag = {};
+  const nestedBatchDiag = {};
   plan(
     'idor',
     async () => [
@@ -3331,6 +3333,13 @@ async function runScanInner(
         labTargets,
         diagnostics: idorUuidDiag,
       })),
+      ...(await probeNestedBatchIdor(url, {
+        ...opts,
+        allowWrite,
+        routes: [...scanTargets, ...jsWriteTargets],
+        labTargets,
+        diagnostics: nestedBatchDiag,
+      })),
     ],
     () => ({
       uuidObjectUrls: idorUuidDiag.objectUrls || 0,
@@ -3338,6 +3347,13 @@ async function runScanInner(
       uuidControlOk: Boolean(idorUuidDiag.controlOk),
       uuidAttempts: idorUuidDiag.attempts || 0,
       uuidBypassKind: idorUuidDiag.bypassKind || null,
+      nestedObjectUrls: nestedBatchDiag.nestedObjectUrls || 0,
+      nestedBatchEndpoints: nestedBatchDiag.batchEndpoints || 0,
+      nestedSwapOk: Boolean(nestedBatchDiag.nestedSwapOk),
+      nestedRegisterOk: Boolean(nestedBatchDiag.registerOk),
+      nestedControlOk: Boolean(nestedBatchDiag.controlOk),
+      nestedAttempts: nestedBatchDiag.attempts || 0,
+      nestedBypassKind: nestedBatchDiag.bypassKind || null,
     })
   );
   plan('cors', () => probeCors(url, opts));

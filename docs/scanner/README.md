@@ -40,6 +40,7 @@ proves the signal comes from the malicious input.
 | [redirect.md](redirect.md) | Open redirect | probes/redirect.js |
 | [csrf.md](csrf.md) | Cross-site request forgery | probes/csrf.js |
 | [idor.md](idor.md) | Insecure direct object reference | probes/idor.js |
+| [api-nested-batch-idor.md](api-nested-batch-idor.md) | IDOR via nested objects / batch requests (row #345) | probes/nestedBatchIdor.js |
 | [headers.md](headers.md) | Security headers + CORS + CSP directives | probes/headers.js |
 | [files.md](files.md) | Sensitive file exposure | probes/files.js |
 | [stored-xss.md](stored-xss.md) | Stored XSS (two-step oracle) | probes/storedXss.js |
