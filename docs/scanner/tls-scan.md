@@ -40,7 +40,7 @@ server *presents*, close the socket. Nothing is exploited or mutated.
 | TLS 1.0 accepted | `tls_weak_protocol_1_0` | medium | `maxVersion: TLSv1` handshake succeeds (#134) |
 | BEAST | `tls_beast` | medium | TLS 1.0 negotiated **with a CBC-mode cipher** — the BEAST precondition (#447) |
 | TLS 1.1 accepted | `tls_weak_protocol_1_1` | low | `maxVersion: TLSv1.1` handshake succeeds (#134) |
-| SSLv3 | `tls_sslv3_offered` | high | `maxVersion: SSLv3` handshake succeeds (node throws for unsupported → not offered → silent, correct) |
+| SSLv3 | `tls_sslv3_offered` | high | raw-socket SSLv3 ClientHello answered with a ServerHello negotiating version 0x0300 (node:tls cannot send SSLv3 at all — the old node:tls leg could never fire; alert / close / refused / timeout / higher-version ServerHello → silent) (#446) |
 | BREACH surface | `tls_breach_surface` | medium | raw (non-decompressed) response has `Content-Encoding: gzip/deflate` **and** the same page reflects secret-shaped values (CSRF token field, session-id pattern) — the BREACH oracle precondition (#448 surface) |
 
 Every finding sets `parameter` (`certificate`, `scheme`, `tls-protocol`,
