@@ -38,6 +38,7 @@ import { probeIdorSurface } from './probes/idor.js';
 import { probeCors } from './probes/cors.js';
 import { probeCookieFlags } from './probes/cookies.js';
 import { probeStoredXss, probeStoredXssUriScheme } from './probes/storedXss.js';
+import { probeBlindXss } from './probes/blindXss.js';
 import { probeEgressLaundering } from './probes/egressLaundering.js';
 import { probeDocumentExternalImage } from './probes/documentExternalImage.js';
 import { probeSpreadsheetExternalImage } from './probes/spreadsheetExternalImage.js';
@@ -206,6 +207,7 @@ export const DEFAULT_PHASES = [
   'cors',
   'cookies',
   'stored-xss',
+  'blind-xss',
   'egress-laundering',
   'document-external-image',
   'spreadsheet-external-image',
@@ -3255,6 +3257,44 @@ async function runScanInner(
   } else {
     planSkip('sqli-second-order', 'lab-gated: second-order writes need a lab target');
   }
+  // BLIND XSS OOB collaborator (14 Nov 2026, row #113 [High] Blind XSS,
+  // CWE-79): the blind-XSS leg needs a callback base AND a waiter — same
+  // pattern as the xxe block above, one collaborator per OOB phase so each
+  // listener lives only for its own phase. Only when the target is
+  // lab-gated (allowWrite, the same host check as the file-upload gate).
+  // Start is best-effort: a bind failure is recorded in errors and the
+  // scan continues with the OOB variant skipped, exactly as before this
+  // lane. The collaborator is always stopped afterwards (teardown), so no
+  // listener outlives the scan. Callback-host default is the docker bridge
+  // gateway (172.17.0.1) — the IP lab containers use to reach the host;
+  // override with opts.oobCallbackHost / DM_OOB_CALLBACK_HOST.
+  let blindXssOob = null;
+  if (phases.includes('blind-xss') && allowWrite) {
+    try {
+      blindXssOob = createOobCollaborator({
+        listenHost: opts.oobListenHost || process.env.DM_OOB_LISTEN_HOST || '0.0.0.0',
+        listenPort: opts.oobListenPort || (process.env.DM_OOB_PORT ? Number(process.env.DM_OOB_PORT) : 0),
+        callbackHost: opts.oobCallbackHost || process.env.DM_OOB_CALLBACK_HOST || '172.17.0.1',
+      });
+      await blindXssOob.start();
+    } catch (e) {
+      errors.push(`oob-collaborator: ${e && e.message ? e.message : String(e)}`);
+      blindXssOob = null;
+    }
+  }
+  plan(
+    'blind-xss',
+    () =>
+      probeBlindXss(forms, url, {
+        ...opts,
+        labTargets,
+        ...(blindXssOob
+          ? { oobCallback: blindXssOob.baseUrl(), oobWaitFor: (token, ms) => blindXssOob.waitFor(token, ms) }
+          : {}),
+      }),
+    undefined,
+    { teardown: blindXssOob ? () => blindXssOob.stop() : undefined }
+  );
   // EGRESS LAUNDERING (H3(b), V8-F1, Meta Cat 7 up to $5k): a stored
   // content sink that preserves an external URL in a fetchable
   // attribute causes every viewer browser to fetch that URL directly
