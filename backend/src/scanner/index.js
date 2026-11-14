@@ -3636,11 +3636,9 @@ async function runScanInner(
     })
   );
   plan('cache-poisoning', () => probeCachePoisoning(url, opts));
-  plan('request-smuggling', () => probeRequestSmuggling(url, opts));
-  // REQUEST SMUGGLING — CL.CL (10 Nov 2026, row #166 [Critical] HTTP
-  // Request Smuggling — CL.CL variant, CWE-444; CL.CL has no dedicated
-  // checklist row, #351–#354 cover CL.TE / TE.CL / TE.TE /
-  // chunked-extension only): duplicate Content-Length
+  plan('request-smuggling', () => probeRequestSmuggling(url, { ...opts, allowWrite, labTargets }));
+  // REQUEST SMUGGLING — CL.CL (10 Nov 2026, row #503 [High]
+  // request smuggling — CL.CL, CWE-444): duplicate Content-Length
   // headers let front and back disagree on where the body ends, so
   // attacker bytes are processed as a new request. Raw-socket
   // oracle (baseline must pipeline cleanly or the phase skips —
