@@ -40,6 +40,16 @@ function IconChart() {
   );
 }
 
+function IconTarget() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <circle cx="12" cy="12" r="7" />
+      <circle cx="12" cy="12" r="2.6" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function IconGear() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -310,6 +320,9 @@ export default function Sidebar({
         <nav aria-label="Primary">
           <button className={`nav-item${activePage === 'plugins' ? ' active' : ''}`} onClick={() => go('plugins')}>
             <IconHexagon /> Plugins
+          </button>
+          <button className={`nav-item${activePage === 'self' ? ' active' : ''}`} onClick={() => go('self')}>
+            <IconTarget /> Self
           </button>
           <button className={`nav-item${activePage === 'reports' ? ' active' : ''}`} onClick={() => go('reports')}>
             <IconChart /> Reports
