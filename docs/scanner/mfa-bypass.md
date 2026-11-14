@@ -215,13 +215,50 @@ and the 31/0 + 21/0 lab baselines).
   findings **21** (unchanged baseline); `mfa-bypass` phase
   `mfaRoutes: 0`, 0 findings — no 2FA surface, as designed.
 
+## Row #48 — Missing MFA: parked as diagnostic-only (15 Nov 2026)
+
+**Verdict: no firing leg is built for row #48, deliberately.**
+"Missing MFA" is a *policy* claim — the target should offer or
+enforce MFA but does not — and no black-box oracle for it survives
+the two lab controls. Every candidate was evaluated and rejected
+rather than shipping a weak oracle that would false-positive:
+
+| Candidate oracle | Verdict | Why it fails |
+|---|---|---|
+| (a) 2FA enrolment endpoint exists, yet a full-privilege session performs sensitive actions with no MFA challenge / step-up anywhere | **Rejected** | Juice exposes `/rest/2fa` and the canary is *not* enrolled (2FA is opt-in there). A full session doing a password change with no step-up is *correct* behaviour for a non-enrolled account. Firing here false-positives on every opt-in-MFA shop. The only sound sub-case — the account *is* enrolled — is already L0 / L2. |
+| (b) Target advertises MFA in docs/settings but login never challenges | **Rejected** | Same control failure as (a): login correctly never challenges a non-enrolled account, so it collapses into L0 when enrolled. "Advertises in docs" is also not machine-checkable by a rule-based HTTP probe. |
+| (c) No 2FA surface at all → "MFA missing" | **Rejected** | DVWA has no MFA surface, and neither does most of the internet's login forms. Nothing in-band distinguishes "must have MFA" from "legitimately has none" without an external policy input (compliance regime, advertised policy, admin-role rule). A firing leg here would flag every login form on the internet. |
+| (d) Privileged/admin account with no MFA option | **Rejected** | Same policy-input problem: role alone establishes no requirement. |
+
+A future firing leg needs that policy input supplied out of band
+(e.g. "this target's policy requires MFA for role X"). Until then
+the probe reports the honest version instead: it **classifies the
+MFA surface as an informational diagnostic** (`mfa48Surface` in the
+`mfa-bypass` phase extras, never a finding):
+
+| `mfa48Surface` | Meaning | Lab control |
+|---|---|---|
+| `none` | No 2FA surface mined (no verify/status/setup route) | DVWA: silent, zero login POSTs |
+| `available-not-enrolled` | 2FA offered, this account not enrolled | Juice canary: silent |
+| `available-enrolment-unknown` | Surface exists, enrolment state unreadable (status fetch / login failed) | Status-500 fake: silent |
+| `enrolled` | 2FA enrolled on this account (the enrolled-but-never-challenged case belongs to L0, not #48) | Enrolled fakes: silent unless L0 fires |
+| `unknown` | Probe never ran (gate skip: non-lab, quick depth, no creds) | Gate-skip fakes |
+
+Unit tests: `probes/missingMfa.test.js` (M48-1..M48-15) pin the
+classifier and every control above, including the key
+oracle-reject test M48-7 (Juice-like: enrolment present,
+full-privilege session, no step-up anywhere — 0 findings) and
+M48-8 (DVWA-like: no surface — 0 findings, 0 logins).
+
 ## What it does not cover
 
 - OTP brute-force (#326) — owned by `twofa-bruteforce`.
 - Predictable/sequential OTP (#368) — needs a delivered code;
   belongs to the crypto token-supply lane (PR #520).
-- MFA missing entirely (row #48 Missing MFA) — a policy gap, not a
-  bypass; the probe reports nothing when there is no 2FA surface.
+- MFA missing entirely (row #48 Missing MFA) — parked as
+  diagnostic-only; see "Row #48" above. The probe reports the MFA
+  surface (`mfa48Surface`) and never fires a finding for absence
+  of MFA, because no sound black-box oracle exists for it.
 - Biometric / hardware-key factors — out of scope for a rule-based
   HTTP probe.
 
