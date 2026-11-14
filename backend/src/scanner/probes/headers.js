@@ -74,7 +74,12 @@ export function probeHeaders({ url, headers = {} }) {
         signalCorrelated: true,
       },
     });
-    if (/unsafe-inline/.test(scriptSrc)) {
+    // CSP keywords are single-quoted tokens ('unsafe-eval', 'wasm-unsafe-eval',
+    // 'strict-dynamic', ...). Match whole tokens only — a substring regex
+    // fires on 'wasm-unsafe-eval' (Wasm only, NOT eval): that was the
+    // h_e2d40734ddcb false positive on muse.ai (12 Nov 2026).
+    const scriptTokens = scriptSrc.split(/\s+/).filter(Boolean);
+    if (scriptTokens.includes("'unsafe-inline'")) {
       findings.push(
         cspFinding(
           'csp-unsafe-inline',
@@ -84,7 +89,7 @@ export function probeHeaders({ url, headers = {} }) {
         )
       );
     }
-    if (/unsafe-eval/.test(scriptSrc)) {
+    if (scriptTokens.includes("'unsafe-eval'")) {
       findings.push(
         cspFinding(
           'csp-unsafe-eval',
