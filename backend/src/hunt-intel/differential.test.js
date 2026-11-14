@@ -86,6 +86,45 @@ describe('assessConfirmation egress_laundering protocol', () => {
   });
 });
 
+// assessConfirmation office external-image protocols (V10-F4 docx,
+// V10-F5 xlsx, V10-VC-1 pptx control, 11 Nov 2026): a finding
+// confirms only when the package links an external image
+// (TargetMode="External" + <a:blip r:link>) AND that image is not
+// also embedded. A linked image with no embedding is the fetch
+// channel; an embedded image is the negative control.
+describe('assessConfirmation office external-image protocols', () => {
+  for (const cls of ['document_external_image', 'spreadsheet_external_image', 'presentation_external_image']) {
+    it(`${cls}: confirms when externalLinkPreserved and not embeddedMedia`, () => {
+      const r = assessConfirmation({
+        class: cls,
+        evidence: { externalLinkPreserved: true, embeddedMedia: false },
+      });
+      assert.equal(r.verdict, 'confirmed');
+    });
+
+    it(`${cls}: rejects when externalLinkPreserved is false (embedded / no link)`, () => {
+      const r = assessConfirmation({
+        class: cls,
+        evidence: { externalLinkPreserved: false, embeddedMedia: true },
+      });
+      assert.equal(r.verdict, 'rejected');
+    });
+
+    it(`${cls}: is unconfirmed when linked but also embedded`, () => {
+      const r = assessConfirmation({
+        class: cls,
+        evidence: { externalLinkPreserved: true, embeddedMedia: true },
+      });
+      assert.equal(r.verdict, 'unconfirmed');
+    });
+
+    it(`${cls}: is unconfirmed with no flags (fail-closed)`, () => {
+      const r = assessConfirmation({ class: cls, evidence: {} });
+      assert.equal(r.verdict, 'unconfirmed');
+    });
+  }
+});
+
 // dedupeFindings title segment (7 Nov 2026): the key is
 // [class, sink||parameter||url, trigger||payload, title]. Without the
 // title segment, distinct findings sharing class + URL and carrying no

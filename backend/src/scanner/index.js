@@ -37,6 +37,9 @@ import { probeCors } from './probes/cors.js';
 import { probeCookieFlags } from './probes/cookies.js';
 import { probeStoredXss } from './probes/storedXss.js';
 import { probeEgressLaundering } from './probes/egressLaundering.js';
+import { probeDocumentExternalImage } from './probes/documentExternalImage.js';
+import { probeSpreadsheetExternalImage } from './probes/spreadsheetExternalImage.js';
+import { probePresentationExternalImage } from './probes/presentationExternalImage.js';
 import { probeWeakCreds } from './probes/weakCreds.js';
 import { probeHostHeader } from './probes/hostHeader.js';
 import { probeNoSqli } from './probes/nosqli.js';
@@ -199,6 +202,9 @@ export const DEFAULT_PHASES = [
   'cookies',
   'stored-xss',
   'egress-laundering',
+  'document-external-image',
+  'spreadsheet-external-image',
+  'presentation-external-image',
   'weak-creds',
   'host-header',
   'nosqli',
@@ -3219,6 +3225,49 @@ async function runScanInner(
       }),
     undefined,
     { teardown: egressLaunderingOob ? () => egressLaunderingOob.stop() : undefined }
+  );
+  // GENERATED-DOCUMENT EXTERNAL IMAGES (V10-F4 docx, V10-F5 xlsx,
+  // V10-VC-1 pptx control; Meta Cat 7 family): a generated Office
+  // document that LINKS an external image makes every viewer fetch
+  // that URL on open — the same egress primitive as egress-laundering,
+  // in a different component and viewer. The probes are READ-ONLY
+  // (GETs of document URLs the target itself links to) — no lab gate,
+  // no collaborator, no form submission. A document whose images are
+  // embedded (the presentation pipeline's build-time render) records
+  // a verified control, never a finding. Diagnostics ride the phase
+  // extras (documentsChecked, externalFound, controlStatus, skipNote).
+  const documentExternalImageDiag = {};
+  plan(
+    'document-external-image',
+    () => probeDocumentExternalImage(url, { ...opts, diagnostics: documentExternalImageDiag }),
+    () => ({
+      documentsChecked: documentExternalImageDiag.documentsChecked ?? 0,
+      externalFound: documentExternalImageDiag.externalFound ?? 0,
+      controlStatus: documentExternalImageDiag.controlStatus ?? null,
+      skipNote: documentExternalImageDiag.skipped || null,
+    })
+  );
+  const spreadsheetExternalImageDiag = {};
+  plan(
+    'spreadsheet-external-image',
+    () => probeSpreadsheetExternalImage(url, { ...opts, diagnostics: spreadsheetExternalImageDiag }),
+    () => ({
+      documentsChecked: spreadsheetExternalImageDiag.documentsChecked ?? 0,
+      externalFound: spreadsheetExternalImageDiag.externalFound ?? 0,
+      controlStatus: spreadsheetExternalImageDiag.controlStatus ?? null,
+      skipNote: spreadsheetExternalImageDiag.skipped || null,
+    })
+  );
+  const presentationExternalImageDiag = {};
+  plan(
+    'presentation-external-image',
+    () => probePresentationExternalImage(url, { ...opts, diagnostics: presentationExternalImageDiag }),
+    () => ({
+      documentsChecked: presentationExternalImageDiag.documentsChecked ?? 0,
+      externalFound: presentationExternalImageDiag.externalFound ?? 0,
+      controlStatus: presentationExternalImageDiag.controlStatus ?? null,
+      skipNote: presentationExternalImageDiag.skipped || null,
+    })
   );
   plan('weak-creds', () => probeWeakCreds(forms, url, opts));
   plan('host-header', () => probeHostHeader(url, opts));
