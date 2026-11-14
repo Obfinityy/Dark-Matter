@@ -12,6 +12,7 @@ describe('cachePoison probe', () => {
   let cookiePoisoned = null; // one-shot poisoned cache for /cookie (cookie leg)
   let fatPoisoned = null; // one-shot poisoned cache for /fatget (fat-GET leg)
   const base = () => `http://127.0.0.1:${port}`;
+  let hostPoisoned = null; // one-shot simulated poisoned cache for /host
 
   before(async () => {
     server = http.createServer((req, res) => {
@@ -19,6 +20,25 @@ describe('cachePoison probe', () => {
       const pathname = u.pathname;
       const xfh = req.headers['x-forwarded-host'] || '';
 
+      // Host-header poisonable endpoint: reflects the literal Host header
+      // and serves the poisoned variant once to the next clean request
+      // (cache ignores the Host header). /host-keyed reflects but never
+      // serves clean (correctly keyed); /host-reflect reflects but never
+      // stores (reflect-but-don't-cache negative).
+      if (pathname === '/host' || pathname === '/host-keyed' || pathname === '/host-reflect') {
+        const host = req.headers.host || '';
+        const isPoison = host.startsWith('evil-');
+        let served = '';
+        if (pathname === '/host') {
+          if (isPoison) { hostPoisoned = host; served = host; }
+          else if (hostPoisoned) { served = hostPoisoned; hostPoisoned = null; }
+        } else if (isPoison) {
+          served = host; // reflected but never served clean
+        }
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(`<html>welcome ${served}</html>`);
+        return;
+      }
       // XFH-poisonable app endpoint with a simulated warm cache: the
       // poisoned canary is stored and served once to the next clean
       // request (mimics a cache storing the poisoned variant).
@@ -107,6 +127,34 @@ describe('cachePoison probe', () => {
   });
 
   after(() => server.close());
+
+  // ---- Host-header leg (#405) ------------------------------------------------
+  // Lab-gated: the Host leg runs only with allowWrite: true.
+
+  it('detects Host-header cache poisoning via canary in the clean victim response (#405)', async () => {
+    const findings = await probeCachePoisoning(`${base()}/host`, { timeoutMs: 8000, allowWrite: true });
+    const f = findings.find((x) => x.id === 'cache-poisoning-host');
+    assert.ok(f, 'expected cache-poisoning-host finding');
+    assert.equal(f.class, 'cache_poisoning');
+    assert.equal(f.severity, 'medium');
+    assert.equal(f.evidence.coverageRow, 405);
+    assert.equal(f.evidence.signalCorrelated, true);
+  });
+
+  it('stays silent on Host leg when the cache keys the Host header (#405)', async () => {
+    const findings = await probeCachePoisoning(`${base()}/host-keyed`, { timeoutMs: 8000, allowWrite: true });
+    assert.ok(!findings.some((x) => x.id === 'cache-poisoning-host'), 'no Host finding when keyed');
+  });
+
+  it('stays silent on Host leg when the Host is reflected but never cached (#405)', async () => {
+    const findings = await probeCachePoisoning(`${base()}/host-reflect`, { timeoutMs: 8000, allowWrite: true });
+    assert.ok(!findings.some((x) => x.id === 'cache-poisoning-host'), 'no Host finding on reflection alone');
+  });
+
+  it('skips the Host leg without allowWrite (#405, lab-gated)', async () => {
+    const findings = await probeCachePoisoning(`${base()}/host`, { timeoutMs: 8000 });
+    assert.ok(!findings.some((x) => x.id === 'cache-poisoning-host'), 'no Host finding without allowWrite');
+  });
 
   it('detects XFH cache poisoning via canary in the clean victim response', async () => {
     const findings = await probeCachePoisoning(`${base()}/app`, { timeoutMs: 8000 });

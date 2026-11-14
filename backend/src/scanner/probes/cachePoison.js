@@ -233,7 +233,84 @@ export async function probeCachePoisoning(url, opts = {}) {
   // Phase 2: web cache deception (#169 / #434 / #435) — path-confusion
   // variants are probed regardless of the XFH result.
   for (const f of await probeCacheDeception(url, opts)) findings.push(f);
+  // ---- Host-header leg (#405) ------------------------------------------------
+  // Lab-gated (allowWrite): poisoning writes shared cache state — the
+  // fileUpload pattern, same gate as PR #509's #356/#357/#358 legs.
+  // Placed AFTER the deception phase (not beside the XFH / #356 / #357 /
+  // #358 legs) so this diff does not overlap PR #509's insertion point —
+  // same oracle, same finding shape; merge-clean with #509 by
+  // construction. At most 3 requests (baseline + poison + victim), the
+  // same budget as one XFH leg.
+  if (opts && opts.allowWrite === true) {
+    const hostFinding = await probeHostHeaderCachePoison(url, opts);
+    if (hostFinding) findings.push(hostFinding);
+  }
   return findings;
+}
+
+// ---- Host-header cache poisoning (#405) --------------------------------------
+//
+// Same three-step differential as the XFH leg, but the poison rides the
+// literal `Host:` header — the row #405 vector. fetch (undici) drops
+// `Host` as a forbidden header (verified: ssrfRouting.js), so the poison
+// request MUST go through the shared rawHeaderFetch transport
+// (node:http.request honours an explicit Host); the baseline/victim
+// steps are clean GETs and stay on fetch. runPoisonLeg (PR #509,
+// unmerged) is NOT reused here: it lives only on that branch, and
+// copying it would duplicate #509's diff — this leg mirrors its oracle
+// line-for-line so it converts to a runPoisonLeg call once #509 lands.
+// Bare Host reflection never confirms: only the canary in a clean
+// victim response does. Never throws; returns a finding or null.
+async function probeHostHeaderCachePoison(url, opts = {}) {
+  const canary = `evil-${randomBytes(4).toString('hex')}.example`;
+  let baseline;
+  try {
+    baseline = await get(url, {}, opts);
+  } catch {
+    return null;
+  }
+  if (baseline.body.includes(canary)) return null; // sanity: canary already there
+  let poisonBody = null;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), opts.timeoutMs || 15000);
+    try {
+      const res = await rawHeaderFetch(url, {
+        headers: { 'User-Agent': UA, Host: canary },
+        signal: ctrl.signal,
+      });
+      poisonBody = await res.text().catch(() => '');
+    } finally {
+      clearTimeout(t);
+    }
+  } catch {
+    return null;
+  }
+  if (poisonBody == null || !poisonBody.includes(canary)) return null;
+  let victim;
+  try {
+    victim = await get(url, {}, opts);
+  } catch {
+    return null;
+  }
+  if (!victim.body.includes(canary)) return null;
+  const idx = victim.body.indexOf(canary);
+  const window = victim.body.slice(Math.max(0, idx - 60), idx + 80);
+  const hitHeader = Object.entries(victim.headers || {}).find(([k, v]) => /hit/i.test(String(v)) || k === 'age');
+  return {
+    class: 'cache_poisoning',
+    id: 'cache-poisoning-host',
+    title: 'Web cache poisoning via unkeyed Host header',
+    severity: 'medium',
+    url,
+    evidence: {
+      request: `GET ${url} with Host: ${canary}, then clean GET`,
+      response: `canary served to the clean victim request — "...${window}..."${hitHeader ? ` (${hitHeader[0]}: ${hitHeader[1]})` : ''} — poisoned page cached`,
+      impact_demo: 'attacker-controlled host value cached and served to every visitor — defacement/phishing/JS injection primitive',
+      signalCorrelated: true,
+      coverageRow: 405,
+    },
+  };
 }
 
 // ---- Web cache deception (#169 / #434 / #435) -----------------------------------------------

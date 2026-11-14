@@ -42,3 +42,14 @@ a `dmcache-<rand>` token for the query/cookie/body legs — no list.
 - No cache = correct negative. Some stacks reflect-but-don't-cache.
 - Request smuggling (CL.TE/TE.CL) needs raw sockets — separate future
   phase, documented in the catalog.
+
+## Host-header leg (#405)
+Same three-step differential, but the poison rides the literal `Host:`
+header — the row #405 vector (`evil-<rand>.example`). fetch (undici)
+drops `Host` as a forbidden header, so the poison request goes through
+the shared `rawHeaderFetch` transport (node:http.request honours an
+explicit Host); baseline/victim stay on fetch. Lab-gated
+(`opts.allowWrite`): poisoning writes shared cache state. Bare Host
+reflection never confirms — only the canary in a clean victim response
+does. Finding id `cache-poisoning-host`, class `cache_poisoning`,
+severity medium, `signalCorrelated: true`.
