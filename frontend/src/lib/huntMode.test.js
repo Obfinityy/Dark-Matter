@@ -15,6 +15,7 @@ import {
   resolveHuntBrainMode,
   resolveHuntScanDepth,
   resolveHuntScanScope,
+  resolveHuntRunMode,
   huntCardFromListEntry,
 } from './huntMode.js';
 
@@ -111,6 +112,28 @@ test('unfetchable or junk scope falls back to page', async () => {
 
 // --- huntCardFromListEntry ---------------------------------------------------
 
+// --- resolveHuntRunMode (15 Nov 2026, Link → Report) ----------------------
+
+test('card link-to-report wins without a fetch', async () => {
+  assert.equal(await resolveHuntRunMode({ huntId: 'h_l2r', runMode: 'link-to-report' }, neverCalled), 'link-to-report');
+});
+
+test('legacy card resolves the run mode from GET /:id', async () => {
+  const fetchHunt = async (id) => {
+    assert.equal(id, 'h_old');
+    return { ok: true, data: { hunt: { runMode: 'link-to-report' } } };
+  };
+  assert.equal(await resolveHuntRunMode(legacyCard, fetchHunt), 'link-to-report');
+});
+
+test('unfetchable or junk run mode falls back to standard', async () => {
+  const failing = async () => { throw new Error('backend down'); };
+  assert.equal(await resolveHuntRunMode(legacyCard, failing), 'standard');
+  const junk = async () => ({ ok: true, data: { hunt: { runMode: 'turbo' } } });
+  assert.equal(await resolveHuntRunMode(legacyCard, junk), 'standard');
+  assert.equal(await resolveHuntRunMode(null, failing), 'standard');
+});
+
 test('restored card carries everything Re-run inherits', () => {
   const card = huntCardFromListEntry({
     huntId: 'h_071a785a82a4',
@@ -120,6 +143,7 @@ test('restored card carries everything Re-run inherits', () => {
     brainMode: 'scanner',
     scanDepth: 'deep',
     scanScope: 'site',
+    runMode: 'link-to-report',
     createdAt: '2026-11-03T14:00:00.000Z',
     status: 'stopped',
   });
@@ -133,6 +157,7 @@ test('restored card carries everything Re-run inherits', () => {
     brainMode: 'scanner',
     scanDepth: 'deep',
     scanScope: 'site',
+    runMode: 'link-to-report',
   });
 });
 
@@ -142,6 +167,7 @@ test('legacy list entry reports the historical defaults', () => {
   assert.equal(card.brainMode, 'ai');
   assert.equal(card.scanDepth, 'standard');
   assert.equal(card.scanScope, 'page');
+  assert.equal(card.runMode, 'standard');
   assert.equal(card.scope, '');
   assert.equal(card.status, 'unknown');
 });
@@ -151,6 +177,7 @@ test('null list entry does not throw', () => {
   assert.equal(card.brainMode, 'ai');
   assert.equal(card.scanDepth, 'standard');
   assert.equal(card.scanScope, 'page');
+  assert.equal(card.runMode, 'standard');
   assert.equal(card.mode, 'normal');
 });
 

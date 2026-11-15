@@ -26,7 +26,7 @@ import { runAutonomousHunt, iterationPriceCents } from '../../huntAgent.js';
 import { getBalanceCents } from '../../billing/credits.js';
 import { hasActiveAccessById } from '../../access.js';
 import { resolveLabCreds } from '../../labCreds.js';
-import { engineErrorResponse, mapListHunt, normalizeHuntCreate, pickExistingHunt, requireHuntOwner } from './helpers.js';
+import { engineErrorResponse, isValidRunModeForBrainMode, mapListHunt, normalizeHuntCreate, pickExistingHunt, requireHuntOwner } from './helpers.js';
 import { createLogger } from '../../logger.js';
 
 const log = createLogger('hunts');
@@ -44,11 +44,25 @@ export function registerCreateRoutes(router) {
     // only; validated, anything else falls back to 'standard'.
     // scanScope: 'page' (default — pasted page only) | 'site' (/* —
     // recursive same-origin crawl); validated by normalizeHuntCreate.
+    // runMode: 'link-to-report' (15 Nov 2026 — recon + OWASP A01..A10
+    // in order, scanner-only) or null (legacy flow).
     // (5 Nov 2026: normalized by normalizeHuntCreate so the rule is
     // unit-tested in one place — see hunts.create.test.js.)
-    const { brainMode: reqBrainMode, scanDepth: reqScanDepth, scanScope: reqScanScope } = normalizeHuntCreate(req.body);
+    const { brainMode: reqBrainMode, scanDepth: reqScanDepth, scanScope: reqScanScope, runMode: reqRunMode } = normalizeHuntCreate(req.body);
     // The AI option stays — the frontend asks "Infinity AI or Infinity Autonomous?".
-    log.info(`[hunts] CREATE attempt by ${req.user.username} (${req.user.id}): target=${target}, mode=${mode}, brainMode=${reqBrainMode}, scanDepth=${reqScanDepth}, scanScope=${reqScanScope}, confirmed=${confirmedAuthorized}`);
+    log.info(`[hunts] CREATE attempt by ${req.user.username} (${req.user.id}): target=${target}, mode=${mode}, brainMode=${reqBrainMode}, scanDepth=${reqScanDepth}, scanScope=${reqScanScope}, runMode=${reqRunMode}, confirmed=${confirmedAuthorized}`);
+    // LINK-TO-REPORT (15 Nov 2026): the ordered flow never runs the
+    // AI brain (zero-Meta-spend order) — a link-to-report hunt with
+    // brainMode 'ai' (including the omitted-brainMode default) is
+    // rejected before anything is created. The frontend forces
+    // brainMode 'scanner' when this run mode is picked.
+    if (!isValidRunModeForBrainMode(reqBrainMode, reqRunMode)) {
+      return res.status(400).json({
+        ok: false,
+        error: 'invalid_run_mode',
+        message: 'runMode "link-to-report" requires brainMode "scanner" (rule-based, $0); the ordered OWASP flow never runs the AI brain.',
+      });
+    }
     if (typeof target !== 'string' || !target.trim()) {
       return res.status(400).json({
         ok: false,
@@ -227,6 +241,10 @@ export function registerCreateRoutes(router) {
           brainMode: reqBrainMode,
           scanDepth: reqScanDepth,
           scanScope: reqScanScope,
+          // LINK-TO-REPORT (15 Nov 2026): the queued entry must carry
+          // the run mode or a drained re-run would restart as a
+          // legacy scanner hunt (same lane as the 5 Nov brainMode fix).
+          ...(reqRunMode ? { runMode: reqRunMode } : {}),
         });
         // FIX (#335): the running hunt's id/target used to leak to any
         // user whose hunt queued behind it. Only the owner (or an admin)
@@ -302,6 +320,10 @@ export function registerCreateRoutes(router) {
         // so the panel, the report and Re-run can see whether this
         // hunt crawled one page or the whole site.
         scanScope: reqScanScope,
+        // LINK-TO-REPORT (15 Nov 2026): the run mode is part of the
+        // hunt (resume + report read it back from the meta); legacy
+        // hunts carry no key at all.
+        ...(reqRunMode ? { runMode: reqRunMode } : {}),
         // HUMAN MODE: flag both keys the human path checks
         // (huntAgent.js: meta.humanMode === true || mode/meta.mode ===
         // 'human'), matching drive-human.mjs + the lab scripts.
@@ -343,6 +365,7 @@ export function registerCreateRoutes(router) {
         });
         runScannerHunt(huntId, target, {
           scope, userId: req.user.id, scanDepth: reqScanDepth, scanScope: reqScanScope,
+          ...(reqRunMode ? { runMode: reqRunMode } : {}),
           ...(gatedLabCreds ? { labCreds: gatedLabCreds } : {}),
         }).catch((err) => {
           appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
@@ -355,7 +378,7 @@ export function registerCreateRoutes(router) {
           appendHuntEvent(huntId, { type: 'status', state: 'failed', error: err.message || String(err) });
         });
       }
-      res.status(201).json({ ok: true, huntId, brainMode: reqBrainMode, scanDepth: reqScanDepth, scanScope: reqScanScope, ...(fresh === true ? { fresh: true } : {}) });
+      res.status(201).json({ ok: true, huntId, brainMode: reqBrainMode, scanDepth: reqScanDepth, scanScope: reqScanScope, ...(reqRunMode ? { runMode: reqRunMode } : {}), ...(fresh === true ? { fresh: true } : {}) });
     } catch (err) {
       engineErrorResponse(res, err);
     }

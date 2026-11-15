@@ -156,6 +156,56 @@ test('createHuntFromQueue carries scanScope site through the drain', async () =>
   });
 });
 
+// LINK-TO-REPORT (15 Nov 2026): a queued ordered entry drains as an
+// ordered hunt — the run mode survives the queue (same lane as the
+// 5 Nov brainMode / 9 Nov scanScope fixes). A junk runMode drains
+// as the legacy flow.
+test('createHuntFromQueue carries runMode link-to-report through the drain', async () => {
+  const deps = baseDeps({
+    createEngineHunt: async () => ({ huntId: 'h_qc_ltr' }),
+  });
+  await createHuntFromQueue(
+    {
+      queueId: 'q_ltr',
+      userId: 'u1',
+      username: 'alice',
+      target: 'http://example.com/',
+      scope: null,
+      mode: 'infinity',
+      brainMode: 'scanner',
+      scanDepth: 'standard',
+      scanScope: 'page',
+      runMode: 'link-to-report',
+    },
+    deps
+  );
+  assert.equal(readHuntMeta('h_qc_ltr').runMode, 'link-to-report');
+  assert.equal(deps.calls.scanner[0].opts.runMode, 'link-to-report');
+});
+
+test('createHuntFromQueue drops a junk runMode (legacy flow)', async () => {
+  const deps = baseDeps({
+    createEngineHunt: async () => ({ huntId: 'h_qc_ltr_junk' }),
+  });
+  await createHuntFromQueue(
+    {
+      queueId: 'q_ltr_junk',
+      userId: 'u1',
+      username: 'alice',
+      target: 'http://example.com/',
+      scope: null,
+      mode: 'infinity',
+      brainMode: 'scanner',
+      scanDepth: 'standard',
+      scanScope: 'page',
+      runMode: 'owasp',
+    },
+    deps
+  );
+  assert.equal(readHuntMeta('h_qc_ltr_junk').runMode, undefined);
+  assert.equal(deps.calls.scanner[0].opts.runMode, undefined);
+});
+
 test('createHuntFromQueue creates an AI hunt for brainMode ai', async () => {
   const deps = baseDeps({
     createEngineHunt: async () => ({ huntId: 'h_qc_ai' }),

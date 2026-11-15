@@ -15,7 +15,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeHuntCreate, mapListHunt, pickExistingHunt } from './hunts.js';
+import { normalizeHuntCreate, isValidRunModeForBrainMode, mapListHunt, pickExistingHunt } from './hunts.js';
 
 // --- normalizeHuntCreate -------------------------------------------------
 
@@ -24,6 +24,7 @@ test('scanner stays scanner', () => {
     brainMode: 'scanner',
     scanDepth: 'deep',
     scanScope: 'page',
+    runMode: null,
   });
 });
 
@@ -32,13 +33,14 @@ test('ai stays ai', () => {
     brainMode: 'ai',
     scanDepth: 'quick',
     scanScope: 'page',
+    runMode: null,
   });
 });
 
 test('omitted brainMode defaults to ai (Re-run must send it explicitly)', () => {
-  assert.deepEqual(normalizeHuntCreate({}), { brainMode: 'ai', scanDepth: 'standard', scanScope: 'page' });
-  assert.deepEqual(normalizeHuntCreate(undefined), { brainMode: 'ai', scanDepth: 'standard', scanScope: 'page' });
-  assert.deepEqual(normalizeHuntCreate(null), { brainMode: 'ai', scanDepth: 'standard', scanScope: 'page' });
+  assert.deepEqual(normalizeHuntCreate({}), { brainMode: 'ai', scanDepth: 'standard', scanScope: 'page', runMode: null });
+  assert.deepEqual(normalizeHuntCreate(undefined), { brainMode: 'ai', scanDepth: 'standard', scanScope: 'page', runMode: null });
+  assert.deepEqual(normalizeHuntCreate(null), { brainMode: 'ai', scanDepth: 'standard', scanScope: 'page', runMode: null });
 });
 
 test('junk brainMode falls back to ai, never throws', () => {
@@ -60,6 +62,23 @@ test("scanScope: 'site' passes through, anything else is 'page'", () => {
   for (const junk of ['page', 'SITE', 'all', '', null, undefined, 0]) {
     assert.equal(normalizeHuntCreate({ scanScope: junk }).scanScope, 'page');
   }
+});
+
+// --- runMode (15 Nov 2026, Link → Report flow) ---------------------------
+
+test("runMode: only the exact 'link-to-report' passes through", () => {
+  assert.equal(normalizeHuntCreate({ runMode: 'link-to-report' }).runMode, 'link-to-report');
+  for (const junk of ['Link-To-Report', 'link_to_report', 'owasp', '', null, undefined, 0, true]) {
+    assert.equal(normalizeHuntCreate({ runMode: junk }).runMode, null);
+  }
+});
+
+test("runMode 'link-to-report' is valid only with brainMode 'scanner'", () => {
+  assert.equal(isValidRunModeForBrainMode('scanner', 'link-to-report'), true);
+  assert.equal(isValidRunModeForBrainMode('ai', 'link-to-report'), false);
+  assert.equal(isValidRunModeForBrainMode('ai', null), true);
+  assert.equal(isValidRunModeForBrainMode('scanner', null), true);
+  assert.equal(isValidRunModeForBrainMode('ai', undefined), true);
 });
 
 // --- mapListHunt -----------------------------------------------------------

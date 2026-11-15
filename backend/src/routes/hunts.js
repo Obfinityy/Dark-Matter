@@ -29,7 +29,7 @@ import { registerListRoutes } from './hunts/list.js';
 import { registerControlRoutes } from './hunts/control.js';
 import { registerReportRoutes } from './hunts/report.js';
 export { buildReportMarkdown } from './hunts/report.js';
-export { getCachedEvents, isTargetAllowed, mapListHunt, normalizeHuntCreate, normalizeTargetKey, pickExistingHunt, recordEngineEvent } from './hunts/helpers.js';
+export { getCachedEvents, isTargetAllowed, isValidRunModeForBrainMode, mapListHunt, normalizeHuntCreate, normalizeTargetKey, pickExistingHunt, recordEngineEvent } from './hunts/helpers.js';
 
 const router = Router();
 

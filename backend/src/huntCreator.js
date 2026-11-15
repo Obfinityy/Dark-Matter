@@ -113,6 +113,12 @@ export async function createHuntFromQueue(entry, deps = {}) {
   const brainMode = normalizeQueueBrainMode(entry.brainMode);
   const scanDepth = normalizeQueueScanDepth(entry.scanDepth);
   const scanScope = normalizeQueueScanScope(entry.scanScope);
+  // LINK-TO-REPORT (15 Nov 2026): the queue entry carries the run
+  // mode (POST /hunts stores it) so a drained ordered hunt restarts
+  // ordered. Only the exact value passes through; anything else is
+  // the legacy flow (null). The ai+link-to-report combination can
+  // never reach here — POST /hunts rejects it with 400.
+  const runMode = entry && entry.runMode === 'link-to-report' ? 'link-to-report' : null;
   const mode = String(entry.mode || 'normal');
   const scope = entry.scope ?? null;
 
@@ -216,6 +222,7 @@ export async function createHuntFromQueue(entry, deps = {}) {
     // SCAN SCOPE (9 Nov 2026, /* owner order): same field POST /hunts
     // writes — a drained whole-site hunt crawls the site, not one page.
     scanScope,
+    ...(runMode ? { runMode } : {}),
     ...(isHumanMode ? { humanMode: true } : {}),
     userId,
     createdAt: new Date().toISOString(),
@@ -263,6 +270,7 @@ export async function createHuntFromQueue(entry, deps = {}) {
       userId,
       scanDepth,
       scanScope,
+      ...(runMode ? { runMode } : {}),
       ...(drainedLabCreds ? { labCreds: drainedLabCreds } : {}),
     }).catch((err) => {
       appendHuntEvent(huntId, {

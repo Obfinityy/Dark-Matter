@@ -99,6 +99,26 @@ export async function resolveHuntScanScope(hunt, fetchHunt) {
   return 'page';
 }
 
+// RUN-MODE INHERITANCE (15 Nov 2026, Link → Report): same
+// authoritative resolution as scan depth/scope — the card first, then
+// GET /:id (the stored meta), then the historical default 'standard'.
+// A Re-run of a Link → Report hunt must re-run the ordered recon +
+// OWASP A01..A10 flow, never silently fall back to a standard hunt.
+export async function resolveHuntRunMode(hunt, fetchHunt) {
+  const ok = (r) => r === 'standard' || r === 'link-to-report';
+  if (hunt && ok(hunt.runMode)) return hunt.runMode;
+  const huntId = hunt && hunt.huntId;
+  if (huntId) {
+    try {
+      const fetchFn = fetchHunt || (async (id) => (await import('./api.js')).getHunt(id));
+      const res = await fetchFn(huntId);
+      const runMode = res && res.data && res.data.hunt && res.data.hunt.runMode;
+      if (ok(runMode)) return runMode;
+    } catch { /* fall through to the default below */ }
+  }
+  return 'standard';
+}
+
 // huntCardFromListEntry: the hunt object a restored chat card carries,
 // built from one GET /api/v1/hunts list entry. Must carry everything
 // Re-run / Start-from-scratch inherits — brainMode, scanDepth, scanScope
@@ -117,5 +137,6 @@ export function huntCardFromListEntry(h) {
     brainMode: e.brainMode === 'scanner' ? 'scanner' : 'ai',
     scanDepth: e.scanDepth === 'quick' || e.scanDepth === 'deep' ? e.scanDepth : 'standard',
     scanScope: e.scanScope === 'site' ? 'site' : 'page',
+    runMode: e.runMode === 'link-to-report' ? 'link-to-report' : 'standard',
   };
 }

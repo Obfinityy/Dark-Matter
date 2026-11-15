@@ -322,8 +322,13 @@ export async function getTotalCosts() {
   return get('/api/v1/hunts/costs');
 }
 
-export async function startHunt(target, scope, mode, confirmedAuthorized, brainMode = 'ai', scanDepth = 'standard', scanScope = 'page', forceNew = false, fresh = false) {
-  const res = await post('/api/v1/hunts', { target, scope, mode, brainMode, scanDepth, scanScope, confirmedAuthorized: !!confirmedAuthorized, ...(forceNew ? { forceNew: true } : {}), ...(fresh ? { fresh: true } : {}) });
+// RUN MODE (15 Nov 2026, Link → Report): the 10th arg is runMode
+// ('standard' | 'link-to-report') — recon first, then OWASP A01..A10 in
+// order, then a findings report, rule-based ($0). Trailing on purpose:
+// every existing positional caller keeps working unchanged, and the
+// value is posted verbatim in the request body.
+export async function startHunt(target, scope, mode, confirmedAuthorized, brainMode = 'ai', scanDepth = 'standard', scanScope = 'page', forceNew = false, fresh = false, runMode = 'standard') {
+  const res = await post('/api/v1/hunts', { target, scope, mode, brainMode, scanDepth, scanScope, runMode, confirmedAuthorized: !!confirmedAuthorized, ...(forceNew ? { forceNew: true } : {}), ...(fresh ? { fresh: true } : {}) });
   if (!res.ok) return res;
   const d = res.data || {};
   // Pass the dedupe/queue outcome through: when the target was already
@@ -343,6 +348,7 @@ export async function startHunt(target, scope, mode, confirmedAuthorized, brainM
       brainMode: d.brainMode || null,
       scanDepth: d.scanDepth || 'standard',
       scanScope: d.scanScope || 'page',
+      runMode: d.runMode || runMode || 'standard',
     },
   };
 }
