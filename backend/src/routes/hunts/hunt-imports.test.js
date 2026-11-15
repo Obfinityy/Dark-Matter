@@ -239,3 +239,84 @@ test('(a) dedupe-resume branch works for a paused scanner hunt (create.js huntAg
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+// --- Link → Report runMode (15 Nov 2026) ---------------------------------
+// POST /api/v1/hunts { runMode: 'link-to-report' } is scanner-only:
+// with brainMode 'ai' (including the omitted-brainMode default) it is
+// a 400 invalid_run_mode, before anything is created; with brainMode
+// 'scanner' it creates the hunt, echoes runMode in the 201, and
+// stores it on the meta (the scanner lane reads it back).
+
+test("(a) POST link-to-report + brainMode 'ai' returns 400 invalid_run_mode", async () => {
+  const server = await listen(mount());
+  try {
+    const base = `http://127.0.0.1:${server.address().port}/api/v1/hunts`;
+    const r = await call(base, 'POST', '/', {
+      target: LAB_TARGET_2,
+      confirmedAuthorized: true,
+      brainMode: 'ai',
+      runMode: 'link-to-report',
+      forceNew: true,
+    });
+    assert.equal(r.status, 400, `expected 400, got ${r.status}: ${r.text}`);
+    assert.equal(r.json.error, 'invalid_run_mode');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("(a) POST link-to-report with omitted brainMode returns 400 (default is ai)", async () => {
+  const server = await listen(mount());
+  try {
+    const base = `http://127.0.0.1:${server.address().port}/api/v1/hunts`;
+    const r = await call(base, 'POST', '/', {
+      target: LAB_TARGET_2,
+      confirmedAuthorized: true,
+      runMode: 'link-to-report',
+      forceNew: true,
+    });
+    assert.equal(r.status, 400, `expected 400, got ${r.status}: ${r.text}`);
+    assert.equal(r.json.error, 'invalid_run_mode');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("(a) POST link-to-report + brainMode 'scanner' returns 201 with runMode echoed", async () => {
+  const stub = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(
+      '<html><body><h1>stub lab</h1>' +
+      '<a href="/page">page</a>' +
+      '<form action="/search" method="get"><input name="q"></form>' +
+      '</body></html>',
+    );
+  });
+  await new Promise((resolve) => stub.listen(0, '127.0.0.1', resolve));
+  const stubPort = stub.address().port;
+  const stubTarget = `http://127.0.0.1:${stubPort}`;
+  const prevLabTargets = process.env.LAB_TARGETS;
+  process.env.LAB_TARGETS = `${prevLabTargets},${stubTarget}`;
+  const server = await listen(mount());
+  try {
+    const base = `http://127.0.0.1:${server.address().port}/api/v1/hunts`;
+    const r = await call(base, 'POST', '/', {
+      target: stubTarget,
+      confirmedAuthorized: true,
+      brainMode: 'scanner',
+      scanDepth: 'quick',
+      runMode: 'link-to-report',
+      forceNew: true,
+    });
+    assert.equal(r.status, 201, `expected 201, got ${r.status}: ${r.text}`);
+    assert.equal(r.json.runMode, 'link-to-report');
+    assert.equal(r.json.brainMode, 'scanner');
+    const meta = readHuntMeta(r.json.huntId);
+    assert.ok(meta, 'hunt meta must be written');
+    assert.equal(meta.runMode, 'link-to-report');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    await new Promise((resolve) => stub.close(resolve));
+    process.env.LAB_TARGETS = prevLabTargets;
+  }
+});

@@ -30,6 +30,17 @@ const SCAN_SCOPES = [
   { id: 'site', name: 'Whole site (/*)', tagline: 'Every same-origin route, recursively', tier: 'free' },
 ];
 
+// Run mode (15 Nov 2026, owner order: Link → Report): 'standard' is the
+// existing hunt; 'link-to-report' runs recon first, then the OWASP Top 10
+// 2021 categories A01..A10 in order, then a findings report — rule-based
+// only (brainMode forced to 'scanner', no AI, $0). Wired end-to-end:
+// modal → onSubmit (8th arg) → ChatPage handleStartHunt → startHunt
+// → POST /api/v1/hunts {runMode}.
+const RUN_MODES = [
+  { id: 'standard', name: 'Standard hunt', tagline: 'Normal run — AI or Autonomous' },
+  { id: 'link-to-report', name: 'Link → Report', tagline: 'Recon first, then OWASP A01..A10 in order · rule-based · $0' },
+];
+
 // Default hunter shared with the TopBar hunter picker (localStorage
 // 'dm.hunter': 'ai' | 'scanner'). The dialog re-reads it every time it
 // opens so a top-bar change applies to the next hunt.
@@ -53,7 +64,15 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
   const [brainMode, setBrainMode] = useState(defaultHunter);
   const [scanDepth, setScanDepth] = useState('standard');
   const [scanScope, setScanScope] = useState('page');
+  const [runMode, setRunMode] = useState('standard');
   const [confirmed, setConfirmed] = useState(false);
+
+  // Link → Report forces the rule-based scanner (no AI, $0) — the AI
+  // option is hidden/disabled for this mode with the reason shown,
+  // and the user's own brainMode choice is kept so switching back to
+  // Standard restores it.
+  const isLinkToReport = runMode === 'link-to-report';
+  const effectiveBrainMode = isLinkToReport ? 'scanner' : brainMode;
 
   // Fresh dialog state on every open — picks up the top-bar hunter choice.
   useEffect(() => {
@@ -61,6 +80,7 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
       setBrainMode(defaultHunter());
       setScanDepth('standard');
       setScanScope('page');
+      setRunMode('standard');
     }
   }, [open ]);
 
@@ -69,7 +89,7 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
   function submit() {
     const t = target.trim();
     if (!t || !confirmed) return;
-    onSubmit(t, scope.trim(), mode, confirmed, brainMode, scanDepth, scanScope);
+    onSubmit(t, scope.trim(), mode, confirmed, effectiveBrainMode, scanDepth, scanScope, runMode);
   }
 
   return (
@@ -101,20 +121,38 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
           />
         </label>
         <div className="field-label">
+          Run mode
+          <div className="mode-grid">
+            {RUN_MODES.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                className={`mode-card${runMode === r.id ? ' selected' : ''}`}
+                onClick={() => setRunMode(r.id)}
+                title={r.tagline}
+              >
+                <div className="mode-name">{r.name}</div>
+                <div className="mode-tag">{r.tagline}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="field-label">
           Hunt with
           <div className="mode-grid">
             <button
               type="button"
-              className={`mode-card${brainMode === 'ai' ? ' selected' : ''}`}
+              className={`mode-card${effectiveBrainMode === 'ai' ? ' selected' : ''}`}
               onClick={() => setBrainMode('ai')}
-              title="The AI agent hunts like a human expert"
+              disabled={isLinkToReport}
+              title={isLinkToReport ? 'Link → Report is rule-based only — Infinity AI is not available in this mode' : 'The AI agent hunts like a human expert'}
             >
               <div className="mode-name">Infinity AI</div>
               <div className="mode-tag">AI agent hunts autonomously</div>
             </button>
             <button
               type="button"
-              className={`mode-card${brainMode === 'scanner' ? ' selected' : ''}`}
+              className={`mode-card${effectiveBrainMode === 'scanner' ? ' selected' : ''}`}
               onClick={() => setBrainMode('scanner')}
               title="Predefined rule-based automation — no AI, $0, results in minutes"
             >
@@ -123,8 +161,11 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
               <div className="mode-tier">fast</div>
             </button>
           </div>
+          {isLinkToReport && (
+            <p className="modal-note">Link → Report runs rule-based only (no AI, $0) — Infinity AI is not available in this mode.</p>
+          )}
         </div>
-        {brainMode === 'scanner' && (
+        {effectiveBrainMode === 'scanner' && (
           <div className="field-label">
             Scan depth
             <div className="mode-grid">
@@ -144,7 +185,7 @@ export default function NewHuntModal({ open, onClose, onSubmit, launching, dupli
             </div>
           </div>
         )}
-        {brainMode === 'scanner' && (
+        {effectiveBrainMode === 'scanner' && (
           <div className="field-label">
             Scan scope
             <div className="mode-grid">

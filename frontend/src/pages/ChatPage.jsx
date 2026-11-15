@@ -10,7 +10,7 @@ import DetailsRequestCard from '../components/DetailsRequestCard';
 import NewHuntModal from '../components/NewHuntModal';
 import VoiceMode from '../components/VoiceMode';
 import { sendChat, startHunt, fetchReportMarkdown } from '../lib/api';
-import { resolveHuntMode, resolveHuntBrainMode, resolveHuntScanDepth, resolveHuntScanScope } from '../lib/huntMode';
+import { resolveHuntMode, resolveHuntBrainMode, resolveHuntScanDepth, resolveHuntScanScope, resolveHuntRunMode } from '../lib/huntMode';
 import { streamReveal } from '../lib/streaming';
 import { useAuth, openAuthModal } from '../lib/auth';
 import { toast } from '../lib/toast';
@@ -271,8 +271,12 @@ export default function ChatPage({
 
   // HUNTER (3 Nov 2026, owner order): the 6th arg is scanDepth ('quick' |
   // 'standard' | 'deep') for the autonomous hunter — the New Hunt dialog
-  // passes it positionally. forceNew / fresh stay 7th / 8th.
-  async function handleStartHunt(target, scope, mode, confirmed, brainMode = 'ai', scanDepth = 'standard', scanScope = 'page', forceNew = false, fresh = false) {
+  // passes it positionally. forceNew / fresh stay 9th / 10th.
+  // RUN MODE (15 Nov 2026, Link → Report): the 8th arg is runMode
+  // ('standard' | 'link-to-report') — the dialog passes it positionally
+  // after scanScope; a link-to-report run forces brainMode 'scanner'
+  // in the modal itself, so this handler just carries it through.
+  async function handleStartHunt(target, scope, mode, confirmed, brainMode = 'ai', scanDepth = 'standard', scanScope = 'page', runMode = 'standard', forceNew = false, fresh = false) {
     if (!ensureHuntAuth()) return;
     // Dedup: if a hunt already exists for this target AND brain mode, go to
     // its chat instead of creating a duplicate. (The backend enforces the
@@ -315,14 +319,14 @@ export default function ChatPage({
               brainMode: modeOf(existing),
               state: stateOf(existing),
             },
-            pending: { target, scope, mode, confirmed, brainMode, scanDepth, scanScope },
+            pending: { target, scope, mode, confirmed, brainMode, scanDepth, scanScope, runMode },
           });
           return;
         }
       } catch { /* best-effort, proceed to create */ }
     }
     setLaunching(true);
-    const res = await startHunt(target, scope, mode, confirmed, brainMode, scanDepth, scanScope, forceNew, fresh);
+    const res = await startHunt(target, scope, mode, confirmed, brainMode, scanDepth, scanScope, forceNew, fresh, runMode);
     setLaunching(false);
     if (!res.ok || !res.data.huntId) {
       if (res.status === 401 || res.error === 'auth_required') {
@@ -351,7 +355,7 @@ export default function ChatPage({
           brainMode: brainMode === 'scanner' ? 'scanner' : 'ai',
           state: String(res.data.state || 'unknown'),
         },
-        pending: { target, scope, mode, confirmed, brainMode, scanDepth, scanScope },
+        pending: { target, scope, mode, confirmed, brainMode, scanDepth, scanScope, runMode },
       });
       return;
     }
@@ -372,6 +376,9 @@ export default function ChatPage({
       // SCAN SCOPE (9 Nov 2026, /* owner order): re-run / fresh
       // inherit the scope — a whole-site hunt re-runs whole-site.
       scanScope: res.data.scanScope || scanScope || 'page',
+      // RUN MODE (15 Nov 2026, Link → Report): re-run / fresh inherit
+      // the run mode — a link-to-report hunt re-runs the ordered flow.
+      runMode: res.data.runMode || runMode || 'standard',
       status: 'idle',
       logs: [],
       findings: [],
@@ -409,6 +416,7 @@ export default function ChatPage({
       await resolveHuntBrainMode(hunt),
       await resolveHuntScanDepth(hunt),
       await resolveHuntScanScope(hunt),
+      await resolveHuntRunMode(hunt),
       true,
     );
   }
@@ -432,6 +440,7 @@ export default function ChatPage({
       await resolveHuntBrainMode(hunt),
       await resolveHuntScanDepth(hunt),
       await resolveHuntScanScope(hunt),
+      await resolveHuntRunMode(hunt),
       false,
       true,
     );
@@ -521,7 +530,7 @@ export default function ChatPage({
           const p = duplicateHunt && duplicateHunt.pending;
           if (!p) return;
           setDuplicateHunt(null);
-          await handleStartHunt(p.target, p.scope, p.mode, p.confirmed, p.brainMode, p.scanDepth, p.scanScope, true);
+          await handleStartHunt(p.target, p.scope, p.mode, p.confirmed, p.brainMode, p.scanDepth, p.scanScope, p.runMode || 'standard', true);
         }}
       />
       {voiceOpen && (

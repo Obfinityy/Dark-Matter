@@ -3,6 +3,15 @@
 // vulnerability scanner (no AI, no API spend) and records findings as hunt
 // events, instead of launching the AI agent loop.
 import { runScan, buildPhaseRollup, buildPhaseSummaryLine } from './scanner/index.js';
+import {
+  OWASP_STAGES,
+  STAGE_TABLE_VERSION,
+  LINK_TO_REPORT_RUN_MODE,
+  orderedPhases,
+  stageOfPhase,
+  stageByCode,
+  buildStageRecords,
+} from './scanner/owaspStages.js';
 import { normalizeScanScope, siteMaxUrls } from './scanner/crawl.js';
 import { buildBehaviourBundleFromScan } from './scanner/behaviourBundle.js';
 import { NUCLEI_TIMEOUT_MS } from './scanner/nuclei.js';
@@ -59,18 +68,37 @@ async function drainNextQueuedHunt(opts) {
  * Run the rule-based scanner for a hunt.
  * @param {string} huntId
  * @param {string} target
- * @param {object} opts - { scope, userId, scanDepth, scanScope }
+ * @param {object} opts - { scope, userId, scanDepth, scanScope, runMode }
  *
  * scanDepth (3 Nov 2026, owner order): 'quick' | 'standard' | 'deep'.
  * Every depth runs the full predefined battery — depth only changes how
  * far the crawler goes and how long each probe may take.
- */
+ *
+ * runMode 'link-to-report' (15 Nov 2026, owner order): the
+ * Link → Recon → A01..A10 → Report flow. Forces brainMode 'scanner'
+ * (this lane never launches AI — the route rejects the ai combo with
+ * 400 before this is reached), runs the full 159-phase battery in
+ * OWASP stage order regardless of scanDepth, records runMode + the
+ * stage table version in hunt meta, passes opts.owaspStages to
+ * runScan, and emits stage_started / stage_finished events.
+ * opts.nucleiRunner is a test seam only (same pattern as
+ * opts.teardownContainer); production callers never pass it.
 /**
  * Build the two hunt events recorded per scanner finding (3 Nov 2026).
  * Pure — exported for unit tests. The raw `scanner_finding` record carries
  * the machine-readable payload; the standard `finding` event carries the
  * product surface fields (verified only when the differential verifier
  * confirmed it, so the 100% truth rule holds for the panel/report/chat).
+ *
+ * PHASE CARRY-THROUGH (15 Nov 2026, Lane A2): runScan tags every finding
+ * with its producing phase name when owaspStages is enabled, and the
+ * report attributes findings to OWASP stages ONLY via
+ * `scanner_finding.finding.phase` (report.js buildOwaspReportSections).
+ * Both records below copy `f.phase` through — null when absent, never
+ * invented — so a phase-tagged finding lands in its stage section and a
+ * phaseless one falls through to the unattributed list instead of
+ * vanishing. Without this the Link → Report stage sections were empty
+ * even on a 28-finding lab run.
  */
 export function buildScannerFindingRecords(f) {
   const ev = (f && f.evidence) || {};
@@ -98,6 +126,10 @@ export function buildScannerFindingRecords(f) {
         param: (f && f.param) || null,
         evidence: (f && f.evidence) || null,
         confirmation: (f && f.confirmation) || 'confirmed',
+        // PHASE (Lane A2): the producing phase name runScan tagged
+        // (scanner/index.js tagPhase) — the report's ONLY attribution
+        // key. Null when absent: never invent a phase.
+        phase: (f && f.phase) || null,
       },
     },
     {
@@ -111,6 +143,11 @@ export function buildScannerFindingRecords(f) {
       url: (f && f.url) || null,
       class: (f && f.class) || null,
       source: 'scanner',
+      // PHASE (Lane A2): same carry-through on the product-surface
+      // event — panelFindings ignores unknown fields, so this is
+      // harmless today and lets future consumers attribute by phase
+      // without re-reading the raw record.
+      phase: (f && f.phase) || null,
     },
   ];
 }
@@ -152,11 +189,16 @@ async function runScannerHuntInner(huntId, target, opts = {}) {
   const scanScope = normalizeScanScope(opts.scanScope);
   const maxUrls = scanScope === 'site' ? siteMaxUrls(scanDepth)
     : scanDepth === 'quick' ? 8 : scanDepth === 'deep' ? 40 : 15;
+  // LINK-TO-REPORT (15 Nov 2026): runMode 'link-to-report' runs the
+  // full ordered 159-phase battery (REC → A01..A10 → Additional) no
+  // matter the scanDepth — the quick subset must never silently
+  // narrow an ordered run. Depth still sets timeouts / crawl budget.
+  const isLinkToReport = opts.runMode === LINK_TO_REPORT_RUN_MODE;
   // Depth → real runScan knobs. Quick trims the slowest phases (blind
   // SQLi / nuclei) and the crawl budget; deep widens both. Standard is
   // the full battery at the default budget.
   const depthOpts =
-    scanDepth === 'quick'
+    scanDepth === 'quick' && !isLinkToReport
       ? {
           timeoutMs: 8000,
           maxUrls,
@@ -171,9 +213,12 @@ async function runScannerHuntInner(huntId, target, opts = {}) {
   record(huntId, {
     type: 'status',
     state: 'scanner_started',
-    message: `Rule-based automation scan started (no AI) — depth: ${scanDepth}.${scanScope === 'site' ? ' Whole-site (/*) crawl.' : ''}`,
+    message: isLinkToReport
+      ? `Rule-based automation scan started (no AI) — Link → Report: recon, then OWASP Top 10 2021 A01..A10 in order, then report. Depth: ${scanDepth}.${scanScope === 'site' ? ' Whole-site (/*) crawl.' : ''}`
+      : `Rule-based automation scan started (no AI) — depth: ${scanDepth}.${scanScope === 'site' ? ' Whole-site (/*) crawl.' : ''}`,
     scanDepth,
     scanScope,
+    ...(isLinkToReport ? { runMode: LINK_TO_REPORT_RUN_MODE, owaspStagesVersion: STAGE_TABLE_VERSION } : {}),
   });
 
   // Mark the hunt as running in scanner mode.
@@ -185,10 +230,57 @@ async function runScannerHuntInner(huntId, target, opts = {}) {
       brainMode: 'scanner',
       state: 'running',
       scannerStartedAt: startedAt,
+      // LINK-TO-REPORT (15 Nov 2026): the run mode + the stage
+      // table version + the full stage table live on the meta, so
+      // the report can render OWASP sections from the hunt alone
+      // even if the code's table changes later.
+      ...(isLinkToReport
+        ? {
+            runMode: LINK_TO_REPORT_RUN_MODE,
+            owaspStages: { version: STAGE_TABLE_VERSION, stages: OWASP_STAGES },
+          }
+        : {}),
     });
   } catch {
     // best-effort
   }
+
+  // LINK-TO-REPORT STAGE EVENTS (15 Nov 2026): runScan streams one
+  // phase record per executed step via onPhase (below), in the
+  // scan's own execution order — which is NOT stage order (runScan
+  // treats `phases` as an allowlist; the setup chain + parallel
+  // probe plan keep their own order). So stage_started fires live,
+  // on the first phase record of a stage, in execution order;
+  // stage_finished is emitted once, after the scan, from runScan's
+  // stageRecords, in stage order with final counts — a live
+  // stage_finished would go stale as per-URL repeats of the same
+  // stage's phases keep arriving. The post-scan sweep below also
+  // backfills a stage_started for any stage that never fired live
+  // (e.g. a stage whose phases produced no record at all), so every
+  // ordered run ends with exactly one started + one finished event
+  // per stage.
+  const stageStarted = new Set();
+  const emitStageStarted = (code) => {
+    if (stageStarted.has(code)) return;
+    stageStarted.add(code);
+    const stage = stageByCode(code);
+    record(huntId, { type: 'stage_started', stage: code, title: stage ? stage.title : code });
+  };
+  const emitStageFinished = (stageRecord) => {
+    record(huntId, {
+      type: 'stage_finished',
+      stage: stageRecord.code,
+      title: stageRecord.title,
+      phasesTotal: stageRecord.phasesTotal,
+      phasesRun: stageRecord.phasesRun,
+      phasesFailed: stageRecord.phasesFailed,
+      phasesSkipped: stageRecord.phasesSkipped,
+      phasesNotRun: stageRecord.phasesNotRun,
+      confirmed: stageRecord.confirmed,
+      unconfirmed: stageRecord.unconfirmed,
+      findingsCount: stageRecord.findingsCount,
+    });
+  };
 
   try {
     const result = await runScan(
@@ -201,12 +293,20 @@ async function runScannerHuntInner(huntId, target, opts = {}) {
         // SSRF lab exception). runScan gates its write/OOB behaviour on
         // it — without this the SAML-XXE OOB collaborator never starts.
         labTargets: process.env.LAB_TARGETS || '',
-        ...(depthOpts.phases ? { phases: depthOpts.phases } : {}),
+        ...(isLinkToReport
+          ? { phases: orderedPhases() }
+          : depthOpts.phases ? { phases: depthOpts.phases } : {}),
       },
       {
         timeoutMs: depthOpts.timeoutMs,
         maxUrls: depthOpts.maxUrls,
         scanScope,
+        // LINK-TO-REPORT (15 Nov 2026): per-stage records in the
+        // runScan result (stageRecords) + phase-tagged findings.
+        ...(isLinkToReport ? { owaspStages: OWASP_STAGES } : {}),
+        // Test seam only (see header): lets unit tests run an
+        // ordered hunt without spawning docker/nuclei.
+        ...(typeof opts.nucleiRunner === 'function' ? { nucleiRunner: opts.nucleiRunner } : {}),
         // Nuclei phase gets its own dedicated timeout (NUCLEI_TIMEOUT_MS,
         // 600s — raised from 300s 6 Nov 2026 after lab re-validation
         // measured 304–319s phases and VAmPI's main pass timing out at
@@ -222,10 +322,32 @@ async function runScannerHuntInner(huntId, target, opts = {}) {
         // events.jsonl as it finishes, so a minutes-long nuclei phase does
         // not wait until scan end to appear. record() is best-effort (never throws)
         // and runScan wraps the listener in try/catch, so a listener
-        // failure can never break the scan.
-        onPhase: (phase) => record(huntId, { type: 'phase', ...phase }),
+        // failure can never break the scan. In link-to-report mode the
+        // same stream drives the live stage_started events (see above).
+        onPhase: (phase) => {
+          record(huntId, { type: 'phase', ...phase });
+          if (isLinkToReport && phase && phase.name) {
+            const code = stageOfPhase(phase.name);
+            if (code) emitStageStarted(code);
+          }
+        },
       }
     );
+
+    // LINK-TO-REPORT STAGE FINISH (15 Nov 2026): one stage_finished
+    // event per stage, in stage order, from runScan's stageRecords
+    // (final counts — see the header comment above). Backfills a
+    // stage_started for any stage that never fired live.
+    const stageRecords = isLinkToReport
+      ? (result.stageRecords ||
+          buildStageRecords(result.phases || [], [...(result.findings || []), ...(result.unconfirmed || [])]))
+      : [];
+    if (isLinkToReport) {
+      for (const sr of stageRecords) {
+        emitStageStarted(sr.code);
+        emitStageFinished(sr);
+      }
+    }
 
     // Record each confirmed finding as a hunt event.
     //
@@ -287,6 +409,10 @@ async function runScannerHuntInner(huntId, target, opts = {}) {
         findingsByRoute: result.findingsByRoute || {},
         durationMs: result.durationMs || null,
         phases: phaseRollup,
+        // LINK-TO-REPORT (15 Nov 2026): per-stage rollup in the
+        // finished summary so the panel/report can show stage
+        // coverage without re-reading the phase events.
+        ...(isLinkToReport ? { stages: stageRecords, owaspStagesVersion: STAGE_TABLE_VERSION } : {}),
       },
     });
 
@@ -460,6 +586,9 @@ export async function resumeInterruptedScannerHunt(huntId, opts = {}) {
     scope: meta.scope ?? null,
     userId: meta.userId || null,
     scanDepth: meta.scanDepth || 'standard',
+    // LINK-TO-REPORT (15 Nov 2026): a resumed ordered run stays
+    // ordered — the run mode is part of the hunt, not the call.
+    ...(meta.runMode ? { runMode: meta.runMode } : {}),
   }).catch((err) => {
     record(huntId, {
       type: 'status',

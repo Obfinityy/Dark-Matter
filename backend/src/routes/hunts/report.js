@@ -19,8 +19,205 @@ import { getHuntCost, getUserCosts } from '../../costTracker.js';
 import { teardownHuntContainer, huntDesktopScreenshot } from '../../huntRunner.js';
 import { engineErrorResponse, mapListHunt, normalizeHuntCreate, pickExistingHunt, requireHuntOwner } from './helpers.js';
 import { createLogger } from '../../logger.js';
+import {
+  OWASP_STAGES,
+  STAGE_TABLE_VERSION,
+  GO_SHEET_TO_OWASP,
+  MCP_BLOCKED_REASON,
+  AI_BLOCKED_REASON,
+  stageOfPhase,
+} from '../../scanner/owaspStages.js';
+import { CHECKS } from '../../self/checklist.js';
 
 const log = createLogger('hunts');
+
+// LINK-TO-REPORT OWASP SECTIONS (15 Nov 2026, design §3.3).
+//
+// When the hunt meta carries owaspStages (a Link → Report run), the
+// report gains one section per stage in stage order (REC, A01..A10,
+// Additional) plus a Coverage honesty section. Each stage section
+// shows its phases' run/skip/fail state (from the streamed phase
+// records — the live truth, never the phase list), the findings
+// attributed to the stage, and the Self-checklist checks that did
+// NOT run in that stage (GAP / GAP-partial / AI-blocked /
+// MCP-blocked, with the missing leg named). Nothing is ever rendered
+// as passed unless a phase actually ran it.
+//
+// Finding → stage attribution comes from the `scanner_finding`
+// events: runScan tags every finding with its producing phase name
+// when owaspStages is enabled, and stageOfPhase maps it. A finding
+// row with no tagged stamp (pre-table run, or an AI-hunt row) is
+// listed under Coverage honesty as unattributed, never silently
+// dropped and never guessed into a stage.
+//
+// The existing ## Findings / Tool activity / Status timeline
+// sections are untouched: the OWASP block is appended after
+// ## Findings, and a hunt without meta.owaspStages renders exactly
+// as before (buildReportMarkdown calls this only when the meta
+// carries the table).
+function buildOwaspReportSections({ meta, events, rows, confirmedRows, leadRows, genuineByTitle, anyByTitle }) {
+  const lines = [];
+  const stagesMeta = (meta && meta.owaspStages) || {};
+  const version = stagesMeta.version || STAGE_TABLE_VERSION;
+  lines.push('## OWASP Top 10 2021 — Link → Report');
+  lines.push('');
+  lines.push(`Run mode: Link → Report — recon first, then OWASP Top 10 2021 A01..A10 in order, then Additional. Stage table v${version}. Full evidence for each finding is in ## Findings above; this section groups them by stage and names what did not run.`);
+  lines.push('');
+
+  // Phase records, aggregated per phase NAME (the param battery
+  // repeats a phase name per URL — counting raw records would
+  // inflate the stage totals).
+  const phaseByName = new Map();
+  for (const e of events || []) {
+    if (!e || e.type !== 'phase' || !e.name) continue;
+    if (!phaseByName.has(e.name)) phaseByName.set(e.name, []);
+    phaseByName.get(e.name).push(e);
+  }
+  const phaseStatus = (name) => {
+    const list = phaseByName.get(name);
+    if (!list || !list.length) return 'not-run';
+    if (list.some((p) => !p.ok && !p.skipped)) return 'failed';
+    if (list.every((p) => p.skipped)) return 'skipped';
+    return 'ok';
+  };
+  const phaseFindingsCount = (name) => {
+    const list = phaseByName.get(name) || [];
+    return list.reduce((n, p) => n + (Number(p.findingsCount) || 0), 0);
+  };
+
+  // Finding title → stage, from the tagged scanner_finding stamps.
+  const stageByTitle = new Map();
+  for (const e of events || []) {
+    if (!e || e.type !== 'scanner_finding' || !e.finding) continue;
+    const f = e.finding;
+    if (!f.title || !f.phase) continue;
+    const code = stageOfPhase(f.phase);
+    if (!code) continue;
+    const key = normTitle(f.title);
+    if (key && !stageByTitle.has(key)) stageByTitle.set(key, code);
+  }
+  const rowsOfStage = (code, list) =>
+    list.filter((r) => stageByTitle.get(normTitle(r.title)) === code);
+  const unattributed = rows.filter((r) => !stageByTitle.has(normTitle(r.title)));
+
+  // Self-checklist checks, grouped by OWASP stage via the Go-sheet
+  // bridge. LIVE checks are covered by the scanner battery and are
+  // not listed per stage (their count is in Coverage honesty);
+  // everything else is honestly not-run.
+  const notRunByStage = new Map();
+  for (const c of CHECKS) {
+    const code = GO_SHEET_TO_OWASP[c.category];
+    if (!code) continue;
+    if (c.coverage === 'LIVE' && c.kind !== 'ai') continue;
+    if (!notRunByStage.has(code)) notRunByStage.set(code, []);
+    notRunByStage.get(code).push(c);
+  }
+  const notRunReason = (c) => {
+    if (c.kind === 'ai') return `blocked — needs AI executor (${AI_BLOCKED_REASON})`;
+    if (c.coverage === 'GAP') return 'not run — no scanner leg exists (GAP)';
+    return 'not run — partial leg only; judgment leg deferred (GAP-partial)';
+  };
+
+  for (const stage of OWASP_STAGES) {
+    const names = stage.phases || [];
+    const counts = { ok: 0, failed: 0, skipped: 0, 'not-run': 0 };
+    let stageFindingsReported = 0;
+    for (const n of names) {
+      counts[phaseStatus(n)] += 1;
+      stageFindingsReported += phaseFindingsCount(n);
+    }
+    const confirmed = rowsOfStage(stage.code, confirmedRows);
+    const leads = rowsOfStage(stage.code, leadRows);
+    lines.push(`## ${stage.code} — ${stage.title}`);
+    lines.push('');
+    if (stage.note) lines.push(`_${stage.note}_`, '');
+    lines.push(`- **Phases:** ${names.length} in stage — ${counts.ok} ran ok, ${counts.failed} failed, ${counts.skipped} skipped, ${counts['not-run']} not run yet. Phases reported ${stageFindingsReported} finding(s) in total (before verification dedup).`);
+    lines.push('');
+    if (!confirmed.length && !leads.length) {
+      lines.push('_No findings recorded in this stage yet._');
+      lines.push('');
+    } else {
+      if (confirmed.length) {
+        lines.push('### Confirmed vulnerabilities');
+        lines.push('');
+        for (const r of confirmed) {
+          const sev = String(r.severity || 'info');
+          const stamp = genuineByTitle.get(normTitle(r.title)) || {};
+          lines.push(`#### [${sev.toUpperCase()}] ${r.title}`);
+          if (r.verification) lines.push('', `**Verification:** ${r.verification}`);
+          if (r.detail) lines.push('', String(r.detail));
+          const url = stamp.url || r.url;
+          if (url) lines.push('', `**URL:** ${url}`);
+          lines.push('');
+        }
+      }
+      if (leads.length) {
+        lines.push('### Leads under investigation');
+        lines.push('');
+        for (const r of leads) {
+          const sev = String(r.severity || 'info');
+          const stamp = anyByTitle.get(normTitle(r.title)) || {};
+          const url = stamp.url || r.url;
+          lines.push(`- **[${sev.toUpperCase()}] ${r.title}** — under investigation (not confirmed).${url ? ` ${url}` : ''}`);
+        }
+        lines.push('');
+      }
+    }
+    // MCP-blocked leg: the mcp-tool-poisoning phase lives in
+    // Additional and is blocked by owner decision, never run.
+    if (stage.code === 'Additional') {
+      lines.push(`- **Blocked — MCP:** \`mcp-tool-poisoning\` — ${MCP_BLOCKED_REASON}. Never run, never faked as passed.`);
+      lines.push('');
+    }
+    // Checks not run in this stage (Self checklist coverage).
+    const notRun = notRunByStage.get(stage.code) || [];
+    lines.push('### Checks not run');
+    lines.push('');
+    if (!notRun.length) {
+      lines.push('_All Self-checklist checks for this stage are LIVE-covered._');
+    } else {
+      const groups = [
+        ['AI-blocked', notRun.filter((c) => c.kind === 'ai')],
+        ['GAP', notRun.filter((c) => c.kind !== 'ai' && c.coverage === 'GAP')],
+        ['GAP-partial', notRun.filter((c) => c.kind !== 'ai' && c.coverage === 'GAP-partial')],
+      ];
+      for (const [label, list] of groups) {
+        if (!list.length) continue;
+        lines.push(`- **${label} (${list.length}):**`);
+        for (const c of list) lines.push(`  - ${c.name} (${c.id}) — ${notRunReason(c)}`);
+      }
+    }
+    lines.push('');
+  }
+
+  // Coverage honesty (design §3.3): counts only, no invented passes.
+  const totalRecords = [...phaseByName.values()].flat();
+  const phaseTotals = {
+    total: totalRecords.length,
+    ok: totalRecords.filter((p) => p.ok && !p.skipped).length,
+    failed: totalRecords.filter((p) => !p.ok && !p.skipped).length,
+    skipped: totalRecords.filter((p) => p.skipped).length,
+    timedOut: totalRecords.filter((p) => p.timedOut).length,
+  };
+  const checkTotals = {
+    live: CHECKS.filter((c) => c.coverage === 'LIVE' && c.kind !== 'ai').length,
+    gapPartial: CHECKS.filter((c) => c.coverage === 'GAP-partial' && c.kind !== 'ai').length,
+    gap: CHECKS.filter((c) => c.coverage === 'GAP' && c.kind !== 'ai').length,
+    ai: CHECKS.filter((c) => c.kind === 'ai').length,
+  };
+  const tablePhases = OWASP_STAGES.flatMap((s) => s.phases || []);
+  const notRunPhases = tablePhases.filter((n) => !phaseByName.has(n)).length;
+  lines.push('## Coverage honesty');
+  lines.push('');
+  lines.push(`- **Phases:** ${phaseTotals.total} phase records — ${phaseTotals.ok} ran ok, ${phaseTotals.failed} failed, ${phaseTotals.skipped} skipped, ${phaseTotals.timedOut} timed out. ${notRunPhases} of ${tablePhases.length} table phases have no record yet.`);
+  lines.push(`- **Self checklist (${CHECKS.length} checks):** ${checkTotals.live} LIVE-covered, ${checkTotals.gapPartial} GAP-partial (partial leg only), ${checkTotals.gap} GAP (no scanner leg), ${checkTotals.ai} AI-blocked (need the AI executor — never run, never faked). MCP-blocked: 1 (\`mcp-tool-poisoning\`).`);
+  lines.push('- **No invented passes:** a check or phase listed above as not run, blocked, or skipped is not a pass. A stage with zero findings means the phases that ran found nothing — not that every check passed.');
+  if (unattributed.length) {
+    lines.push(`- **Findings without a stage (${unattributed.length}):** ${unattributed.map((r) => r.title).join('; ')} — no phase-tagged stamp exists for these titles, so they are not attributed to any stage above.`);
+  }
+  lines.push('');
+  return lines;
+}
 
 
 export function buildReportMarkdown({ huntId, meta, events }) {
@@ -69,6 +266,15 @@ export function buildReportMarkdown({ huntId, meta, events }) {
     if (finished && finished.summary && finished.summary.routesScanned) {
       lines.push(`- **Routes scanned:** ${finished.summary.routesScanned}`);
     }
+  }
+  // LINK-TO-REPORT (15 Nov 2026): the run mode + stage table version
+  // are header facts, so a reader can tell an ordered OWASP run
+  // from a legacy hunt at a glance. Legacy metas carry no key and
+  // render no line here.
+  if (meta && meta.owaspStages) {
+    const stagesMeta = meta.owaspStages || {};
+    lines.push(`- **Run mode:** Link → Report — recon, then OWASP Top 10 2021 A01..A10 in order`);
+    lines.push(`- **Stage table:** v${stagesMeta.version || STAGE_TABLE_VERSION}`);
   }
   lines.push(`- **Latest status:** ${lastStatus ? (lastStatus.state || JSON.stringify(lastStatus)) : 'n/a'}`);
   lines.push(`- **Events cached:** ${events.length} (${thinking.length} thinking, ${toolCalls.length} tool calls, ${rows.length} unique findings: ${confirmedRows.length} confirmed, ${leadRows.length} under investigation)`);
@@ -158,6 +364,13 @@ export function buildReportMarkdown({ huntId, meta, events }) {
       }
       lines.push('');
     }
+  }
+  // LINK-TO-REPORT (15 Nov 2026, design §3.3): when the hunt meta
+  // carries owaspStages, the report gains the per-stage OWASP
+  // sections + Coverage honesty after ## Findings. When absent, this
+  // block is skipped and the report renders exactly as before.
+  if (meta && meta.owaspStages) {
+    lines.push(...buildOwaspReportSections({ meta, events, rows, confirmedRows, leadRows, genuineByTitle, anyByTitle }));
   }
   lines.push('## Tool activity');
   lines.push('');

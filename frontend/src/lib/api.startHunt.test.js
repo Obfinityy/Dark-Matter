@@ -56,11 +56,23 @@ test('Re-run payload: scanner + deep + forceNew reach the backend verbatim', asy
   assert.equal(res.data.reused, false);
 });
 
+test('Link → Report payload: scanner + runMode link-to-report reach the backend verbatim', async () => {
+  const res = await startHunt('https://tinyx.co/', '', 'infinity', true, 'scanner', 'standard', 'site', false, false, 'link-to-report');
+  assert.equal(lastCall.url, 'https://api.thebhavesh.online/api/v1/hunts');
+  assert.equal(lastCall.method, 'POST');
+  assert.equal(lastCall.body.brainMode, 'scanner');
+  assert.equal(lastCall.body.runMode, 'link-to-report');
+  assert.equal(lastCall.body.scanScope, 'site');
+  assert.equal(res.ok, true);
+  assert.equal(res.data.runMode, 'link-to-report');
+});
+
 test('defaults: no brainMode/scanDepth args -> ai + standard, no bypass flags', async () => {
   await startHunt('http://example.com/', '', 'infinity', true);
   assert.equal(lastCall.body.brainMode, 'ai');
   assert.equal(lastCall.body.scanDepth, 'standard');
   assert.equal(lastCall.body.scanScope, 'page');
+  assert.equal(lastCall.body.runMode, 'standard');
   assert.equal('forceNew' in lastCall.body, false);
   assert.equal('fresh' in lastCall.body, false);
 });

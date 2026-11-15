@@ -147,11 +147,13 @@ export function isTargetAllowed(target) {
 // PURE HELPERS (5 Nov 2026, Re-run brainMode fix) — exported for tests.
 //
 // normalizeHuntCreate: the create handler's brainMode/scanDepth/
-// scanScope rules in one place — 'scanner' stays scanner, anything
+// scanScope/runMode rules in one place — 'scanner' stays scanner, anything
 // else (incl. omitted) is 'ai'; scanDepth is quick/standard/deep,
 // anything else is 'standard'; scanScope is 'site' (/* whole-site
-// crawl) or 'page' (default — one page deep). The frontend's Re-run /
-// Start-from-scratch sends the source hunt's values; the backend
+// crawl) or 'page' (default — one page deep); runMode is
+// 'link-to-report' or null (15 Nov 2026, Link → Report flow —
+// anything else, incl. omitted, is null, i.e. the legacy flow).
+// The frontend's Re-run / Start-from-scratch sends the source hunt's values; the backend
 // honours them verbatim here (stored on the meta and echoed in the
 // 201 response).
 
@@ -168,7 +170,24 @@ export function normalizeHuntCreate(body) {
       ? body.scanDepth
       : 'standard';
   const scanScope = body && body.scanScope === 'site' ? 'site' : 'page';
-  return { brainMode, scanDepth, scanScope };
+  // LINK-TO-REPORT (15 Nov 2026): only the exact value passes
+  // through; everything else is the legacy flow (null). The route
+  // rejects the link-to-report + ai combination with 400 — see
+  // create.js — because the ordered flow never runs the AI brain
+  // (zero-Meta-spend order).
+  const runMode = body && body.runMode === 'link-to-report' ? 'link-to-report' : null;
+  return { brainMode, scanDepth, scanScope, runMode };
+}
+
+/**
+ * Whether a (normalized brainMode, runMode) pair may start a hunt.
+ * The ordered Link → Report flow is scanner-only: 'link-to-report'
+ * with brainMode 'ai' is rejected (400 invalid_run_mode). Every
+ * other combination is allowed. Pure — exported for unit tests.
+ */
+export function isValidRunModeForBrainMode(brainMode, runMode) {
+  if (runMode === 'link-to-report' && brainMode !== 'scanner') return false;
+  return true;
 }
 
 export function mapListHunt(m) {

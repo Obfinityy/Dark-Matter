@@ -176,6 +176,7 @@ import { probeSensitiveCache } from './probes/sensitiveCache.js';
 import { probeMissingAuth } from './probes/missingAuth.js';
 import { runNuclei, nucleiPhaseFields } from './nuclei.js';
 import { verifyFindings } from './verifier.js';
+import { OWASP_STAGES, STAGE_TABLE_VERSION, buildStageRecords } from './owaspStages.js';
 
 export const DEFAULT_PHASES = [
   'fingerprint',
@@ -521,6 +522,25 @@ async function runScanInner(
   let fp = null;
   let crawled = null;
 
+  // OWASP STAGES (15 Nov 2026, link-to-report flow): when
+  // opts.owaspStages is set (truthy, or the stage table itself),
+  // runScan ALSO emits per-stage records (stageRecords) alongside
+  // phaseRecords, and tags every finding object with its producing
+  // phase name so findings can be grouped by stage downstream
+  // (report, hunt stage events). Off by default: no existing caller
+  // sees a new field, no finding object is mutated, and the phase
+  // order / param battery / skip semantics are untouched.
+  const owaspStagesArg = opts && opts.owaspStages;
+  const stagesEnabled = Boolean(owaspStagesArg);
+  const owaspStagesTable =
+    Array.isArray(owaspStagesArg) && owaspStagesArg.length ? owaspStagesArg : OWASP_STAGES;
+  const tagPhase = (result, name) => {
+    if (!stagesEnabled || !Array.isArray(result)) return;
+    for (const f of result) {
+      if (f && typeof f === 'object' && !f.phase) f.phase = name;
+    }
+  };
+
   // PHASE VISIBILITY (5 Nov 2026): every executed step records one phase
   // record — name, timing, ok/error, findings count — into `phaseRecords`
   // (returned by runScan) and, when opts.onPhase is set, streams it to the
@@ -589,6 +609,7 @@ async function runScanInner(
   const step = async (name, fn, getExtras) => {
     if (!phases.includes(name)) return;
     const { result, record, error } = await executeStepBody(name, fn, getExtras);
+    tagPhase(result, name);
     if (Array.isArray(result)) all.push(...result);
     if (error) errors.push(`${name}: ${error}`);
     emitPhase(record);
@@ -4230,6 +4251,7 @@ async function runScanInner(
     onSettled: (outcome) => {
       const value = outcome.value;
       if (value && value.record) {
+        tagPhase(value.result, outcome.name);
         if (Array.isArray(value.result)) all.push(...value.result);
         if (value.error) errors.push(`${outcome.name}: ${value.error}`);
         emitPhase(value.record);
@@ -4287,5 +4309,16 @@ async function runScanInner(
     unconfirmed,
     errors,
     phases: phaseRecords,
+    // OWASP STAGES (15 Nov 2026, link-to-report flow): per-stage
+    // records alongside phaseRecords, only when opts.owaspStages
+    // was set. Findings were tagged with their phase at merge time
+    // above, so buildStageRecords can count confirmed/unconfirmed
+    // per stage from the same objects verifyFindings returned.
+    ...(stagesEnabled
+      ? {
+          stageRecords: buildStageRecords(phaseRecords, [...confirmed, ...unconfirmed], owaspStagesTable),
+          owaspStagesVersion: STAGE_TABLE_VERSION,
+        }
+      : {}),
   };
 }
